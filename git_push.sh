@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 REMOTE_URL="https://github.com/xuda-ye-math/Detailed-Balance-Normalizing-Flow.git"
 
 # Wipe local history so force-push fully resets the remote
-rm -rf .git
+# rm -rf .git
 
 # Configure git identity for this repo
 git init
