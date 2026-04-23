@@ -1,0 +1,12 @@
+# Hidden files (except .gitignore)
+.*
+!.gitignore
+
+# Data / model checkpoints (any subfolder)
+*.pth
+*.pt
+
+# Python bytecode caches
+__pycache__/
+**/__pycache__/
+
