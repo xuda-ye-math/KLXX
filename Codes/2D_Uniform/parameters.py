@@ -15,7 +15,7 @@ N_TRAIN =  40000 # number of training samples
 N_VALID = 160000 # number of validation samples
 
 # available potentials
-potential_dict = {'HB': Himmelblau, 'AN': Annulus, 'TW': Three_Well, 'PW': Periodic_Well}
+potential_dict = {'HB': Himmelblau, 'AN': Annulus, 'TW': Three_Well, 'RB': Rosenbrock}
 
 # choice of target potential via command line
 parser = argparse.ArgumentParser()

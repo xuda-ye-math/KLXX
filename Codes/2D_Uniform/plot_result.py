@@ -24,12 +24,12 @@ y_rs  = resample(y,       log_w)
 bound = target.BOUND
 fig, axes = plt.subplots(1, 2, figsize=(10, 5))
 
-axes[0].scatter(x_rs[:, 0].numpy(), x_rs[:, 1].numpy(), s=0.5, c='red', alpha=0.3)
+axes[0].scatter(x_rs[:, 0].numpy(), x_rs[:, 1].numpy(), s=0.5, c='darkred', alpha=0.3)
 axes[0].set_title(r'target $\mu$')
 axes[0].set_xlim(-bound, bound); axes[0].set_ylim(-bound, bound)
 axes[0].set_aspect('equal')
 
-axes[1].scatter(y_rs[:, 0].numpy(), y_rs[:, 1].numpy(), s=0.5, c='blue', alpha=0.3)
+axes[1].scatter(y_rs[:, 0].numpy(), y_rs[:, 1].numpy(), s=0.5, c='darkblue', alpha=0.3)
 axes[1].set_title(r'mapped $F_{\#}\mu$')
 axes[1].set_xlim(-bound, bound); axes[1].set_ylim(-bound, bound)
 axes[1].set_aspect('equal')

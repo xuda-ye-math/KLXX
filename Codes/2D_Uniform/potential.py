@@ -1,4 +1,3 @@
-import math
 import torch
 
 class Potential:
@@ -33,7 +32,6 @@ class Uniform(Potential):
 
     def samples(self, N: int) -> torch.Tensor:
         return 2 * self.BOUND * torch.rand(N, 2) - self.BOUND
-
     
 class Himmelblau(Potential):
     """Himmelblau's function, a potential function with 4 wells.
@@ -64,7 +62,7 @@ class Annulus(Potential):
     Output:
         V: Tensor [N]
     """
-    BOUND = 4.0
+    BOUND = 3.0
 
     def __str__(self):
         return "Annulus"
@@ -100,29 +98,26 @@ class Three_Well(Potential):
         term3 = torch.sin(x1 + 2 * x2)
         return 3.0 * (term1 + term2 + term3)
     
-class Periodic_Well(Potential):
-    """Periodic_Well potential, a periodic potential with multiple wells.
+class Rosenbrock(Potential):
+    """Rosenbrock potential, a banana-shaped thin distribution
     Input:
         x: Tensor [N, 2]
     Output:
         V: Tensor [N]
     """
-    BOUND = math.pi
+    BOUND = 4.0
 
     def __str__(self):
-        return "Periodic Well"
+        return "Rosenbrock"
     
     def __repr__(self):
-        return "PW"
-
+        return "RB"
+    
     def __call__(self, x: torch.Tensor) -> torch.Tensor:
         x1 = x[:, 0]
         x2 = x[:, 1]
-        sin_2x1 = torch.sin(2 * x1)
-        sin_2x2 = torch.sin(2 * x2)
-        term_y = torch.sign(sin_2x2) * torch.abs(sin_2x2).pow(1.4)
-        return 4.0 * sin_2x1 * term_y
-    
+        return 2 * (x1 - 0.8) ** 2 + 200 * (x2 - 0.6 * x1 ** 2 + 3.5) ** 2
+
 if __name__ == "__main__":
     target = Himmelblau() # choose potential
     BOUND = target.BOUND # get bound
