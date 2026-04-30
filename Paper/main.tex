@@ -136,13 +136,13 @@ The loss function is chosen as the DB divergence $\DB(\mu_0\| F_{\#} \mu)$. The 
 \end{equation*}
 where $J_F(x) \in \mathbb R^{d\times d}$ is the Jacobian matrix of $F$ at $x$. Note that $(F_\#\mu)(y)$ depends on the variable $y = F(x)$ implicitly. For convenience, we define the log-likelihood ratio $\mathcal R_F$ as
 \begin{equation}\label{eq:log-ratio}
-    \mathcal R_F(x) = \log \frac{F_\#\mu(x)}{\mu_0(x)} + \mathrm{const} = U_0(F(x)) - U(x) - \log|\det J_F(x)|.
+    \mathcal R_F(x) = \log \frac{(F_\#\mu)(y)}{\mu_0(y)} + \mathrm{const} = U_0(F(x)) - U(x) - \log|\det J_F(x)|.
 \end{equation}
 The DB divergence can then be computed as
 \begin{equation*}
     \DB(\mu_0 \| F_{\#}\mu) = \int_{\mathbb R^d} \mu_0(y) \biggl|
-        \frac{(F_\#\mu)(y)}{\mu_0(y)}
-    \biggr| \D y = \int_{\mathbb R^d} e^{-U_0(y)} \big|\nabla_y (e^{\mathcal R_F(x)})\big|\D y = \int_{\mathbb R^d} e^{-U_0(x) + \mathcal L_F(x)} |\nabla_y \mathcal R_F(x)|\D y.
+        \nabla\biggl(\frac{(F_\#\mu)(y)}{\mu_0(y)}\biggr)
+    \biggr| \D y = \int_{\mathbb R^d} e^{-U_0(y)} \big|\nabla_y (e^{\mathcal R_F(x)})\big|\D y = \int_{\mathbb R^d} e^{-U_0(y) + \mathcal R_F(x)} |\nabla_y \mathcal R_F(x)|\D y.
 \end{equation*}
 Applying the change-of-variable formula with $y = F(x)$, we obtain
 \begin{equation}\label{eq:db-loss}
@@ -187,6 +187,31 @@ Substituting~\eqref{eq:fd-grad-U0} and~\eqref{eq:fd-inv-jac} into the expression
 With this approximation, the loss~\eqref{eq:db-loss} can be estimated by repeatedly sampling $x$ from the target distribution $\mu(x) \propto e^{-U(x)}$ and $v$ uniformly from the unit sphere $\mathbb S^{d-1}$.
 
 In particular, the loss~\eqref{eq:db-loss} does not depend on the normalizing constant of $\mu_0$, and thus allows a flexible choice of the prior distribution.
+
+\subsection{Alternate construction with the prior as the source}\label{sec:alt-loss}
+
+When the prior $\mu_0(x) \propto e^{-U_0(x)}$ is chosen close to the target $\mu(x) \propto e^{-U(x)}$, it is natural to train the flow map $F\colon \mathbb R^d \to \mathbb R^d$ in the conventional direction, so that $F_{\#}\mu_0 \approx \mu$, as in the standard energy-based normalizing flow. The pushforward density reads
+\begin{equation*}
+    (F_{\#}\mu_0)(y) = \frac{\mu_0(x)}{|\det J_F(x)|}, \quad y = F(x).
+\end{equation*}
+We adopt $\DB(\mu \| F_{\#}\mu_0)$ as the loss. The corresponding log-likelihood ratio is
+\begin{equation}\label{eq:log-ratio-alt}
+    \mathcal R_F(x) = \log \frac{(F_{\#}\mu_0)(y)}{\mu(y)} + \mathrm{const} = U(F(x)) - U_0(x) - \log|\det J_F(x)|,
+\end{equation}
+which differs from~\eqref{eq:log-ratio} only by interchanging the roles of $U$ and $U_0$. Repeating the change-of-variable argument that led to~\eqref{eq:db-loss} yields
+\begin{equation}\label{eq:db-loss-alt}
+    \DB(\mu\| F_{\#}\mu_0) = \int_{\mathbb R^d} \mu(y) \biggl|\nabla\biggl(\frac{(F_{\#}\mu_0)(y)}{\mu(y)}\biggr)\biggr| \D y = \int_{\mathbb R^d} \mu_0(x)\, |\nabla_y \mathcal R_F(x)|\,\D x.
+\end{equation}
+The right-hand integral is taken against the prior $\mu_0$, so the loss can be estimated by sampling directly from $\mu_0$, without requiring samples from the target $\mu$.
+
+The directional derivative of $\mathcal R_F$ admits the same finite-difference approximation as in~\eqref{eq:fd-combined}, with $U$ and $U_0$ swapped:
+\begin{align}\label{eq:fd-combined-alt}
+    v^\top \nabla_y \mathcal R_F(x) &\approx \frac{U(F(x) + \varepsilon v) - U(F(x) - \varepsilon v)}{2\varepsilon} \notag\\
+    &\quad - \biggl(\frac{F^{-1}(F(x) + \varepsilon v) - F^{-1}(F(x) - \varepsilon v)}{2\varepsilon}\biggr)^{\!\top} \Bigl(
+        \nabla U_0(x) + \nabla \big(\log|\det J_F(x)|\big)
+    \Bigr).
+\end{align}
+This yields a loss that uses no samples from the target. It is precisely the energy-based normalizing flow, with the DB divergence replacing the usual reverse KL: the loss is built from the score difference rather than the log-density ratio, and remains non-negative regardless of sampling bias.
 
 \subsection{Adaptive choice of prior distribution}
 

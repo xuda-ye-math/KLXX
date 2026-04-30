@@ -1,7 +1,7 @@
 # Fdb version 4
-["pdflatex"] 1776955162.29232 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1776955162.6223 0
+["pdflatex"] 1777568773.21811 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1777568773.54131 0
   "/etc/texmf/web2c/texmf.cnf" 1775878627.55493 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1776290031.05011 23294 5b34e4e7cb5978ede5687b0587d391db ""
+  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1777568772.98239 25503 712c01d4b6d48240879d2a84312a7109 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
@@ -177,9 +177,9 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1769369718 41603 27f93b3067076450172040dcd57ca8b3 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1775878648 5541477 3118940318599480888143717dd32d64 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1775878675 3640699 612ee66924a83b712dd4010beb2536d9 ""
-  "main.aux" 1776955162.58599 3065 c6371ca55d058fb3407b79bd07e11ad5 "pdflatex"
-  "main.out" 1776955162.58599 1935 2ff400c92b7819e880627aa6a4e65d8a "pdflatex"
-  "main.tex" 1776290031.05011 23294 5b34e4e7cb5978ede5687b0587d391db ""
+  "main.aux" 1777568773.50638 3643 79ebbbbeb40152c98ca99a3f86e35027 "pdflatex"
+  "main.out" 1777568773.50638 2269 5a69c96eb4316baa167993dbdb4799ff "pdflatex"
+  "main.tex" 1777568772.98239 25503 712c01d4b6d48240879d2a84312a7109 ""
   (generated)
   "main.aux"
   "main.log"
