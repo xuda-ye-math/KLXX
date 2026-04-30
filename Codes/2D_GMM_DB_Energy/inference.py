@@ -9,18 +9,13 @@ flow.eval()
 with torch.no_grad():
     flow_t = flow.t()
 
-    # draw y ~ mu_0 (source prior)
-    y = gmm.samples(N=N_VALID)  # [N, 2]
+    # direct importance sampling: y ~ mu_0, push forward x = F(y)
+    y = gmm.samples(N=N_VALID)                   # [N, 2]
+    x, ladj = flow_t.call_and_ladj(y)            # [N, 2], [N]
 
-    # x = F^{-1}(y)
-    x = flow_t.inv(y)
-    assert x is not None
+    # log w = log mu_0(y) - log F_# mu_0(x) + log mu(x)  =  gmm(y) + ladj - target(x)
+    log_weights = gmm(y) + ladj - target(x)      # [N]
 
-    # log-likelihood ratio R_F(x) = U_0(y) - U(x) - log|det J_F(x)|
-    _, ladj     = flow_t.call_and_ladj(x)
-    log_weights = gmm(y) - target(x) - ladj  # [N]
-
-    # effective sample size and normalized weights
     ess     = compute_ESS(log_weights)
     weights = torch.exp(log_weights - log_weights.max())
     weights = weights / weights.sum()

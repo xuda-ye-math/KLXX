@@ -7,7 +7,7 @@ from utilities import NSF
 BINS = 8 # number of bins for RQS transform
 HIDDEN_FEATURES = (64, 64) # hidden layer sizes
 TRANSFORMS = 4 # number of flow transforms
-LR = 2.5e-4 # learning rate
+LR = 1e-3 # learning rate
 BATCH = 4000 # batch size
 EPOCH = 400 # number of training epochs
 
