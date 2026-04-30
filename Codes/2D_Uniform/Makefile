@@ -19,7 +19,7 @@ run: check-env
 	fi; \
 	for name in $$TARGETS; do \
 		echo "=== Running $$name ==="; \
-		$(PYTHON) train.py --name $$name && \
+		$(PYTHON) train_flow.py --name $$name && \
 		$(PYTHON) inference.py --name $$name && \
 		$(PYTHON) plot_result.py --name $$name; \
 	done
