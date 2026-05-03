@@ -11,7 +11,6 @@
 \usepackage{xcolor}
 \definecolor{darkgreen}{rgb}{0.0,0.5,0.0}
 \usepackage[colorlinks,linkcolor=red,citecolor=darkgreen,urlcolor=blue]{hyperref}
-\usepackage[round,authoryear]{natbib}
 
 \newtheorem*{remark}{Remark}
 
@@ -26,7 +25,7 @@
 
 \theoremstyle{plain}
 
-\title{Detailed Balance Normalizing Flow for Generative Sampling}
+\title{Detailed Balance Normalizing Flow with Adaptive Prior}
 \author[1]{Qi Feng}
 \author[2]{Rongjie Lai}
 \author[2]{Xuda Ye}
@@ -40,7 +39,11 @@
 
 \section{Introduction}
 
-The normalizing flows based on the KL divergence \citep{rezende2015variational} have been widely applied in generative sampling. In the energy-based sampling based on physical potentials, the Boltzmann generator \cite{noe2019boltzmann}
+Sampling complex multi-modal distributions in high dimensions is a fundamental challenge in computational physics. The development of machine learning methods has enabled flow-based sampling as a strong alternative to classical Monte Carlo methods. At the inference stage, trained flows are capable of directly pushing particles from a simple base distribution to the target distribution, yielding samples that enjoy natural statistical independence and avoid discretization error.
+
+Normalizing flows trained with the KL divergence have been the dominant choice in flow-based sampling. The reverse KL is used for energy-based sampling, while the forward KL is used for generative sampling. However, the KL divergence is fragile in many cases, for example, missing some of the fine structure in complex distributions. Moreover, the trained flow is essentially a diffeomorphism; connecting two distributions with vastly different shapes will lead to severe deformation.
+
+In this paper, we mainly consider two approaches: replacing the standard KL divergence with the detailed balance divergence, and combining it with an adaptive tractable prior (essentially a Gaussian mixture) for improved sampling efficiency and accuracy.
 
 \section{Detailed balance divergence}
 
@@ -302,8 +305,5 @@ Nevertheless, we can employ implicit score matching to obtain an approximation t
     \int_{\mathbb R^d} \mu(x) \big(|s(x)|^2 + 2\nabla\cdot s(x)\big)\D x,
 \end{equation}
 where the right-hand side depends only on samples from $\mu(x)$ and does not require explicit knowledge of $U(x)$. Minimizing~\eqref{eq:ism} yields $s(x) \approx \nabla U(x)$, which can then be substituted into the DB loss~\eqref{eq:loss-final}. With this surrogate gradient, we train the flow map $F$ and the adaptive prior $\mu_0(x)$ as in DBNF. Finally, a score-based diffusion layer is added between $\mu_0$ and $F_{\#}\mu$ to close the remaining gap. Since $\mu_0$ and $F_{\#}\mu$ are already close after DBNF training, the diffusion process only needs to run for a short time, which is expected to yield efficient and high-quality generative sampling.
-
-\bibliographystyle{plainnat}
-\bibliography{references}
 
 \end{document}
