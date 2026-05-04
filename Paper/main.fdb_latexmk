@@ -1,15 +1,16 @@
 # Fdb version 4
-["bibtex main"] 1777829275.19483 "main.aux" "main.bbl" "main" 1777829275.6722 0
-  "./references.bib" 1777829266.62333 628 08bfe9d116c0f46dc854e5dfb8e8654a ""
+["bibtex main"] 1777855673.68985 "main.aux" "main.bbl" "main" 1777855689.11141 0
+  "./references.bib" 1777830158.92539 3205 7bd8a1d42685214d758581c48b314709 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "main.aux" 1777829275.53009 3912 8349ff38ca0c19b0ebb941bdda40e05a "pdflatex"
+  "main.aux" 1777855688.9838 5486 a401a5fa5829fdb4e00bd2a521a22fe5 "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1777829275.23885 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1777829275.67231 0
+["pdflatex"] 1777855688.63161 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1777855689.11151 0
+  "../Codes/metric_compare/metrics.png" 1777838297.46321 98154 71c80eae92588090edfaefef94930fc8 ""
   "/etc/texmf/web2c/texmf.cnf" 1775878627.55493 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1777829274.2231 24613 ab02e1a28aa9277d1245814ca057e7e6 ""
+  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1777855688.50314 25463 29cdfe15fc73fb1e851575f0f736dffe ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
@@ -187,10 +188,10 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1769369718 41603 27f93b3067076450172040dcd57ca8b3 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1775878648 5541477 3118940318599480888143717dd32d64 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1775878675 3640699 612ee66924a83b712dd4010beb2536d9 ""
-  "main.aux" 1777829275.53009 3912 8349ff38ca0c19b0ebb941bdda40e05a "pdflatex"
-  "main.bbl" 1777829275.2367 840 d1677ab8b8189d3ec0c2ed823b5ec9d1 "bibtex main"
-  "main.out" 1777829275.53009 2269 5a69c96eb4316baa167993dbdb4799ff "pdflatex"
-  "main.tex" 1777829274.2231 24613 ab02e1a28aa9277d1245814ca057e7e6 ""
+  "main.aux" 1777855688.9838 5486 a401a5fa5829fdb4e00bd2a521a22fe5 "pdflatex"
+  "main.bbl" 1777855673.73189 3578 f8a46b7e6a6236b8ce5855b8d4093671 "bibtex main"
+  "main.out" 1777855688.9848 2297 e2fd325e85029961f4ed03b8746c2c3a "pdflatex"
+  "main.tex" 1777855688.50314 25463 29cdfe15fc73fb1e851575f0f736dffe ""
   (generated)
   "main.aux"
   "main.log"

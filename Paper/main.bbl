@@ -1,18 +1,63 @@
-\begin{thebibliography}{2}
+\begin{thebibliography}{11}
 \providecommand{\natexlab}[1]{#1}
 \providecommand{\url}[1]{\texttt{#1}}
 \expandafter\ifx\csname urlstyle\endcsname\relax
   \providecommand{\doi}[1]{doi: #1}\else
   \providecommand{\doi}{doi: \begingroup \urlstyle{rm}\Url}\fi
 
+\bibitem[Ho et~al.(2020)Ho, Jain, and Abbeel]{ho2020denoising}
+Jonathan Ho, Ajay Jain, and Pieter Abbeel.
+\newblock Denoising diffusion probabilistic models.
+\newblock \emph{Advances in neural information processing systems}, 33:\penalty0 6840--6851, 2020.
+
+\bibitem[Kingma and Dhariwal(2018)]{kingma2018glow}
+Durk~P Kingma and Prafulla Dhariwal.
+\newblock Glow: Generative flow with invertible 1x1 convolutions.
+\newblock \emph{Advances in neural information processing systems}, 31, 2018.
+
+\bibitem[Kirichenko et~al.(2020)Kirichenko, Izmailov, and Wilson]{kirichenko2020normalizing}
+Polina Kirichenko, Pavel Izmailov, and Andrew~G Wilson.
+\newblock Why normalizing flows fail to detect out-of-distribution data.
+\newblock \emph{Advances in neural information processing systems}, 33:\penalty0 20578--20589, 2020.
+
+\bibitem[Lipman et~al.(2023)Lipman, Chen, Ben-Hamu, Nickel, and Le]{lipman2023flow}
+Yaron Lipman, Ricky T.~Q. Chen, Heli Ben-Hamu, Maximilian Nickel, and Matt Le.
+\newblock Flow matching for generative modeling.
+\newblock In \emph{International Conference on Learning Representations}, 2023.
+
 \bibitem[No{\'e} et~al.(2019)No{\'e}, Olsson, K{\"o}hler, and Wu]{noe2019boltzmann}
 Frank No{\'e}, Simon Olsson, Jonas K{\"o}hler, and Hao Wu.
 \newblock Boltzmann generators: Sampling equilibrium states of many-body systems with deep learning.
 \newblock \emph{Science}, 365\penalty0 (6457):\penalty0 eaaw1147, 2019.
 
+\bibitem[Papamakarios et~al.(2017)Papamakarios, Pavlakou, and Murray]{papamakarios2017masked}
+George Papamakarios, Theo Pavlakou, and Iain Murray.
+\newblock Masked autoregressive flow for density estimation.
+\newblock \emph{Advances in neural information processing systems}, 30, 2017.
+
+\bibitem[Papamakarios et~al.(2019)Papamakarios, Sterratt, and Murray]{papamakarios2019sequential}
+George Papamakarios, David Sterratt, and Iain Murray.
+\newblock Sequential neural likelihood: Fast likelihood-free inference with autoregressive flows.
+\newblock In \emph{The 22nd international conference on artificial intelligence and statistics}, pages 837--848. PMLR, 2019.
+
 \bibitem[Rezende and Mohamed(2015)]{rezende2015variational}
 Danilo Rezende and Shakir Mohamed.
 \newblock Variational inference with normalizing flows.
 \newblock In \emph{International conference on machine learning}, pages 1530--1538. PMLR, 2015.
+
+\bibitem[Rudolph et~al.(2021)Rudolph, Wandt, and Rosenhahn]{rudolph2021same}
+Marco Rudolph, Bastian Wandt, and Bodo Rosenhahn.
+\newblock Same same but {DifferNet}: Semi-supervised defect detection with normalizing flows.
+\newblock In \emph{Proceedings of the IEEE/CVF winter conference on applications of computer vision}, pages 1907--1916, 2021.
+
+\bibitem[Song et~al.(2021)Song, Sohl-Dickstein, Kingma, Kumar, Ermon, and Poole]{song2021score}
+Yang Song, Jascha Sohl-Dickstein, Diederik~P Kingma, Abhishek Kumar, Stefano Ermon, and Ben Poole.
+\newblock Score-based generative modeling through stochastic differential equations.
+\newblock In \emph{International Conference on Learning Representations}, 2021.
+
+\bibitem[Wu et~al.(2020)Wu, K{\"o}hler, and No{\'e}]{wu2020stochastic}
+Hao Wu, Jonas K{\"o}hler, and Frank No{\'e}.
+\newblock Stochastic normalizing flows.
+\newblock \emph{Advances in neural information processing systems}, 33:\penalty0 5933--5944, 2020.
 
 \end{thebibliography}

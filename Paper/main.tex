@@ -40,110 +40,112 @@
 
 \section{Introduction}
 
-The normalizing flows based on the KL divergence \citep{rezende2015variational} have been widely applied in generative sampling. In the energy-based sampling based on physical potentials, the Boltzmann generator \cite{noe2019boltzmann}
+Normalizing flows based on the KL divergence \citep{rezende2015variational} have been widely applied in generative sampling. In energy-based sampling from physical potentials, the Boltzmann generator \citep{noe2019boltzmann,wu2020stochastic} has been the industry standard for fast sampling from target distributions. For data-driven sampling problems, although normalizing flows are less popular than score-based diffusion \citep{ho2020denoising,song2021score} and flow matching \citep{lipman2023flow}, they remain a versatile tool across a range of applications, including density estimation \citep{papamakarios2017masked,kingma2018glow}, simulation-based inference \citep{papamakarios2019sequential}, and anomaly detection \citep{kirichenko2020normalizing,rudolph2021same}.
+
+Despite their popularity, KL normalizing flows suffer from several intrinsic drawbacks. First, the flow map is a diffeomorphism on the whole space, so for multi-modal distributions the resulting NF often introduces artificial bridges between modes. Second, the KL loss is highly sensitive to mode collapse, and the flow easily falls into a few dominant modes while neglecting the rest.
+
+In this paper, we propose a normalizing flow based on the detailed balance (DB) divergence, which serves as an alternative for multi-modal generative sampling tasks. Its key advantage is that the DB divergence matches the gradient rather than the function value and keeps the loss function nonnegative. This incurs only a constant-factor overhead in training while offering substantially more flexibility in use.
 
 \section{Detailed balance divergence}
 
-\subsection{Definition}
+\subsection{Basic definition}
 
-We introduce the detailed balance loss for characterizing the discrepancy between two distributions. Let $\mu$ and $\nu$ be two probability distributions on $\mathbb R^d$. We define the detailed balance (DB) divergence as
+We introduce the detailed balance (DB) loss to characterize the discrepancy between two distributions. Let $\mu$ and $\nu$ be probability distributions on $\mathbb R^d$. We define the detailed balance (DB) divergence as
 \begin{equation}\label{eq:db-def}
     \DB(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \biggl|\nabla\biggl(\frac{\nu(x)}{\mu(x)}\biggr)\biggr| \D x,
 \end{equation}
-which is directly reminiscent of the KL divergence
-\begin{equation*}
-    \KL(\mu\|\nu) = -\int_{\mathbb R^d} \mu(x) \log \frac{\nu(x)}{\mu(x)} \D x.
-\end{equation*}
-Assuming that $\mu$ is the given distribution and $\nu$ is the pushforward distribution fitted to $\mu$, the DB divergence has several notable features:
-\begin{itemize}
-    \item The DB divergence is non-symmetric. Since the gradients of both $\mu(x)$ and $\nu(x)$ are required, it can only be used for energy-based sampling.
-    \item The DB divergence is invariant under rescaling of $\mu$. This provides a theoretical guarantee for a wide class of distributions $\mu$, where only the unnormalized potential function is required to compute the DB divergence.
-    \item The DB divergence is non-negative by definition due to the modulus operation. This means that even if the samples from $\mu(x)$ are not accurate, as long as we have full access to $\nabla \mu(x)$, the loss function remains accurate in comparing $\mu$ and $\nu$.
-\end{itemize}
+which is directly reminiscent of the KL divergence. The DB divergence is nonsymmetric and nonnegative by definition, and it enforces $\mu(x) = \nu(x)$ by driving the ratio $\nu(x)/\mu(x)$ toward a constant. This is fundamentally different from the KL divergence, whose nonnegativity relies on Jensen's inequality.
 
 The DB divergence~\eqref{eq:db-def} can be equivalently written as
 \begin{equation}\label{eq:db-score}
     \DB(\mu \| \nu) = \int_{\mathbb R^d} \nu(x) \bigl|\nabla \log \mu(x) - \nabla \log \nu(x) \bigr| \D x.
 \end{equation}
-If we assume $\mu(x)$ takes the unnormalized potential form $e^{-U(x)}$, where $U(x)$ is the potential function, then
+If $\mu(x)$ takes the unnormalized potential form $\mu(x) \propto e^{-U(x)}$, where $U(x)$ is the potential function, then
 \begin{equation*}
     \DB(\mu \| \nu) = \int_{\mathbb R^d} \bigl|\nabla \nu(x) + \nu(x)\nabla U(x) \bigr| \D x.
 \end{equation*}
 Therefore, minimizing the DB divergence amounts to solving the PDE
 \begin{equation}\label{eq:db-pde}
-    \nabla \nu(x) + \nu(x) \nabla U(x) = 0
+    \nabla \nu(x) + \nu(x) \nabla U(x) = 0,
 \end{equation}
-in the spirit of PINNs. In fact, the PDE~\eqref{eq:db-pde} exactly characterizes the detailed balance condition for sampling the distribution $e^{-U(x)}$ via Langevin dynamics, and thus serves as a natural metric with clear physical meaning.
+which is exactly the detailed balance condition for sampling $e^{-U(x)}$ via Langevin dynamics. The DB divergence therefore carries a natural physical meaning.
 
 \subsection{Relations to other distribution metrics}
 
-The DB divergence is closely related to two classical distribution metrics: the Fisher divergence and the total variation distance. We show that it sits naturally between the two in terms of strength.
+The DB divergence is closely related to two classical distribution metrics, the Fisher divergence and the total variation distance, and sits naturally between the two in strength.
 
 \paragraph{Fisher divergence.}
-Recall that the Fisher divergence between $\mu$ and $\nu$ is defined as
+The Fisher divergence between $\mu$ and $\nu$ is
 \begin{equation*}
-    \Fish(\nu \| \mu) = \int_{\mathbb R^d} \nu(x) \bigl|\nabla \log \mu(x) - \nabla \log \nu(x) \bigr|^2 \D x.
+    \Fish(\nu \| \mu) = \int_{\mathbb R^d} \nu(x) \bigl|\nabla \log \mu(x) - \nabla \log \nu(x) \bigr|^2 \D x,
 \end{equation*}
-Comparing with the equivalent form~\eqref{eq:db-score} of the DB divergence,
-\begin{equation*}
-    \DB(\mu \| \nu) = \int_{\mathbb R^d} \nu(x) \bigl|\nabla \log \mu(x) - \nabla \log \nu(x) \bigr| \D x,
-\end{equation*}
-we see that the DB divergence is precisely the $L^1$ counterpart of the Fisher divergence, replacing the squared $L^2$ norm of the score difference with the $L^1$ norm. By the Cauchy--Schwarz inequality and the fact that $\int \nu(x) \D x = 1$, we obtain
+so by the equivalent form~\eqref{eq:db-score}, the DB divergence is precisely its $L^1$ counterpart, with the squared $L^2$ norm of the score difference replaced by the $L^1$ norm. Cauchy--Schwarz together with $\int \nu(x) \D x = 1$ then gives
 \begin{equation}\label{eq:db-fisher}
-    \DB(\mu \| \nu)^2 \Le \Fish(\nu | \mu),
+    \DB(\mu \| \nu)^2 \Le \Fish(\nu \| \mu).
 \end{equation}
-or equivalently, $\DB(\mu | \nu) \Le \sqrt{\Fish(\nu | \mu)}$.
 
 \paragraph{Total variation distance.}
-The total variation distance between $\mu$ and $\nu$ is defined as
+The total variation distance between $\mu$ and $\nu$ is
 \begin{equation*}
     \TV(\mu, \nu) = \frac{1}{2} \int_{\mathbb R^d} |\mu(x) - \nu(x)| \D x.
 \end{equation*}
-Let $r(x) = \nu(x)/\mu(x)$ denote the density ratio and set $f(x) = r(x) - 1$. Since both $\mu$ and $\nu$ are normalized, $\int \mu(x) f(x) \D x = 0$, and we can write
+Set $f(x) = \nu(x)/\mu(x) - 1$, so that $\int \mu(x) f(x) \D x = 0$ since $\mu$ and $\nu$ are normalized. Then
 \begin{equation*}
-    \TV(\mu, \nu) = \frac{1}{2} \int_{\mathbb R^d} \mu(x) |f(x)| \D x, \qquad \DB(\mu | \nu) = \int_{\mathbb R^d} \mu(x) |\nabla f(x)| \D x.
+    \TV(\mu, \nu) = \frac{1}{2} \int_{\mathbb R^d} \mu(x) |f(x)| \D x, \qquad \DB(\mu \| \nu) = \int_{\mathbb R^d} \mu(x) |\nabla f(x)| \D x.
 \end{equation*}
-If $\mu$ satisfies a Cheeger inequality (i.e., an $L^1$ Poincar\'{e} inequality) with isoperimetric constant $c_{P} > 0$, namely
-\begin{equation*}
-    \int_{\mathbb R^d} \mu(x) |g(x) - \bar g| \D x \Le \frac{1}{c_{P}} \int_{\mathbb R^d} \mu(x) |\nabla g(x)| \D x
-\end{equation*}
-for all sufficiently regular $g$ with $\bar g = \int \mu g \D x$, then applying this to $f$ with $\bar f = 0$ yields
+If $\mu$ satisfies a Cheeger inequality (an $L^1$ Poincar\'{e} inequality) with isoperimetric constant $c_{P} > 0$, applying it to the mean-zero function $f$ yields
 \begin{equation}\label{eq:tv-db}
-    \TV(\mu, \nu) \Le \frac{1}{2c_{P}}\, \DB(\mu | \nu).
+    \TV(\mu, \nu) \Le \frac{1}{2c_{P}}\, \DB(\mu \| \nu).
 \end{equation}
-In particular, log-concave distributions and Gaussian mixtures with sufficient overlap are known to satisfy such a Cheeger inequality, so for these classes the DB divergence controls the total variation distance.
+Such a Cheeger inequality holds for log-concave distributions and Gaussian mixtures with sufficient overlap, so the DB divergence controls the total variation distance for these classes.
 
-Combining~\eqref{eq:db-fisher} and~\eqref{eq:tv-db}, we obtain the hierarchy
+Combining~\eqref{eq:db-fisher} and~\eqref{eq:tv-db} gives the hierarchy
 \begin{equation}\label{eq:hierarchy}
-    \TV(\mu, \nu) \Le \frac{1}{2c_{P}}\, \DB(\mu | \nu) \Le \frac{1}{2c_{P}}\, \sqrt{\Fish(\nu | \mu)},
+    \TV(\mu, \nu) \Le \frac{1}{2c_{P}}\, \DB(\mu \| \nu) \Le \frac{1}{2c_{P}}\, \sqrt{\Fish(\nu \| \mu)},
 \end{equation}
-which places the DB divergence between total variation and Fisher divergence. It is weaker than the Fisher divergence yet still strong enough to control total variation under mild regularity assumptions on $\mu$.
+placing the DB divergence between total variation and Fisher divergence. It is weaker than the Fisher divergence yet still strong enough to control total variation under mild regularity assumptions on $\mu$.
 
-\section{Detailed balance normalizing flow}
+To illustrate the hierarchy~\eqref{eq:hierarchy}, consider the one-dimensional family
+\begin{equation*}
+    \mu_\sigma \propto e^{-U_\sigma(x)}, \quad U_\sigma(x) = \frac{1}{2}x^2 + \frac{1}{\sqrt{2\pi}} e^{-\frac{x^2}{2\sigma^2}}, \qquad \nu \propto e^{-V(x)}, \quad V(x) = \frac{1}{2}x^2,
+\end{equation*}
+indexed by $\sigma \in \{2^0, 2^{-1}, \dots, 2^{-7}\}$. The potentials $U_\sigma$ and $V$ differ by a Gaussian-shaped bump whose total mass equals $\sigma$, so as $\sigma \to 0$ the perturbation becomes thinner and taller but carries less and less probability mass. Figure~\ref{fig:metrics} shows that the three metrics react to this in very different ways: KL decays at the rate of the bump's mass and effectively ignores the perturbation; DB treats it as a fixed-size disturbance and stays roughly constant; Fisher amplifies the steep gradient and diverges.
 
-Given a potential function $U(x)$ on $\mathbb R^d$, we introduce a normalizing flow approach to sample from the target distribution $\mu(x) \propto e^{-U(x)}$ based on the DB divergence~\eqref{eq:db-def}. This involves the construction of a loss function and an adaptive choice of the prior distribution $\mu_0(x)$.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\linewidth]{../Codes/metric_compare/metrics.png}
+    \caption{The four metrics between $\mu_\sigma$ and $\nu$ for $\sigma = 2^0, 2^{-1}, \dots, 2^{-7}$. KL and TV decay with $\sigma$; DB stays roughly constant; Fisher diverges.}
+    \label{fig:metrics}
+\end{figure}
+
+\section{Energy-based DB normalizing flow}
+
+Let $U_0(x)$ and $U_1(x)$ be source and target potential functions on $\mathbb R^d$, and let $\mu_0(x)\propto \exp(-U_0(x))$ and $\mu_1(x)\propto \exp(-U_1(x))$ be the corresponding Boltzmann distributions. Given explicit samples from $\mu_0$, we aim to train a flow map $F$ such that $F_{\#} \mu_0 = \mu_1$, where the pushforward distribution has the density
+\begin{equation}
+    (F_{\#}\mu_0)(y) = \frac{\mu_0(x)}{|\det J_F(x)|},
+    \quad y = F(x).
+\end{equation}
+where $J_F(x) \in \mathbb R^d$ is the Jacobian matrix of the flow $F$. The the loss function built from the DB divergence between the distributions $F_{\#}\mu_0$ and $\mu_1$.
+
+We first show how to construct the DB loss function and derive the training for DB normalizing flows. We then introduce the DB-based Boltzmann generator by combining a sequence of DB normalizing flows.
 
 \subsection{Construction of loss function}
 
-For simplicity, we assume the prior distribution $\mu_0(x)\propto e^{-U_0(x)}$ is fixed, where $U_0(x)$ is a known potential function on $\mathbb R^d$. Our goal is to find a flow map $F\colon \mathbb R^d \to \mathbb R^d$ such that $F_{\#}\mu$ matches the prior $\mu_0$. The pushforward is applied to the target $\mu$ rather than $\mu_0$ intentionally, because it is typically simpler to match a flat and simple distribution than a complex multi-modal one.
-
-The loss function is chosen as the DB divergence $\DB(\mu_0\| F_{\#} \mu)$. The probability density of the pushforward distribution is given by
-\begin{equation*}
-    (F_\#\mu)(y) = \frac{\mu(x)}{|\det J_F(x)|}, \quad y = F(x),
-\end{equation*}
-where $J_F(x) \in \mathbb R^{d\times d}$ is the Jacobian matrix of $F$ at $x$. Note that $(F_\#\mu)(y)$ depends on the variable $y = F(x)$ implicitly. For convenience, we define the log-likelihood ratio $\mathcal R_F$ as
+First, we consider the forward DB divergence $\DB(\mu_1\|F_{\#}\mu_0)$. Define the log importance weights by
 \begin{equation}\label{eq:log-ratio}
-    \mathcal R_F(x) = \log \frac{(F_\#\mu)(y)}{\mu_0(y)} + \mathrm{const} = U_0(F(x)) - U(x) - \log|\det J_F(x)|.
+    W(x) = \log\frac{(F_{\#}\mu_0)(y)}{\mu_1(y)} + 
+    \mathrm{const} = U_1(F(x)) - U_0(x) - \log|\det J_F(x)|, 
 \end{equation}
-The DB divergence can then be computed as
-\begin{equation*}
-    \DB(\mu_0 \| F_{\#}\mu) = \int_{\mathbb R^d} \mu_0(y) \biggl|
-        \nabla\biggl(\frac{(F_\#\mu)(y)}{\mu_0(y)}\biggr)
-    \biggr| \D y = \int_{\mathbb R^d} e^{-U_0(y)} \big|\nabla_y (e^{\mathcal R_F(x)})\big|\D y = \int_{\mathbb R^d} e^{-U_0(y) + \mathcal R_F(x)} |\nabla_y \mathcal R_F(x)|\D y.
-\end{equation*}
+then the DB divergence can be explicitly computed as
+\begin{align*}
+    \DB(\mu_1\|F_{\#}\mu_0) & = \int_{\mathbb R^d} \mu_1(y) \biggl|
+        \nabla_y\biggl(\frac{(F_\#\mu_0)(y)}{\mu_1(y)}\biggr)
+    \biggr| \D y = \mathrm{const}\cdot \int_{\mathbb R^d} e^{-U_1(y)} \big|\nabla_y (e^{W(x)})\big|\D y \\
+    & = \mathrm{const}\cdot \int_{\mathbb R^d} e^{-U_1(y) + W(x)} |\nabla_y W(x)|\D y.
+\end{align*}
 Applying the change-of-variable formula with $y = F(x)$, we obtain
 \begin{equation}\label{eq:db-loss}
-    \DB(\mu_0 \| F_{\#}\mu) = \int_{\mathbb R^d}
+    \DB(\mu_1 \| F_{\#}\mu_0) = \int_{\mathbb R^d}
     \frac{\mu(x)}{|\det J_F(x)|} |\nabla_y \mathcal R_F(x)| \D y= \int_{\mathbb R^d} \mu(x)
     |\nabla_y \mathcal R_F(x)|\D x.
 \end{equation}
