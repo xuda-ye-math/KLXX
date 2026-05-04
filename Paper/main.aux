@@ -14,44 +14,39 @@
 \@writefile{toc}{\contentsline {section}{\numberline {2}Detailed balance divergence}{1}{section.2}\protected@file@percent }
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Basic definition}{1}{subsection.2.1}\protected@file@percent }
 \newlabel{eq:db-def}{{1}{1}{Basic definition}{equation.1}{}}
-\newlabel{eq:db-score}{{2}{1}{Basic definition}{equation.2}{}}
-\newlabel{eq:db-pde}{{3}{2}{Basic definition}{equation.3}{}}
+\newlabel{eq:db-pde}{{2}{2}{Basic definition}{equation.2}{}}
 \@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Relations to other distribution metrics}{2}{subsection.2.2}\protected@file@percent }
-\@writefile{toc}{\contentsline {paragraph}{Fisher divergence.}{2}{section*.1}\protected@file@percent }
-\newlabel{eq:db-fisher}{{4}{2}{Fisher divergence}{equation.4}{}}
+\@writefile{toc}{\contentsline {paragraph}{Fisher information.}{2}{section*.1}\protected@file@percent }
+\newlabel{eq:db-fisher}{{3}{2}{Fisher information}{equation.3}{}}
 \@writefile{toc}{\contentsline {paragraph}{Total variation distance.}{2}{section*.2}\protected@file@percent }
-\newlabel{eq:tv-db}{{5}{2}{Total variation distance}{equation.5}{}}
-\newlabel{eq:hierarchy}{{6}{2}{Total variation distance}{equation.6}{}}
+\newlabel{eq:tv-db}{{4}{2}{Total variation distance}{equation.4}{}}
+\newlabel{eq:hierarchy}{{5}{2}{Total variation distance}{equation.5}{}}
 \@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces The four metrics between $\mu _\sigma $ and $\nu $ for $\sigma = 2^0, 2^{-1}, \dots  , 2^{-7}$. KL and TV decay with $\sigma $; DB stays roughly constant; Fisher diverges.}}{3}{figure.1}\protected@file@percent }
 \newlabel{fig:metrics}{{1}{3}{The four metrics between $\mu _\sigma $ and $\nu $ for $\sigma = 2^0, 2^{-1}, \dots , 2^{-7}$. KL and TV decay with $\sigma $; DB stays roughly constant; Fisher diverges}{figure.1}{}}
 \@writefile{toc}{\contentsline {section}{\numberline {3}Energy-based DB normalizing flow}{3}{section.3}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Construction of loss function}{3}{subsection.3.1}\protected@file@percent }
-\newlabel{eq:log-ratio}{{8}{3}{Construction of loss function}{equation.8}{}}
-\newlabel{eq:db-loss}{{9}{3}{Construction of loss function}{equation.9}{}}
-\newlabel{eq:grad-loglik}{{10}{4}{Construction of loss function}{equation.10}{}}
-\newlabel{eq:loss-final}{{11}{4}{Construction of loss function}{equation.11}{}}
-\newlabel{eq:fd-grad-U0}{{12}{4}{Construction of loss function}{equation.12}{}}
-\newlabel{eq:fd-inv-jac}{{13}{4}{Construction of loss function}{equation.13}{}}
-\newlabel{eq:fd-combined}{{14}{4}{Construction of loss function}{equation.14}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Alternate construction with the prior as the source}{4}{subsection.3.2}\protected@file@percent }
-\newlabel{sec:alt-loss}{{3.2}{4}{Alternate construction with the prior as the source}{subsection.3.2}{}}
-\newlabel{eq:log-ratio-alt}{{15}{4}{Alternate construction with the prior as the source}{equation.15}{}}
-\newlabel{eq:db-loss-alt}{{16}{4}{Alternate construction with the prior as the source}{equation.16}{}}
-\newlabel{eq:fd-combined-alt}{{17}{5}{Alternate construction with the prior as the source}{equation.17}{}}
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Adaptive choice of prior distribution}{5}{subsection.3.3}\protected@file@percent }
-\newlabel{eq:prior-gmm}{{18}{5}{Adaptive choice of prior distribution}{equation.18}{}}
-\newlabel{eq:prior-potential}{{19}{5}{Adaptive choice of prior distribution}{equation.19}{}}
-\newlabel{eq:total-loss}{{20}{6}{Adaptive choice of prior distribution}{equation.20}{}}
-\@writefile{thm}{\contentsline {remark}{{Remark}{1}{}}{6}{remark.1}\protected@file@percent }
-\@writefile{toc}{\contentsline {subsection}{\numberline {3.4}One-step importance sampling at inference}{6}{subsection.3.4}\protected@file@percent }
-\@writefile{toc}{\contentsline {section}{\numberline {4}Implementation}{6}{section.4}\protected@file@percent }
+\newlabel{eq:pushforward}{{6}{3}{Energy-based DB normalizing flow}{equation.6}{}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}Construction of reverse DB loss}{3}{subsection.3.1}\protected@file@percent }
+\newlabel{eq:log-ratio}{{7}{3}{Construction of reverse DB loss}{equation.7}{}}
+\newlabel{eq:db-loss}{{8}{3}{Construction of reverse DB loss}{equation.8}{}}
+\newlabel{eq:grad-W}{{9}{3}{Construction of reverse DB loss}{equation.9}{}}
+\newlabel{eq:loss-final}{{10}{3}{Construction of reverse DB loss}{equation.10}{}}
+\newlabel{eq:xpm}{{11}{4}{Construction of reverse DB loss}{equation.11}{}}
+\newlabel{eq:fd-combined}{{12}{4}{Construction of reverse DB loss}{equation.12}{}}
+\newlabel{eq:fd-expand}{{13}{4}{Construction of reverse DB loss}{equation.13}{}}
+\newlabel{eq:loss-reverse}{{14}{4}{Construction of reverse DB loss}{equation.14}{}}
+\@writefile{thm}{\contentsline {remark}{{Remark}{1}{}}{4}{remark.1}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}Mode guidance with forward DB loss}{4}{subsection.3.2}\protected@file@percent }
+\newlabel{eq:db-forward}{{15}{4}{Mode guidance with forward DB loss}{equation.15}{}}
+\newlabel{eq:xpm-forward}{{16}{4}{Mode guidance with forward DB loss}{equation.16}{}}
+\newlabel{eq:fd-expand-forward}{{17}{4}{Mode guidance with forward DB loss}{equation.17}{}}
+\newlabel{eq:loss-forward}{{18}{5}{Mode guidance with forward DB loss}{equation.18}{}}
+\@writefile{thm}{\contentsline {remark}{{Remark}{2}{}}{5}{remark.2}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {4}Implementation}{5}{section.4}\protected@file@percent }
 \bibstyle{plainnat}
 \bibdata{references}
 \bibcite{ho2020denoising}{{1}{2020}{{Ho et~al.}}{{Ho, Jain, and Abbeel}}}
 \bibcite{kingma2018glow}{{2}{2018}{{Kingma and Dhariwal}}{{}}}
 \bibcite{kirichenko2020normalizing}{{3}{2020}{{Kirichenko et~al.}}{{Kirichenko, Izmailov, and Wilson}}}
-\@writefile{toc}{\contentsline {section}{\numberline {5}Detailed Balance Score Matching}{7}{section.5}\protected@file@percent }
-\newlabel{eq:ism}{{21}{7}{Detailed Balance Score Matching}{equation.21}{}}
 \bibcite{lipman2023flow}{{4}{2023}{{Lipman et~al.}}{{Lipman, Chen, Ben-Hamu, Nickel, and Le}}}
 \bibcite{noe2019boltzmann}{{5}{2019}{{No{\'e} et~al.}}{{No{\'e}, Olsson, K{\"o}hler, and Wu}}}
 \bibcite{papamakarios2017masked}{{6}{2017}{{Papamakarios et~al.}}{{Papamakarios, Pavlakou, and Murray}}}
@@ -60,4 +55,6 @@
 \bibcite{rudolph2021same}{{9}{2021}{{Rudolph et~al.}}{{Rudolph, Wandt, and Rosenhahn}}}
 \bibcite{song2021score}{{10}{2021}{{Song et~al.}}{{Song, Sohl-Dickstein, Kingma, Kumar, Ermon, and Poole}}}
 \bibcite{wu2020stochastic}{{11}{2020}{{Wu et~al.}}{{Wu, K{\"o}hler, and No{\'e}}}}
-\gdef \@abspage@last{8}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Detailed Balance Score Matching}{6}{section.5}\protected@file@percent }
+\newlabel{eq:ism}{{19}{6}{Detailed Balance Score Matching}{equation.19}{}}
+\gdef \@abspage@last{7}

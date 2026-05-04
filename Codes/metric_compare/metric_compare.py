@@ -42,8 +42,8 @@ for sigma in SIGMAS:
     tv    = 0.5 * torch.trapezoid(torch.abs(mu - nu), x)
     f_mn  = torch.trapezoid(mu * s * s, x)
     f_nm  = torch.trapezoid(nu * s * s, x)
-    db_mn = torch.trapezoid(nu * torch.abs(s), x)
-    db_nm = torch.trapezoid(mu * torch.abs(s), x)
+    db_mn = torch.trapezoid(mu * torch.abs(s), x)
+    db_nm = torch.trapezoid(nu * torch.abs(s), x)
 
     rows.append([sigma, Z.item(),
                  kl_mn.item(), kl_nm.item(), tv.item(),
