@@ -1,16 +1,16 @@
 # Fdb version 4
-["bibtex main"] 1777866228.79034 "main.aux" "main.bbl" "main" 1777866833.74287 0
+["bibtex main"] 1777909804.53784 "main.aux" "main.bbl" "main" 1777909805.04626 0
   "./references.bib" 1777830158.92539 3205 7bd8a1d42685214d758581c48b314709 ""
   "/usr/share/texlive/texmf-dist/bibtex/bst/natbib/plainnat.bst" 1233624470 26816 ffe5423d2019860bad9f54bc402fac15 ""
-  "main.aux" 1777866833.6163 5038 0182c92e1edbb9ab42ca3a98b08bad66 "pdflatex"
+  "main.aux" 1777909804.91996 5265 8b95ac917434e62242645151c39495de "pdflatex"
   (generated)
   "main.bbl"
   "main.blg"
   (rewritten before read)
-["pdflatex"] 1777866833.27045 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1777866833.74297 0
+["pdflatex"] 1777909804.59008 "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" "main.pdf" "main" 1777909805.04634 0
   "../Codes/metric_compare/metrics.png" 1777857211.278 98167 df4667a10a8a36bb0e6e3bad26be8453 ""
   "/etc/texmf/web2c/texmf.cnf" 1775878627.55493 475 c0e671620eb5563b2130f56340a5fde8 ""
-  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1777866833.14873 20389 1c1441772aa2dd3bb19552aea0bb6df1 ""
+  "/run/media/xuda/My Projects/Xuda Ye/Detailed-Balance-Normalizing-Flow/Paper/main.tex" 1777909803.94019 22099 5ff5f3c500c0b9b04ffb96d5a5124679 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/jknappen/ec/tcrm1000.tfm" 1136768653 1536 e07581a4bb3136ece9eeb4c3ffab8233 ""
   "/usr/share/texlive/texmf-dist/fonts/tfm/public/amsfonts/cmextra/cmex7.tfm" 1246382020 1004 54797486969f23fa377b128694d548df ""
@@ -189,10 +189,10 @@
   "/usr/share/texmf/web2c/texmf.cnf" 1769369718 41603 27f93b3067076450172040dcd57ca8b3 ""
   "/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map" 1775878648 5541477 3118940318599480888143717dd32d64 ""
   "/var/lib/texmf/web2c/pdftex/pdflatex.fmt" 1775878675 3640699 612ee66924a83b712dd4010beb2536d9 ""
-  "main.aux" 1777866833.6163 5038 0182c92e1edbb9ab42ca3a98b08bad66 "pdflatex"
-  "main.bbl" 1777866228.83519 3578 f8a46b7e6a6236b8ce5855b8d4093671 "bibtex main"
-  "main.out" 1777866833.6163 1689 d57783fd476b11598ed461200a607eae "pdflatex"
-  "main.tex" 1777866833.14873 20389 1c1441772aa2dd3bb19552aea0bb6df1 ""
+  "main.aux" 1777909804.91996 5265 8b95ac917434e62242645151c39495de "pdflatex"
+  "main.bbl" 1777909804.58696 3578 f8a46b7e6a6236b8ce5855b8d4093671 "bibtex main"
+  "main.out" 1777909804.91996 1931 f3de4fc916d344fe972b18ca9da452a2 "pdflatex"
+  "main.tex" 1777909803.94019 22099 5ff5f3c500c0b9b04ffb96d5a5124679 ""
   (generated)
   "main.aux"
   "main.log"
