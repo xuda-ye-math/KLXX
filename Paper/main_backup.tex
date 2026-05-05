@@ -26,7 +26,7 @@
 
 \theoremstyle{plain}
 
-\title{Detailed Balance Normalizing Flow for Multi-Modal Boltzmann Sampling}
+\title{Detailed Balance Normalizing Flow for Generative Sampling}
 \author[1]{Qi Feng}
 \author[2]{Rongjie Lai}
 \author[2]{Xuda Ye}
@@ -40,11 +40,11 @@
 
 \section{Introduction}
 
-Normalizing flows based on the KL divergence \citep{rezende2015variational} have been widely applied in generative sampling. In energy-based sampling from physical potentials, the Boltzmann generator \citep{noe2019boltzmann,wu2020stochastic} has been the industry standard for fast sampling from target Boltzmann distributions. Compared with classical Monte Carlo simulation, which suffers from slow convergence due to long mixing times and strong sample correlation, the Boltzmann generator overcomes this bottleneck and greatly accelerates inference by directly applying the trained flow map to push prior samples to the target, producing independent samples in a single forward pass.
+Normalizing flows based on the KL divergence \citep{rezende2015variational} have been widely applied in generative sampling. In energy-based sampling from physical potentials, the Boltzmann generator \citep{noe2019boltzmann,wu2020stochastic} has been the industry standard for fast sampling from target distributions. For data-driven sampling problems, although normalizing flows are less popular than score-based diffusion \citep{ho2020denoising,song2021score} and flow matching \citep{lipman2023flow}, they remain a versatile tool across a range of applications, including density estimation \citep{papamakarios2017masked,kingma2018glow}, simulation-based inference \citep{papamakarios2019sequential}, and anomaly detection \citep{kirichenko2020normalizing,rudolph2021same}.
 
 Despite their popularity, KL normalizing flows suffer from several intrinsic drawbacks. First, the flow map is a diffeomorphism on the whole space, so for multi-modal distributions the resulting NF often introduces artificial bridges between modes. Second, the KL loss is highly sensitive to mode collapse, and the flow easily falls into a few dominant modes while neglecting the rest.
 
-In this paper, we propose a normalizing flow based on the detailed balance (DB) divergence, as an alternative to KL-based Boltzmann generators for energy-based sampling from multi-modal Boltzmann distributions. Its key advantage is that the DB divergence matches the gradient rather than the function value and keeps the loss function nonnegative. This incurs only a constant-factor overhead in training while offering substantially more flexibility in use.
+In this paper, we propose a normalizing flow based on the detailed balance (DB) divergence, which serves as an alternative for multi-modal generative sampling tasks. Its key advantage is that the DB divergence matches the gradient rather than the function value and keeps the loss function nonnegative. This incurs only a constant-factor overhead in training while offering substantially more flexibility in use.
 
 \section{Detailed balance divergence}
 
@@ -122,15 +122,15 @@ indexed by $\sigma \in \{2^0, 2^{-1}, \dots, 2^{-7}\}$. The potentials $U_\sigma
     \label{fig:metrics}
 \end{figure}
 
-\section{Single-step DB normalizing flow}
+\section{Energy-based DB normalizing flow}
 
-In this section we restrict attention to a single flow map $F$ trained in one shot to push the source onto the target; multi-step compositions are deferred to the next section. Let $U_0(x)$ and $U_1(x)$ be source and target potential functions on $\mathbb R^d$, and let $\mu_0(x) \propto \exp(-U_0(x))$ and $\mu_1(x) \propto \exp(-U_1(x))$ be the corresponding Boltzmann distributions. Given explicit samples from $\mu_0$, we aim to train a single flow map $F$ such that $F_{\#}\mu_0 = \mu_1$, with pushforward density
+Let $U_0(x)$ and $U_1(x)$ be source and target potential functions on $\mathbb R^d$, and let $\mu_0(x) \propto \exp(-U_0(x))$ and $\mu_1(x) \propto \exp(-U_1(x))$ be the corresponding Boltzmann distributions. Given explicit samples from $\mu_0$, we aim to train a flow map $F$ such that $F_{\#}\mu_0 = \mu_1$, with pushforward density
 \begin{equation}\label{eq:pushforward}
     (F_{\#}\mu_0)(y) = \frac{\mu_0(x)}{|\det J_F(x)|}, \quad y = F(x),
 \end{equation}
 where $J_F(x) \in \mathbb R^{d\times d}$ is the Jacobian matrix of $F$. We construct the loss from the DB divergence between $F_{\#}\mu_0$ and $\mu_1$ in the reverse direction, $\DB(F_{\#}\mu_0\|\mu_1)$, which after a change of variable becomes an integral against the prior and can be estimated without any samples from the target.
 
-\subsection{Reverse DB loss and energy-based sampling}
+\subsection{Construction of reverse DB loss}
 
 First, we define the log importance weight
 \begin{equation}\label{eq:WF-def}
@@ -183,7 +183,7 @@ The directional-derivative trick is well-matched to the reverse DB loss but not 
 where the asymptotic on the left follows from Stirling's formula. The DB integrand is $|g| = |\nabla_y W_F|$, so $O(\sqrt d)$ random directions recover the precision of one full-gradient evaluation, costing roughly $\sqrt d$ times a single backward pass. The Fisher information involves $|g|^2$, for which $O(d)$ random directions are needed to match a full gradient — comparable to assembling $J_F(x)$ explicitly. The directional-derivative trick therefore makes sense for the DB normalizing flow but offers no asymptotic saving for its Fisher analogue.
 \end{remark}
 
-\subsection{Forward DB loss and mode guiding}
+\subsection{Mode guidance with forward DB loss}
 
 Similar to the reverse DB loss, the forward DB loss $\DB(\mu_1\|F_{\#}\mu_0)$ can be written as
 \begin{equation}\label{eq:db-forward}
@@ -212,11 +212,11 @@ The only difference from~\eqref{eq:loss-reverse} is that $y$ is drawn from the t
     because a change of variable transforms the score difference by the Jacobian factor $J_F^\top$, whose $L^1$ norm is not preserved unless $F$ is an isometry. In principle, $\DB(F^{-1}_{\#}\mu_1\|\mu_0)$ could also serve as a forward DB loss, but we keep $\DB(\mu_1\|F_{\#}\mu_0)$ because its derivation is simpler.
 \end{remark}
 
-In general the forward loss $\mathcal L_{\mathrm{forward}}[F]$ in~\eqref{eq:loss-forward} cannot be evaluated directly, since it requires explicit samples from the target $\mu_1$. The crucial difference between the DB and KL losses is that the DB integrand $|\nabla_y W_F(x)|$ is pointwise nonnegative: replacing $\mu_1$ in~\eqref{eq:loss-forward} by an easier-to-sample mode guiding measure $\hat\mu_1$ yields a loss $\hat{\mathcal L}_{\mathrm{forward}}[F]$ that still vanishes exactly when $F_{\#}\mu_0 \propto \mu_1$ on $\mathrm{supp}(\hat\mu_1)$ — the global minimizer is preserved. KL has no such freedom: its integrand $\log(\mu_1/F_{\#}\mu_0)$ is signed, so any inaccuracy in $\mu_1$ shifts the optimum to $F_{\#}\mu_0 = \hat\mu_1$, and KL training therefore demands exact samples from $\mu_1$. For DB it suffices to take the guiding measure $\hat\mu_1$ to be any unnormalized distribution (or simply a positive measure) whose support covers the modes the reverse loss tends to drop. A Gaussian mixture is a convenient form since it can be sampled from
+In general the forward loss $\mathcal L_{\mathrm{forward}}[F]$ in~\eqref{eq:loss-forward} cannot be evaluated directly, since it requires explicit samples from the target $\mu_1$. The crucial difference between the DB and KL losses is that the DB integrand $|\nabla_y W_F(x)|$ is pointwise nonnegative: replacing $\mu_1$ in~\eqref{eq:loss-forward} by an easier-to-sample guidance distribution $\hat\mu_1$ yields a loss $\hat{\mathcal L}_{\mathrm{forward}}[F]$ that still vanishes exactly when $F_{\#}\mu_0 \propto \mu_1$ on $\mathrm{supp}(\hat\mu_1)$ — the global minimizer is preserved. KL has no such freedom: its integrand $\log(\mu_1/F_{\#}\mu_0)$ is signed, so any inaccuracy in $\mu_1$ shifts the optimum to $F_{\#}\mu_0 = \hat\mu_1$, and KL training therefore demands exact samples from $\mu_1$. For DB it suffices to pick $\hat\mu_1$ to cover the modes the reverse loss tends to drop. We take $\hat\mu_1$ to be an unnormalized Gaussian mixture
 \begin{equation}\label{eq:hat-mu1}
-    \hat\mu_1(y) = \sum_{i=1}^n w_i\, \mathcal N(y; x_i, \Sigma_i), \qquad w_i \Ge 0.
+    \hat\mu_1(y) = \sum_{i=1}^n w_i\, \mathcal N(y; x_i, \Sigma_i), \qquad w_i \Ge 0,
 \end{equation}
-Linearity then expands $\hat{\mathcal L}_{\mathrm{forward}}[F]$ as a per-component sum,
+where $\{x_i\}_{i=1}^n$ are the local minima of $U_1$ and $\{\Sigma_i\}_{i=1}^n$ are user-chosen covariances; the weights $w_i$ tune the strength of mode guidance per mode and absorb the role formerly played by a global multiplier. Linearity then expands $\hat{\mathcal L}_{\mathrm{forward}}[F]$ as a per-component sum,
 \begin{equation}\label{eq:hat-loss-forward}
     \hat{\mathcal L}_{\mathrm{forward}}[F] = \sum_{i=1}^n w_i\, \mathbb E_{\substack{y \sim \mathcal N(x_i, \Sigma_i) \\ v \sim \mathrm{Unif}(\mathbb S^{d-1})}} \biggl|\frac{W_F(x_{v+}) - W_F(x_{v-})}{2\varepsilon}\biggr|,
 \end{equation}
@@ -230,18 +230,20 @@ The guidance term supplies mode information from the target side and effectively
     Mode guidance has also been considered in Jeffreys Flow~\citep{lin2026jeffreys}, but the construction there is based on the KL divergence and therefore requires accurate samples from the target $\mu_1$ to remain unbiased. The DB-based guidance proposed here is unbiased for any choice of $\hat\mu_1$ whose support covers the target modes, which is the property that the signed KL integrand cannot provide.
 \end{remark}
 
-For notational convenience, we denote the flow map produced by the DB normalizing flow training as
-\begin{equation}
-    F = \mathrm{DBNF}\bigl(U_0, \mu_0;\, U_1, \hat\mu_1\bigr),
+\subsection{Construction of Boltzmann generator}
+
+\section{Detailed Balance Score Matching}
+
+Although DBNF cannot be directly used for generative sampling, it can be combined with standard approaches such as score matching. Suppose that samples from a multi-modal target distribution $\mu(x)$ are available, and we seek a fast sampling method. As before, we choose $\mu_0$ as a tractable adaptive prior and train a flow map $F$ to minimize the reverse DB loss $\DB(F_{\#}\mu_0\|\mu)$. Once $\mu_0$ and $F$ are trained, the distributions $\mu_0$ and $F_{\#}\mu$ are close, and the remaining gap can be bridged by a standard generative layer such as score-based diffusion, which is able to overcome the geometric constraints of diffeomorphisms.
+
+The central challenge remains the evaluation of the reverse DB loss~\eqref{eq:loss-explicit}. In this setting, samples from $\mu(x)$ are available, so importance sampling is not needed. The main difficulty is that the gradient $\nabla U(x)$ is not directly accessible from samples alone.
+
+Nevertheless, we can employ implicit score matching to obtain an approximation to $\nabla U(x)$. Let $s(x) \in \mathbb R^d$ denote a parametric score model. The implicit score matching loss is
+\begin{equation}\label{eq:ism}
+    \int_{\mathbb R^d} \mu(x)  |s(x) - \nabla U(x)|^2 \D x =
+    \int_{\mathbb R^d} \mu(x) \big(|s(x)|^2 + 2\nabla\cdot s(x)\big)\D x,
 \end{equation}
-indicating that $F$ minimizes the DB divergence built from the potentials $U_0, U_1$, with $\mu_0$ providing the source samples and the guiding measure $\hat\mu_1$ providing the auxiliary mode guidance.
-
-\subsection{Choice of guiding measure}
-
-Although the DB normalizing flow provides a framework which allows to train the flow $F$ from $\mu_0$ to $\mu_1$ with flexible choices guiding measures $\hat \mu_1$, without sacrificing the accuracy, the actual choice of the $\hat \mu_1$ is delicate.
-
-
-\section{DB Boltzmann generator}
+where the right-hand side depends only on samples from $\mu(x)$ and does not require explicit knowledge of $U(x)$. Minimizing~\eqref{eq:ism} yields $s(x) \approx \nabla U(x)$, which can then be substituted into the reverse DB loss~\eqref{eq:loss-explicit}. With this learned gradient, we train the flow map $F$ and the adaptive prior $\mu_0(x)$ as in DBNF. Finally, a score-based diffusion layer is added between $\mu_0$ and $F_{\#}\mu$ to close the remaining gap. Since $\mu_0$ and $F_{\#}\mu$ are already close after DBNF training, the diffusion process only needs to run for a short time, which is expected to yield efficient and high-quality generative sampling.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
