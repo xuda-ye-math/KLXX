@@ -267,9 +267,9 @@ which introduces an additional parameter $\sigma>0$. In practice, we choose the 
 
 Suppose we resample $x_1,\dots,x_n$ from the weighted distribution $M(x) \mu_0(x)$. Then we define the Gaussian mixture guiding measure
 \begin{equation}
-    \hat\mu_1(y) = \frac1n \sum_{i=1}^n \mathcal N\bigl(y;x_i,H^{-1}(x_i)\bigr).
+    \hat\mu_1(y) = \frac{\lambda}n \sum_{i=1}^n \mathcal N\bigl(y;x_i,H^{-1}(x_i)\bigr).
 \end{equation}
-The centers $x_i$ are concentrated in regions of high mode weight, and the covariance $H^{-1}(x_i)$ scales each component to the local basin width, so sharp basins receive narrow Gaussians and broad basins receive wide ones, which is the natural choice once $H$ is interpreted as a curvature surrogate.
+The centers $x_i$ are concentrated in regions of high mode weight, and the covariance $H^{-1}(x_i)$ scales each component to the local basin width, so sharp basins receive narrow Gaussians and broad basins receive wide ones, which is the natural choice once $H$ is interpreted as a curvature surrogate. The scalar $\lambda > 0$ is a user-chosen parameter that tunes the overall strength of the mode guidance relative to the reverse loss; since $\hat\mu_1$ enters the DB loss only as a positive measure, $\lambda$ does not need to normalize $\hat\mu_1$ to a probability density.
 
 The full procedure for a single DB flow step is summarized in Algorithm~\ref{alg:dbnf-step}.
 
@@ -277,10 +277,14 @@ The full procedure for a single DB flow step is summarized in Algorithm~\ref{alg
     \setstretch{1.2}
     \DontPrintSemicolon
     \caption{Single DB normalizing flow step}\label{alg:dbnf-step}
-    \KwIn{source potential $U_0$ with samples from $\mu_0$; target potential $U_1$.}
+    \KwIn{source potential $U_0$ with samples from $\mu_0$; target potential $U_1$; guidance strength $\lambda > 0$.}
     \KwOut{flow map $F$ with $F_{\#}\mu_0 \approx \mu_1$.}
     Estimate the parameters $\delta$, $\sigma$, $A$ in~\eqref{eq:dsa-params} by Monte Carlo over $\mu_0$ samples.\;
-    Evaluate the curvature surrogate $H(x)$ at each $\mu_0$ sample.\;
+    Evaluate the curvature surrogate at each $\mu_0$ sample,
+    \begin{equation*}
+        H(x) = \frac{\displaystyle \int_{\mathbb R^d} \max\biggl[\frac{|\nabla U_1(x) - \nabla U_1(y)|}{|x-y|}, A\biggr] e^{-\frac{|x-y|^2}{2\sigma^2}} \mu_0(y) \D y}{\displaystyle \int_{\mathbb R^d} e^{-\frac{|x-y|^2}{2\sigma^2}} \mu_0(y) \D y}.
+    \end{equation*}
+
     Evaluate the mode weight at each $\mu_0$ sample,
     \begin{equation*}
         M(x) = \frac{H(x)}{|\nabla U_1(x)| + \delta}.
@@ -289,7 +293,7 @@ The full procedure for a single DB flow step is summarized in Algorithm~\ref{alg
     Resample $x_1,\dots,x_n$ from the reweighted distribution $M(x)\mu_0(x)$.\;
     Form the guiding measure
     \begin{equation*}
-        \hat\mu_1(y) = \frac1n \sum_{i=1}^n \mathcal N\bigl(y; x_i, H^{-1}(x_i)\bigr).
+        \hat\mu_1(y) = \frac{\lambda}n \sum_{i=1}^n \mathcal N\bigl(y; x_i, H^{-1}(x_i)\bigr).
     \end{equation*}
 
     Train $F = \mathrm{DBNF}(U_0,\mu_0;\, U_1,\hat\mu_1)$ by minimizing $\mathcal L_{\mathrm{total}}[F]$ in~\eqref{eq:total-loss}.\;
