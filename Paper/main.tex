@@ -5,13 +5,16 @@
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage[amsmath,thmmarks,framed]{ntheorem}
-\usepackage[ruled,linesnumbered]{algorithm2e}
 \usepackage{authblk}
 \usepackage{tcolorbox}
 \usepackage{xcolor}
 \definecolor{darkgreen}{rgb}{0.0,0.5,0.0}
 \usepackage[colorlinks,linkcolor=red,citecolor=darkgreen,urlcolor=blue]{hyperref}
 \usepackage[round,authoryear]{natbib}
+
+\usepackage[ruled,linesnumbered]{algorithm2e}
+\SetKwInput{KwInput}{Input}
+\SetKwInput{KwOutput}{Output}
 
 \newtheorem*{remark}{Remark}
 
@@ -56,12 +59,76 @@ which remains purely energy-based and is capable of discovering new modes. Since
 
 Although these approaches are theoretically capable of mitigating mode collapse, their training speed and stability are still limited by the complexity of the potential landscape. In many cases we already know the secondary modes of the target distribution $\mu$, for example the multiple configurations of a molecule; can we integrate these known modes into the flow training?
 
-In this paper we propose a new functional, the Log-Likelihood Ratio Discrepancy, defined by
+In this paper we propose a new functional, the log-likelihood ratio discrepancy, defined by
 \begin{equation}
     \mathrm{XX}(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d} \mu(x) \mu(y)
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr|\D x\D y.
 \end{equation}
-The shorthand XX denotes this nonnegative functional and is used purely for notational convenience.
+The shorthand XX denotes this nonnegative functional and is used purely for notational convenience. The XX operates in a fundamentally different regime from the forward KL and FAB: while the forward KL and FAB are based on a global Jensen's inequality, the XX works locally and drives the variation of the log-likelihood ratio $\log(\mu/\nu)$ to zero.
+This means that inaccurate importance-sampled estimates of the target $\mu(x)$ do not shift the minimizer, so the XX can be combined with known target data.
+Overall, the XX is not constructed to replace the forward KL or FAB, but is designed for specific use cases:
+\begin{itemize}
+    \setzero
+    \item It serves as a local complementary loss and can be freely combined with any global loss such as the forward KL or FAB;
+    \item It accelerates flow training and strengthens mode discovery;
+    \item It exploits known target-mode information, yielding a mixed energy-data approach.
+\end{itemize}
+Moreover, the XX has the same scale as the usual KL divergence (its integrand is first-order in the log-likelihood ratio), so no additional tuning is generally required.
+
+\section{Single-step training loss}
+
+Let $U_0(x)$ and $U_1(x)$ be the source and target potential functions on $\mathbb R^d$, and let $\mu_0 \propto \exp(-U_0)$ and $\mu_1 \propto \exp(-U_1)$ be the corresponding source and target distributions. Given sufficient samples from $\mu_0$, we aim to construct a differentiable flow map $G$ on $\mathbb R^d$ such that $G_{\#}\mu_1 \approx \mu_0$, so that target samples can be obtained from $G_{\#}^{-1} \mu_0$ via importance sampling.
+
+We first review the construction of the training loss for $G$ under the forward KL and FAB, then derive the XX functional for training $G$.
+
+\subsection{Forward KL}
+
+For the KL divergence, we have the symmetry equality $\mathrm{KL}(G_{\#}\mu_1\|\mu_0) = \mathrm{KL}(\mu_1\|G_{\#}^{-1}\mu_0)$. The pushforward density of $G_{\#}^{-1} \mu_0$ is given by
+\begin{equation}
+    (G^{-1}_{\#}\mu_0)(y) = \mu_0(G(y)) |\det J_{G}(y)|,
+\end{equation}
+hence the forward KL reads
+$$
+\begin{aligned}
+    \mathrm{KL}(G_{\#}\mu_1\|\mu_0) 
+    & = -\int_{\mathbb R^d} \mu_1(y) \log (G_{\#}^{-1}\mu_0)(y)\mathrm{d}y + \mathrm{const}  \\ 
+    & = \int_{\mathbb R^d} \mu_1(y) \Big(U_0(G(y)) - \log|\det J_G(y)|\Big)\mathrm{d}y + \mathrm{const}.
+\end{aligned}
+$$
+The forward KL training loss in terms of $G$ is defined by
+\begin{equation}
+\mathcal L_{\KL}[G] = \mathbb E_{y\sim \mu_1} \Big[U_0(G(y)) - \log|\det J_{G}(y)|\Big].
+\end{equation}
+Here, we deliberately use the inverse map $G$ from target to source so that $\mathcal L_{\KL}[G]$ does not involve the inverse of $G$, for the best efficiency of training.
+
+The forward KL requires explicit samples from the target distribution $\mu_1$, which can be approximately obtained via the Annealed Importance Sampling (AIS) approach. To be specific, we connect the pushforward distribution $G_{\#}^{-1} \mu_0$ and the target $\mu_1$ with the following $M+1$ intermediate distributions:
+\begin{equation}
+    \pi_k = (G_{\#}^{-1}\mu_0)^{1-\frac{k}{M}} (\mu_1)^{\frac{k}{M}},
+    \qquad k = 0,1,\dots,M.
+\end{equation}
+Equivalently, their negative log-likelihood is explicitly constructed as
+\begin{align}
+    -\log \pi_k(y) & = -\bigg(1-\frac{k}{M}\bigg) 
+    \log (G_{\#}^{-1}\mu_0)(y) - \frac kM \log \mu_1(y) \notag \\
+    & = \bigg(1-\frac{k}{M}\bigg) \Big(U_0(G(y)) - \log|\det J_G(y)|\Big) + \frac{k}{M}  U_1(y) + \mathrm{const}. \label{eq: log-pi-k}
+\end{align}
+The AIS is then constructed as:
+
+\begin{algorithm}[H]
+\setstretch{1.2}
+\caption{Annealed Importance Sampling (AIS) from $G_{\#}^{-1}\mu_0$ to $\mu_1$}
+\KwInput{source and target potentials $U_0$ and $U_1$, flow map $G$}
+\end{algorithm}
+
+
+We approximate $\mu_1$ samples by importance sampling against the trained flow:
+- Draw $x_1,\ldots,x_N \sim \mu_0$ (source);
+- Push forward to $y_i = G^{-1}(x_i)$, so $y_i \sim G^{-1}_{\#}\mu_0$ (detach to stop gradient);
+- Compute the log-weights $\log w_i = U_0(x_i) - U_1(y_i) - \log|\det J_G(y_i)|$;
+- Resample $\{y_i\}$ by weights $w_i$ to obtain approximate samples from $\mu_1$;
+- Apply a few Langevin steps on $\{y_i\}$ to obtain approximate samples of $\mu_1$.
+
+Because of the resampling, the approximation to $\mu_1$ is biased, so a large batch size is recommended; the parameter $\lambda$ then becomes a trade-off between overcoming mode collapse and sampling accuracy.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
