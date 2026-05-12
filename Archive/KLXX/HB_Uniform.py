@@ -15,7 +15,6 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 SIGMA = 3.0 # deviation of Gaussian prior
 PLT_LIM = 6.0
 NSF_LIM = 9.0
-LAMBDA = 4.0 # coefficient the forward KL/XX
 
 # source: uniform distribution U0
 u0 = Gaussian(mean=[0.0]*2, variance=[SIGMA**2]*2).to(device)
@@ -36,117 +35,92 @@ u1.enable_grad() # enable_grad for Langevin rejuvenation
 # training parameters
 N_TRAIN: int = 40000  # number of training samples
 N_VALID: int = 40000 # number of validation samples
-LR: float = 5e-4 # learning rate
-BATCH: int = 4000 # batch size
-EPOCH: int = 200 # number of epochs
+LR: float = 1e-3 # learning rate
+BATCH: int = 100 # batch size
+EPOCH: int = 500 # number of epochs
 
 # reverse KL loss
 def reverse_KL(x: torch.Tensor, target: Potential, G: ComposedTransform):
     y, ladj_inv = G.inv.call_and_ladj(x) # y = G^{-1}(x), ladj_inv = log|det J_{G^{-1}}(x)|
     return (target(y) - ladj_inv).mean()
 
-# forward XX loss (the XX functional in the forward direction)
-# weights_y is assumed normalized: weights_y.sum() == 1
-def forward_XX(y: torch.Tensor, weights_y: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform):
+# forward KL loss (KL(mu_1 || G^{-1}_# u_0) up to a G-independent constant)
+def forward_KL(y: torch.Tensor, source: Potential, G: ComposedTransform):
+    x, ladj = G.call_and_ladj(y) # x = G(y), ladj = log|det J_G(y)|
+    return (source(x) - ladj).mean()
+
+# forward XX loss 
+def forward_XX(y: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform):
     N = y.shape[0]
     perm = torch.randperm(N, device=y.device)
-    y_, w_   = y[perm], weights_y[perm]
+    y_ = y[perm]
     x,  ladj  = G.call_and_ladj(y)  # x  = G(y),  ladj  = log|det J_G(y)|
     x_, ladj_ = G.call_and_ladj(y_) # x_ = G(y_), ladj_ = log|det J_G(y_)|
     A  = source(x)  - target(y)  - ladj
     A_ = source(x_) - target(y_) - ladj_
-    return 0.5 * N * (weights_y * w_ * (A - A_).abs()).sum()
-
-# forward KL loss (KL(mu_1 || G^{-1}_# u_0) up to a G-independent constant)
-# weights_y is assumed normalized: weights_y.sum() == 1
-def forward_KL(y: torch.Tensor, weights_y: torch.Tensor, source: Potential, G: ComposedTransform):
-    x, ladj = G.call_and_ladj(y) # x = G(y), ladj = log|det J_G(y)|
-    return (weights_y * (source(x) - ladj)).sum()
-
-# one ULA step on y targeting `potential`, paired with normalized Metropolis IS weights
-def langevin_metropolis(y: torch.Tensor, potential: Potential, eta: float):
-    gy = potential.grad(y)
-    y_new = y - eta * gy + (2 * eta) ** 0.5 * torch.randn_like(y)
-    # consume gy into log_q_fwd BEFORE the next potential.grad(), since its CUDA-graph buffer is reused
-    log_q_fwd = -((y_new - y + eta * gy).square().sum(dim=-1)) / (4 * eta) # log q(y_new | y)
-    gy_new = potential.grad(y_new)
-    log_q_rev = -((y - y_new + eta * gy_new).square().sum(dim=-1)) / (4 * eta) # log q(y | y_new)
-    log_alpha = -potential(y_new) + potential(y) + log_q_rev - log_q_fwd
-    w = (log_alpha - log_alpha.max()).exp()
-    w = w / w.sum()
-    return y_new, w
+    return 0.5 * (A - A_).abs().mean()
 
 torch.manual_seed(0)
 x_pool = u0.samples(N_TRAIN)                       # x ~ u_0 (shared)
 
-# --- Run 1: KL ---
+# --- Run 1: FAB (surrogate only, squared-IS g-samples) ---
 torch.manual_seed(0)
 flow_1 = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=32, transforms=6, hidden_features=(128, 128)).to(device)
 flow_1.zeros()
 optimizer = torch.optim.Adam(flow_1.parameters(), lr=LR)
-print("=== Run 1: KL ===")
+print("=== Run 1: FAB ===")
+ess_history_1 = []
 for step in range(EPOCH):
     idx = torch.randperm(N_TRAIN, device=device)[:BATCH]
     x = x_pool[idx]
+
+    # squared IS resample -> approximate samples from g ~ mu_1^2 / G^{-1}_# u_0
+    with torch.no_grad():
+        G_now = flow_1.t()
+        y, _ = G_now.inv.call_and_ladj(x)
+        w = importance_weights(x, u0, u1, G_now.inv)
+        ess_history_1.append(compute_ESS(w).item())
+        y_g = resample(y, w * w)
+
     G = flow_1.t()
-    loss = reverse_KL(x, u1, G)
+    loss = forward_KL(y_g, u0, G)
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
     if (step + 1) % 10 == 0 or step == 0:
         print(f"[Run 1] step {step+1:>3}/{EPOCH}   loss = {loss.item():.4e}")
 
-# --- Run 2: KLXX (pure energy-based, importance-sampled source-side proposal) ---
+# --- Run 2: FAB++ (FAB surrogate + XX on mu_1 samples; two-step IS) ---
 torch.manual_seed(0)
 flow_2 = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=32, transforms=6, hidden_features=(128, 128)).to(device)
 flow_2.zeros()
 optimizer = torch.optim.Adam(flow_2.parameters(), lr=LR)
-print("=== Run 2: KLXX ===")
+print("=== Run 2: FAB++ ===")
+ess_history_2 = []
 for step in range(EPOCH):
     idx = torch.randperm(N_TRAIN, device=device)[:BATCH]
     x = x_pool[idx]
 
-    # IS resample + one Langevin step with Metropolis IS weights
+    # two-step IS: mu_1 samples via IS+Langevin, then g samples by reweighting mu_1
     with torch.no_grad():
         G_now = flow_2.t()
-        y, _ = G_now.inv.call_and_ladj(x) # y = G^{-1}(x) ~ G^{-1}_# u_0
-        w = importance_weights(x, u0, u1, G_now.inv) # mu_1 / G^{-1}_# u_0
-        y = resample(y, w) # after resample, weights are uniform (1 per sample)
-        y, w = langevin_metropolis(y, u1, eta=1e-2) # one Langevin step, weights = Metropolis ratio
+        y, _ = G_now.inv.call_and_ladj(x)
+        w = importance_weights(x, u0, u1, G_now.inv)
+        ess_history_2.append(compute_ESS(w).item())
+        y_mu1 = resample(y, w)
+        y_mu1 = langevin(y_mu1, u1, step=1e-2, iters=10)
+        x_back, ladj = G_now.call_and_ladj(y_mu1)
+        log_w2 = -u1(y_mu1) + u0(x_back) - ladj
+        w2 = (log_w2 - log_w2.max()).exp()
+        y_g = resample(y_mu1, w2)
 
     G = flow_2.t()
-    loss = reverse_KL(x, u1, G) + LAMBDA * forward_XX(y, w, u0, u1, G)
+    loss = forward_KL(y_g, u0, G) + forward_XX(y_mu1, u0, u1, G)
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
     if (step + 1) % 10 == 0 or step == 0:
         print(f"[Run 2] step {step+1:>3}/{EPOCH}   loss = {loss.item():.4e}")
-
-# --- Run 3: Jeffreys (reverse KL + LAMBDA * forward KL) ---
-torch.manual_seed(0)
-flow_3 = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=32, transforms=6, hidden_features=(128, 128)).to(device)
-flow_3.zeros()
-optimizer = torch.optim.Adam(flow_3.parameters(), lr=LR)
-print("=== Run 3: Jeffreys ===")
-for step in range(EPOCH):
-    idx = torch.randperm(N_TRAIN, device=device)[:BATCH]
-    x = x_pool[idx]
-
-    # IS resample + one Langevin step with Metropolis IS weights
-    with torch.no_grad():
-        G_now = flow_3.t()
-        y, _ = G_now.inv.call_and_ladj(x) # y = G^{-1}(x) ~ G^{-1}_# u_0
-        w = importance_weights(x, u0, u1, G_now.inv) # mu_1 / G^{-1}_# u_0
-        y = resample(y, w) # after resample, weights are uniform (1 per sample)
-        y, w = langevin_metropolis(y, u1, eta=1e-2) # one Langevin step, weights = Metropolis ratio
-
-    G = flow_3.t()
-    loss = reverse_KL(x, u1, G) + LAMBDA * forward_KL(y, w, u0, G)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
-    if (step + 1) % 10 == 0 or step == 0:
-        print(f"[Run 3] step {step+1:>3}/{EPOCH}   loss = {loss.item():.4e}")
 
 # Plot pushforward samples for each method
 import matplotlib.pyplot as plt
@@ -166,10 +140,9 @@ levels = torch.linspace(0.0, 30.0, 50).tolist()
 
 x_unif = u0.samples(N_VALID)                        # shared x ~ u_0 for ESS and plotting
 
-fig, axes = plt.subplots(1, 3, figsize=(12, 4))
-panels = [('KL',       flow_1, 'darkblue'),
-          ('KLXX',     flow_2, 'darkred'),
-          ('Jeffreys', flow_3, 'darkgreen')]
+fig, axes = plt.subplots(1, 2, figsize=(8, 4))
+panels = [('FAB',   flow_1, "#00008B"),
+          ('FAB++', flow_2, "#8B0000")]
 for col, (name, flow, color) in enumerate(panels):
     with torch.no_grad():
         G = flow.t()
@@ -190,4 +163,16 @@ for col, (name, flow, color) in enumerate(panels):
 
 plt.tight_layout()
 plt.savefig(HERE / "HB_Uniform.png", dpi=300)
+
+# ESS curves over training
+fig_ess, ax_ess = plt.subplots(figsize=(8, 4))
+ax_ess.plot(ess_history_1, color="#00008B", label='FAB')
+ax_ess.plot(ess_history_2, color="#8B0000", label='FAB++')
+ax_ess.set_xlabel('step')
+ax_ess.set_ylabel('ESS')
+ax_ess.set_ylim(0, 1)
+ax_ess.legend()
+plt.tight_layout()
+plt.savefig(HERE / "HB_Uniform_ESS.png", dpi=300)
+
 plt.show()

@@ -2,7 +2,7 @@
 
 cd "$(dirname "$0")"
 
-REMOTE_URL="https://github.com/xuda-ye-math/Detailed-Balance-Normalizing-Flow.git"
+REMOTE_URL="https://github.com/xuda-ye-math/Log-Likelihood-Ratio-Discrepancy.git"
 
 git init
 git config user.name "xuda-ye-math"
