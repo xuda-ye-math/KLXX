@@ -230,5 +230,3 @@ for col, fam in enumerate(('KL', 'FAB')):
 
 plt.tight_layout()
 plt.savefig(HERE / "samples.png", dpi=300)
-
-plt.show()
