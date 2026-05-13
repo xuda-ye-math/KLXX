@@ -63,6 +63,7 @@ In this paper we propose a family of log-ratio regularizations: the XX functiona
 \begin{equation}
     \mathrm{XX}(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d} \mu(x) \mu(y) f\bigg(
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr|\bigg)\D x\D y,
+    \label{eq: XX}
 \end{equation}
 where $f:\mathbb R_+\to\mathbb R_+$ is a differentiable increasing function. We penalize the \emph{difference} of two log-ratios rather than the absolute value of a single log-ratio because the target density $\mu$ is known only up to an unknown normalization constant; this constant cancels exactly in the difference $\log(\mu(x)/\nu(x)) - \log(\mu(y)/\nu(y))$.
 The XX operates in a fundamentally different regime from standard divergence quantities such as the forward KL and the $D_2$ used in FAB:
@@ -77,7 +78,9 @@ The XX operates in a fundamentally different regime from standard divergence qua
 \end{enumerate}
 Overall, the XX is a safe-to-use regularization that accelerates any divergence-based flow training method while offering the flexibility to incorporate prior mode information. Moreover, the XX has the same scale as the usual KL divergence, so almost no additional tuning is required. The need for samples from $\mu$ is already met by the forward KL and FAB, so no additional data-preparation cost is incurred.
 
-\section{Single-step training loss}
+\section{Single-step training loss with XX}
+
+We elaborate how to construct the training loss in a single-step normalizing flow using the log-ratio regularization term defined in \eqref{eq: XX}
 
 Let $U_0(x)$ and $U_1(x)$ be the source and target potential functions on $\mathbb R^d$, and let $\mu_0 \propto \exp(-U_0)$ and $\mu_1 \propto \exp(-U_1)$ be the corresponding source and target distributions. Given sufficient samples from $\mu_0$, we aim to construct a differentiable flow map $G$ on $\mathbb R^d$ such that $G_{\#}\mu_1 \approx \mu_0$, so that target samples can be obtained from $G_{\#}^{-1} \mu_0$ via importance sampling.
 

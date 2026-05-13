@@ -162,7 +162,7 @@ for col, (name, flow, color) in enumerate(panels):
     ax.set_title(f'{name}: $G^{{-1}}_{{\\#}} \\mu_0$,  ESS = {ess:.4f}')
 
 plt.tight_layout()
-plt.savefig(HERE / "HB_Uniform.png", dpi=300)
+plt.savefig(HERE / "samples.png", dpi=300)
 
 # ESS curves over training
 fig_ess, ax_ess = plt.subplots(figsize=(8, 4))
@@ -173,6 +173,6 @@ ax_ess.set_ylabel('ESS')
 ax_ess.set_ylim(0, 1)
 ax_ess.legend()
 plt.tight_layout()
-plt.savefig(HERE / "HB_Uniform_ESS.png", dpi=300)
+plt.savefig(HERE / "ESS.png", dpi=300)
 
 plt.show()
