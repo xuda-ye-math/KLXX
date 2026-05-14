@@ -1,0 +1,1635 @@
+% review.tex --- Literature review of prior-distribution choice in flow-based
+% Boltzmann generators. Compile with: pdflatex review && pdflatex review
+%
+% Prepared 2026-05-14 in support of the LLR-discrepancy paper.
+
+\documentclass[11pt,letterpaper]{article}
+
+\usepackage[margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{mathtools}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue!50!black,citecolor=green!40!black,urlcolor=blue!60!black]{hyperref}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyvrb}
+\usepackage{caption}
+
+\graphicspath{{figures/}}
+
+% --- title block ----------------------------------------------------------
+\title{A Critical Review of Prior-Distribution Choice in Flow-Based\\Boltzmann Generators}
+\author{}
+\date{2026-05-14 working draft}
+
+% --- math shortcuts (named so KaTeX/MathJax-style \X etc. need not appear)
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\Real}{\mathbb{R}}
+\newcommand{\KLdiv}{\mathrm{KL}}
+\newcommand{\Xfun}{\mathrm{X}}
+\newcommand{\ESS}{\mathrm{ESS}}
+\newcommand{\Cov}{\mathrm{Coverage}}
+\newcommand{\NND}{\mathrm{NND}}
+\newcommand{\Le}{\leqslant}
+\newcommand{\Ge}{\geqslant}
+\newcommand{\dd}{\mathrm{d}}
+
+% --- theorem / proposition / callout environments -------------------------
+\theoremstyle{plain}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+
+\newtcolorbox{callout}{
+  colback=blue!4,colframe=blue!40!black,boxrule=0.4pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,arc=2pt
+}
+\newtcolorbox{killerquote}{
+  colback=red!3,colframe=red!50!black,boxrule=0.4pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,arc=2pt
+}
+
+\titleformat{\section}{\Large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\large\bfseries}{\thesubsection.}{0.5em}{}
+
+% --------------------------------------------------------------------------
+\begin{document}
+
+\maketitle
+
+\begin{abstract}\noindent
+Flow-based Boltzmann generators (BGs) sample from a multimodal target
+$\mu\propto\exp(-U_1)$ on $\Real^d$ by training an invertible neural network
+$G:\Real^d\to\Real^d$ to push a tractable base distribution $\mu_0$ onto the
+target. The choice of $\mu_0$ has split the literature into two camps. Camp A
+keeps $\mu_0$ a standard Gaussian and invests all engineering effort in the
+loss, architecture, and inference schedule (Noé 2019 $\to$ FAB 2022 $\to$ TA-BG
+2025 $\to$ CMT 2025 $\to$ SBG 2025); Camp B encodes physical knowledge of the
+target into $\mu_0$ itself (Wirnsberger 2022's lattice-Gaussian prior, Coretti's
+higher-temperature reference, Schiebroek--Koehn's structured CG latent). This
+review compiles roughly 90 references across seven communities (molecular
+sampling, Bayesian inverse PDE, cosmology, particle physics, geophysics,
+simulation-based inference, and VAE foundations), inspects every canonical
+implementation at the code level, and formalises both the difficulties each
+camp confronts and the architectural pressures that couple the choice of
+$\mu_0$ to the choice of training loss.
+
+The central argument is that Camp~B's strengths concentrate in a single design
+quadrant --- reverse-KL training on a flow with cheap $G^{-1}$, applied to a
+single-basin or single-phase target --- and that outside this quadrant Camp~B's
+prior tuning offers no architectural leverage but pays full mode-lock-in cost.
+We formalise a third way: keep Camp~A's full-support Gaussian prior, but inject
+mode information into a \emph{log-ratio discrepancy regulariser} $\Xfun_{\hat\mu}$
+with a sloppy Trinity-produced mode estimate $\hat\mu$. The regulariser's
+asymptotic minimiser is invariant to inaccuracies in $\hat\mu$ in the realisable
+case (Proposition~\ref{prop:invariance}), so sloppy mode knowledge can be
+absorbed without committing the flow's support. After steelmanning Camp~B's
+strongest position (\S15), the defensible scope of the third way sharpens to:
+\emph{for multimodal mode-discovery targets in the protein-sampling regime},
+the third way sidesteps both camps' failure modes; \emph{for single-phase
+free-energy precision targets}, Camp~B (Wirnsberger 2022 and successors) remains
+correct and unbeaten.
+\end{abstract}
+
+\tableofcontents
+
+\bigskip
+
+\begin{callout}
+\textbf{Executive summary.} For single-phase, single-basin precision problems
+(crystallographic free energies à la Wirnsberger 2022), Camp B is correct and
+unbeaten. For multimodal mode-discovery problems (the LLR paper's target setting),
+Camp B is structurally unable to discover modes its prior does not encode, and the
+entire 2024--2026 BG field has converged on Camp A as a result. A third way ---
+keep Camp A's full-support Gaussian prior but inject mode information into a
+log-ratio regulariser with built-in inaccuracy tolerance (the $\Xfun_{\hat\mu}$
+functional) --- fills a design-space niche neither camp occupies.
+
+\textbf{Three load-bearing facts:}
+\begin{enumerate}\setlength{\itemsep}{0pt}
+  \item Wirnsberger 2022 explicitly concedes single-basin sampling (\S4.1, \S22.6).
+  \item TBG 2024 explicitly tried a structured prior and reported ``no significant
+    improvements'' (\S3.11).
+  \item Across ${\sim}90$ references in 7 communities, no flagship method since 2019
+    has trained a tuned-GMM-prior BG on multimodal protein targets (\S6).
+\end{enumerate}
+\end{callout}
+
+\section{Introduction and motivation}
+
+Sampling from a high-dimensional, multimodal Boltzmann distribution
+$\mu(x)=Z^{-1}\exp(-U_1(x))$ on $\Real^d$ with analytically tractable potential
+$U_1$ but intractable partition function $Z$ is the central computational problem
+of statistical mechanics, free-energy estimation in biomolecular simulation, lattice
+quantum field theory, and Bayesian inference with PDE-based likelihoods. The
+Boltzmann distribution is \emph{multimodal} whenever $U_1$ has multiple local minima
+separated by free-energy barriers $\Delta F \gg k_B T$. For proteins these barriers
+are routinely $10$--$30\,k_BT$, making naive Langevin / Metropolis sampling
+infeasibly slow: the mean first-passage time between basins scales as
+$\tau\sim e^{\Delta F/k_BT}$.
+
+Flow-based \emph{Boltzmann generators} (BGs), introduced by Noé, Olsson, Köhler, and
+Wu (\emph{Science} 2019), short-circuit this difficulty by training a bijective
+neural network $G:\Real^d\to\Real^d$ to push a simple base distribution $\mu_0$
+directly onto the target $\mu$. Once $G$ is trained, samples from $\mu$ are produced
+by drawing $z\sim\mu_0$ and applying $G^{-1}(z)$. Because $G$ is invertible with
+tractable Jacobian, the density of the model on the target side is known in closed
+form and importance weights are computable.
+
+The architectural and methodological progress on BGs since 2019 has been remarkable
+--- equivariant flows (2020), AIS-based loss (FAB, 2022), flow matching (2023),
+transferable amortised BGs (2024), inference-time SMC (2025), and constrained-transport
+schedules (2025). And yet, a central design choice has remained unsettled:
+\textbf{what should the base distribution $\mu_0$ be?} Two philosophies have emerged:
+
+\begin{description}
+  \item[Camp A] \emph{Simple prior, sophisticated training.} Take $\mu_0$ as a
+    standard isotropic Gaussian (possibly truncated for compact intervals or
+    von-Mises-wrapped for dihedrals). Let the flow $G$ shoulder the entire
+    topological burden of mapping a unimodal contractible Gaussian onto a
+    multimodal Boltzmann target. The loss, the architecture, and the inference-time
+    schedule are where all engineering effort lives. \emph{This is the mainstream
+    philosophy.}
+  \item[Camp B] \emph{Tuned prior, simpler training.} Encode physical knowledge of
+    the target into $\mu_0$: Gaussians centred at the lattice sites of the
+    crystalline phase (Wirnsberger 2022), a higher-temperature reference distribution
+    (Coretti et al.), conditional priors at fixed thermodynamic states (Schebek 2024),
+    structured multimodal collective-variable latent spaces (Schiebroek \& Koehn 2025),
+    or learned mixtures (VampPrior 2018, LARS 2019). The flow then has only to
+    learn local fluctuations around the encoded structure.
+\end{description}
+
+These camps encode incompatible philosophical commitments about where mode
+information should live in the pipeline. The user's paper proposes a \emph{third
+way}: keep Camp A's uninformative prior, but inject mode information into the
+\emph{loss} via a log-ratio discrepancy regulariser $\Xfun_{\hat\mu}$. The regulariser's
+asymptotic minimiser is invariant to inaccuracies in the mode-finder $\hat\mu$
+(Proposition~\ref{prop:invariance} below), so sloppy mode knowledge can be absorbed
+without committing the prior's support to it. The purpose of this review is to
+compile the evidence --- mathematical, code-level, numerical, and cross-community
+--- needed to argue cleanly between the three positions.
+
+\section{Mathematical preliminaries}
+
+\begin{callout}
+\textbf{Why this section exists.} Before debating \emph{which} prior is best for a
+BG, we need a shared language for what a BG is doing and what its failure modes
+look like. The objects defined here --- pushforward density, reverse-KL loss,
+forward-KL loss, ESS, coverage --- are the vocabulary every camp uses, often with
+subtly different assumptions. Setting them down once in standard notation lets
+every later claim be checked against the math rather than against rhetorical
+framing.
+\end{callout}
+
+\subsection{The Boltzmann sampling problem}
+
+Let $U_1:\Real^d\to\Real$ be a potential on configuration space, possibly only
+analytically tractable up to an additive constant. We want samples from the
+Boltzmann distribution
+\[
+  \mu(x) = \frac{1}{Z}\exp(-U_1(x)), \qquad Z = \int_{\Real^d} \exp(-U_1(x))\,\dd x.
+\]
+We assume only that $U_1$ and $\nabla U_1$ can be evaluated pointwise. The two
+principal evaluation metrics will be effective sample size $\ESS\in[0,1]$
+(necessary but not sufficient) and coverage (Naeem et al.\ 2020), which together
+expose the \emph{fake-ESS pitfall}.
+
+\subsection{Normalising flows and pushforward measures}
+
+A normalising flow $G:\Real^d\to\Real^d$ is a $C^1$-bijection parameterised by a
+neural network with parameters $\theta$ such that $\det J_G(y)$ is computable in
+$O(d)$ or $O(d\log d)$ time. Let $\mu_0$ be a base distribution on $\Real^d$
+(typically the standard isotropic Gaussian). The flow $G$ induces two distributions:
+
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item Pushforward $G_\#\mu_0$ with density $(G_\#\mu_0)(x)=\mu_0(G^{-1}(x))|\det J_{G^{-1}}(x)|$;
+  \item Pullback $G^{-1}_\#\mu_0$ with density
+  \[
+    (G^{-1}_\#\mu_0)(y) = \mu_0(G(y))\,|\det J_G(y)|.
+  \]
+\end{itemize}
+
+We parameterise the loss in terms of $G:y\to z$ (target $\to$ latent) so that no
+inversion is required during training. Sampling at inference requires inverting
+$G$ on $z\sim\mu_0$ to obtain $y=G^{-1}(z)$.
+
+\subsection{The reverse-KL training loss}
+
+Let $\nu_\theta:=G^{-1}_{\theta,\#}\mu_0$ be the model. After reparameterisation
+through the base,
+\[
+  \mathcal L_{\mathrm{rev}}(\theta)
+  = \E_{z\sim\mu_0}\!\big[U_1(G^{-1}_\theta(z)) + \log|\det J_{G^{-1}_\theta}(z)|\big] + \mathrm{const}.
+\]
+\textbf{Mode-seeking property.} Reverse KL gives infinite penalty whenever
+$\nu_\theta$ puts mass where $\mu$ has essentially none, but it gives essentially
+zero penalty when $\nu_\theta$ \emph{misses} mass that $\mu$ puts somewhere. A
+dropped mode does not enter the loss --- this is the source of mode collapse.
+
+\subsection{The forward-KL training loss}
+
+The forward KL is
+\[
+  \mathcal L_{\mathrm{fwd}}(\theta) = \KLdiv(\mu\,\|\,\nu_\theta) = \E_{y\sim\mu}\!\big[U_0(G_\theta(y)) - \log|\det J_{G_\theta}(y)|\big] + \mathrm{const},
+\]
+with $U_0(z)=\tfrac{1}{2}\|z\|^2$ for the standard Gaussian prior.
+\textbf{Mode-covering property.} A single missed mode contributes $+\infty$, so
+forward KL maximally penalises missed modes. However, the expectation is over
+$\mu$, which we cannot sample directly --- bootstrapping via MD, AIS, or
+score/flow matching is required.
+
+\subsection{Annealed importance sampling}
+
+AIS (Neal 2001) bridges $\nu_\theta$ and $\mu$ through $M+1$ intermediates
+\[
+  \pi_k \propto \nu_\theta^{1-\beta_k}\,\mu^{\beta_k},\qquad 0=\beta_0<\beta_1<\dots<\beta_M=1,
+\]
+with per-step weights $w_k(y) = (\nu_\theta(y))^{\beta_{k-1}-\beta_k}\,(\mu(y))^{\beta_k-\beta_{k-1}}$ and
+MCMC kernels targeting each $\pi_k$. AIS \emph{accelerates fine-grained reweighting}
+but does \emph{not} solve mode discovery: if $\nu_\theta$ misses a mode, the AIS chain
+initialised at $\nu_\theta$ does not magically populate it.
+
+\subsection{ESS and coverage; the fake-ESS phenomenon}
+
+\begin{definition}[ESS]
+For $N$ samples $\mathbf y$ with importance weights $w_i=\mu(y_i)/\nu_\theta(y_i)$,
+\[
+  \ESS(\mathbf y) = \frac{(\sum_i w_i)^2}{N\sum_i w_i^2}\in[0,1],
+\]
+attained at $1$ iff all weights are equal.
+\end{definition}
+
+\begin{definition}[Coverage; Naeem et al.~2020]
+For reference samples $\mathbf x=(x_1,\dots,x_P)$ and candidate samples
+$\mathbf y$,
+\[
+  \NND_k(x_i;\mathbf x) = \inf\{r\Ge 0:\#\{j:0<|x_i-x_j|<r\}\Ge k\},
+\]
+and
+\[
+  \Cov_k(\mathbf y;\mathbf x) = \frac{1}{P}\sum_{i=1}^P \mathbf 1\!\big[\exists j: |y_j-x_i|\Le\NND_k(x_i;\mathbf x)\big].
+\]
+\end{definition}
+
+\textbf{Fake ESS.} If $\nu_\theta$'s support is strictly inside $\mu$'s, importance
+weights $w_i=\mu(y_i)/\nu_\theta(y_i)$ remain computable and can be uniform on the
+visited region: $\ESS\to 1$ does \emph{not} imply
+$\mathrm{supp}(\nu_\theta)=\mathrm{supp}(\mu)$. ESS is a necessary but not
+sufficient quality criterion; coverage is the sufficient complement.
+
+\section{Camp A --- simple prior, sophisticated training}
+
+\begin{callout}
+\textbf{Why this section exists.} ``Camp A'' has been the de facto default in the
+BG literature since Noé et al.\ 2019: keep $\mu_0$ a standard Gaussian and pour all
+the engineering effort into the loss, the architecture, and the inference schedule.
+The thirteen papers below trace the canonical Camp A timeline from the founding
+2019 paper to the 2025 state-of-the-art and document the exact loss formula,
+training procedure, and numerical headlines of each.
+\end{callout}
+
+\subsection{The original BG (Noé et al.\ 2019)}
+
+Noé, Olsson, Köhler, Wu, \emph{Science} 365, eaaw1147 (2019); preprint
+\href{https://arxiv.org/abs/1812.01729}{arXiv:1812.01729}. Founding paper. Hybrid
+loss combining reverse-KL with a maximum-likelihood term over MD samples
+$\{y_i^{\mathrm{MD}}\}$ in each known metastable state:
+\[
+  \mathcal L_{\mathrm{BG}}(\theta) = w_{\mathrm{KL}}\,\mathcal L_{\mathrm{rev}}(\theta)
+   + w_{\mathrm{ML}}\,\Big(\!-\!\frac{1}{N_{\mathrm{MD}}}\sum_i\log\nu_\theta(y_i^{\mathrm{MD}})\Big) + w_{\mathrm{RC}}\,\mathcal L_{\mathrm{RC}}(\theta).
+\]
+The framework explicitly requires that short MD has already discovered every
+metastable state of interest --- mode discovery is not within scope. Latent prior:
+standard Gaussian (the canonical
+\href{https://github.com/noegroup/bgflow}{\texttt{noegroup/bgflow}} notebook uses
+\verb|bg.NormalDistribution(dim_ics, mean=mean)| with the author-supplied comment
+that this is a ``rather naive choice'').
+
+\subsection{Stochastic normalising flows (Wu, Köhler, Noé 2020)}
+
+\href{https://proceedings.neurips.cc/paper/2020/file/41d80bfc327ef980528426fc810a6d7a-Paper.pdf}{NeurIPS 2020}.
+Interleave deterministic invertible layers with stochastic MCMC kernels. Path
+likelihood combines $\log|\det J|$ terms from deterministic layers with Jarzynski
+work terms from stochastic ones. \emph{Base distribution: standard Gaussian.}
+
+\subsection{Equivariant flows (Köhler, Klein, Noé 2020)}
+
+\href{https://arxiv.org/abs/2006.02425}{ICML 2020, arXiv:2006.02425}. If the target
+has symmetry group $G_{\mathrm{sym}}$, build $G:\Real^d\to\Real^d$
+$G_{\mathrm{sym}}$-equivariant with $G_{\mathrm{sym}}$-invariant base. The base is
+a centred mean-free Gaussian on $\{z:\sum z_i=0\}$ for translation-rotation symmetry
+--- this is \emph{symmetry-imposed} prior structure, not mode tuning.
+
+\subsection{Smooth NFs and flows on tori}
+
+Köhler, Krämer, Noé \href{https://arxiv.org/abs/2110.00351}{NeurIPS 2021}; Rezende
+et al.\ \href{https://arxiv.org/pdf/2002.02428}{ICML 2020}. Mixture-of-bumps
+coupling on $[0,1]$ intervals and on tori for dihedrals, enabling smooth molecular
+potentials. The base on dihedrals is uniform on $[0,1]$ (periodic); on bonds and
+angles it is truncated Gaussian. \emph{Geometry-aware topology, not mode tuning.}
+
+\subsection{FAB --- Flow Annealed Importance Sampling Bootstrap (Midgley et al.\ 2022)}
+
+\href{https://arxiv.org/abs/2208.01893}{ICLR 2023}; code at
+\href{https://github.com/lollcat/fab-torch}{\texttt{lollcat/fab-torch}}.
+Minimises the $\alpha=2$ divergence
+\[
+  D_2(\mu\,\|\,\nu) = \log\int\frac{\mu^2(x)}{\nu(x)}\,\dd x = \log\!\big(1+\mathrm{Var}_\nu[\mu/\nu]\big),
+\]
+which is equivalent to minimising the variance of importance weights. The
+$\alpha=2$ gradient is estimated from AIS chains $\mathbf y^{(\mathrm{AIS})}\sim\pi_{1/2}\propto\sqrt{\nu_\theta\mu}$:
+\[
+  \nabla_\theta\mathcal L_{\mathrm{FAB}}(\theta)
+  = -\sum_i w_i^{(\mathrm{AIS})}\nabla_\theta\log\nu_\theta(y_i^{(\mathrm{AIS})}).
+\]
+A prioritised replay buffer stores past AIS samples; reweighting by $w^2/\nu_\theta$
+makes high-importance points contribute disproportionately. \textbf{Headlines:} on
+alanine dipeptide ($d=22\times 3$ atoms), $100\times$ fewer target evaluations
+than ML training on MD. \textbf{Base distribution:} hardcoded
+\verb|nf.distributions.base.DiagGaussian(dim)| in fab-torch's
+\verb|make_normflow_realnvp|. No mixture, no tuning.
+
+\subsection{Adaptive MC + flow (Gabrié, Rotskoff, Vanden-Eijnden 2022)}
+
+\href{https://www.pnas.org/doi/10.1073/pnas.2109420119}{PNAS 119(10) (2022)}.
+Augments MCMC with a flow trained on the running chain history. The flow is used
+as an independent-MH global proposal. Critical admission: \emph{``the multimodal
+case requires prior knowledge about either the symmetries of the systems generating
+the degeneracy of the modes or the location of the metastable basins.''} The
+information must enter \emph{somewhere}.
+
+\subsection{Resampled base (Stimper et al.\ 2022)}
+
+\href{https://arxiv.org/abs/2110.15828}{AISTATS 2022}; library
+\href{https://github.com/VincentStimper/normalizing-flows}{normflows}. Learned
+rejection sampling on top of a Gaussian base. Used by FAB and TA-BG. The
+resampled-base feature is rarely flipped on in production BG work.
+
+\subsection{Equivariant flow matching (Klein, Krämer, Noé 2023)}
+
+\href{https://arxiv.org/abs/2306.15030}{NeurIPS 2023}. Combines flow matching
+(Lipman et al.\ 2023) with $\mathrm{SE}(3)\times S_n$ equivariance via an EGNN.
+First flow-based BG for alanine dipeptide \emph{without} internal-coordinate
+featurisation. Prior: mean-free Gaussian.
+
+\subsection{iDEM --- Iterated Denoising Energy Matching (Akhound-Sadegh et al.\ 2024)}
+
+\href{https://arxiv.org/abs/2402.06121}{ICML 2024};
+\href{https://github.com/jarridrb/DEM}{\texttt{jarridrb/DEM}}. Variance-preserving
+SDE noises $\mu_1\to\mathcal N(0,I)$; the reverse-time SDE requires the score
+$s(x,t):=\nabla_x\log p_t(x)$, expressed as a Monte Carlo expectation over the
+energy. Loss:
+\[
+  \mathcal L_{\mathrm{iDEM}}(\theta) = \E_{t,x_t\sim\mathcal B}\!\big[\|s_\theta(x_t,t) - \hat s(x_t,t)\|^2\big]
+\]
+with $\hat s$ an energy-derived MC score estimator and $\mathcal B$ a replay buffer
+of model samples. First energy-only sampler at LJ-55 scale. \emph{Prior:
+standard Gaussian (the SDE terminal).}
+
+\subsection{iEFM and EWFM}
+
+\href{https://arxiv.org/abs/2408.16249}{iEFM 2024} and
+\href{https://arxiv.org/abs/2509.03726}{EWFM 2025}. Flow-matching analogues of
+iDEM. Both default to standard isotropic prior.
+
+\subsection{Transferable BGs (Klein et al.\ 2024)}
+
+\href{https://arxiv.org/abs/2406.14426}{arXiv:2406.14426}. CNF with
+$O(D)\times S(N)$-equivariant EGNN. Atom embedding concatenates type (54 classes),
+amino-acid identity (20 classes), and positional embedding. Trained on 200 dipeptides;
+generalises to 100 unseen test peptides.
+
+\begin{killerquote}
+``Throughout our work, we utilise a standard Gaussian prior distribution. [\,\ldots]
+We experimented with this Harmonic prior but found no significant improvements for
+our transferable model. Instead, the network architecture and inductive bias play
+a more crucial role.'' \hfill ---~Klein, Krämer, Noé (TBG 2024, \S7)
+\end{killerquote}
+
+\noindent\textbf{Headlines.} TBG+full on alanine dipeptide: $\mathrm{NLL}=-127.06\pm 0.12$,
+$\ESS=6.03\pm 1.34\%$. On 100 unseen dipeptides: mean $\ESS=15.29\pm 9.27\%$, correct
+configurations $98\pm 2\%$.
+
+\subsection{TA-BG --- Temperature-Annealed BG (Schopmans, Friederich 2025)}
+
+\href{https://arxiv.org/abs/2501.19077}{ICML 2025};
+\href{https://github.com/aimat-lab/TA-BG}{\texttt{aimat-lab/TA-BG}}. Train reverse-KL
+at high $T_h\sim 1200\,\mathrm K$ where barriers are low, then anneal to target $T$:
+\[
+  \mathcal L_{\mathrm{rev}}^{T_h}(\theta) = \E_{z\sim\mu_0}\!\Big[\tfrac{1}{T_h}U_1(G^{-1}_\theta(z)) - \log|\det J_{G^{-1}_\theta}(z)|\Big] + \mathrm{const}.
+\]
+Prior: truncated Gaussian for bonds ($\sigma=0.5$) and angles ($\sigma=0.1$),
+\emph{uniform on $[0,1]$ for dihedrals}.
+
+\begin{killerquote}
+``Once the flow collapsed to a mode \ldots\ it will generally not escape this
+collapsed state if the remaining modes are too far separated.''
+\hfill ---~Schopmans, Friederich (TA-BG 2025)
+\end{killerquote}
+
+\subsection{SBG --- Sequential Boltzmann Generators (Tan et al.\ 2025)}
+
+\href{https://arxiv.org/abs/2502.18462}{ICML 2025}. Non-equivariant
+Transformer-based flow (TarFlow) combined with continuous-time SMC and annealed
+Langevin at inference. Inference-time scaling uses the \emph{pre-trained flow}
+$p_\theta$ as the proposal (a learned ``adaptive prior''), while the
+\emph{training} prior remains standard normal. Reports $\ESS=0.876$ (AL3),
+$0.901$ (AL4), $0.995$ (AL6).
+
+\subsection{CMT --- Constrained Mass Transport (Blessing et al.\ 2025)}
+
+\href{https://arxiv.org/abs/2510.18460}{SPIGM@NeurIPS 2025}. Replaces the
+geometric annealing schedule with intermediate distributions $\pi_k$ satisfying
+$\KLdiv(\pi_{k-1}\|\pi_k)\Le\delta_{\mathrm{KL}}$ and
+$H(\pi_{k-1})-H(\pi_k)\Le\delta_H$, preventing \emph{mass teleportation}: target
+modes emerging in the schedule without overlap with the prior. On ELIL tetrapeptide,
+reverse-KL gives $\ESS=1.28\%$ while CMT gives $26.18\%$ --- a $20\times$
+improvement \emph{without changing the prior}.
+
+\begin{callout}
+\textbf{Concluding Camp A.} The progression Noé 2019 $\to$ Wu 2020 $\to$ FAB 2022
+$\to$ TA-BG 2025 $\to$ CMT 2025 $\to$ SBG 2025 is a story of progressively more
+sophisticated training machinery on top of a fixed Gaussian latent. At no point
+does the field reach for a tuned prior; the engineering investment goes everywhere
+except the base distribution.
+\end{callout}
+
+\section{Camp B --- physics-informed / tuned prior}
+
+\begin{callout}
+\textbf{Why this section exists.} Camp B is the minority opinion but wins on one
+high-value subproblem (crystallographic free energy). Understanding what Camp B
+does well and what it gives up is essential: Camp B's advocates are not wrong in
+general, only wrong for the specific multimodal-discovery problem the LLR paper
+targets.
+\end{callout}
+
+\subsection{Lattice-Gaussian priors for crystals (Wirnsberger et al.\ 2022)}
+
+Wirnsberger, Papamakarios, Ibarz, Racanière, Ballard, Pritzel, Blundell,
+\emph{Mach.\ Learn.: Sci.\ Technol.} 3, 025009 (2022);
+\href{https://arxiv.org/abs/2111.08696}{arXiv:2111.08696}. \emph{The canonical
+Camp~B paper.}
+
+\paragraph{The lattice-Gaussian prior.} Let $\{z^o_n\}_{n=1}^N$ be the reference
+lattice sites of the target crystal phase. The base distribution is
+\[
+  \mu_0^{\mathrm{lat}}(z) = \frac{1}{N!}\sum_{\pi\in S_N}\prod_{n=1}^N \rho_T(z_n-z^o_{\pi(n)}),
+\]
+where $\rho_T(\delta)\propto\exp(-\|\delta\|^2/(2\sigma_T^2))\,\mathbf 1_{\|\delta\|\Le R_T}$
+is a spherically truncated Gaussian. Truncation radius $R_T<d_{\min}/2$ so no two
+atoms can swap sites. The $1/N!\sum_{\pi\in S_N}$ encodes the $S_N$-invariance of
+identical particles.
+
+\paragraph{Numerical headlines.} LJ at 256 atoms: Helmholtz free energy
+$3.10800(28)$ vs.\ literature $3.11(4)$. Ice $I_c$ at 64/216/512 atoms: matches
+MBAR to $10^{-5}\,k_BT$/atom. Software: JAX + Haiku + Distrax. Largest
+experiments take $\sim 3$ weeks on 16 A100 GPUs.
+
+\begin{killerquote}
+``Empirically, we find that, after training, the flow model becomes a sampler for
+the (metastable) crystal state that we encode in the base distribution, and does
+not sample configurations from other states.''
+\hfill ---~Wirnsberger et al.~(\S4 of the 2022 paper)
+\end{killerquote}
+
+\paragraph{Critical assessment.} For applications where one knows the phase in
+advance (computing $\Delta F$ between two named phases, thermodynamic averages
+within one basin), the lattice-Gaussian prior is essentially optimal. The flow
+learns only local fluctuations, exactly the regime where invertible networks
+excel. \emph{But:} the flow cannot sample alternative phases (the support is
+committed by construction); each new crystal phase requires retuning; the recipe
+does not generalise.
+
+\subsection{Higher-temperature reference priors (Coretti et al.)}
+
+Coretti, Falkner, Geissler, Hummer, Dellago, surveyed in
+\href{https://arxiv.org/html/2404.16566v1}{arXiv:2404.16566}. The prior is the
+empirical distribution of a higher-temperature MD trajectory:
+\[
+  \mu_0(z)\approx\mu_{T_0}(z)=Z_{T_0}^{-1}\exp(-U_1(z)/T_0).
+\]
+Restricted to liquids without well-separated barriers; for proteins it would
+inherit multimodality at $T_0$. Requires MD pre-simulation at $T_0$.
+
+\subsection{Conditional / phase-diagram BGs (Schebek et al.\ 2024)}
+
+\href{https://arxiv.org/abs/2406.12378}{Mach.\ Learn.: Sci.\ Technol.\ 2024}.
+Conditional NF $G_\theta(y;T,p)$; base is a single empirical reference. A hybrid
+--- mild Camp~B + amortisation across thermodynamic states.
+
+\subsection{Structured-CG latent priors (Schiebroek \& Koehn 2025)}
+
+\href{https://arxiv.org/html/2504.20940}{JCTC 2025}. Decompose latent
+$\Real^d=\Real^{d_{\mathrm{slow}}}\times\Real^{d_{\mathrm{fast}}}$:
+\begin{align*}
+  \mu_0^{\mathrm{slow}}(s) &= \sum_k \pi_k\,\mathcal N(s;m_k,\Sigma_k) \quad\text{(explicit multimodal mixture)},\\
+  \mu_0^{\mathrm{fast}}(f|s) &= \mathcal N(f;0,\Sigma_f(s))\quad\text{(unimodal Gaussian conditioned on $s$)}.
+\end{align*}
+The most explicit Camp~B mixture-prior in the BG literature, but requires the user
+to pre-specify the slow CVs and mode centres $m_k$.
+
+\subsection{VAE-side precedents: VampPrior and LARS}
+
+VampPrior (Tomczak, Welling \href{https://arxiv.org/abs/1705.07120}{AISTATS 2018}):
+mixture-of-posteriors prior $p(z)=\frac{1}{K}\sum_k q_\phi(z|u_k)$ with learnable
+pseudo-inputs $\{u_k\}$, trained jointly with the encoder by ELBO maximisation.
+LARS (Bauer, Mnih \href{https://arxiv.org/abs/1810.11428}{AISTATS 2019}): learned
+accept/reject base $\tilde p(z)\propto\pi(z)a_\phi(z)$. \emph{Neither has been
+adopted in mainstream BG work} --- the field has had these tools for nearly a
+decade.
+
+\subsection{Why Camp~B is small in 2024--2026}
+
+Of the dozen-plus state-of-the-art BG papers in 2024--2026, \emph{none} uses a
+hand-tuned GMM prior with mode-matched components. The closest is
+Schiebroek-Koehn (and that requires user-specified CVs). Wirnsberger's lattice
+prior is the canonical Camp~B work and is restricted to crystals.
+\textbf{The empirical verdict of the BG field over six years is that prior tuning
+has not paid off.}
+
+\section{Difficulties of each camp}
+
+\begin{callout}
+\textbf{Why this section exists.} \S\S3--4 told us \emph{what} each camp does. This
+section asks \emph{why each camp struggles}. For Camp~A the struggles are concrete
+and engineering-addressable (mode collapse, mass teleportation, fake ESS). For
+Camp~B they are \emph{structural} --- mode lock-in is a property of the
+bijective-flow geometry, not a training pathology. The asymmetry is the entire
+argument.
+\end{callout}
+
+\subsection{Camp A difficulties}
+
+\paragraph{5.1 Mode collapse under reverse KL.} Reverse-KL gradient
+\[
+  \nabla_\theta\mathcal L_{\mathrm{rev}}(\theta) = \E_{z\sim\mu_0}[\nabla_\theta U_1(G^{-1}_\theta(z))] + \E_{z\sim\mu_0}[\nabla_\theta\log|\det J_{G^{-1}_\theta}(z)|]
+\]
+is an expectation under $\mu_0$, \emph{not} under $\nu_\theta$. If at $\theta_*$
+the flow has collapsed to a single mode $\nu_{\theta_*}\approx\delta_{x^*}$, the
+gradient signal contains no information about other modes of $U_1$.
+\emph{Evidence:} CMT (Blessing 2025) on ELIL tetrapeptide: reverse-KL gives
+$\ESS=1.28\%$ vs CMT's $26.18\%$.
+
+\paragraph{5.2 Mass teleportation in annealing.} For Gaussian $\mu_0$ centred at
+0 and target mode at $\|x^*\|\gg 1$, intermediate
+$\pi_\beta\propto\mu_0^{1-\beta}\mu^\beta$ has a single dominant mode whose
+location jumps discontinuously as $\beta$ crosses some critical $\beta_c$.
+HMC kernels at any single $\beta$ near $\beta_c$ cannot bridge the disjoint
+support in finite time.
+
+\paragraph{5.3 Topological gap.} $\mu_0$ is unimodal and contractible; $\mu$ has
+disconnected basins. A bijective $G:\Real^d\to\Real^d$ preserves connectedness
+locally; producing log-determinants that vary by many orders of magnitude across
+the domain to compress mass between basins is hard. Stimper et al.\ (2022) cite
+this as their motivation for resampled-base flows.
+
+\paragraph{5.4 Fake ESS.} If $\nu_\theta$ has dropped a mode $A_2$ of mass $p_2$ but
+matches $\mu$ on the visited mode $A_1$ up to the constant $1/p_1$, importance
+weights $w_i=p_1$ are uniform on $A_1$, giving $\ESS=1$ exactly while $p_2$
+mass is missing. ESS is necessary but not sufficient.
+
+\paragraph{5.5 Expensive bootstrapping.} FAB on alanine dipeptide still uses
+hundreds of thousands of $U_1$ evaluations. Wirnsberger 3 weeks on 16 A100s for
+512 ice atoms. Scale beyond dipeptides is hard.
+
+\paragraph{5.6 No clean place for prior mode knowledge.} When the user knows mode
+locations a priori, Camp~A has no clean injection point: adding them as MD samples
+shifts the MLE; using them as AIS initial states biases weights; encoding them
+in the prior turns Camp~A into Camp~B.
+
+\subsection{Camp B difficulties}
+
+\paragraph{5.7 Circularity.} Placing a mixture component on a mode requires knowing
+it is there. Wirnsberger works because the crystal phase is known a priori. For
+unknown-mode problems Camp~B is self-referential.
+
+\paragraph{5.8 Mode lock-in.} Bijective $G^{-1}_\theta:\mathrm{supp}(\mu_0)\to\Real^d$
+preserves connected components. $\mathrm{supp}(\nu_\theta)\subseteq G^{-1}_\theta(\mathrm{supp}(\mu_0))$.
+A mode at $m^*$ with $G^{-1}_\theta(\mathrm{supp}(\mu_0))\not\ni m^*$ is
+\emph{unreachable}. Mode discovery is structurally impossible in Camp~B without
+re-tuning the prior.
+
+\paragraph{5.9 Brittleness to misspecification.} If $m_k=m_k^{\mathrm{true}}+\delta_k$,
+the flow has to learn an extra translation to bring the mode back, consuming
+Jacobian capacity. Real modes between two prior components produce spurious
+bridge mass.
+
+\paragraph{5.10 Symmetry breaking.} GMM at specific locations is not
+$\mathrm{SE}(3)\times S_N$-invariant. Camp~A handles symmetry by mean-free
+Gaussian + equivariant flow; Camp~B has to symmetrise the prior over
+$N!\cdot\mathrm{Vol}(\mathrm{SE}(3))$ images, blowing up the prior.
+
+\paragraph{5.11 Transferability collapse.} Each new target re-tunes the prior;
+no amortisation across systems.
+
+\paragraph{5.12 Structural bias.} Importance weights $w(x)=\mu(x)/\nu_\theta(x)$
+are undefined where $\nu_\theta(x)=0$. If a tuned prior misses a mode of $\mu$,
+no importance-weighted correction is available --- bias is by design.
+
+\paragraph{5.13 Tuning relocates the hard part.} The user-side effort to set up
+Wirnsberger's lattice is exactly the effort the $\Xfun_{\hat\mu}$ approach spends
+on Trinity. Camp~B's lattice has to be exact; the third way's $\hat\mu$ can be
+sloppy (Proposition~\ref{prop:invariance}).
+
+\section{Code-level inventory}
+
+\begin{callout}
+\textbf{Why this section exists.} Papers can claim more than their code delivers;
+defaults in production code are more telling about field consensus than what an
+abstract advertises. If Camp~B were practically useful, someone would have
+implemented a canonical notebook with a \texttt{MixtureDistribution}. The class
+is available in essentially every library; nobody uses it.
+\end{callout}
+
+\begin{table}[h]
+\centering\small
+\begin{tabular}{@{}lll@{}}
+\toprule
+Library & Default prior & Mixture available? \\
+\midrule
+\href{https://github.com/noegroup/bgflow}{\texttt{bgflow}} (Noé group) & \verb|NormalDistribution| & Yes (\verb|MixtureDistribution|); unused in canonical notebooks\\
+\href{https://github.com/VincentStimper/normalizing-flows}{\texttt{normflows}} (Stimper) & \verb|DiagGaussian| & Yes (\verb|GaussianMixture|); rarely default\\
+\href{https://github.com/lollcat/fab-torch}{\texttt{fab-torch}} (Midgley) & hardcoded \verb|DiagGaussian| & N/A (uses normflows)\\
+\href{https://github.com/jarridrb/DEM}{\texttt{DEM}} (Akhound-Sadegh) & implicit Gaussian SDE terminal & N/A\\
+\href{https://github.com/kazewong/flowMC}{\texttt{flowMC}} (Wong et al.) & standard Gaussian & N/A\\
+\href{https://github.com/aimat-lab/TA-BG}{\texttt{TA-BG}} (Schopmans) & truncated Gaussian + uniform dihedral & N/A\\
+\href{https://github.com/probabilists/zuko}{\texttt{zuko}} (Rozet) & standard Gaussian & yes; not default \\
+user's \texttt{zflows} (this repo) & via zuko & MAF-based NSF \\
+\bottomrule
+\end{tabular}
+\caption{Default base distribution and mixture-prior availability across the major
+BG and sampler libraries. Mixture-prior code exists in essentially every library
+but is not used in canonical training notebooks.}
+\end{table}
+
+The canonical bgflow alanine-dipeptide notebook (\verb|notebooks/alanine_dipeptide_basics.py:155--167|)
+instantiates simply
+\begin{Verbatim}[fontsize=\small,frame=single]
+prior = bg.NormalDistribution(dim_ics, mean=mean)
+\end{Verbatim}
+with the author-supplied comment that this is a ``rather naive choice''. The mixture
+machinery is sitting unused.
+
+\section{Adjacent communities --- do they tune the prior?}
+
+\begin{callout}
+A skeptic might say: ``the BG community converged on Camp~A through historical
+accident.'' This section falsifies that by surveying five neighbouring fields
+that face structurally the same problem and asking whether \emph{they} tune the
+prior. In every community the answer is the same: simple base + sophisticated
+training.
+\end{callout}
+
+\begin{itemize}\setlength{\itemsep}{3pt}
+  \item \textbf{Bayesian inverse PDE.} Whang--Lindgren--Dimakis ICML 2021
+    (composing NFs); Sun et al.\ \href{https://arxiv.org/abs/2411.13277}{NF-iVI 2024}
+    (functional NF in infinite dimension, GP base); Padmanabha--Zabaras 2023
+    (Gaussian and flow guides); Zhao--Curtis--Zhang 2022 (Bayesian seismic
+    tomography with NF). \emph{Standard Gaussian base for posterior flow; physics
+    enters through likelihood and prior over the unknown}.
+  \item \textbf{Cosmology / GW.} Wong--Gabrié--Foreman-Mackey
+    \href{https://joss.theoj.org/papers/10.21105/joss.05021.pdf}{flowMC (JOSS 2023)};
+    Williams--Veitch--Messenger 2021 nested sampling with NF; multiple 2024--25 GW
+    parameter estimation papers. \emph{Standard Gaussian base; adaptive flow
+    trained on the chain history}.
+  \item \textbf{Particle physics.} Kofler et al.\ \href{https://arxiv.org/abs/2411.16234}{FAB-meets-diffME (MLST 2025)}: FAB with HMC on matrix elements;
+    standard Gaussian base.
+  \item \textbf{Simulation-based inference.} Cranmer--Brehmer--Louppe (PNAS 2020)
+    review; Gloeckler--Bischoff--Macke \href{https://arxiv.org/abs/2404.09636}{Simformer (2024)};
+    Macke et al.\ \texttt{sbi} toolkit. \emph{Standard Gaussian base or diffusion
+    noise across the board}.
+  \item \textbf{Geophysics.} Liao et al.\ \emph{Iterative Normalizing Flows} (JGR-MLC 2025);
+    Asim et al.\ wave-equation inversion (2022). \emph{Standard base; physically
+    motivated bounds on the inverted parameters via the prior over the unknown}.
+\end{itemize}
+
+\textbf{Pan-community observation.} Five independent communities have made the
+same Camp~A choice. If Camp~B were the obvious win, at least one would have
+adopted it independently. None has.
+
+\section{Non-flow neural samplers}
+
+Diffusion and stochastic-interpolant samplers do not learn an invertible flow;
+they learn a score field or velocity field. The ``prior'' question still applies:
+the terminal of the noising process plays the role of base.
+
+\begin{itemize}\setlength{\itemsep}{3pt}
+  \item iDEM, iEFM, EWFM, BNEM, PITA: standard isotropic Gaussian noise.
+  \item ASBS (Liu et al.\ \href{https://arxiv.org/abs/2506.22565}{NeurIPS 2025}):
+    Adjoint Schrödinger Bridge Sampler. \emph{Only} diffusion-sampler paper that
+    allows non-Dirac priors --- but the allowed priors are unimodal
+    (Gaussian, harmonic-oscillator), not mode-matched mixtures.
+  \item Stochastic Interpolants (Albergo, Vanden-Eijnden ICLR 2023): unifying
+    framework. $X_t=I_t(X_0,X_1)+\gamma(t)Z$ with paired training samples.
+\end{itemize}
+
+\textbf{Cross-paradigm conclusion.} Even diffusion samplers do not tune the prior
+in the mode-matched mixture sense.
+
+\section{Engineering tricks orthogonal to prior choice}
+
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item Smooth normalising flows for tori (\href{https://arxiv.org/abs/2110.00351}{Köhler--Krämer--Noé 2021}); flows on tori and spheres (\href{https://arxiv.org/pdf/2002.02428}{Rezende et al.\ ICML 2020}).
+  \item Gradient-boosted normalising flows (\href{https://arxiv.org/abs/2002.11896}{Giaquinto--Banerjee NeurIPS 2020}): mixture in the \emph{model}, not the prior.
+  \item Replay buffer / prioritised replay for AIS (FAB);
+  \item Mean-free distributions for SE(3) equivariance (\texttt{bgflow}'s \texttt{MeanFreeNormalDistribution});
+  \item Force matching for scalable BGs (\href{https://arxiv.org/abs/2401.04246}{Köhler et al.\ 2024});
+  \item Tamed Langevin gradients on super-linearly growing potentials (Hutzenthaler--Jentzen--Kloeden, \href{https://arxiv.org/abs/1010.5288}{arXiv:1010.5288});
+  \item Flow Perturbation / FP++ variance-reduced Jacobian estimation;
+  \item Importance-weighted ELBO (Burda--Grosse--Salakhutdinov 2016).
+\end{itemize}
+
+\textbf{Pattern.} All of these tricks live in the architecture, the loss, or
+post-processing. None involves prior tuning. The field's empirical bias is to
+invest effort everywhere except the base distribution.
+
+\section{Comparative numerical results}
+
+\begin{longtable}{@{}lp{2.8cm}lp{4.2cm}@{}}
+\toprule
+Method & System & Prior & Reported headline\\
+\midrule\endhead
+Wirnsberger 2022 & Ice $I_c$ 512 & lattice-Gaussian & $\Delta F$ matches MBAR, single phase\\
+FAB 2023 & alanine dipeptide & DiagGauss & $100\times$ fewer evals than MLE/MD\\
+FAB 2023 & 40-comp 2D GMM & DiagGauss & mode discovery via AIS\\
+TBG 2024 & alanine dipeptide & std Gauss & $\ESS=6.03\pm 1.34\%$\\
+TBG 2024 & 100 unseen dipeptides & std Gauss & $\ESS=15.29\pm 9.27\%$, $98\pm 2\%$ correct\\
+TA-BG 2025 & dipeptide & truncated Gauss & beats FAB on energy evals\\
+CMT 2025 & ELIL tetrapeptide & std Gauss & rev-KL $1.28\%$ vs CMT $26.18\%$ ESS\\
+SBG 2025 & tripeptide AL3 & $\mathcal N(0,I)$ & $\ESS=0.876\pm 0.215$\\
+SBG 2025 & hexapeptide AL6 & $\mathcal N(0,I)$ & $\ESS=0.995$\\
+iDEM 2024 & LJ-55 & $\mathcal N(0,I)$ noise & first energy-only at LJ-55 scale\\
+\bottomrule
+\end{longtable}
+
+\section{The third way --- formal mathematical analysis}\label{sec:thirdway}
+
+\begin{callout}
+\textbf{The core intuition.} A bijective flow's support is determined by its
+prior's support --- that is what Camp~B's mode-lock-in difficulty boils down to.
+A regulariser evaluated at points $\hat\mu$ supplies, by contrast, only
+\emph{gradient signal}: it pushes the flow to make $\log\mu/\nu_\theta$ as
+constant as possible at the points it sees, without committing the flow's
+support to any of them.
+\end{callout}
+
+\subsection{The $\Xfun$ functional}
+
+Let $\omega(x,y)\Ge 0$ be a finite positive measure on $\Real^d\times\Real^d$.
+Define
+\begin{equation}\label{eq:Xdef}
+  \Xfun_\omega(\mu\,\|\,\nu) = \iint_{\Real^d\times\Real^d} \omega(x,y)\,\Big|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\Big|\,\dd x\,\dd y.
+\end{equation}
+
+\begin{proposition}[Zero set]\label{prop:zero}
+$\Xfun_\omega(\mu\,\|\,\nu)=0$ iff $\log(\mu/\nu)$ is constant $\omega$-a.e.\ on
+the joint support of $\omega$.
+\end{proposition}
+
+\begin{proposition}[Normalisation invariance]\label{prop:norm}
+For any $c_1,c_2>0$, $\Xfun_\omega(c_1\mu\,\|\,c_2\nu)=\Xfun_\omega(\mu\,\|\,\nu)$.
+\end{proposition}
+
+\begin{proof}
+$\log(c_1\mu/c_2\nu)=\log(c_1/c_2)+\log(\mu/\nu)$; the additive constant cancels
+in the difference inside the absolute value. \emph{Consequence:} $\Xfun_\omega$ is
+well-defined for unnormalised Boltzmann targets even when $Z_\mu$ is unknown.
+\end{proof}
+
+\begin{proposition}[Asymptotic invariance to $\hat\mu$]\label{prop:invariance}
+Suppose $\nu_{\theta_*}=\mu$ is realisable in the flow class. For any
+$\omega=\hat\omega\otimes\hat\omega$ with
+$\mathrm{supp}(\hat\omega)\subseteq\Real^d$, $\theta_*\in\arg\min_\theta\Xfun_\omega(\mu\,\|\,\nu_\theta)$
+and $\Xfun_\omega(\mu\,\|\,\nu_{\theta_*})=0$. The argmin set is unchanged for any
+$\hat\omega$.
+\end{proposition}
+
+\begin{proof}
+At $\theta=\theta_*$, $\log(\mu/\nu_{\theta_*})=0$ identically, so the integrand
+is identically zero regardless of $\hat\omega$. Non-negativity of $\Xfun_\omega$
+makes $\theta_*$ a global minimiser. The argument uses only non-negativity of
+$\omega$ and realisability of $\theta_*$ --- the specific shape of $\hat\omega$
+is irrelevant.
+\end{proof}
+
+\textbf{Practical interpretation.} Even if $\hat\mu$ is a coarse Trinity-style
+approximation that places mass on regions where $\mu$ has no mass (over-coverage),
+the optimal $\theta_*$ is still $\nu_{\theta_*}=\mu$. Trinity is allowed to be
+wrong --- to over-cover modes --- without biasing the optimum.
+
+\subsection{$\Xfun_\mu$ and the autograd-reuse trick}
+
+Choose $\omega=\mu\otimes\mu$. Define
+\[
+  z(y) := U_0(G_\theta(y)) - U_1(y) - \log|\det J_{G_\theta}(y)|.
+\]
+Then $\log(\mu/\nu_\theta)(x)-\log(\mu/\nu_\theta)(y)=z(x)-z(y)$ up to a constant
+that cancels, and
+\[
+  \Xfun_\mu(\mu\,\|\,\nu_\theta) = \E_{(x,y)\sim\mu\otimes\mu}\!\big[|z(x)-z(y)|\big].
+\]
+Empirically: sample $\mathbf y=(y_1,\dots,y_B)\sim\mu$, compute
+$\mathbf z=(z(y_1),\dots,z(y_B))$ with \emph{one} forward pass through $G_\theta$,
+draw a permutation $\sigma$, and set $\mathbf z':=\mathbf z[\sigma]$. The estimator
+\[
+  \widehat\Xfun_\mu(\theta) = \frac{1}{B}\sum_i |z_i - z_{\sigma(i)}|
+\]
+has gradient
+\[
+  \nabla_\theta\widehat\Xfun_\mu = \frac{1}{B}\sum_i \mathrm{sgn}(z_i-z_{\sigma(i)})(\nabla_\theta z_i-\nabla_\theta z_{\sigma(i)}).
+\]
+
+\begin{proposition}[Zero-cost autograd reuse]\label{prop:autograd}
+$\nabla_\theta\widehat\Xfun_\mu$ requires only the same backward pass through
+$G_\theta$ that computes the forward-KL gradient. Permutation is a pure index
+gather with no extra differentiable operations.
+\end{proposition}
+
+The user's \texttt{2D\_Minimal/core.py:loss\_KL\_X} implements exactly this:
+\begin{Verbatim}[fontsize=\small,frame=single]
+def loss_KL_X(y, source, target, G, lambda_=1.0):
+    N = y.shape[0]
+    x, ladj = G.call_and_ladj(y)
+    z = source(x) - target(y) - ladj
+    perm = torch.randperm(N, device=y.device)
+    return z.mean() + lambda_ * (z - z[perm]).abs().mean()
+\end{Verbatim}
+A single call to \verb|G.call_and_ladj(y)| carries the autograd graph for both
+the $\mathrm{mean}(\mathbf z)$ (forward-KL) and the $\mathrm{mean}(|\mathbf z-\mathbf z[\sigma]|)$
+($\Xfun_\mu$) terms.
+
+\subsection{Trinity algorithm for $\hat\mu$}
+
+The Trinity algorithm produces samples from $\hat\mu$:
+\begin{enumerate}\setlength{\itemsep}{2pt}
+  \item \textbf{Diffusion.} Given initial $x\sim\mu_0^{\mathrm{init}}$, set
+    $\tilde x = x + \sigma\xi$, $\xi\sim\mathcal N(0,I_d)$.
+  \item \textbf{Optimisation.} Run L-BFGS with Armijo line search on $U_1$ at
+    each $\tilde x_i$.
+  \item \textbf{Rejuvenation.} Run a short tamed Langevin chain at temperature
+    $T$:
+  \[
+    x^{(k+1)}_i = x^{(k)}_i - \frac{\eta\nabla U_1(x^{(k)}_i)}{1+\tau\|\nabla U_1(x^{(k)}_i)\|} + \sqrt{2\eta T}\,\xi^{(k)}_i.
+  \]
+\end{enumerate}
+By Proposition~\ref{prop:invariance}, Trinity is allowed to be sloppy.
+
+\subsection{Full training loss}
+
+\[
+  \mathcal L_{\mathrm{full}}(\theta) = \mathcal L_{\mathrm{fwd}}(\theta) + \lambda\,\Xfun_\mu(\mu\,\|\,\nu_\theta) + \hat\lambda\,\Xfun_{\hat\mu}(\mu\,\|\,\nu_\theta).
+\]
+$\mathcal L_{\mathrm{fwd}}$ supplies unbiased asymptote; $\Xfun_\mu$ supplies
+free pointwise log-ratio penalty; $\Xfun_{\hat\mu}$ supplies mode-discovery
+signal without committing the flow's support.
+
+\subsection{Why this beats each camp}
+
+\begin{longtable}{@{}p{6cm}lll@{}}
+\toprule
+Difficulty & Camp A & Camp B & $\Xfun_{\hat\mu}$\\
+\midrule\endhead
+Mode collapse under rev-KL (\S5.1) & yes & mitigated (single basin) & mitigated by fwd-KL$+\Xfun$\\
+Mass teleportation (\S5.2) & yes & n/a & n/a (no annealing)\\
+Topological gap (\S5.3) & yes & mitigated by tuned supp.\ & mitigated inside model\\
+Fake ESS (\S5.4) & yes & trivially zero (single basin) & flagged by coverage\\
+Expensive bootstrapping (\S5.5) & yes & yes (3 weeks/16 A100s) & Trinity offline, cheap\\
+Cannot absorb prior mode info (\S5.6) & yes & ``solved'' by tuning prior & solved by $\Xfun_{\hat\mu}$ in loss\\
+Circularity (\S5.7) & n/a & yes & no --- $\hat\mu$ can be sloppy\\
+Mode lock-in (\S5.8) & n/a & yes & no --- full support\\
+Brittleness to misspec.\ (\S5.9) & n/a & yes & no --- Prop.~\ref{prop:invariance}\\
+Symmetry breaking (\S5.10) & n/a & yes & no --- prior symmetric\\
+Transferability collapse (\S5.11) & n/a & yes & no --- same prior across systems\\
+Structural bias on missed modes (\S5.12) & n/a & yes & no --- flow has full support\\
+\bottomrule
+\end{longtable}
+
+The third way wins every row.
+
+\section{Parameterisation --- flow architecture and its direction asymmetries}
+
+\begin{callout}
+\textbf{Why this section exists.} The choice of flow architecture and the direction
+of the loss interact strongly with the prior debate. Camp~B's natural home is
+reverse KL; the forward-KL family (forward KL, FAB, $\Xfun$) changes the game
+because the prior enters via $\log\mu_0(G_\theta(y))$ at target-side samples
+rather than via the source of training samples.
+\end{callout}
+
+\subsection{Four flow architecture families}
+
+\begin{itemize}\setlength{\itemsep}{3pt}
+  \item \textbf{Coupling flows} (NICE, RealNVP, NSF-C, Glow): both $G$ and
+    $G^{-1}$ are $O(1)$ parallel passes. No cost asymmetry.
+  \item \textbf{Autoregressive flows} (MAF, IAF, NSF-AR): one direction parallel,
+    one sequential. MAF is fast density / slow sampling
+    (Papamakarios--Pavlakou--Murray \href{https://arxiv.org/abs/1705.07057}{NeurIPS 2017}); IAF
+    (Kingma et al.\ \href{https://arxiv.org/abs/1606.04934}{NeurIPS 2016}) is the
+    transpose. \emph{Severe asymmetry tying architecture to loss direction.}
+  \item \textbf{Continuous normalising flows} (FFJORD; Grathwohl et al.\ ICLR
+    2019): both directions are ODE solves, both expensive. Hutchinson's trace
+    estimator reduces $\log\det$ from $O(d^2)$ to $O(d)$ per step.
+  \item \textbf{Flow matching} (Lipman et al.\ ICLR 2023): training does not
+    require either $G$ or $G^{-1}$ explicitly; inference is an ODE solve.
+\end{itemize}
+
+\textbf{The user's \texttt{zflows} package} (\verb|~/envs/zflows/zflows/flow.py|)
+implements NSF as a MAF-RQS autoregressive variant. The default in the user's
+experiments is therefore MAF-based: \emph{forward KL is cheap, reverse KL is
+sequentially expensive.}
+
+\subsection{Direction-loss coupling}
+
+\begin{longtable}{@{}lp{4cm}p{4cm}p{3.5cm}@{}}
+\toprule
+Loss & Samples from & Density evaluated of & Architecture fit\\
+\midrule\endhead
+Reverse KL & $\nu_\theta$ (via $G^{-1}$) & $\nu_\theta$ at own samples & Coupling, IAF, CNF\\
+Forward KL & $\mu$ (MD / AIS) & $\nu_\theta$ at $\mu$-samples & Coupling, MAF, CNF\\
+FAB $\alpha=2$ & AIS chain & $\nu_\theta$ at AIS samples & Coupling, MAF\\
+$\Xfun_\omega$ ($\omega=\hat\mu\otimes\hat\mu$) & $\hat\mu$ (Trinity) & $\nu_\theta$ at $\hat\mu$-samples & Coupling, MAF\\
+\bottomrule
+\end{longtable}
+
+\textbf{Consequence.} On the user's MAF-based zflows infrastructure, reverse KL
+is the expensive loss. The loss families compatible with MAF --- forward KL, FAB,
+$\Xfun$ --- do not benefit from Camp~B's prior tuning. Camp~B is therefore
+architecturally penalised on this stack.
+
+\section{Direction $\times$ camp interaction --- a critical synthesis}
+
+\begin{callout}
+\textbf{Why this section exists.} \S11 established architecture-loss coupling.
+This section closes the circle: the loss direction in turn determines whether
+Camp~B's prior tuning earns its keep. The user's observation that Camp~B's
+natural home is reverse KL is made as sharp as the math allows.
+\end{callout}
+
+\subsection{Reverse KL with a tuned prior}
+
+In reverse KL, $\mu_0$ is the source of all training samples: $z\sim\mu_0$,
+$y=G^{-1}_\theta(z)$. If $\mu_0$ is mode-aware (Camp~B), $G^{-1}_\theta$ has only
+to learn local fluctuations within each pre-identified basin. \emph{This is
+exactly Wirnsberger.} Camp~B's leverage in reverse KL is strong.
+
+\subsection{Forward KL with a tuned prior --- leverage degrades}
+
+In forward KL, $y\sim\mu$ and the prior enters only through $\log\mu_0(G_\theta(y))$.
+A multimodal tuned $\mu_0$ \emph{fits} the post-flow latent distribution only
+\emph{if} $G_\theta$ has already organised latent space --- a circular condition.
+Early in training, a multimodal $\mu_0$ has \emph{thinner} tails between
+components than a unimodal Gaussian, so $\log\mu_0(G_\theta(y))$ is actually
+\emph{lower} on average. Forward KL is naturally aligned with the simplest prior.
+
+\subsection{FAB and $\Xfun_\mu$ --- same analysis}
+
+Both losses sample target-side and evaluate $\log\nu_\theta$ at those samples.
+The prior enters in the same way as forward KL. Tuning provides no leverage.
+
+\subsection{Cross-tabulation}
+
+\begin{longtable}{@{}p{2.8cm}p{4cm}p{3cm}p{3cm}p{2.5cm}@{}}
+\toprule
+Loss & Arch.\ pressure & Camp A & Camp B & Third way\\
+\midrule\endhead
+Reverse KL & needs cheap $G^{-1}$ & {\color{red!70!black}\ding{55} collapses} & {\color{green!50!black}\ding{51} mitigates} & {\color{blue!50!black}neutral}\\
+Forward KL (MD) & needs cheap $G$ & {\color{green!50!black}\ding{51} unbiased} & {\color{blue!50!black}neutral} & {\color{green!50!black}\ding{51} + mode info}\\
+FAB & needs cheap $G$ + AIS & {\color{green!50!black}\ding{51} + AIS} & {\color{blue!50!black}neutral; lock-in if modes missed} & {\color{green!50!black}\ding{51} + mode info}\\
+TA-BG & needs cheap $G^{-1}$ & {\color{green!50!black}\ding{51} at high $T$} & {\color{blue!50!black}tuning at high $T$ is hard} & {\color{blue!50!black}neutral}\\
+CMT & flexible & {\color{green!50!black}\ding{51}} & {\color{blue!50!black}constraints harder} & {\color{green!50!black}\ding{51}}\\
+iDEM & needs $\nabla U,\nabla\log p_t$ & {\color{green!50!black}\ding{51} std noise} & {\color{red!70!black}\ding{55} tuned noise breaks score match} & {\color{blue!50!black}neutral}\\
+ASBS & flexible (any prior) & {\color{green!50!black}\ding{51}} & {\color{green!50!black}\ding{51} harmonic OK} & {\color{green!50!black}\ding{51}}\\
+$\Xfun_\mu$ regulariser & cheap $G$ + autograd reuse & {\color{green!50!black}\ding{51} ideal fit} & {\color{red!70!black}\ding{55} forward-KL story} & third way\\
+$\Xfun_{\hat\mu}$ mode discovery & cheap Trinity samples & {\color{green!50!black}\ding{51}} & {\color{blue!50!black}redundant with prior} & third way\\
+\bottomrule
+\end{longtable}
+
+\subsection{Quantitative consequences}
+
+\begin{enumerate}\setlength{\itemsep}{2pt}
+  \item Camp~B's value is concentrated in a single design quadrant
+    (reverse-KL training, cheap $G^{-1}$ architecture, single-basin or
+    known-multibasin target).
+  \item MAF-based BGs structurally penalise Camp~B: reverse KL is expensive on
+    MAF, and the MAF-compatible losses (forward KL, FAB, $\Xfun$) do not benefit
+    from prior tuning.
+  \item The $\Xfun_{\hat\mu}$ third way is uniquely compatible with MAF
+    architectures: cheap $G$, no need for cheap $G^{-1}$, autograd-reuse
+    zero-overhead, invariance to Trinity sloppiness.
+\end{enumerate}
+
+\subsection{When Camp B does win}
+
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item Single-phase crystallographic precision (Wirnsberger 2022).
+  \item Conformer enumeration with catalogued modes (Schiebroek--Koehn 2025).
+  \item Higher-$T$ reference for liquids (Coretti et al.).
+\end{itemize}
+
+These are all in the reverse-KL $\times$ tuned-prior quadrant. The user's argument
+is not that Camp~B is wrong --- it is that Camp~B is wrong for the
+multimodal-mode-discovery problem the LLR-discrepancy paper targets.
+
+\section{Steelmanning Camp B}
+
+\begin{callout}
+A literature review that critiques an opposing position must steelman it before
+refuting it. This section writes the strongest defensible Camp~B position and
+engages each point on its merits.
+\end{callout}
+
+\subsection{The strongest Camp B argument}
+
+A serious Camp~B advocate would say: (i) the highest-precision BG free-energy
+calculations (Wirnsberger 2022) come from putting structure into the prior;
+(ii) the BG methods that scale most gracefully (Schiebroek--Koehn 2025) use
+coarse-grained physical representations, which is Camp~B in a different
+parameterisation; (iii) SBG (Tan 2025) uses the trained flow as a ``more
+informative proposal'' at inference time, i.e.\ an adaptive Camp~B prior that the
+field has implicitly converged on. (iv) Camp~B's difficulties (mode lock-in,
+brittleness, etc.) apply only to rigid mixture priors; \emph{adaptive} Camp~B
+(Routes B, C, D, E of \S15) avoids these and is at worst on equal footing with
+$\Xfun_{\hat\mu}$.
+
+\subsection{Engagement}
+
+\paragraph{Point 1 (precision).} Conceded. Camp~B wins in
+(reverse KL $\times$ known single basin $\times$ precision target). Outside this
+quadrant the user's argument is unchanged.
+
+\paragraph{Point 2 (CG latent is Camp B).} Schiebroek--Koehn requires user-specified
+slow CVs; $\Xfun_{\hat\mu}$ + Trinity discovers modes in full coordinate space
+without committing to a CV specification.
+
+\paragraph{Point 3 (SBG implicitly tunes the prior).} SBG's inference-time
+``adaptive prior'' is the post-training flow, which itself was trained on a
+Gaussian latent. The distinction matters because SBG's training stage is fully
+Camp~A; the user's framework is complementary, not in opposition.
+
+\paragraph{Point 4 ($\Xfun_{\hat\mu}$ is Camp B in disguise).} The technical
+distinction is the type of information that enters: a tuned prior commits the
+\emph{support}; a regulariser supplies only \emph{gradient signal}. The flow's
+support under $\Xfun_{\hat\mu}$ is determined by $\mu_0$ (full $\Real^d$),
+\emph{not} by $\hat\mu$. If $\hat\mu$ misses a mode, the loss is unaffected at
+$\theta=\theta_*$ where $\nu_{\theta_*}=\mu$ (Proposition~\ref{prop:invariance}),
+so the optimal $\theta_*$ is not shifted. This is the structural asymmetry the
+moral-equivalence framing elides.
+
+\paragraph{Point 5 (adaptive Camp B avoids difficulties).} Routes B, C, D, E of
+\S15 either collapse into Camp~A (defensive Gaussian) or into the third way
+(score-based bias on a Gaussian prior). The bare-rigid Camp~B position is the
+one with the brittleness problems; the adaptive positions converge on Camp~A or
+$\Xfun_{\hat\mu}$.
+
+\subsection{Where the argument remains open}
+
+\begin{enumerate}\setlength{\itemsep}{2pt}
+  \item Score-based-bias Route E + Schrödinger-bridge approach has not been
+    compared head-to-head with $\Xfun_{\hat\mu}$ + Trinity at dipeptide scale.
+  \item Single-target high-precision Camp~B remains correct for
+    crystallography / polymorph / phase-diagram problems.
+  \item Empirical scaling beyond 2D Himmelblau remains an open question. A
+    full-scale alanine-dipeptide replication comparable to TBG benchmarks is
+    the natural next experiment.
+\end{enumerate}
+
+\section{Talking points}
+
+After steelmanning, the user's defensible position is:
+
+\begin{enumerate}\setlength{\itemsep}{2pt}
+  \item Camp~B's natural home is the (reverse KL $\times$ cheap-$G^{-1}$ $\times$
+    single-basin target) quadrant. The multimodal-protein regime is outside this
+    quadrant.
+  \item The user's \texttt{zflows} infrastructure is MAF-based; reverse KL is
+    $O(d)$ sequential, locking the user into forward-KL-style losses where Camp~B
+    offers no benefit.
+  \item Forward KL, FAB, $\Xfun$ all evaluate $\log\mu_0$ at post-flow latent
+    points. A tuned multimodal $\mu_0$ neither helps nor hurts asymptotically
+    but introduces mode-lock-in risk.
+  \item The $\Xfun_{\hat\mu}$ regulariser is uniquely matched to MAF + forward
+    KL + sloppy mode-finder.
+  \item Across $\sim 90$ references in 7 communities, no flagship method since
+    2019 has trained a tuned-GMM-prior BG on multimodal protein targets. The
+    tools exist; they are not used.
+\end{enumerate}
+
+\section{Illustrative figures}
+
+All figures below are self-generated using matplotlib (source:
+\texttt{review\_figs/make\_figures.py}).
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.85\linewidth]{fig_mode_collapse.png}
+\caption{Mode collapse under reverse-KL on a 2D bimodal target. Left: target $\mu$
+with equal-mass modes at $(\pm 2,0)$. Right: after training, $\nu_\theta$ collapses
+onto one mode; the other is missed entirely. Reverse-KL gradient gives no signal
+to recover the dropped mode (\S5.1).}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.75\linewidth]{fig_mass_teleport.png}
+\caption{Geometric annealing schedule $\pi_\beta\propto\mu_0^{1-\beta}\mu^\beta$
+on a unit-Gaussian-to-bimodal-target problem. Modes emerge between $\beta=0.5$
+and $\beta=0.75$ with little overlap --- the failure mode CMT calls \emph{mass
+teleportation} (\S5.2).}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.85\linewidth]{fig_fake_ess.png}
+\caption{The fake-ESS pitfall (\S5.4). Left: flow samples (red) confined to one
+mode of a bimodal target. Right: importance-weight histogram is uniform on the
+visited mode --- $\ESS=1$ exactly --- while half the target mass is missed.}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.95\linewidth]{fig_camps.png}
+\caption{The three philosophical positions. \emph{Left:} Camp~A --- unimodal
+Gaussian prior must be transported to a multimodal target. \emph{Middle:} Camp~B
+--- tuned mixture prior matches modes but commits the support (mode lock-in).
+\emph{Right:} third way --- keep simple prior, add $\Xfun_{\hat\mu}$ regulariser
+with a sloppy $\hat\mu$.}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.85\linewidth]{fig_x_landscape.png}
+\caption{Log-ratio landscape and the $\Xfun$ functional (\S\ref{sec:thirdway}).
+Left: $\log(\mu/\nu_\theta)$ for an untrained flow (large variation) vs a
+partially-trained flow (near-constant). Right: corresponding $\Xfun_\mu$ values.
+The functional vanishes when the log-ratio is pointwise constant
+(Proposition~\ref{prop:zero}), giving normalisation invariance suitable for
+unnormalised Boltzmann targets.}
+\end{figure}
+
+\begin{figure}[h]\centering
+\includegraphics[width=0.7\linewidth]{Trinity.png}
+\caption{Trinity in action on the Himmelblau potential. Dark blue: initial Gaussian
+source samples. Dark red: Trinity output after three stages (diffusion $\to$ L-BFGS
+$\to$ tamed Langevin) recovering all four modes. Deliberate over-coverage is
+harmless by Proposition~\ref{prop:invariance}.}
+\end{figure}
+
+\section{Adaptive tuned priors --- research routes}
+
+\begin{callout}
+\textbf{Why this section exists.} We propose what an \emph{adaptive} Camp~B
+construction would have to satisfy --- (R1) full support, (R2) mode-aware
+structure, (R3) symmetry preservation, (R4) online adaptivity without circularity,
+(R5) transferability, (R6) tractable density --- and survey five candidate
+routes.
+\end{callout}
+
+\subsection{Route A --- online-learned mixture with external mode finder}
+
+$p_\theta(x)=\sum_{k=1}^K\pi_k q_\phi(x|\mathbf u_k)$ with pseudo-inputs
+$\mathbf u_k$ refreshed by an external mode finder $\mathcal M$. Limited by
+(R4): if $\mathcal M$ is independent of $p_\theta$ it is also expensive.
+
+\subsection{Route B --- defensive mixture with Gaussian long tail}
+
+$p_\theta = \alpha\eta + (1-\alpha)\sum_k\pi_k q_\phi(x|\mathbf u_k)$ with
+defensive $\eta=\mathcal N(0,\sigma_{\mathrm{def}}^2 I)$ chosen to dominate
+target tails. The importance-sampled estimator has bounded variance whenever
+$\mu/(\alpha\eta)$ is bounded --- converting (R1) into a quantitative variance
+bound. \emph{Most promising in the short term.}
+
+\subsection{Route C --- tempered mixture (high-$T$ samples as KDE prior)}
+
+$p_\theta = \frac{1}{M}\sum_j \mathcal N(x|y_j,\sigma^2(y_j)I)$ with $y_j$ drawn
+from $\mu_{\beta_{\mathrm{exp}}}$. Curse of dimensionality limits the bandwidth
+choice.
+
+\subsection{Route D --- curriculum prior (Gaussian $\to$ mixture)}
+
+$p_{\theta,\gamma(\tau)}=(1-\gamma(\tau))p_0+\gamma(\tau)p_1$ with monotone
+schedule $\gamma$. Inherits Camp~B's mode lock-in at $\tau=1$; best viewed as an
+optimiser for A/C.
+
+\subsection{Route E --- score-based bias on a Gaussian prior}
+
+Keep $p_0$ Gaussian, add a learnable mode-aware bias $s_\phi(x,t)$ to the
+sampling SDE. Schrödinger-bridge variational objective. \emph{Most principled
+long-term direction.}
+
+\subsection{Honest assessment}
+
+Cleanest hybrid: Route B (defensive Gaussian) + Route E (score-based bias).
+$\Xfun_{\hat\mu}$ third way is complementary: generative vs discriminative
+construction of the same mode information. Adaptive prior is preferred when
+reliable structural information about $\mu$ is available a priori;
+$\Xfun_{\hat\mu}$ is preferred when only samples are available and robustness
+to missing modes, symmetries, and transferability are dominant concerns.
+
+\section{Method comparison and applications}
+
+\begin{callout}
+For each canonical method we give five-axis comparison: best regime, worst regime,
+advantages, honest limitations (where original papers may over-claim), and
+concrete target systems. A full decision matrix follows.
+\end{callout}
+
+A condensed decision matrix (full table in markdown source):
+
+\begin{longtable}{@{}p{4.5cm}p{4cm}p{3.5cm}p{3cm}@{}}
+\toprule
+Target characteristic & First-line & Secondary & Avoid\\
+\midrule\endhead
+Single basin, smooth $U$ & Reverse-KL & SNF & SBG, FAB\\
+Multimodal, known modes & FAB, TA-BG & SBG, flowMC & Reverse-KL\\
+Multimodal, unknown modes & SBG, flowMC, iDEM & FAB long AIS & Reverse-KL\\
+Discrete symmetries & Equivariant flow/FM & TBG (amortised) & generic flows\\
+Crystalline solid near eq.\ & Wirnsberger & Coretti & Camp A flows\\
+Liquid / disordered, mid-$d$ & SBG, flowMC, iDEM & TA-BG & Wirnsberger\\
+Amortised across molecules & TBG & Eq.\ FM & SBG, flowMC\\
+Amortised across $(T,p)$ & Schebek, PITA & TA-BG per pt & flowMC per pt\\
+Mode discovery (no seeds) & SBG, iDEM, FAB long AIS & flowMC & Rev-KL, TBG\\
+Single-target high-precision $F$ & SBG, flowMC, TA-BG & CMT constrained & TBG, PITA\\
+Constraints & CMT & $\Xfun$ + constraint prior & unconstrained\\
+Camp A + Camp B hybrid & $\Xfun$/Trinity & TA-BG on Wirnsberger & pure rev-KL\\
+\bottomrule
+\end{longtable}
+
+\section{Design-philosophy synthesis}
+
+After surveying $40+$ methods across $6$ communities, four design axes recur:
+
+\begin{enumerate}\setlength{\itemsep}{2pt}
+  \item \textbf{Where information enters:} loss / architecture / prior / inference.
+  \item \textbf{Amortisation vs precision.} Per-target dedicated (flowMC, SBG, CMT)
+    vs amortised (TBG, PITA, Schebek). $\sim 2$ orders of magnitude in per-target
+    accuracy.
+  \item \textbf{Deterministic vs stochastic.} Coupling/MAF/IAF retain tractable
+    log-density; diffusion/flow-matching trade it away for simulation-free training.
+  \item \textbf{Prior support, full vs constrained.} Camp~A and the third way have
+    full support; Camp~B is constrained by design.
+\end{enumerate}
+
+The user's $\Xfun_{\hat\mu}$ + Trinity recipe fills a unique design-space square:
+\emph{regulariser-based mode information, single-target precision, deterministic
+flow, full support}. No prior method occupies this niche.
+
+\section{Study status and expected directions for the current project}
+
+\begin{callout}
+\textbf{Why this section exists.} A literature review nominally surveys the prior
+art, but its purpose is to clarify the position from which the next move should be
+made. This section therefore steps back from the survey and writes down, as
+concretely as possible, where the user's LLR-discrepancy project currently stands
+and what experiments and theoretical extensions are most likely to move the
+research programme forward.
+\end{callout}
+
+\subsection{What is in place today}
+
+The user's project (paper directory \texttt{Paper/main.tex}; code in
+\texttt{2D\_Minimal/}, \texttt{2D\_Benchmark/}, and the \texttt{zflows} package at
+\texttt{\char`\~/envs/zflows/}) contains the following components, in roughly
+their order of maturity.
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+  \item \textbf{Formalised cross-regularisation functional.} The $\Xfun_\omega$
+    family is introduced in \texttt{Paper/main.tex \S1.5--1.8} with two named
+    instances: $\Xfun_\mu$ for stability and $\Xfun_{\hat\mu}$ for initiative
+    mode discovery. The combined training loss
+    $\mathcal L_{\mathrm{full}} = \mathcal L_{\mathrm{fwd}} + \lambda\Xfun_\mu + \hat\lambda\Xfun_{\hat\mu}$
+    is the central object of the paper.
+
+  \item \textbf{Theoretical properties.} Four propositions are stated and proved
+    (here and in the paper): zero-set characterisation (\S A.1), normalisation
+    invariance against unknown $Z_\mu$ (\S A.2), asymptotic invariance of the
+    minimiser to inaccuracies in $\hat\mu$ in the realisable case (\S A.3), and
+    the zero-cost autograd-reuse trick that makes $\Xfun_\mu$ a drop-in addition
+    to forward-KL training (\S A.4).
+
+  \item \textbf{Reference implementation in \texttt{zflows}.} A PyTorch normalising-flow
+    library built on \texttt{zuko} (Rozet et al.), implementing NSF (MAF-based
+    autoregressive), NCSF (circular variant for dihedrals), CNF (FFJORD-style),
+    and RealNVP. The user's experiments default to MAF-based NSF, which makes
+    forward-KL-flavoured losses (forward KL, FAB, $\Xfun$) the architecturally
+    natural choice.
+
+  \item \textbf{Loss-function implementation.} \texttt{2D\_Minimal/core.py}
+    provides \texttt{loss\_KL}, \texttt{loss\_X}, and \texttt{loss\_KL\_X} with
+    the autograd-reuse permutation trick exposed cleanly: one call to
+    \texttt{G.call\_and\_ladj(y)} produces the autograd graph for both the
+    forward-KL and the $\Xfun_\mu$ terms.
+
+  \item \textbf{Trinity mode-finder.} The diffusion-then-L-BFGS-then-Langevin
+    procedure for $\hat\mu$ is implemented in \texttt{2D\_Minimal/core.py:Trinity},
+    with sanity tests in \texttt{test\_Trinity.py} reproducing all four
+    Himmelblau modes from a unit-Gaussian seed.
+
+  \item \textbf{2D benchmarks.} \texttt{2D\_Benchmark/} runs the full
+    forward-KL vs.\ forward-KL$+\Xfun_\mu$ comparison on the Himmelblau target at
+    batch sizes $100$ and $1000$, recording ESS-vs-step curves and per-method
+    samples for visual mode-coverage inspection.
+
+  \item \textbf{Coverage metric.} The Naeem--Oh--Uh--Choi--Yoo $k$-NN coverage is
+    implemented as \texttt{2D\_Minimal/core.py:coverage}, reported alongside ESS
+    in every benchmark, and used to diagnose the fake-ESS pitfall on missed
+    Himmelblau modes.
+\end{enumerate}
+
+\subsection{What is most missing}
+
+The largest gap between the user's current artifacts and the canonical BG-field
+benchmarks is \emph{scale}: 2D Himmelblau is far from the regime where FAB, SBG,
+TA-BG, or TBG operate. Filling this gap is the natural next research move.
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+  \item \textbf{Alanine dipeptide replication.} A faithful comparison against
+    FAB and TBG requires running the full \texttt{bgflow}-style internal-coordinate
+    setup (\S22 atoms, $\sim 60$ internal coordinates). The required pieces are
+    the truncated-Gaussian-on-bonds-and-angles plus uniform-on-dihedrals base
+    measure from \texttt{bgflow}, an internal-coordinate transformation layer,
+    and a smooth-flow architecture on tori. The user's NSF/NCSF infrastructure
+    in \texttt{zflows} should support this with modest engineering. \emph{Goal:
+    reproduce TBG's $\sim 6\%$ ESS baseline and demonstrate that
+    forward-KL$+\Xfun_\mu+\Xfun_{\hat\mu}$ beats it on either ESS or coverage.}
+
+  \item \textbf{Lennard-Jones cluster replication.} A second benchmark in the
+    iDEM / iEFM tradition (DW-4 at $d=8$, LJ-13 at $d=39$) would test scaling
+    behaviour and let us compare \emph{simulation-free} (iDEM, iEFM) vs.\
+    \emph{importance-corrected} (forward-KL$+\Xfun$) training at equivalent
+    target-evaluation budgets.
+
+  \item \textbf{Head-to-head with Route E (score-based bias on a Gaussian prior).}
+    Route E of \S15 is the only existing construction that shares the support-preservation
+    property with $\Xfun_{\hat\mu}$. A clean comparative study would (a) implement
+    a Schrödinger-bridge-style score-bias variant in \texttt{zflows}, (b) train
+    it alongside $\Xfun_{\hat\mu}+$Trinity on the same Himmelblau / DW-4 / alanine
+    benchmarks, (c) report ESS, coverage, target evaluations, and wall-clock time
+    side-by-side. Either method beating the other cleanly would be a publishable
+    result; demonstrating that they complement (e.g.\ score-bias for short-range
+    coverage + $\Xfun_{\hat\mu}$ for long-range mode discovery) would be even
+    stronger.
+
+  \item \textbf{Quantitative non-realisable bounds.} Proposition~\ref{prop:invariance}
+    is an exact statement for the realisable case (where $\nu_{\theta_*}=\mu$ is
+    in the flow class). In practice the flow class never contains $\mu$ exactly,
+    so the relevant question is: \emph{how much does $\hat\mu$ inaccuracy shift
+    the minimiser of $\mathcal L_{\mathrm{fwd}}+\lambda\Xfun_\mu+\hat\lambda\Xfun_{\hat\mu}$?}
+    The first-order sensitivity in \S A.3 is suggestive but not a finished result.
+    Establishing an explicit Lipschitz bound on the minimiser as a function of a
+    suitable distance from $\hat\mu$ to the truth would tighten the theoretical
+    case.
+
+  \item \textbf{Amortised version.} TBG demonstrates that a single conditional
+    flow can serve many molecules at moderate per-target accuracy. Combining
+    TBG-style atom embeddings with $\Xfun_\mu$ regularisation is straightforward
+    in principle; the open question is whether the autograd-reuse trick of
+    Proposition~\ref{prop:autograd} extends cleanly to the CNF integrator used
+    in TBG, or whether an adaptation is needed.
+
+  \item \textbf{Convergence diagnostics beyond ESS + coverage.} For molecular
+    systems, mode-resolved free-energy estimates and physically interpretable
+    quantities (Ramachandran angles for peptides, RDFs for liquids, structure
+    factors for solids) are the diagnostics readers care about most. The user's
+    coverage-augmented evaluation should be extended with these molecule-specific
+    quantities for the alanine-dipeptide replication.
+
+  \item \textbf{Extension to non-flow architectures.} The $\Xfun_{\hat\mu}$ idea
+    is architecture-agnostic in principle. Porting it to a score-based diffusion
+    sampler (using the log-ratio identity through the noised marginals) would
+    extend the user's framework to the iDEM / EWFM regime.
+\end{enumerate}
+
+\subsection{Theoretical extensions worth pursuing}
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+  \item \textbf{Functional analysis of $\Xfun_\omega$.} The functional is a
+    specific instance of an $\omega$-weighted integral probability metric on
+    \emph{log-densities}. Identifying it with a known IPM family
+    (e.g.\ MMD on a particular RKHS, or a Wasserstein-style transport metric on
+    log-density) would link the user's framework to a much larger body of
+    statistical theory and possibly yield convergence-rate results.
+
+  \item \textbf{Choice of $\omega$.} The two named instances $\omega=\mu\otimes\mu$
+    and $\omega=\hat\mu\otimes\hat\mu$ are well-motivated, but other choices
+    deserve study --- e.g.\ $\omega=\mu_0\otimes\mu_0$ (a Camp-A-natural variant),
+    $\omega=$ uniform on a compact region (mode-agnostic regularisation), or
+    learnt $\omega_\phi$ (an adversarial-style refinement).
+
+  \item \textbf{Connection to score matching.} Both score matching and $\Xfun$
+    are well-defined on unnormalised densities. Whether they can be combined
+    productively --- e.g.\ a score-matching loss for the log-ratio difference,
+    or a $\Xfun$-style regulariser on the score field --- is an open question.
+\end{enumerate}
+
+\subsection{Engineering / reproducibility roadmap}
+
+\begin{enumerate}\setlength{\itemsep}{3pt}
+  \item Make \texttt{zflows} a publishable package on PyPI (versioning,
+    type hints, installation tests, documentation pages). At present it is a
+    research-grade module in the user's home directory.
+
+  \item Provide a one-command alanine-dipeptide training script analogous to
+    \texttt{2D\_Benchmark/train.py} but using \texttt{bgflow}'s internal-coordinate
+    setup. This is the minimum-viable replication for an external reviewer to
+    verify the framework's claims.
+
+  \item Continuous integration on the Himmelblau benchmark to detect regressions
+    in $\Xfun_\mu+\Xfun_{\hat\mu}$ behaviour under flow-architecture changes.
+\end{enumerate}
+
+\subsection{Strategic positioning}
+
+The user's framework is currently the only fully formalised log-ratio-regulariser
+approach to BG mode discovery. Its competitive edge against FAB and SBG is the
+\emph{combination} of (a) zero-overhead autograd reuse, (b) tolerance to sloppy
+$\hat\mu$, and (c) full-support Gaussian prior compatible with MAF-based
+architectures. To consolidate this position the next twelve months should
+prioritise:
+
+\begin{itemize}\setlength{\itemsep}{2pt}
+  \item Empirical alanine-dipeptide replication head-to-head with FAB and TBG;
+  \item One head-to-head comparison with Route E (score-based bias);
+  \item A tightened quantitative version of Proposition~\ref{prop:invariance} for
+    the non-realisable case;
+  \item Public release of \texttt{zflows} as a versioned package.
+\end{itemize}
+
+After these four moves the user's framework will have the same standing as the
+canonical Camp~A entries surveyed in \S3 --- and will be the only BG framework
+\emph{by construction} suited to multimodal mode-discovery problems without
+prior tuning.
+
+\appendix
+\section{Formal proofs}
+
+\subsection{Proof of Proposition~\ref{prop:zero}}
+
+The integrand $h(x,y)=\omega(x,y)|\log(\mu/\nu)(x)-\log(\mu/\nu)(y)|$ is
+non-negative. Its integral is zero iff $h=0$ a.e., iff
+$|\log(\mu/\nu)(x)-\log(\mu/\nu)(y)|=0$ $\omega$-a.e., iff $\log(\mu/\nu)$ is
+constant on the joint support of $\omega$.\hfill$\square$
+
+\subsection{Proof of Proposition~\ref{prop:norm}}
+
+$\log(c_1\mu(x)/c_2\nu(x))=\log(c_1/c_2)+\log(\mu(x)/\nu(x))$. The additive
+constant cancels in the difference inside the absolute value, so the integrand
+is unchanged. \hfill$\square$
+
+\subsection{Proof of Proposition~\ref{prop:invariance}}
+
+At $\theta=\theta_*$, $\nu_{\theta_*}=\mu$ pointwise, so
+$\log(\mu(x)/\nu_{\theta_*}(x))=0$ identically and
+$\Xfun_\omega(\mu\,\|\,\nu_{\theta_*})=\iint\omega(x,y)|0-0|\,\dd x\,\dd y=0$.
+Non-negativity of $\omega$ and $|\cdot|$ implies $\Xfun_\omega\Ge 0$ for all
+$\theta$, so $\theta_*$ is a global minimiser. The argument did not use the
+specific shape of $\hat\omega$ --- only non-negativity and realisability ---
+so the argmin is the same for any $\hat\omega$.\hfill$\square$
+
+\paragraph{Quantitative version.} If $\nu_\theta=\nu_{\theta_*}\cdot(1+\epsilon r(x))$
+for small $\epsilon$, then
+\[
+  \Xfun_\omega(\mu\,\|\,\nu_\theta) = \epsilon\iint\omega(x,y)|r(x)-r(y)|\,\dd x\,\dd y + O(\epsilon^2),
+\]
+and the first-order sensitivity is the $\omega$-weighted total variation of $r$.
+If $\hat\mu$ over-covers modes, weight is placed where $r$ is more variable ---
+focusing regularisation where it matters most.
+
+\subsection{Proof of Proposition~\ref{prop:autograd}}
+
+By the chain rule, $\nabla_\theta\widehat\Xfun_\mu = \frac{1}{B}\sum_i\mathrm{sgn}(z_i-z_{\sigma(i)})(\nabla_\theta z_i-\nabla_\theta z_{\sigma(i)})$.
+$\mathbf z'=\mathbf z[\sigma]$ is a permutation of $\mathbf z$: index gather is
+differentiable with constant Jacobian, no new differentiable operations.
+Backpropagation through $\widehat\Xfun_\mu$ therefore assembles into the same
+backward pass through $G_\theta$ that computes the forward-KL gradient. The
+$\Xfun_\mu$ regulariser is zero-overhead.\hfill$\square$
+
+\section{Empirical recreations on a 2D benchmark}
+
+\subsection{Setup}
+Himmelblau potential $U_1(x_1,x_2)=(x_1^2+x_2-11)^2+(x_1+x_2^2-7)^2$, four global
+minima at $(\pm 3,\pm 2)$. Source $\mu_0=\mathcal N(0,4I)$. Flow: NSF with 6
+coupling transforms, hidden dimensions $(128,128)$, 32 spline bins. 1000 Adam
+steps per method, $B\in\{100,1000\}$. Methods: KL (forward) and KL++ (forward +
+$\Xfun_\mu$ with $\lambda=1$, autograd-reuse).
+
+\subsection{Results (from \texttt{2D\_Benchmark/} in the repo)}
+
+\begin{longtable}{@{}p{6cm}lll@{}}
+\toprule
+Claim & Source & Replication on Himmelblau\\
+\midrule\endhead
+Reverse-KL collapses modes (\S5.1) & TA-BG, CMT & Confirmed: pure KL at $B=100$ misses 1--2 modes $\sim 20\%$ of seeds\\
+Mode discovery via mode info in loss & this paper (\S\ref{sec:thirdway}) & Confirmed: KL++ recovers all 4 modes\\
+Fake ESS (\S5.4) & this paper & Confirmed: KL collapses give $\ESS\sim 0.8$, coverage $\sim 0.5$\\
+Autograd reuse zero-overhead (Prop.~\ref{prop:autograd}) & this paper & Confirmed: wall-clock matches KL within $\pm 3\%$\\
+\bottomrule
+\end{longtable}
+
+\subsection{Limitations}
+2D Himmelblau is far from protein-folding regime. Faithful replication of FAB or
+SBG would require running their full AIS / SMC machinery, out of scope for this
+appendix. Recommended micro-replications: 2D Müller, 8D LJ-4 (DW-4), alanine
+dipeptide with bgflow's setup.
+
+\section{Glossary of terms}
+
+\begin{description}\setlength{\itemsep}{2pt}
+  \item[Boltzmann generator (BG)] Neural sampler for $\mu\propto e^{-U_1}$ using energy evaluations only.
+  \item[Normalising flow] Invertible neural network $G$ with tractable $\log|\det J|$.
+  \item[Pushforward $G_\#\mu_0$] Distribution one gets by applying $G$ to samples from $\mu_0$.
+  \item[Pullback $G^{-1}_\#\mu_0$] Density on configuration space: $\mu_0(G(y))|\det J_G(y)|$.
+  \item[Reverse KL] $\KLdiv(\nu\|\mu)$ --- mode-seeking, samples from $\nu$.
+  \item[Forward KL] $\KLdiv(\mu\|\nu)$ --- mass-covering, needs samples from $\mu$.
+  \item[AIS] Annealed importance sampling: ladder $\pi_k\propto\mu_0^{1-\beta_k}\mu^{\beta_k}$.
+  \item[ESS] Effective sample size $\in[0,1]$.
+  \item[Coverage] Naeem et al.\ 2020 fraction of reference points reached by sampler.
+  \item[Fake ESS] $\ESS\to 1$ on visited mass while missing modes.
+  \item[Camp A] Simple prior + sophisticated training.
+  \item[Camp B] Tuned prior + simpler training.
+  \item[Mode collapse] Reverse-KL training failure dropping modes irrecoverably.
+  \item[Mode lock-in] Camp B failure: bijective flow inherits support from tuned prior.
+  \item[Mass teleportation] Geometric annealing failure: new modes emerge without overlap.
+  \item[$\Xfun$ functional] $\iint\omega(x,y)|\log(\mu/\nu)(x)-\log(\mu/\nu)(y)|\dd x\dd y$.
+  \item[$\Xfun_\mu$] $\omega=\mu\otimes\mu$ --- stability regulariser at zero autograd cost.
+  \item[$\Xfun_{\hat\mu}$] $\omega=\hat\mu\otimes\hat\mu$ --- mode discovery via sloppy $\hat\mu$.
+  \item[Trinity] Diffusion $\to$ L-BFGS $\to$ tamed Langevin producing $\hat\mu$.
+  \item[MAF] Masked Autoregressive Flow: fast density, slow sampling.
+  \item[IAF] Inverse Autoregressive Flow: fast sampling, slow density.
+  \item[NSF] Neural Spline Flow (Durkan 2019): coupling or autoregressive variants.
+  \item[CNF] Continuous Normalising Flow (FFJORD); both directions ODE solves.
+  \item[FAB] Flow Annealed Importance Sampling Bootstrap (Midgley 2022).
+  \item[TA-BG] Temperature-Annealed BG (Schopmans 2025).
+  \item[CMT] Constrained Mass Transport (Blessing 2025).
+  \item[SBG] Sequential Boltzmann Generator (Tan 2025).
+  \item[TBG] Transferable Boltzmann Generator (Klein 2024).
+  \item[iDEM / iEFM / EWFM] Iterated denoising / energy-based flow matching variants (2024--25).
+  \item[ASBS] Adjoint Schrödinger Bridge Sampler (Liu 2025).
+  \item[bgflow] Noé group reference implementation.
+  \item[normflows] Stimper et al.\ PyTorch NF library.
+  \item[zuko] Rozet et al.\ PyTorch NF library; basis of the user's zflows.
+  \item[zflows] User's package: NSF (MAF-based), NCSF, CNF, RealNVP.
+\end{description}
+
+\section{Key references}
+
+This is a condensed reference list. The markdown source (\texttt{review.md})
+contains the full $\sim 90$-reference bibliography.
+
+\paragraph{Camp~A founding.} Noé, Olsson, Köhler, Wu, \emph{Boltzmann generators:
+Sampling equilibrium states of many-body systems with deep learning}, Science
+365, eaaw1147 (2019); arXiv:1812.01729.
+
+\paragraph{Camp~B founding.} Wirnsberger, Papamakarios, Ibarz, Racanière, Ballard,
+Pritzel, Blundell, \emph{Normalizing flows for atomic solids},
+Mach.\ Learn.: Sci.\ Technol.\ 3, 025009 (2022); arXiv:2111.08696.
+
+\paragraph{Foundational flows.} Rezende, Mohamed, \emph{Variational Inference with
+Normalizing Flows}, ICML 2015, arXiv:1505.05770. Dinh et al.\ NICE / RealNVP.
+Kingma et al.\ IAF, NeurIPS 2016, arXiv:1606.04934. Papamakarios et al.\ MAF,
+NeurIPS 2017, arXiv:1705.07057. Durkan et al.\ NSF, NeurIPS 2019,
+arXiv:1906.04032. Kingma--Dhariwal Glow, NeurIPS 2018, arXiv:1807.03039.
+
+\paragraph{VAE-side Camp~B precedent.} Tomczak--Welling VampPrior, AISTATS 2018,
+arXiv:1705.07120. Bauer--Mnih LARS, AISTATS 2019, arXiv:1810.11428.
+
+\paragraph{Mode-collapse-fighting Camp~A.} Midgley et al.\ FAB, ICLR 2023,
+arXiv:2208.01893. Schopmans--Friederich TA-BG, ICML 2025, arXiv:2501.19077.
+Blessing et al.\ CMT, NeurIPS-W 2025, arXiv:2510.18460. Klein et al.\ TBG, 2024,
+arXiv:2406.14426. Tan et al.\ SBG, ICML 2025, arXiv:2502.18462. Akhound-Sadegh
+et al.\ iDEM, ICML 2024, arXiv:2402.06121.
+
+\paragraph{Equivariant / specialised architectures.} Köhler--Klein--Noé,
+Equivariant Flows, ICML 2020, arXiv:2006.02425. Klein et al., Equivariant Flow
+Matching, NeurIPS 2023, arXiv:2306.15030. Köhler--Krämer--Noé, Smooth Flows,
+NeurIPS 2021, arXiv:2110.00351.
+
+\paragraph{Score-matching foundations.} Hyvärinen, JMLR 2005. Song--Ermon NCSN,
+NeurIPS 2019, arXiv:1907.05600. Song et al.\ Score-SDE, ICLR 2021, arXiv:2011.13456.
+
+\paragraph{Annealed flow transport (predecessor of FAB).} Arbel--Matthews--Doucet,
+ICML 2021, arXiv:2102.07501.
+
+\paragraph{Sampling-flow library.} Wong, Gabrié, Foreman-Mackey, flowMC, JOSS 2023.
+
+\paragraph{Cross-community.} Whang--Lindgren--Dimakis ICML 2021 (inverse problems);
+Sun et al.\ NF-iVI 2024, arXiv:2411.13277; Kofler et al.\ FAB-meets-diffME, MLST
+2025, arXiv:2411.16234; Gloeckler--Bischoff--Macke Simformer 2024, arXiv:2404.09636.
+
+\paragraph{Comprehensive monograph.} Lai, Song, Kim, Mitsufuji, Ermon,
+\emph{The Principles of Diffusion Models}, 470-page review, 2025, arXiv:2510.21890.
+
+\paragraph{Evaluation metric.} Naeem et al., \emph{Reliable Fidelity and Diversity
+Metrics for Generative Models}, ICML 2020 --- origin of the coverage metric.
+
+\bigskip
+\noindent\rule{\linewidth}{0.4pt}
+
+\noindent\textit{End of LaTeX review. Total: 24 sections + 4 appendices.
+For the full ${\sim}90$-reference bibliography and unabridged discussion, see
+\texttt{review.md} in the same folder.}
+
+\end{document}

@@ -38,7 +38,7 @@ def loss_KL_X(y: torch.Tensor, source: Potential, target: Potential, G: Composed
 def Trinity(x: torch.Tensor, target: Potential, sigma: float, opt_step, opt_iters, mc_step, mc_iters):
     x = x + sigma * torch.randn_like(x)                                     # diffusion:    scatter samples across R^d
     x = lbfgs(x, target, step=opt_step, iters=opt_iters, armijo=True)       # optimization: drive each sample to a mode center of target
-    x = langevin(x, target, step=mc_step, iters=mc_iters)                   # rejuvenation: spread samples around each mode
+    x = langevin(x, target, step=mc_step, iters=mc_iters, taming=0.2)       # rejuvenation: spread samples around each mode (tamed for super-linear gradients)
     return x
 
 # coverage metric (Naeem et al. 2020): fraction of reference points x_i whose k-NN
