@@ -10,32 +10,3 @@
 __pycache__/
 **/__pycache__/
 
-# LaTeX auxiliary files
-*.aux
-*.bbl
-*.blg
-*.fdb_latexmk
-*.fls
-*.log
-*.out
-*.synctex.gz
-*.toc
-*.lof
-*.lot
-*.nav
-*.snm
-*.vrb
-*.xdv
-*.run.xml
-*.bcf
-*.idx
-*.ind
-*.ilg
-*.glo
-*.gls
-*.glg
-*.ist
-*.acn
-*.acr
-*.alg
-*.auxlock
