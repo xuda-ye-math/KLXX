@@ -118,175 +118,148 @@ where $\lambda, \hat\lambda \Ge 0$ are tunable weights. To evaluate the trained 
 \section{Fisher--Rao gradient flow with X functionals}
 \label{sec: FR}
 
-Before we propose the training details with the $\X$ functionals, we first study the gradient flow properties of the loss function, whose convergence rate reflects the difficulty with which the flow can be trained. We view $\nu$ as a generic probability density and ask how the loss $\mathcal L[\nu]$ decreases under the gradient flow induced by an appropriate Riemannian metric on the space of densities.
+Before we propose the training details with the $\X$ functionals, we first study the gradient flow properties of the loss function, whose convergence behavior reflects the difficulty with which the flow can be trained. We view $\nu$ as a generic probability density evolving along the gradient flow of the loss under an appropriate Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal}, and ask how fast $\nu_t$ converges to the target $\mu$ in $\KL(\mu\|\nu_t)$.
 
 Consider the loss function with respect to $\nu$ with only the forward KL and $\X_\mu$:
 \begin{equation}
     \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\, \X_\mu(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x +
-    \iint_{\mathbb R^d\times\mathbb R^d}
-    \lambda\, \mu(x)\mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y.
+    \lambda\iint_{\mathbb R^d\times\mathbb R^d}
+     \mu(x)\mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: loss KL X}
 \end{equation}
+where $\lambda>0$ is a fixed constant.
 Throughout this section we abbreviate the importance weight by
 \begin{equation*}
     w(x) := \frac{\mu(x)}{\nu(x)},
 \end{equation*}
 so that the log-ratio is $\log w(x) = \log\mu(x) - \log\nu(x)$.
 
-The choice of Riemannian metric matters. In the Wasserstein-2 geometry, the forward KL fails to be displacement convex along W$_2$ geodesics, and the standard Otto--Villani / Bakry--{\'E}mery machinery that yields exponential convergence for the \emph{reverse} KL (Langevin / Fokker--Planck) does not apply. We therefore work in the \emph{Fisher--Rao} (FR) geometry, in which the forward KL admits an unconditional exponential decay rate and the regularizer $\X_\mu$ provides an additional, strictly positive boost to that rate.
+The choice of Riemannian metric matters. In the Wasserstein-2 geometry, induced by optimal transport \citep{jordan1998variational,otto2001geometry}, the forward KL fails to be displacement convex along Wasserstein-2 geodesics, and the standard Otto--Villani / Bakry--{\'E}mery machinery \citep{otto2000generalization,bakry2014analysis} that yields exponential convergence for the reverse KL does not apply. We therefore work in the Fisher--Rao geometry \citep{amari2016information,bauer2016uniqueness}, in which the forward KL admits an unconditional exponential decay rate and the regularizer $\X_\mu$ contributes a qualitatively new, nonlocal birth--death modulation \citep{lu2019accelerating} in which the local update at $x$ is driven by how the importance weight at $x$ ranks against the population of weights under $\mu$.
 
-\subsection{First variations}
-
-The first variations of the two summands of $\mathcal L$ with respect to $\nu$ admit a clean closed form. For the forward KL,
+Denoting the $\nu$-mean by $\langle\,\cdot\,\rangle_\nu := \int(\,\cdot\,)\,\nu\,\D x$, the Fisher--Rao gradient of a functional $\mathcal F[\nu]$ and the associated dissipation identity along the FR gradient flow $\partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu_t)$ are
 \begin{equation}
-    \frac{\delta\,\KL(\mu\|\nu)}{\delta \nu}(z) = -\frac{\mu(z)}{\nu(z)}.
-    \label{eq: var-KL}
-\end{equation}
-
-For the regularizer, note that $\delta \log w(x)/\delta\nu(z) = -\delta(x-z)/\nu(x)$. Differentiating $|\log w(x) - \log w(y)|$ with the subdifferential $\partial|s|/\partial s = \operatorname{sgn}(s)$, using $\operatorname{sgn}(\log w(x) - \log w(y)) = \operatorname{sgn}(w(x) - w(y))$, and exploiting the antisymmetry of $\operatorname{sgn}$ to combine the two resulting terms gives
-\begin{equation}
-    \frac{\delta\,\X_\mu(\mu\|\nu)}{\delta \nu}(z) = -\frac{2\mu(z)}{\nu(z)}\,S(z),
+    \mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu) = \nu\biggl(\frac{\delta\mathcal F}{\delta\nu} - \Big\langle\frac{\delta\mathcal F}{\delta\nu}\Big\rangle_\nu\biggr),
     \qquad
-    S(z) := \mathbb E_{Y\sim\mu}\bigl[\operatorname{sgn}(w(z) - w(Y))\bigr]\in [-1,1].
-    \label{eq: var-X}
-\end{equation}
-We call $S$ the \emph{rank field} of the importance weight under $\mu$: $S(z) > 0$ where $w(z)$ exceeds the $\mu$-median of $w$, i.e. where $\nu$ undercovers a mode of $\mu$; $S(z) < 0$ where $\nu$ overcovers; and $S \equiv 0$ at $\nu = \mu$. By the antisymmetry $\operatorname{sgn}(w(X) - w(Y)) = -\operatorname{sgn}(w(Y) - w(X))$ under $X\leftrightarrow Y$ swap with $X, Y\sim\mu$, we also have $\mathbb E_\mu[S] = 0$.
-
-Combining \eqref{eq: var-KL} and \eqref{eq: var-X},
-\begin{equation*}
-    \frac{\delta \mathcal L}{\delta\nu}(z) = -\frac{\mu(z)}{\nu(z)}\bigl(1 + 2\lambda S(z)\bigr),
-\end{equation*}
-so the factor $1 + 2\lambda S \in [1-2\lambda, 1+2\lambda]$ acts as a rank-based modulator of the pure forward-KL drift.
-
-\subsection{The Fisher--Rao gradient flow}
-
-The Fisher--Rao metric on the space of probability densities is the Riemannian metric
-\begin{equation*}
-    \langle \sigma_1, \sigma_2\rangle^{\mathrm{FR}}_\nu = \int_{\mathbb R^d} \frac{\sigma_1(x)\,\sigma_2(x)}{\nu(x)}\,\D x,
-\end{equation*}
-where tangent vectors $\sigma_i$ are signed measures with $\int\sigma_i = 0$. Under the change of variable $\nu\mapsto 2\sqrt{\nu}$, this metric pulls back to the standard $L^2$ metric on a piece of the unit sphere; FR geodesics interpolate $\sqrt{\nu}$ linearly (with renormalization), equivalently they interpolate $\log\nu$ affinely modulo a constant. The geometry is \emph{purely multiplicative}: mass at $x$ is reweighted, never transported.
-
-For a functional $\mathcal F[\nu]$ with first variation $\delta\mathcal F/\delta\nu$, the FR gradient is defined by the identity
-\begin{equation*}
-    \langle\mathrm{grad}^{\mathrm{FR}}\mathcal F,\,\sigma\rangle^{\mathrm{FR}}_\nu = \int_{\mathbb R^d} \frac{\delta\mathcal F}{\delta\nu}(x)\,\sigma(x)\,\D x \quad \text{for all admissible } \sigma.
-\end{equation*}
-Writing $\mathrm{grad}^{\mathrm{FR}}\mathcal F(x) = \nu(x)\,h(x)$, this forces $h = \delta\mathcal F/\delta\nu - c$, and the constraint $\int\mathrm{grad}^{\mathrm{FR}}\mathcal F = 0$ fixes the constant $c = \langle\delta\mathcal F/\delta\nu\rangle_\nu$, where we denote the $\nu$-mean by
-\begin{equation*}
-    \langle\,\cdot\,\rangle_\nu := \int_{\mathbb R^d}(\,\cdot\,)\,\nu(x)\,\D x.
-\end{equation*}
-Hence
-\begin{equation}
-    \mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu) = \nu\Bigl(\frac{\delta\mathcal F}{\delta\nu} - \big\langle\frac{\delta\mathcal F}{\delta\nu}\big\rangle_\nu\Bigr).
+    \frac{\D}{\D t}\mathcal F[\nu_t] = -\!\int_{\mathbb R^d}\biggl(\frac{\delta\mathcal F}{\delta\nu} - \Big\langle\frac{\delta\mathcal F}{\delta\nu}\Big\rangle_{\nu_t}\biggr)^{2}\nu_t\,\D x.
     \label{eq: FR-gradient}
 \end{equation}
-The FR gradient flow $\partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}\mathcal F$ automatically conserves probability mass and admits the universal dissipation identity
-\begin{equation*}
-    \frac{\D}{\D t}\mathcal F[\nu_t] = -\bigl\|\mathrm{grad}^{\mathrm{FR}}\mathcal F\bigr\|^2_{\mathrm{FR},\nu_t} = -\!\int\Bigl(\frac{\delta\mathcal F}{\delta\nu} - \big\langle\frac{\delta\mathcal F}{\delta\nu}\big\rangle_{\nu_t}\Bigr)^{\!2}\nu_t\,\D x.
-\end{equation*}
+The mean-subtraction enforces $\int\mathrm{grad}^{\mathrm{FR}}\mathcal F = 0$, so the FR flow conserves probability mass automatically.
 
-\subsection{Exponential convergence of the forward KL flow}
-\label{subsec: FR-KL}
+\subsection{Derivation of $\X_\mu$-augmented Fisher--Rao gradient flow}
+\label{subsec: FR-grad-calc}
 
-Applying \eqref{eq: FR-gradient} to the forward KL with $\delta\KL/\delta\nu = -\mu/\nu$ and $\langle -\mu/\nu\rangle_\nu = -\!\int\mu = -1$ gives the strikingly simple flow
+The first variation of the forward KL with respect to $\nu$ admits the simple form
 \begin{equation}
-    \partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}\KL(\nu_t) = \mu - \nu_t,
-    \label{eq: FR-KL-flow}
+    \frac{\delta\,\KL(\mu\|\nu)}{\delta \nu}(x) = -\frac{\mu(x)}{\nu(x)} = -w(x),
+    \label{eq: var-KL}
 \end{equation}
-a linear ODE on densities that decouples pointwise in $x$. Its closed-form solution is
-\begin{equation*}
-    \nu_t(x) = e^{-t}\,\nu_0(x) + (1-e^{-t})\,\mu(x).
-\end{equation*}
-
-Differentiating the KL along this flow,
+so by \eqref{eq: FR-gradient} the FR gradient of the forward KL is
 \begin{equation}
-    \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\!\int_{\mathbb R^d}\!\frac{\mu}{\nu_t}\,(\mu - \nu_t)\,\D x = 1 - \!\int_{\mathbb R^d}\!\frac{\mu^2}{\nu_t}\,\D x = -\,\chi^2(\mu\|\nu_t),
-    \label{eq: KL-dissipation-pure}
-\end{equation}
-where the chi-squared divergence is
-\begin{equation*}
-    \chi^2(\mu\|\nu) := \int_{\mathbb R^d}(w - 1)^2\,\nu\,\D x = \int_{\mathbb R^d} w^2\,\nu\,\D x - 1.
-\end{equation*}
-The elementary inequality $u\log u \Le u^2 - u$ applied pointwise to $u = w$ yields $\chi^2(\mu\|\nu) \Ge \KL(\mu\|\nu)$, and Gr\"onwall's lemma then gives
-\begin{equation}
-    \KL(\mu\|\nu_t) \Le e^{-t}\,\KL(\mu\|\nu_0),\qquad t \Ge 0.
-    \label{eq: KL-exponential}
+    \mathrm{grad}^{\mathrm{FR}}\big[\KL(\mu\|\nu)\big](x) = \nu(x) - \mu(x).
+    \label{eq: FR-grad-KL}
 \end{equation}
 
-\begin{remark}
-The exponential rate $e^{-t}$ holds with \emph{no structural assumption on the target $\mu$} --- neither log-concavity, nor a spectral gap, nor any growth condition. This contrasts sharply with the W$_2$ geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
-\end{remark}
-
-The uniform convergence rate \eqref{eq: KL-exponential} should \emph{not} be read as a blanket statement that minimizing the forward KL is intrinsically faster or more efficient than minimizing the reverse KL. The FR flow is a continuous-time idealization on the space of densities and is agnostic to the sampling cost. In practice, the difficulty of training has been partially transported to the AIS step: evaluating the forward KL and its gradient requires accurate samples of $\mu$, and producing such samples in high dimensions is itself a hard problem --- it is the very reason that AIS is needed, and that the $\X_{\hat\mu}$ regularizer must compensate for modes that AIS alone fails to reach. The exponential rate \eqref{eq: KL-exponential} quantifies how fast the flow \emph{can} converge given accurate target samples; it does not eliminate the burden of producing them.
-
-\subsection{Acceleration via $\X_\mu$}
-\label{subsec: FR-X-acceleration}
-
-We now compute the FR gradient of the regularizer $\X_\mu$. Using \eqref{eq: var-X} and the symmetry $\mathbb E_\mu[S] = 0$,
+For the $\X_\mu$ functional, the inner log-ratio difference has first variation
 \begin{equation*}
-    \langle -2(\mu/\nu)\,S\rangle_\nu = -2\!\int\mu\,S\,\D z = -2\,\mathbb E_\mu[S] = 0,
+    \frac{\delta\bigl(\log w(x) - \log w(y)\bigr)}{\delta\nu(x)} = \frac{1}{\nu(y)}\delta(x-y) - \frac{1}{\nu(x)}.
 \end{equation*}
-so the mean-subtraction in \eqref{eq: FR-gradient} acts trivially, and
+By the symmetry of $\X_\mu$ in $x$ and $y$,
+\begin{align*}
+    \frac{\delta\,\X_\mu(\mu\|\nu)}{\delta \nu}(x) & =
+    2 \int_{\mathbb R^d} \mu(x) \mu(y) \operatorname{sgn}(w(x) - w(y)) \frac{\delta (\log w(x) - \log w(y))}{\delta\nu(x)} \D y \\
+    & = 2 \int_{\mathbb R^d} \mu(x) \mu(y) \operatorname{sgn}(w(x) - w(y))
+    \bigg(\frac1{\nu(y)}\delta(x-y) - \frac1{\nu(x)}\bigg) \D y \\
+    & = -2\int_{\mathbb R^d} w(x) \operatorname{sgn}(w(x) - w(y))  \D y,
+\end{align*}
+where the contribution of $\delta(x-y)$ vanishes because $\operatorname{sgn}(w(x) - w(y)) = 0$ at $y = x$. Hence
 \begin{equation}
-    \mathrm{grad}^{\mathrm{FR}}\X_\mu(\nu) = -2\mu\,S,
+    \frac{\delta\,\X_\mu(\mu\|\nu)}{\delta \nu}(x) = - 2w(x)S(x),
     \qquad
-    \partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}\X_\mu(\nu_t) = 2\mu\,S(\nu_t).
-    \label{eq: FR-X-flow}
+    S(x) := \mathbb E_{y\sim\mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr].
+    \label{eq: var-X}
 \end{equation}
-The flux is a fixed multiple of $\mu$ modulated by the rank field $S$: mass is added where $\nu$ undercovers $\mu$ and removed where $\nu$ overcovers $\mu$. Probability is conserved since
+We call $S$ the \emph{rank field} of the importance weight under $\mu$: $S(x) > 0$ where $w(x)$ exceeds the $\mu$-median of $w$, i.e.\ where $\nu$ undercovers a mode of $\mu$; $S(x) < 0$ where $\nu$ overcovers; and $S \equiv 0$ at $\nu = \mu$. By antisymmetry,
 \begin{equation*}
-    \int_{\mathbb R^d} 2\mu(x)\,S(x)\,\D x = 2\,\mathbb E_\mu[S] = 0.
+    \mathbb E_\mu[S] = \mathbb E_{x,y\sim \mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr] = 0,
 \end{equation*}
-
-Combining \eqref{eq: FR-KL-flow} and \eqref{eq: FR-X-flow}, the FR gradient flow of the full loss \eqref{eq: loss KL X} is
+and the FR gradient of $\X_\mu$ with respect to $\nu$ is
 \begin{equation}
-    \partial_t\nu_t = \mu\bigl(1 + 2\lambda\, S(\nu_t)\bigr) - \nu_t.
+    \mathrm{grad}^{\mathrm{FR}}\big[\X_\mu(\mu\|\nu)\big](x) = -2\mu(x)\,S(x).
+    \label{eq: FR-grad-X}
+\end{equation}
+
+Since the FR gradient is linear in the functional, the FR gradient of $\mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu)$ is the direct sum of \eqref{eq: FR-grad-KL} and \eqref{eq: FR-grad-X}:
+\begin{equation*}
+    \mathrm{grad}^{\mathrm{FR}}[\mathcal L](x) = \mu(x) - \nu(x) + 2\lambda \mu(x) S(x).
+\end{equation*}
+The augmented Fisher--Rao gradient flow $\partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}[\mathcal L]$ therefore reads
+\begin{equation}
+    \partial_t\nu_t(x) = \mu(x) - \nu(x) + 2\lambda \mu(x) S_t(x), \quad 
+    \text{where~}
+    S_t(x) := \mathbb E_{y\sim\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\biggr)\biggr].
     \label{eq: FR-L-flow}
 \end{equation}
-Mass conservation follows from $\int[\mu(1+2\lambda S) - \nu_t]\,\D x = (1 + 2\lambda\mathbb E_\mu[S]) - 1 = 0$, and the flow is stationary at $\nu_t = \mu$, where $w\equiv 1$ and hence $S\equiv 0$.
+Equation~\eqref{eq: FR-L-flow} is a \emph{nonlocal} PDE: its right-hand side at $x$ depends on $S_t(x)$, which in turn requires the entire profile of the importance weight $\mu/\nu_t$ over the support of $\mu$. Mass is conserved along the flow because
+\begin{equation*}
+    \frac{\D}{\D t}\!\int_{\mathbb R^d}\!\nu_t(x)\,\D x = 2\lambda\!\int_{\mathbb R^d}\!\mu(x)\,S_t(x)\,\D x = 0,
+\end{equation*}
+and the flow is stationary at $\nu_t = \mu$, where $\mu(x)/\nu_t(x) \equiv 1$ and hence $S_t\equiv 0$. When $\lambda = 0$, \eqref{eq: FR-L-flow} reduces to the pure Fisher--Rao gradient flow of the forward KL.
 
-The acceleration provided by $\X_\mu$ is captured by the KL dissipation along the combined flow:
-\begin{equation}
-    \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\!\int\frac{\mu}{\nu_t}\bigl[\mu(1 + 2\lambda S) - \nu_t\bigr]\D x = -\chi^2(\mu\|\nu_t) - 2\lambda\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t}\,S\,\D x.
-    \label{eq: KL-dissipation-combined}
-\end{equation}
-The first term reproduces the pure-KL dissipation \eqref{eq: KL-dissipation-pure}; the second is the contribution of $\X_\mu$, whose sign is settled by the following identity.
+\subsection{Convergence analysis of the $\X_\mu$-augmented flow}
+\label{subsec: FR-convergence}
+
+To analyze the convergence rate of the augmented flow \eqref{eq: FR-L-flow}, we take the forward KL $\KL(\mu\|\nu_t)$ as the error metric and differentiate it along the flow:
+\begin{equation*}
+    \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\!\int_{\mathbb R^d}\!\frac{\mu^2}{\nu_t}(1 + 2\lambda S_t)\,\D x + \int_{\mathbb R^d}\!\mu\,\D x = -\chi^2(\mu\|\nu_t) - 2\lambda\!\int_{\mathbb R^d}\!\frac{\mu^2}{\nu_t}\,S_t\,\D x,
+\end{equation*}
+where the chi-squared divergence is
+\begin{equation*}
+    \chi^2(\mu\|\nu) := \int_{\mathbb R^d}(w-1)^2\,\nu\,\D x = \int_{\mathbb R^d} w^2\,\nu\,\D x - 1.
+\end{equation*}
+The sign of the second integral is settled by the following rank-correlation identity.
 
 \begin{lemma}
 \label{lem: rank-correlation}
 For any probability density $\nu$ on $\mathbb R^d$,
-\begin{equation}
-    \int_{\mathbb R^d}\frac{\mu(z)^2}{\nu(z)}\,S(z)\,\D z = \frac{1}{2}\,\mathbb E_{X,Y\stackrel{\mathrm{iid}}{\sim}\mu}\bigl[\,|w(X) - w(Y)|\,\bigr] \;\Ge\; 0,
-\end{equation}
-with equality if and only if $w$ is $\mu$-almost-everywhere constant, i.e. $\nu = \mu$.
+\begin{equation*}
+    \int_{\mathbb R^d}\frac{\mu(x)^2}{\nu(x)}\,S(x)\,\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[\,|w(x) - w(y)|\,\bigr] \;\Ge\; 0,
+\end{equation*}
+with equality if and only if $w$ is $\mu$-almost-everywhere constant, i.e.\ $\nu = \mu$.
 \end{lemma}
 
 \begin{proof}
 By the definition of $S$,
 \begin{equation*}
-    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D z = \mathbb E_\mu\bigl[w(X)\,S(X)\bigr] = \mathbb E_{X,Y\sim\mu}\bigl[w(X)\operatorname{sgn}(w(X) - w(Y))\bigr].
+    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D x = \mathbb E_\mu\bigl[w(x)\,S(x)\bigr] = \mathbb E_{x,y\sim\mu}\bigl[w(x)\operatorname{sgn}(w(x) - w(y))\bigr].
 \end{equation*}
-Symmetrizing in $X\leftrightarrow Y$ and averaging the two equal copies of the expectation gives
+Symmetrizing in $x\leftrightarrow y$ and averaging the two equal copies gives
 \begin{equation*}
-    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D z = \frac{1}{2}\,\mathbb E_{X,Y\sim\mu}\bigl[(w(X) - w(Y))\operatorname{sgn}(w(X) - w(Y))\bigr] = \frac{1}{2}\,\mathbb E_{X,Y\sim\mu}\bigl[\,|w(X) - w(Y)|\,\bigr].
+    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[(w(x) - w(y))\operatorname{sgn}(w(x) - w(y))\bigr] = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[\,|w(x) - w(y)|\,\bigr].
 \end{equation*}
 \end{proof}
 
-Writing $w_t := \mu/\nu_t$ and combining Lemma~\ref{lem: rank-correlation} with \eqref{eq: KL-dissipation-combined} and $\chi^2 \Ge \KL$,
-\begin{equation*}
-    \frac{\D}{\D t}\KL(\mu\|\nu_t) \Le -\chi^2(\mu\|\nu_t) - \lambda\,\mathbb E_{X,Y\sim\mu}\bigl[\,|w_t(X) - w_t(Y)|\,\bigr] \Le -\KL(\mu\|\nu_t).
-\end{equation*}
-The bound \eqref{eq: KL-exponential} therefore \emph{continues to hold along the combined flow}, and the rate strictly improves whenever the importance weights $w_t$ are non-constant under $\mu$, i.e. whenever $\nu_t \ne \mu$. The additional dissipation contributed by $\X_\mu$,
-\begin{equation*}
-    \Delta_\lambda(\nu_t) := \lambda\,\mathbb E_{X,Y\sim\mu}\bigl[\,|w_t(X) - w_t(Y)|\,\bigr] \;\Ge\; 0,
-\end{equation*}
-is the precise rate of acceleration: it is strictly positive away from equilibrium, scales linearly in $\lambda$, and quantifies the mean absolute spread of importance weights under $\mu$. The regularizer acts most strongly when the weights are highly variable across the support of $\mu$ --- exactly the regime in which the pushforward $\nu_t$ unevenly covers the modes of $\mu$ --- and it vanishes precisely at the equilibrium $\nu_t = \mu$. Thus adding $\X_\mu$ to the forward KL accelerates the Fisher--Rao gradient flow without altering the unconditional exponential rate guaranteed by the pure KL flow.
+Applying Lemma~\ref{lem: rank-correlation} with $\nu = \nu_t$ and $S = S_t$, the dissipation rewrites as
+\begin{equation}
+    \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\chi^2(\mu\|\nu_t) - \lambda\,\mathbb E_{x,y\sim\mu}\!\left[\,\left|\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\right|\,\right].
+    \label{eq: combined-rate}
+\end{equation}
+The elementary inequality $w\log w \Le w^2 - w$ applied to $w = \mu/\nu_t$ gives $\chi^2(\mu\|\nu_t) \Ge \KL(\mu\|\nu_t)$, hence $\frac{\D}{\D t}\KL(\mu\|\nu_t) \Le -\KL(\mu\|\nu_t)$, and Gr\"onwall's lemma yields the exponential decay
+\begin{equation}
+    \KL(\mu\|\nu_t) \Le e^{-t}\,\KL(\mu\|\nu_0),\qquad t \Ge 0,
+    \label{eq: KL-exponential}
+\end{equation}
+with no structural assumption on $\mu$ --- neither log-concavity, nor a spectral gap, nor any growth condition. This contrasts sharply with the Wasserstein-2 geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
+
+The uniform convergence rate \eqref{eq: KL-exponential} should \emph{not} be read as a blanket statement that minimizing the forward KL is intrinsically faster or more efficient than minimizing the reverse KL. The FR flow is a continuous-time idealization on the space of densities and is agnostic to the sampling cost. In practice, the difficulty of training has been partially transported to the AIS step: evaluating the forward KL and its gradient requires accurate samples of $\mu$, and producing such samples in high dimensions is itself a hard problem --- it is the very reason that AIS is needed, and that the $\X_{\hat\mu}$ regularizer must compensate for modes that AIS alone fails to reach. The exponential rate \eqref{eq: KL-exponential} quantifies how fast the flow \emph{can} converge given accurate target samples; it does not eliminate the burden of producing them.
+
+A naive comparison of dissipation rates between $\KL$-only and $\KL + \lambda\,\X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: while the pure-KL FR gradient is local in $x$, the rank field $S_t$ is global, so the augmented flow \eqref{eq: FR-L-flow} couples the update at $x$ to the entire distribution of importance weights under $\mu$. This nonlocal coupling amplifies the birth rate on undercovered regions of $\mu$ and suppresses it on overcovered ones, a global comparison that pure forward KL --- which knows only whether $\mu(x)/\nu_t(x)$ exceeds or falls below $1$ pointwise --- cannot produce.
 
 \begin{remark}
-The regularizer $\X_\mu$ also decreases monotonically along the combined flow: a direct computation along \eqref{eq: FR-L-flow} gives
+The regularizer $\X_\mu$ also decreases monotonically along the augmented flow: a direct computation along \eqref{eq: FR-L-flow} gives
 \begin{equation*}
-    \frac{\D}{\D t}\X_\mu(\mu\|\nu_t) = -2\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t}\,S\,\D x - 4\lambda\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t}\,S^2\,\D x \;\Le\; 0,
+    \frac{\D}{\D t}\X_\mu(\mu\|\nu_t) = -2\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t}\,S_t\,\D x - 4\lambda\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t}\,S_t^2\,\D x \;\Le\; 0,
 \end{equation*}
-with strict inequality whenever $\nu_t \ne \mu$. The regularizer therefore not only accelerates KL convergence but is itself driven to zero in the long-time limit.
+with strict inequality whenever $\nu_t \ne \mu$. Thus $\X_\mu$ is itself driven to zero in the long-time limit.
 \end{remark}
 
 \section{Flow training with X functionals}
