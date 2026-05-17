@@ -19,6 +19,7 @@
 
 \newtheorem*{remark}{Remark}
 \newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
 \newenvironment{proof}{\par\medskip\noindent\textit{Proof.}\ }{\hfill$\square$\par\medskip}
 
 \newcommand{\Le}{\leqslant}
@@ -214,7 +215,7 @@ To analyze the convergence rate of the augmented flow \eqref{eq: FR-L-flow}, we 
 \end{equation*}
 where the chi-squared divergence is
 \begin{equation*}
-    \chi^2(\mu\|\nu) := \int_{\mathbb R^d}(w-1)^2\,\nu\,\D x = \int_{\mathbb R^d} w^2\,\nu\,\D x - 1.
+    \chi^2(\mu\|\nu) := \int_{\mathbb R^d}(w-1)^2\nu\D x = \int_{\mathbb R^d} w^2\nu\D x - 1.
 \end{equation*}
 The sign of the second integral is settled by the following rank-correlation identity.
 
@@ -222,7 +223,7 @@ The sign of the second integral is settled by the following rank-correlation ide
 \label{lem: rank-correlation}
 For any probability density $\nu$ on $\mathbb R^d$,
 \begin{equation*}
-    \int_{\mathbb R^d}\frac{\mu(x)^2}{\nu(x)}\,S(x)\,\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[\,|w(x) - w(y)|\,\bigr] \;\Ge\; 0,
+    \int_{\mathbb R^d}\frac{\mu(x)^2}{\nu(x)}S(x)\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[|w(x) - w(y)|\bigr] \Ge 0,
 \end{equation*}
 with equality if and only if $w$ is $\mu$-almost-everywhere constant, i.e.\ $\nu = \mu$.
 \end{lemma}
@@ -230,11 +231,11 @@ with equality if and only if $w$ is $\mu$-almost-everywhere constant, i.e.\ $\nu
 \begin{proof}
 By the definition of $S$,
 \begin{equation*}
-    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D x = \mathbb E_\mu\bigl[w(x)\,S(x)\bigr] = \mathbb E_{x,y\sim\mu}\bigl[w(x)\operatorname{sgn}(w(x) - w(y))\bigr].
+    \int_{\mathbb R^d}\frac{\mu^2}{\nu}S\D x = \mathbb E_\mu\bigl[w(x)S(x)\bigr] = \mathbb E_{x,y\sim\mu}\bigl[w(x)\operatorname{sgn}(w(x) - w(y))\bigr].
 \end{equation*}
 Symmetrizing in $x\leftrightarrow y$ and averaging the two equal copies gives
 \begin{equation*}
-    \int_{\mathbb R^d}\frac{\mu^2}{\nu}\,S\,\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[(w(x) - w(y))\operatorname{sgn}(w(x) - w(y))\bigr] = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[\,|w(x) - w(y)|\,\bigr].
+    \int_{\mathbb R^d}\frac{\mu^2}{\nu}S\D x = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[(w(x) - w(y))\operatorname{sgn}(w(x) - w(y))\bigr] = \frac{1}{2}\,\mathbb E_{x,y\sim\mu}\bigl[\,|w(x) - w(y)|\,\bigr].
 \end{equation*}
 \end{proof}
 
@@ -261,6 +262,61 @@ The regularizer $\X_\mu$ also decreases monotonically along the augmented flow: 
 \end{equation*}
 with strict inequality whenever $\nu_t \ne \mu$. Thus $\X_\mu$ is itself driven to zero in the long-time limit.
 \end{remark}
+
+\subsection{Asymptotic accuracy of biased forward KL training}
+\label{subsec: accuracy}
+
+The convergence analysis of Section~\ref{subsec: FR-convergence} assumes that the outer expectation in $\KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu)$ is taken under the exact target $\mu$. In practice, the algorithm only has access to an approximation $\tilde\mu$ of $\mu$ supplied by AIS, and the realized loss reads
+\begin{equation}
+    \widetilde{\mathcal L}[\nu]
+    = \int_{\mathbb R^d}\!\tilde\mu(x)\log w(x)\D x
+    + \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y)\bigl|\log w(x) - \log w(y)\bigr|\D x\D y,
+    \label{eq: biased-loss}
+\end{equation}
+where the pointwise ratio $w(x) = \mu(x)/\nu(x)$ is still evaluated against the exact target since it is computed from the target potential $U_1$ and the flow density per sample. Repeating the derivation of Section~\ref{subsec: FR-grad-calc} with $\mu$ replaced by $\tilde\mu$ in the outer integrands gives the Fisher--Rao gradient
+\begin{equation*}
+    \mathrm{grad}^{\mathrm{FR}}\bigl[\widetilde{\mathcal L}\bigr](x) = \nu(x) - \tilde\mu(x)\bigl(1 + 2\lambda\,\widetilde S(x)\bigr),
+    \qquad
+    \widetilde S(x) := \mathbb E_{y\sim\tilde\mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr].
+\end{equation*}
+A stationary point $\nu^\star$ of \eqref{eq: biased-loss} therefore satisfies the self-consistent equation
+\begin{equation}
+    \nu^\star(x) = \tilde\mu(x)\biggl[1 + 2\lambda\!\int_{\mathbb R^d}\tilde\mu(y)\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr)\D y\biggr].
+    \label{eq: biased-stationary}
+\end{equation}
+At $\lambda = 0$ the equation collapses to $\nu^\star = \tilde\mu$: pure forward KL training inherits the bias of the AIS distribution verbatim, and the residual accuracy is exactly $\KL(\mu\|\tilde\mu)$. For $\lambda > 0$, however, the rank-based correction $1 + 2\lambda\widetilde S^\star$ inflates $\nu^\star$ above $\tilde\mu$ where the importance weight $\mu/\nu^\star$ is high (i.e.\ where $\nu^\star$ still undercovers $\mu$) and deflates it where the weight is low, providing a global feedback that pulls $\nu^\star$ from $\tilde\mu$ back toward $\mu$. This is quantified in the following theorem.
+
+\begin{theorem}
+\label{thm: accuracy}
+Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \in [0, 1/2]$, so that the bracket in \eqref{eq: biased-stationary} is non-negative and $\nu^\star$ is a probability density. Any stationary point $\nu^\star$ of the biased loss \eqref{eq: biased-loss} satisfies
+\begin{equation}
+    \KL(\mu\|\nu^\star) \Le \KL(\mu\|\tilde\mu) - \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y)\,\biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr|\,\D x\,\D y.
+    \label{eq: accuracy-bound}
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+Substituting the stationary identity $\nu^\star = \tilde\mu(1+2\lambda\widetilde S^\star)$ into the difference of forward KLs and using $\mu = \nu^\star \cdot (\mu/\nu^\star) = \tilde\mu(1+2\lambda\widetilde S^\star)(\mu/\nu^\star)$,
+\begin{equation*}
+    \KL(\mu\|\tilde\mu) - \KL(\mu\|\nu^\star)
+    = \int_{\mathbb R^d}\!\mu(x)\log\bigl(1 + 2\lambda\widetilde S^\star(x)\bigr)\D x
+    = \int_{\mathbb R^d}\!\tilde\mu(x)\,\frac{\mu(x)}{\nu^\star(x)}u(x)\log u(x)\D x,
+\end{equation*}
+where $u(x) := 1 + 2\lambda\widetilde S^\star(x) \Ge 1 - 2\lambda \Ge 0$ since $\lambda \Le 1/2$. The elementary inequality $u\log u \Ge u - 1$ for $u \Ge 0$ then yields
+\begin{equation*}
+    \KL(\mu\|\tilde\mu) - \KL(\mu\|\nu^\star)
+    \Ge 2\lambda\!\int_{\mathbb R^d}\!\tilde\mu(x)\,\frac{\mu(x)}{\nu^\star(x)}\,\widetilde S^\star(x)\D x.
+\end{equation*}
+Applying the rank-correlation argument of Lemma~\ref{lem: rank-correlation} verbatim with $\mu$ replaced by $\tilde\mu$ in the outer measure,
+\begin{equation*}
+    \int_{\mathbb R^d}\!\tilde\mu(x)\frac{\mu(x)}{\nu^\star(x)}\widetilde S^\star(x)\D x = \frac{1}{2}\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y)\,\biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr|\D x\D y,
+\end{equation*}
+which gives \eqref{eq: accuracy-bound}.
+\end{proof}
+
+The right-hand side of \eqref{eq: accuracy-bound} contrasts the two roles of $\X_\mu$ training. At $\lambda = 0$ the bound is tight at $\nu^\star = \tilde\mu$ and the residual KL is fixed at $\KL(\mu\|\tilde\mu)$ --- the AIS bias is a hard floor. Switching on the regularizer with $\lambda \Le 1/2$ strictly lowers this floor by an amount controlled by the discrepancy of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$: the larger this discrepancy, the more the rank-based feedback pulls $\nu^\star$ toward $\mu$. The $\X_\mu$ regularizer is therefore not merely a numerical stabilizer for the forward KL flow: it directly improves the asymptotic accuracy of the trained density when the target samples are biased, which is the practically relevant regime.
+
+The threshold $\lambda \Le 1/2$ is a worst-case condition enforcing positivity of $\nu^\star$ uniformly in $x$; in practice the accuracy improvement persists well beyond it. The practical takeaway is that even without the wide-coverage regularizer $\X_{\hat\mu}$, adding $\X_\mu$ alone to the forward KL loss already reduces the bias floor inherited from inaccurate AIS samples.
 
 \section{Flow training with X functionals}
 
