@@ -456,26 +456,47 @@ We state how to construct a adaptive Boltzmann generator which allows to determi
 
 \subsection{Single-step flow in low-dimensions}
 
-\subsubsection{2D Himmelblau distribution}
-\label{subsec: himmelblau}
+\subsubsection{2D benchmark distributions}
+\label{subsec: 2d-benchmark}
 
-We illustrate the three components of the loss --- forward KL alone, the $\X_\mu$ regularizer, and the $\X_{\hat\mu}$ regularizer --- on the Himmelblau distribution
-\begin{equation*}
-    U_1(x_1, x_2) = (x_1^2 + x_2 - 11)^2 + (x_1 + x_2^2 - 7)^2,
-\end{equation*}
-whose four well-separated minima sit near the corners of a square of side $\sim 6$. The source $\mu_0$ is an isotropic Gaussian centered at the origin with variance $\sigma^2 = 1$. The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, hidden widths $(128, 128)$, and box $[-6, 6]^2$. Training uses Adam with learning rate $10^{-3}$, batch size $500$, for $1000$ steps; at each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. We fix $\lambda = \hat\lambda = 1$ throughout. The wide-coverage measure $\hat\mu_1$ is built once at the start of training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of $500$ source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the resulting samples are recycled (with one Langevin rejuvenation per training step) inside the training loop.
+We test the same training scheme on two complementary 2D targets, Himmelblau and Annulus, listed in Table~\ref{tab: 2d-benchmark}. Himmelblau places four isolated modes at the corners of a square; Annulus is rotationally symmetric, with a thin one-dimensional ring of minima at $r = 2$ together with an isolated minimum at $r = 0$.
 
-Figure~\ref{fig: himmelblau} reports the pushforward samples after training, together with the final ESS and the $k = 5$ coverage of $\hat\mu_1$ for each method. At $\sigma = 1.0$, the source places nearly all its mass near the central saddle and the initial pushforward is far from any of the four Himmelblau modes; both forward KL and forward KL $+\,\X_\mu$ converge to a flow that covers only two of the four modes (coverage $\approx 0.53$ in both cases), and the ESS alone gives no warning that the other two modes have been missed. Adding $\X_{\hat\mu}$ to the loss steers mass toward the QT-discovered modes, and the trained flow then reaches coverage $1.00$. The contrast confirms the central thesis of the paper: $\X_{\hat\mu}$ is the safeguard one needs precisely when $\mu_0$ does not by itself cover all modes of $\mu_1$ --- the regime in which the forward KL alone is silent.
+\begin{table}[h]
+    \centering
+    \begin{tcolorbox}[colback=gray!4, colframe=black!50, boxrule=0.5pt, arc=2pt, left=10pt, right=10pt, top=8pt, bottom=8pt]
+    \renewcommand{\arraystretch}{1.4}
+    \begin{tabular}{@{}lll@{}}
+        \textbf{name} & \textbf{potential $U_1(x_1, x_2)$} & \textbf{minima} \\ \hline
+        Himmelblau & $\bigl(x_1^2 + x_2 - 11\bigr)^2 + \bigl(x_1 + x_2^2 - 7\bigr)^2$ & four isolated points \\
+        Annulus    & $20\,\bigl(r^6 - 8 r^4 + 16 r^2 + 1\bigr)^{1/3}$, $r^2 = x_1^2 + x_2^2$ & $r = 0$ and ring at $r = 2$ \\
+    \end{tabular}
+    \end{tcolorbox}
+    \caption{Two 2D benchmark targets.}
+    \label{tab: 2d-benchmark}
+\end{table}
+
+For both targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$ ($\sigma = 1.0$ for Himmelblau, $\sigma = 0.8$ for Annulus). The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, hidden widths $(128, 128)$, on a square box ($[-6, 6]^2$ for Himmelblau, $[-3.6, 3.6]^2$ for Annulus). Training uses Adam with learning rate $10^{-3}$, batch size $500$, for $1000$ steps; at each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. We fix $\lambda = \hat\lambda = 1$ throughout. The wide-coverage measure $\hat\mu_1$ is built once at the start of training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of $500$ source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the resulting samples are recycled (with one Langevin rejuvenation per training step) inside the training loop.
+
+\paragraph{Himmelblau (mode-coverage regime).} The source places nearly all its mass near the central saddle, so the initial pushforward is far from any of the four Himmelblau modes. Both forward KL and forward KL $+\,\X_\mu$ converge to a flow that covers only two of the four modes (coverage $\approx 0.53$ in both cases), and the ESS alone gives no warning that the other two modes have been missed. Adding $\X_{\hat\mu}$ steers mass toward the QT-discovered modes and the trained flow reaches coverage $1.00$ (Figure~\ref{fig: himmelblau}). This confirms the role of $\X_{\hat\mu}$ as the safeguard one needs precisely when $\mu_0$ does not by itself cover all modes of $\mu_1$ --- the regime in which the forward KL alone is silent.
 
 \begin{figure}[t]
     \centering
     \includegraphics[width=0.84\linewidth]{../2D_Himmelblau/samples.png} \\[0.6em]
     \includegraphics[width=0.84\linewidth]{../2D_Himmelblau/resample.png}
-    \caption{Row 1: pushforward $y = G^{-1}(x)$ on the Himmelblau target at $\sigma = 1.0$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation at $\sigma = 1.0$. Columns: forward KL, forward KL $+\,\X_\mu$, forward KL $+\,\X_\mu+\,\X_{\hat\mu}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage of the QT-generated $\hat\mu_1$.}
+    \caption{Himmelblau target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns: forward KL, forward KL $+\,\X_\mu$, forward KL $+\,\X_\mu+\,\X_{\hat\mu}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage of the QT-generated $\hat\mu_1$.}
     \label{fig: himmelblau}
 \end{figure}
 
-\subsection{2D Annulus distribution}
+\paragraph{Annulus (shape-correction regime).} All three methods reach $k = 5$ coverage $1.00$, so $\X_{\hat\mu}$ contributes no mode rescue here; the discriminating quantities are the flow shape and ESS. Forward KL alone settles at ESS $\approx 0.66$, leaving visible axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts ESS to $\approx 0.95$ (Figure~\ref{fig: annulus}); appending $\X_{\hat\mu}$ on top changes neither qualitatively. This case isolates the role of $\X_\mu$ as a shape regularizer: it pointwise penalizes log-ratio variations that the global forward KL leaves untouched.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.84\linewidth]{../2D_Annulus/samples.png} \\[0.6em]
+    \includegraphics[width=0.84\linewidth]{../2D_Annulus/resample.png}
+    \caption{Annulus target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns: forward KL, forward KL $+\,\X_\mu$, forward KL $+\,\X_\mu+\,\X_{\hat\mu}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage of the QT-generated $\hat\mu_1$.}
+    \label{fig: annulus}
+\end{figure}
+
 
 \bibliographystyle{plainnat}
 \bibliography{references}
