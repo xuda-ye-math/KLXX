@@ -1,25 +1,24 @@
 # 2D Himmelblau experiment
 
-Reference implementation for Section 5.5 of the paper. Trains a normalizing flow on the four-mode Himmelblau potential under three losses (forward KL, +$\mathrm{X}_\mu$, +$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$) and two source widths ($\sigma \in \{1.0, 1.5\}$) to expose when the wide-coverage regularizer $\mathrm{X}_{\hat\mu}$ is actually needed.
+Reference implementation for Section 5.5 of the paper. Trains a normalizing flow on the four-mode Himmelblau potential under three losses (forward KL, +$\mathrm{X}_\mu$, +$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$) to expose when the wide-coverage regularizer $\mathrm{X}_{\hat\mu}$ is actually needed.
 
 ## Target and source
 
 - **Target.** Himmelblau, $U_1(x_1, x_2) = (x_1^2 + x_2 - 11)^2 + (x_1 + x_2^2 - 7)^2$. Four well-separated minima near
   $(3, 2)$, $(-2.81, 3.13)$, $(-3.78, -3.28)$, $(3.58, -1.85)$.
-- **Source.** Isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$, with $\sigma \in \{1.0,\,1.5\}$. The first value places almost all mass near the central saddle (far from any mode); the second value already overlaps every mode appreciably.
+- **Source.** Isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$, with $\sigma = 1.0$. Almost all mass sits near the central saddle, far from any mode.
 
 ## Files
 
 | file | role |
 | --- | --- |
 | `core.py` | shared building blocks: `Himmelblau` potential, `loss_KL` / `loss_X` / `loss_KL_X`, `quench_and_temper`, `coverage` |
-| `train_1.py` | full training run with $\sigma = 1.0$; saves `data_1.pth` |
-| `train_1.5.py` | same, $\sigma = 1.5$; saves `data_1.5.pth` |
-| `plot_results.py` | loads both `data_*.pth` files; writes `ESS_*.png` and `samples_*.png` |
+| `train.py` | full training run with $\sigma = 1.0$; saves `data.pth` |
+| `plot_results.py` | loads `data.pth`; writes `ESS.png`, `samples.png`, `resample.png` |
 | `test_qt.py` | standalone sanity check for the Quench-and-Temper utility (4-mode coverage) |
 | `parameters.py` | *legacy* — kept for historical reference; not used by the current scripts |
 
-`data_*.pth` and `__pycache__/` are gitignored (`*.pth`, `__pycache__/` in the repo `.gitignore`).
+`data.pth` and `__pycache__/` are gitignored (`*.pth`, `__pycache__/` in the repo `.gitignore`).
 
 ## Methods
 
@@ -57,11 +56,11 @@ Hyperparameters: `BATCH=500`, `STEPS=1000`, `LR=1e-3`. NSF has $6$ coupling tran
 2. **Optimize (quench):** L-BFGS with Armijo line search drives each particle to the nearest mode of $U_1$.
 3. **Rejuvenate (temper):** Langevin around each mode spreads the deterministic optima into a sample.
 
-In each `train_*.py` script, QT is invoked **once** at the start of training to produce `y_hat_mu` (500 samples), with `sigma=2.0, opt_step=0.5, opt_iters=200, mc_step=2e-3, mc_iters=1000`. The samples are then **recycled** across training steps; one extra Langevin rejuvenation step is applied per iteration (gated to the third method only) so the set drifts under $U_1$ rather than staying frozen at the QT output.
+In `train.py`, QT is invoked **once** at the start of training to produce `y_hat_mu` (500 samples), with `sigma=2.0, opt_step=0.5, opt_iters=200, mc_step=2e-3, mc_iters=1000`. The samples are then **recycled** across training steps; one extra Langevin rejuvenation step is applied per iteration (gated to the third method only) so the set drifts under $U_1$ rather than staying frozen at the QT output.
 
 Code-side gotchas you actually need to know:
 
-- **`u1.enable_grad()`** is mandatory before calling `langevin`. **`u1.enable_eval()`** is mandatory before calling QT (because its `lbfgs(armijo=True)` step needs the compiled energy evaluation). Both calls live at the top of each train script.
+- **`u1.enable_grad()`** is mandatory before calling `langevin`. **`u1.enable_eval()`** is mandatory before calling QT (because its `lbfgs(armijo=True)` step needs the compiled energy evaluation). Both calls live at the top of the train script.
 - **`y_hat_mu` rebinding is local to `train()`**. The langevin rejuvenation inside the loop reassigns the local name, so each `train()` call starts from the original (caller-passed) QT output and accumulates drift only within that call. Different methods do not pollute each other.
 - **The `target(y)` term in `loss_KL`** is $\nu$-independent and could be dropped without changing the gradient. We keep it for symmetry with `loss_X` (which subtracts a permuted version) and for cleaner printouts.
 
@@ -69,23 +68,21 @@ Code-side gotchas you actually need to know:
 
 After training:
 
-| $\sigma$ | forward KL | + $\mathrm{X}_\mu$ | + $\mathrm{X}_\mu$ + $\mathrm{X}_{\hat\mu}$ |
-| --- | --- | --- | --- |
-| $1.0$ | Cov = 0.53 | Cov = 0.53 | **Cov = 1.00** |
-| $1.5$ | Cov = 1.00 | Cov = 1.00 | Cov = 1.00 |
+| forward KL | + $\mathrm{X}_\mu$ | + $\mathrm{X}_\mu$ + $\mathrm{X}_{\hat\mu}$ |
+| --- | --- | --- |
+| Cov = 0.53 | Cov = 0.53 | **Cov = 1.00** |
 
-Coverage is computed against the QT-generated `y_hat_mu` at $k = 5$ using `core.coverage`. The pattern matches the paper's claim: at the tight source the ESS alone is *fake* (it is high but two of four modes are missing), and only $\mathrm{X}_{\hat\mu}$ rescues coverage; at the loose source the source already spans every mode and the augmented losses are unnecessary.
+Coverage is computed against the QT-generated `y_hat_mu` at $k = 5$ using `core.coverage`. The pattern matches the paper's claim: the ESS alone is *fake* (it is high but two of four modes are missing), and only $\mathrm{X}_{\hat\mu}$ rescues coverage.
 
 ## How to run
 
 ```bash
 cd 2D_Himmelblau
-python train_1.py        # produces data_1.pth
-python train_1.5.py      # produces data_1.5.pth
-python plot_results.py   # writes ESS_*.png and samples_*.png; prints coverage
+python train.py          # produces data.pth
+python plot_results.py   # writes ESS.png, samples.png, resample.png; prints coverage
 ```
 
-Each `train_*.py` skips training and prints a message if `data_*.pth` is already present, so `plot_results.py` is the only step that needs to be re-run for figure regeneration.
+`train.py` skips training and prints a message if `data.pth` is already present, so `plot_results.py` is the only step that needs to be re-run for figure regeneration.
 
 ## The QT sanity test (`test_qt.py`)
 

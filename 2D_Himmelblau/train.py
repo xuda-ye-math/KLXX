@@ -7,6 +7,7 @@ from zflows.potential import Gaussian
 from zflows.utils import compute_ESS, importance_weights, resample, langevin
 
 from core import Himmelblau, loss_KL, loss_X, loss_KL_X, quench_and_temper
+from parameters import SIGMA, PLT_LIM, NSF_LIM, BINS, TRANSFORMS, HIDDEN_FEATURES, N_TRAIN, N_VALID, BATCH, STEPS, LR
 
 import os
 os.environ.setdefault("TRITON_PRINT_AUTOTUNING", "0")
@@ -16,12 +17,6 @@ HERE = Path(__file__).resolve().parent
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-
-# boundary of the domain
-SIGMA = 1.0 # deviation of Gaussian prior
-PLT_LIM = 6.0
-NSF_LIM = 6.0
-
 # source: Gaussian U0
 u0 = Gaussian(mean=[0.0]*2, variance=[SIGMA**2]*2).to(device)
 
@@ -30,17 +25,10 @@ u1 = Himmelblau().to(device)
 u1.enable_grad() # enable_grad for Langevin rejuvenation
 u1.enable_eval() # enable_eval for QT's lbfgs(armijo=True)
 
-# training parameters
-N_TRAIN: int = 50000   # number of training samples
-N_VALID: int = 50000   # number of validation samples
-BATCH:   int = 500
-STEPS:   int = 1000
-LR:      float = 1e-3
-
 METHODS = ('KL', 'KL+X_mu', 'KL+X_mu+X_hat_mu')
 
 def new_flow():
-    flow = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=32, transforms=6, hidden_features=(128, 128)).to(device)
+    flow = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=BINS, transforms=TRANSFORMS, hidden_features=HIDDEN_FEATURES).to(device)
     flow.zeros()
     return flow
 
@@ -89,7 +77,7 @@ def train(method: str, y_hat_mu: torch.Tensor):
     print(f"[{method:<8}] last training ESS = {ess_history[-1]:.4f}")
     return flow, ess_history
 
-DATA_PATH = HERE / 'data_1.pth'
+DATA_PATH = HERE / 'data.pth'
 
 if not DATA_PATH.exists():
     # one-shot QT to build hat_mu samples used by X_{hat_mu}; same set is reused every step
