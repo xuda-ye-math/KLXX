@@ -12,16 +12,23 @@ from parameters import SIGMA, NSF_LIM, PLT_LIM, BINS, TRANSFORMS, HIDDEN_FEATURE
 
 HERE = Path(__file__).resolve().parent
 
-METHODS = ('KL', 'KL+X_mu', 'KL+X_mu+X_hat_mu')
+METHODS = (
+    'KL',
+    'KL+X_mu',
+    'KL+X_mu+X_hat_mu',
+    'KL+X_mu+X_mix',
+)
 METHOD_LABEL = {
     'KL':                'forward KL',
     'KL+X_mu':           r'forward KL+$\mathrm{X}_\mu$',
     'KL+X_mu+X_hat_mu':  r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$',
+    'KL+X_mu+X_mix':     r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$',
 }
 METHOD_COLOR = {
     'KL':                "#00008B",   # dark blue
     'KL+X_mu':           "#006400",   # dark green
     'KL+X_mu+X_hat_mu':  "#8B0000",   # dark red
+    'KL+X_mu+X_mix':     "#4B0082",   # indigo
 }
 
 cmap = LinearSegmentedColormap.from_list('light_yellow_red', ["#fffefa", "#ffe5e5"])
@@ -107,7 +114,7 @@ torch.manual_seed(42)
 prior_np = (torch.randn(5000, 2) * SIGMA).numpy()
 
 for key, suffix, stage_label in STAGES:
-    fig, axes = plt.subplots(1, 3, figsize=(8, 3))
+    fig, axes = plt.subplots(1, 4, figsize=(10, 3))
     for col, m in enumerate(METHODS):
         samples_np = pipeline[m][key].numpy()
         ax = axes[col]

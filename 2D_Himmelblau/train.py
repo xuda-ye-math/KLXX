@@ -6,7 +6,7 @@ from zflows.flow import NSF
 from zflows.potential import Gaussian
 from zflows.utils import compute_ESS, importance_weights, resample, langevin
 
-from core import Himmelblau, loss_KL, loss_X, loss_KL_X, quench_and_temper
+from core import Himmelblau, loss_KL, loss_X, quench_and_temper
 from parameters import SIGMA, PLT_LIM, NSF_LIM, BINS, TRANSFORMS, HIDDEN_FEATURES, N_TRAIN, N_VALID, BATCH, STEPS, LR
 
 import os
@@ -25,7 +25,12 @@ u1 = Himmelblau().to(device)
 u1.enable_grad() # enable_grad for Langevin rejuvenation
 u1.enable_eval() # enable_eval for QT's lbfgs(armijo=True)
 
-METHODS = ('KL', 'KL+X_mu', 'KL+X_mu+X_hat_mu')
+METHODS = (
+    'KL',
+    'KL+X_mu',
+    'KL+X_mu+X_hat_mu',
+    'KL+X_mu+X_mix',
+)
 
 def new_flow():
     flow = NSF(a=[-NSF_LIM, -NSF_LIM], b=[+NSF_LIM, +NSF_LIM], bins=BINS, transforms=TRANSFORMS, hidden_features=HIDDEN_FEATURES).to(device)
@@ -36,10 +41,17 @@ torch.manual_seed(0)
 x_pool = u0.samples(N_TRAIN)                       # x ~ u_0 (shared across all runs)
 
 def train(method: str, y_hat_mu: torch.Tensor):
+    terms = set(method.split('+'))
+    use_x_mix    = 'X_mix' in terms          # X functional weighted by (hat_mu + bar_nu) / 2
+    use_x_mu     = 'X_mu' in terms
+    use_x_hat_mu = 'X_hat_mu' in terms
+    needs_hat_mu = use_x_hat_mu or use_x_mix
+
     torch.manual_seed(0)
     flow = new_flow()
     optimizer = torch.optim.Adam(flow.parameters(), lr=LR)
     ess_history = []
+    half = BATCH // 2
     for step in range(STEPS):
         idx = torch.randperm(N_TRAIN, device=device)[:BATCH]
         x = x_pool[idx]
@@ -50,31 +62,32 @@ def train(method: str, y_hat_mu: torch.Tensor):
             w = importance_weights(x, u0, u1, G_now.inv)
             ess_history.append(compute_ESS(w).item())
 
-            # one-step IS -> approximate mu_1 samples
+            # one-step IS -> approximate mu samples
             y_mu = resample(y, w)
             y_mu = langevin(y_mu, u1, step=2e-3, iters=50)
 
-            # rejuvenate hat_mu samples across iterations
-            if method == 'KL+X_mu+X_hat_mu':
+            # rejuvenate hat_mu samples across iterations (used by X_hat_mu and X_mix)
+            if needs_hat_mu:
                 y_hat_mu = langevin(y_hat_mu, u1, step=2e-3, iters=50)
 
         G = flow.t()
-        if method == 'KL':
-            loss = loss_KL(y_mu, u0, u1, G)
-        elif method == 'KL+X_mu':
-            loss = loss_KL_X(y_mu, u0, u1, G, lambda_=1.0)
-        elif method == 'KL+X_mu+X_hat_mu':
-            loss = loss_KL_X(y_mu, u0, u1, G, lambda_=1.0) + loss_X(y_hat_mu, u0, u1, G)
-        else:
-            raise ValueError(method)
+        loss = loss_KL(y_mu, u0, u1, G)
+        if use_x_mix:
+            # X functional under weight (hat_mu + bar_nu) / 2: half from y_hat_mu, half from y (pushforward)
+            y_mix = torch.cat([y_hat_mu[:half], y[:half]], dim=0)
+            loss = loss + loss_X(y_mix, u0, u1, G)
+        if use_x_mu:
+            loss = loss + loss_X(y_mu, u0, u1, G)
+        if use_x_hat_mu:
+            loss = loss + loss_X(y_hat_mu, u0, u1, G)
 
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         if (step + 1) % 10 == 0 or step == 0:
-            print(f"[{method:<8}] step {step+1:>4}/{STEPS}   loss = {loss.item():.4e}")
+            print(f"[{method:<24}] step {step+1:>4}/{STEPS}   loss = {loss.item():.4e}")
 
-    print(f"[{method:<8}] last training ESS = {ess_history[-1]:.4f}")
+    print(f"[{method:<24}] last training ESS = {ess_history[-1]:.4f}")
     return flow, ess_history
 
 DATA_PATH = HERE / 'data.pth'

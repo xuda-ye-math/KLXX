@@ -49,79 +49,77 @@
 
 \section{Introduction}
 
-The Boltzmann generator built on normalizing flows \citep{noe2019boltzmann,wu2020stochastic} is a central tool for sampling from complicated distributions. Let $\mu$ denote the target distribution on $\mathbb R^d$ and let $\nu$ denote the pushforward distribution of the flow. The conventional Boltzmann generator trains the flow by minimizing the reverse KL
+Drawing samples from a target distribution $\mu \propto \exp(-U)$ on $\mathbb R^d$ known only up to its normalization constant arises across molecular simulation, Bayesian inference, and statistical physics, and is widely tackled with Boltzmann generators built on normalizing flows \citep{rezende2015variational,papamakarios2017masked,kingma2018glow,noe2019boltzmann,wu2020stochastic}. A flow is an invertible parametric map $G:\mathbb R^d\to\mathbb R^d$ trained so that the pushforward $\nu := G^{-1}_{\#}\mu_0$ of an easily samplable reference $\mu_0$ (typically a Gaussian) approximates $\mu$. The trained flow returns independent samples from $\nu$ along with an exact, tractable density, and importance reweighting against $\mu$ then converts those into Monte Carlo estimates with controllable finite-sample error.
+
+Two training objectives dominate the literature. The original Boltzmann generator \citep{noe2019boltzmann} and its variational-inference predecessor \citep{rezende2015variational} minimize the reverse KL
 \begin{equation}
-    \mathrm{KL}(\nu\|\mu) = \int_{\mathbb R^d} \nu(x) \log \frac{\nu(x)}{\mu(x)} \D x
+    \mathrm{KL}(\nu\|\mu) = \int_{\mathbb R^d} \nu(x) \log \frac{\nu(x)}{\mu(x)} \D x,
     \label{eq: reverse KL}
 \end{equation}
-with respect to the flow parameters.
-On multimodal targets, however, flows trained with the reverse KL are prone to mode collapse: any mode lost during training cannot be recovered, severely degrading sample quality. A standard remedy is to replace the reverse KL with the forward KL \citep{gabrie2022adaptive}:
+which needs only samples from $\nu$ and is therefore cheap to estimate. It is, however, mode-seeking: on multimodal $\mu$ the flow tends to collapse onto a subset of the modes from which it cannot recover \citep{noe2019boltzmann,wu2020stochastic}. The opposing family minimizes the forward KL \citep{gabrie2022adaptive,wirnsberger2020targeted},
 \begin{equation}
     \mathrm{KL}(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x,
     \label{eq: forward KL}
 \end{equation}
-which is more on multimodal targets. The forward KL is the expectation of the \emph{log-ratio} $\log(\mu/\nu)$ under $\mu$, and therefore requires samples from the target. Such samples can be approximated by annealed importance sampling (AIS) \citep{midgley2022flow}, which transports the pushforward $\nu$ toward $\mu$ through a sequence of reweighting and resampling steps.
-The flow AIS bootstrap (FAB) \citep{midgley2022flow} follows the same idea but trains against the more mode-sensitive weight $\mu^2/\nu$ in place of $\mu$, enhancing mode discovery.
+which is mode-covering but needs samples from $\mu$. Such samples are produced by annealed importance sampling (AIS) \citep{neal2001annealed}, which transports $\nu$ toward $\mu$ through a ladder of intermediate distributions while accumulating importance weights. The flow-AIS bootstrap (FAB) of \citet{midgley2022flow} couples AIS to flow training and replaces the target by the mode-sensitive surrogate $\mu^2/\nu$ to encourage exploration.
 
-These objectives can in principle mitigate mode collapse, but their effectiveness hinges on AIS samples that faithfully cover the target. If the pushforward $\nu$ misses modes of $\mu$, the AIS chain---initialized at $\nu$---is unlikely to reach them, and the resulting samples remain biased toward the modes $\nu$ already covers. This exposes a fatal defect of any AIS-reliant method, including the forward KL and FAB: the effective sample size (ESS) \citep{doucet2001introduction}, the gold-standard metric for assessing flow quality, can be \emph{fake}. An ESS close to $100\%$ does \emph{not} guarantee mode coverage, since modes missing from $\nu$ contribute no mass to the ESS calculation, and their absence goes undetected.
+A separate line of work drops the explicit-density requirement and trains a diffusion- or SDE-based sampler directly: the path-integral sampler \citep{zhang2022path}, denoising diffusion samplers \citep{vargas2023denoising}, and the more recent iterated denoising energy matching \citep{akhound2024iterated} learn a stochastic process whose terminal distribution matches $\mu$. These samplers are expressive and scale well, but they do not deliver an exact tractable density of their output, so importance reweighting against $\mu$ is no longer available. We commit to flow-based methods for that reason: the invertibility of $G$ gives an explicit $\nu$ and therefore an exact, finite-sample importance-sampling pipeline, in which an effective sample size (ESS) \citep{liu2001monte,doucet2001introduction} computed from the flow's own weights is the gold-standard diagnostic of training quality.
 
-This paper targets the fake ESS problem and develops a training scheme with \emph{initiative mode discovery}, in which prior knowledge of the modes of $\mu$ is injected directly into the loss to guide the flow. Doing this safely is far from trivial: the forward KL and FAB are unbiased only when fed \emph{accurate} samples from $\mu$, so naively augmenting the AIS samples with the known mode locations is highly likely to corrupt the minimizer---the injected samples carry no correct importance weights and therefore pull the optimum away from $\mu$.
+The catch is that ESS is gold-standard only when $\mu$ and $\nu$ are evaluated on the same support. If $\nu$ misses modes of $\mu$, the AIS chain initialized at $\nu$ rarely escapes the basin $\nu$ already covers \citep{noe2019boltzmann,midgley2022flow}, so the AIS samples and the importance weights are computed only against the modes that $\nu$ already reaches. The resulting ESS can be close to $1$ while a large fraction of the mass of $\mu$ is missing entirely. We call this the fake ESS pitfall: ESS alone certifies nothing about mode coverage, and any AIS-reliant scheme inherits the same blind spot.
 
-The center of our training scheme is the cross-regularization functional (denoted $\X$),
+Our remedy is to augment the forward KL with a family of cross-regularization functionals that penalize variation of the log-ratio $\log(\mu/\nu)$ directly. Let
 \begin{equation}
     \X_\omega(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d} \omega(x,y)
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: X}
 \end{equation}
-where $\omega(x,y)$ is a finite positive measure on $\mathbb R^{2d}$ whose choice we defer to a later section. The motivation is direct: since our goal is to match $\nu$ with $\mu$, the natural quantity to minimize is the log-ratio $\log(\mu/\nu)$ itself. We penalize the \emph{difference} of two log-ratios rather than a single absolute value because $\mu$ is known only up to an unknown normalization constant, and that constant cancels exactly in the difference. $\X$ offers three key benefits as a loss-function ingredient:
+where $\omega$ is a non-negative measure on $\mathbb R^{2d}$. The motivation is direct: matching $\nu$ to $\mu$ is the same as flattening $\log(\mu/\nu)$, and the pairwise difference cancels the unknown normalization of $\mu$. As a loss ingredient $\X_\omega$ has three properties that we will use throughout:
 \begin{enumerate}
     \setzero
-    \item \textbf{Pointwise penalty.} The forward KL reshapes $\nu$ globally through Jensen's inequality, whereas $\X$ penalizes log-ratio variations wherever they occur, making it sensitive to local features of the potential landscape that purely global divergences may miss.
-
-    \item \textbf{Tolerance to inaccurate target samples.} $\X$ vanishes whenever the log-ratio is pointwise constant, regardless of the accuracy of the samples drawn from $\mu$. Inaccuracies in the AIS samples therefore barely shift the minimizer, and manually injected mode locations stay safe inside the loss---unlocking the initiative mode discovery promised above.
-
-    \item \textbf{Drop-in compatibility with the forward KL.} $\X$ shares the integrand $\log\nu$ with the forward KL, so when $\omega(x,y) = \mu(x)\mu(y)$ the same autograd graph and the same $\mu$-samples are reused at negligible extra cost; moreover $\X$ has the same scale as the forward KL, so no additional tuning is required.
+    \item \textbf{Pointwise control.} The forward KL constrains $\nu \approx \mu$ only in a global Jensen-averaged sense, whereas $\X_\omega$ penalizes log-ratio variation wherever $\omega$ places mass, letting us localize the constraint.
+    \item \textbf{Sample robustness.} $\X_\omega$ vanishes whenever $\log(\mu/\nu)$ is constant on the support of $\omega$, so its minimizer is insensitive to the precise sampling of $\omega$; even hand-injected mode locations can be put into $\omega$ without corrupting it.
+    \item \textbf{Forward-KL compatibility.} For $\omega = \mu \otimes \mu$ the integrand of $\X_\omega$ coincides with that of the forward KL up to a sign, so the same autograd graph and the same $\mu$-samples are reused at negligible extra cost; the scales also match and no extra hyperparameter is needed.
 \end{enumerate}
 
-We consider two choices of the measure $\omega(x,y)$ in the X functional \eqref{eq: X}, each playing a distinct role. The first is $\omega(x,y) = \mu(x)\mu(y)$, giving
+Each choice of $\omega$ localizes the constraint to a region of $\mathbb R^d$; we use three choices with complementary roles. With $\omega = \mu \otimes \mu$,
 \begin{equation}
     \X_\mu(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d}
-    \mu(x) \mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y.
+    \mu(x) \mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: X-mu}
 \end{equation}
-As noted above, computing $\X_\mu$ and its gradient incurs almost no extra cost beyond the forward KL, so $\X_\mu$ can be added as a stability- and accuracy-improving regularizer at essentially zero overhead.
+which is essentially free by the forward-KL compatibility above. The forward KL controls the $\mu$-mean of $\log(\mu/\nu)$ while $\X_\mu$ controls its $\mu$-spread, tightening the in-mode density match once $\nu$ has reached the modes of $\mu$ and reducing the residual bias inherited from imperfect AIS samples.
 
-The second choice is $\omega(x,y) = \hat\mu(x)\hat\mu(y)$, sharing the same form as \eqref{eq: X-mu}:
+With $\omega = \hat\mu \otimes \hat\mu$,
 \begin{equation}
     \X_{\hat\mu}(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d}
     \hat\mu(x) \hat\mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: X-hat-mu}
 \end{equation}
-where $\hat\mu$ \emph{need not be an accurate approximation to $\mu$}: by the second benefit of $\X$, the minimizer of $\X_{\hat\mu}$ is insensitive to the precise shape of $\hat\mu$. The sole role of $\hat\mu$ is to place mass on modes that the current pushforward $\nu$ has not yet reached, so a coarse mode-finder that errs on the side of broad coverage is exactly what we want. We construct such an $\hat\mu$ via the \emph{Quench and Temper} (QT) algorithm, executed in three steps:
-\begin{enumerate}
-    \setzero
-    \item \emph{Diffusion} (melt): add large Brownian noise to the samples so that they cover a wider region of $\mathbb R^d$;
-    \item \emph{Optimization} (quench): apply LBFGS to drive the noisy samples toward the mode centers of $\mu$;
-    \item \emph{Rejuvenation} (temper): apply a short-time Langevin so that the samples relax across the local landscape of each mode.
-\end{enumerate}
-The three steps are complementary: the Brownian noise enables discovery of modes not yet covered by $\nu$; LBFGS locates the mode centers precisely; the Langevin step diffuses the samples and makes $\hat\mu$ robust to small perturbations. The name borrows from the metallurgical analogue: quenching rapidly cools the material to lock in a low-energy configuration, while tempering gently reheats it to relieve stress and reach a more stable state. The procedure also applies to targets whose mode set forms a low-dimensional manifold, since a finite-time optimization can still capture such a manifold.
+where $\hat\mu$ is a coarse, deliberately over-spread approximation of $\mu$. By sample robustness the minimizer of $\X_{\hat\mu}$ is insensitive to the precise shape of $\hat\mu$, so the sole purpose of $\hat\mu$ is to place mass on modes and tails that the current $\nu$ has not yet covered; the gradient then pulls the flow toward those regions. We build $\hat\mu$ once, before training, with a Quench and Temper (QT) algorithm that diffuses an initial cloud through Brownian noise to bridge basins, runs a deterministic mode-finder to collapse it onto mode centers, and rejuvenates with a short Langevin chain. QT errs on the side of broad coverage and applies uniformly to disconnected modes, long-tailed distributions, and targets supported on low-dimensional manifolds.
 
-Combining the forward KL with both regularizers yields our training loss for initiative mode discovery:
-\begin{align}
-    \mathcal L[\nu] & = \KL(\mu\|\nu) +
-    \lambda\, \X_\mu(\mu\|\nu) + \hat\lambda\, \X_{\hat\mu}(\mu\|\nu) \nonumber \\
-    & = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x +
-    \iint_{\mathbb R^d\times\mathbb R^d}
-    \Bigl(\lambda\, \mu(x)\mu(y) + \hat\lambda\, \hat\mu(x)\hat\mu(y)\Bigr) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
-\end{align}
-where $\lambda, \hat\lambda \Ge 0$ are tunable weights. To evaluate the trained flow we report ESS \emph{together with} the coverage metric \citep{naeem2020reliable}, which measures how many clusters of $\hat\mu$ are reached by samples drawn through $\nu$. The ESS alone can be fake when modes of $\mu$ are missing, so it must be paired with a mode-aware diagnostic: only when both ESS and coverage are high does the flow truly approximate $\mu$.
+With $\omega = \bar\nu \otimes \bar\nu$,
+\begin{equation}
+    \X_{\bar\nu}(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d}
+    \bar\nu(x) \bar\nu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
+    \label{eq: X-nu}
+\end{equation}
+where $\bar\nu$ denotes a stop-gradient copy of the current pushforward $\nu$. Sampling from $\bar\nu$ is free, since the training loop already pushes a batch from $\mu_0$ through $G^{-1}$ at every step; the detached gradient keeps the loss numerically stable on sharp targets where a true reverse-KL gradient explodes. $\X_{\bar\nu}$ plays the reverse-KL role without its pathologies: it penalizes mass that $\nu$ places outside the support of $\mu$, suppressing the mode-overfitting leakage that $\X_\mu$ and $\X_{\hat\mu}$ alone cannot see.
+
+The three weights are complementary: $\X_\mu$ refines what AIS already reaches, $\X_{\hat\mu}$ pulls $\nu$ toward modes it has missed, and $\X_{\bar\nu}$ pushes $\nu$ away from regions outside the support of $\mu$. Our preferred training loss combines all three with the forward KL,
+\begin{equation}
+    \mathcal{L}[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu) + \X_{(\alpha\hat\mu + \beta\bar\nu)\otimes(\alpha\hat\mu + \beta\bar\nu)}(\mu\|\nu),
+    \label{eq: total-loss}
+\end{equation}
+where $\lambda,\alpha,\beta \Ge 0$ are tunable weights and the third term is $\X_\omega$ with mixture weight $\omega = \alpha\hat\mu + \beta\bar\nu$. This mixture form is strictly stronger than the sum $\alpha^2 \X_{\hat\mu} + \beta^2 \X_{\bar\nu}$: the pairwise integral also generates cross contributions $\bigl|\log(\mu/\nu)(x) - \log(\mu/\nu)(y)\bigr|$ with $x \sim \hat\mu$ and $y \sim \bar\nu$, which anchor the in-support and out-of-support log-ratios to each other. We confirm this empirically: the mixture variant attains both the highest ESS and the cleanest coverage on all of our 2D benchmarks.
+
+We pair ESS with the coverage metric of \citet{naeem2020reliable} for evaluation, which counts the fraction of QT-discovered $\hat\mu$ samples whose $k$-nearest-neighbor ball is reached by the trained $\nu$. Coverage exposes the modes that a fake ESS hides, so the two metrics together certify both density calibration and mode coverage.
 
 \section{Fisher--Rao gradient flow with X functionals}
 \label{sec: FR}
 
-Before we propose the training details with the $\X$ functionals, we first study the gradient flow properties of the loss function, whose convergence behavior reflects the difficulty with which the flow can be trained. We view $\nu$ as a generic probability density evolving along the gradient flow of the loss under an appropriate Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal}, and ask how fast $\nu_t$ converges to the target $\mu$ in $\KL(\mu\|\nu_t)$.
+Before turning to the training algorithm, we study the gradient-flow properties of the loss on the space of densities; the convergence rate of this continuous-time idealization is a clean proxy for how trainable the corresponding discrete loss is in practice. We view $\nu$ as a generic probability density evolving along the gradient flow of the loss under an appropriate Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ converges to the target $\mu$ in $\KL(\mu\|\nu_t)$.
 
-Consider the loss function with respect to $\nu$ with only the forward KL and $\X_\mu$:
+In this section we restrict to the loss with only the forward KL and the raw-target regularizer $\X_\mu$,
 \begin{equation}
     \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\, \X_\mu(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x +
     \lambda\iint_{\mathbb R^d\times\mathbb R^d}
@@ -320,9 +318,7 @@ The threshold $\lambda \Le 1/2$ is a worst-case condition enforcing positivity o
 
 \section{Flow training with X functionals}
 
-In this section we derive the total training loss that drives the normalizing flow from the source distribution to the target, combining the forward KL with the $\X$ regularizers \eqref{eq: X-mu} and \eqref{eq: X-hat-mu}. Let $U_0$ and $U$ be the source and target potential functions on $\mathbb R^d$, and let $\mu_0 \propto \exp(-U_0)$ and $\mu \propto \exp(-U)$ be the corresponding distributions. Given sufficient samples from $\mu_0$, we seek a differentiable flow map $G : \mathbb R^d \to \mathbb R^d$ such that $G_{\#}\mu \approx \mu_0$; target samples are then drawn from $\nu$ via importance sampling.
-
-The remainder of this section is organized as follows. We first review the forward KL loss and describe how annealed importance sampling (AIS) supplies approximate samples from the target $\mu$. We then detail the computation of $\X_\mu$ \eqref{eq: X-mu}, including the autograd-reuse trick noted earlier. Next, we present the Quench and Temper algorithm that constructs the wide-coverage distribution $\hat\mu$ used in $\X_{\hat\mu}$ \eqref{eq: X-hat-mu}. Finally, we define the ESS and coverage metrics and use a 2D example to demonstrate the power of the $\X$-augmented loss.
+This section turns the abstract loss of the introduction into a concrete training algorithm for the flow map $G$. Let $U_0$ and $U$ be the source and target potentials on $\mathbb R^d$, so that $\mu_0 \propto \exp(-U_0)$ is the easily samplable reference and $\mu \propto \exp(-U)$ is the target. The flow $G:\mathbb R^d\to\mathbb R^d$ is parameterized so that $G_{\#}\mu \approx \mu_0$, and target samples are drawn from $\nu := G^{-1}_{\#}\mu_0$ by importance sampling. The remainder of the section proceeds in four steps: (i) the forward KL together with the AIS pipeline that supplies approximate samples from $\mu$; (ii) the single-pass computation of $\X_\mu$ \eqref{eq: X-mu} and of the analogously cheap $\X_{\bar\nu}$ \eqref{eq: X-nu}; (iii) the Quench and Temper construction of the wide-coverage measure $\hat\mu$ used in $\X_{\hat\mu}$ \eqref{eq: X-hat-mu}; and (iv) the assembly of all three terms into the total training loss in terms of $G$. We then close with the ESS and coverage diagnostics used to evaluate the trained flow.
 
 \subsection{Forward KL and annealed importance sampling}
 
@@ -371,9 +367,10 @@ so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each rung of the ladder reweights by on
 }
 \end{algorithm}
 
-\subsection{Single-pass computation of forward KL and $\X_\mu$}
+\subsection{Single-pass computation of $\X_\mu$ and $\X_{\bar\nu}$}
+\label{subsec: single-pass}
 
-Computing $\X_\mu$ reuses almost all of the forward KL machinery. Substituting the explicit log-ratio under the flow map $G$ (the subscript $\mu$ here refers to the target $\mu$), the $\X_\mu$ functional \eqref{eq: X-mu} becomes
+Substituting the explicit log-ratio under the flow map $G$ into the definition \eqref{eq: X-mu} of $\X_\mu$, the functional becomes
 \begin{align}
     \X_\mu\big(\mu \| \nu\big)
     &= \iint_{\mathbb R^d\times\mathbb R^d}
@@ -383,7 +380,7 @@ Computing $\X_\mu$ reuses almost all of the forward KL machinery. Substituting t
     \biggr| \D y \D y'.
     \label{eq: X-mu full}
 \end{align}
-Both the forward KL \eqref{eq: forward KL} and $\X_\mu$ \eqref{eq: X-mu full} can therefore be evaluated in a single forward pass that shares the same autograd graph:
+The integrand inside the absolute value is exactly the log-ratio $\log(\mu/\nu)$ that appears in the forward KL \eqref{eq: forward KL}, so a single forward pass through $G$ on a $\mu$-batch produces both losses:
 
 \begin{algorithm}[H]
 \setstretch{1.2}
@@ -397,11 +394,24 @@ Sample a random permutation $\sigma$ of $\{1,\dots,B\}$ and set $\mathbf z' = \m
 Return $\mathrm{mean}(\mathbf z)$ as the forward KL term and $\mathrm{mean}\bigl(|\mathbf z - \mathbf z'|\bigr)$ as the $\X_\mu$ term\;
 \end{algorithm}
 \mbox{}\\
-Consequently, the only autograd work touching the flow parameters is the single backward pass through $\mathbf z$, identical to a vanilla forward KL step. Adding $\X_\mu$ therefore incurs essentially no additional training cost.
+Backpropagation goes through $\mathbf z$ exactly once, identical to a vanilla forward-KL step, so $\X_\mu$ adds essentially no extra training cost.
 
-\subsection{Initiative mode discovery in $X_{\hat \mu}$ with QT algorithm}
+The same machinery computes $\X_{\bar\nu}$. Replacing the input batch $\mathbf y$ above by a batch $\bar{\mathbf y} = (\bar y_1,\dots,\bar y_B)$ drawn from $\bar\nu$ produces
+\begin{align}
+    \X_{\bar\nu}\big(\mu \| \nu\big)
+    &= \iint_{\mathbb R^d\times\mathbb R^d}
+    \bar\nu(\bar y) \bar\nu(\bar y') \biggl|
+    \Big(U_0(G(\bar y)) - U(\bar y) - \log|\det J_G(\bar y)|\Big) \notag \\
+    &\qquad{} - \Big(U_0(G(\bar y')) - U(\bar y') - \log|\det J_G(\bar y')|\Big)
+    \biggr| \D \bar y \D \bar y',
+    \label{eq: X-nu full}
+\end{align}
+which is just the second line of the algorithm above with the sample source changed. The batch $\bar{\mathbf y}$ is the cheapest available: it is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$ taken under \texttt{torch.no\_grad}, so $\bar\nu$ is treated as a fixed snapshot of the current pushforward for the purposes of gradient computation. The detached sampler keeps the loss numerically stable on sharp targets, where differentiating through the sampling chain---as a true reverse-KL gradient does---would explode.
 
-Computing the $\X_{\hat\mu}$ functional \eqref{eq: X-hat-mu} requires samples from $\hat\mu$, the wide-coverage approximation of the target $\mu$. These samples are prepared once, before training: we generate a fixed pool of $P$ samples $x_1,\dots,x_P$ distributed as $\hat\mu$, and at each training step we draw a mini-batch of size $B$ from the pool and refresh it with a short Langevin chain before evaluating the loss. The pool is produced by the QT algorithm, which proceeds in three stages: \emph{diffusion} (melt), \emph{optimization} (quench), and \emph{rejuvenation} (temper).
+\subsection{Initiative mode discovery in $\X_{\hat\mu}$ with the QT algorithm}
+\label{subsec: QT}
+
+Computing $\X_{\hat\mu}$ requires samples from the wide-coverage measure $\hat\mu$. The samples are prepared once, before training, as a fixed pool of $P$ points $x_1,\dots,x_P$ distributed as $\hat\mu$; at each training step a mini-batch of size $B$ is drawn from the pool and refreshed by a short Langevin chain before being fed into the single-pass algorithm above with $\mu$ replaced by $\hat\mu$. The pool is produced by Quench and Temper (QT), which proceeds in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
 
 \begin{algorithm}[H]
 \label{alg: QT}
@@ -419,7 +429,30 @@ Run a short Langevin simulation targeting $\mu$ on $x_1,\dots,x_P$\;
 \mbox{}\\
 The output samples concentrate near the mode centers of $\mu$, and the initial Brownian diffusion ensures that even modes far from the support of the input are reachable. The $\X_{\hat\mu}$ regularizer therefore penalizes any mode of $\mu$ on which the current pushforward $\nu$ places too little mass, driving the flow to discover modes that AIS alone could never reach.
 
-A side effect of the diffusion step is that a large $\sigma$ biases the output samples toward the outer modes---those far from the bulk of $\mu_0$. This bias is not only harmless but actually desirable for mode discovery, since the modes that the current pushforward fails to cover are precisely those lying far from $\mu_0$.
+A large diffusion $\sigma$ biases the QT output toward modes that lie far from the bulk of $\mu_0$. This is desirable rather than problematic: the modes the current pushforward fails to cover are precisely those far from $\mu_0$, and the bias is also harmless because sample robustness (Property~2 in the introduction) implies the minimizer of $\X_{\hat\mu}$ is insensitive to the precise shape of $\hat\mu$.
+
+\subsection{Total training loss}
+\label{subsec: total-loss}
+
+Putting the three terms together, the total loss in terms of the flow map $G$ is
+\begin{align}
+    \mathcal{L}(G)
+    &= \underbrace{\mathbb{E}_{y \sim \mu}\bigl[\, U_0(G(y)) - U(y) - \log|\det J_G(y)|\, \bigr]}_{\KL(\mu\|\nu)} \notag \\
+    &\quad{} + \lambda\,
+    \underbrace{\mathbb{E}_{y, y' \sim \mu}\Bigl[\bigl|\bigl(U_0(G(y))-U(y)-\log|\det J_G(y)|\bigr) - \bigl(U_0(G(y'))-U(y')-\log|\det J_G(y')|\bigr)\bigr|\Bigr]}_{\X_\mu(\mu\|\nu)} \notag \\
+    &\quad{} +
+    \underbrace{\mathbb{E}_{y, y' \sim \alpha\hat\mu + \beta\bar\nu}\Bigl[\bigl|\bigl(U_0(G(y))-U(y)-\log|\det J_G(y)|\bigr) - \bigl(U_0(G(y'))-U(y')-\log|\det J_G(y')|\bigr)\bigr|\Bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)},
+    \label{eq: total-loss-G}
+\end{align}
+where the three expectations are estimated on the per-step batches described above: AIS-transported samples for the $\mu$-integrals (forward KL and $\X_\mu$), and a mixture batch of $\alpha B$ QT samples from $\hat\mu$ together with $\beta B$ stop-gradient pushforward samples from $\bar\nu$ for the third term.
+
+Although $(\lambda, \alpha, \beta)$ are three free parameters in principle, the X functional is by construction on the same scale as the forward KL, so any choice of order $1$ works in practice. Two regimes of the loss \eqref{eq: total-loss-G} are worth highlighting:
+\begin{enumerate}
+    \setzero
+    \item \textbf{Simple regime, $\lambda = 1$ and $\alpha = \beta = 0$.} Only $\X_\mu$ is added on top of the forward KL. This term is free (it reuses the AIS samples and autograd graph of the forward KL) and is enough whenever the source $\mu_0$ already overlaps every mode of $\mu$: the result is a direct accuracy and stability boost over plain forward-KL training, with no extra hyperparameter and no extra sample source.
+    \item \textbf{Mode-discovery regime, $\lambda = 1$ and $\alpha = \beta = 1/2$.} The mixture term is turned on with a balanced half--half draw from $\hat\mu$ and $\bar\nu$. The $\hat\mu$ half enhances mode discovery by pulling $\nu$ toward QT-discovered modes that AIS alone cannot reach, while the $\bar\nu$ half restrains mode overfitting by penalizing mass that the flow places outside the support of $\mu$. We recommend this as the default whenever $\mu_0$ may not cover all modes of $\mu$, and use it throughout the experiments.
+\end{enumerate}
+We have not found re-tuning $(\lambda, \alpha, \beta)$ away from these defaults to improve results on any of our benchmarks.
 
 \subsection{Evaluation metrics: ESS and coverage}
 
@@ -448,7 +481,7 @@ i.e., the fraction of points in $\mathbf x$ whose $k$-nearest-neighbor ball cont
 
 \section{Construction of adaptive Boltzmann generator}
 
-We state how to construct a adaptive Boltzmann generator which allows to determine the temperature ladder adaptively and derive a numerically stable training scheme. In general, for a $d$-dimensional system, an empirical choice of the ladder length in AIS (Algorithm~\ref{alg: QT}) is $M=d$. We can use a simple Gaussian example to show this:
+We construct an adaptive Boltzmann generator that determines the AIS temperature ladder on the fly and yields a numerically stable training scheme. As a rule of thumb, for a $d$-dimensional system an empirical choice of the ladder length $M$ in AIS (Algorithm~\ref{alg: QT}) is $M = d$, which we motivate below with a Gaussian example.
 
 \paragraph{}
 
@@ -459,7 +492,7 @@ We state how to construct a adaptive Boltzmann generator which allows to determi
 \subsubsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-We test the same training scheme on two complementary 2D targets, Himmelblau and Annulus, listed in Table~\ref{tab: 2d-benchmark}. Himmelblau places four isolated modes at the corners of a square; Annulus is rotationally symmetric, with a thin one-dimensional ring of minima at $r = 2$ together with an isolated minimum at $r = 0$.
+We test the training scheme on three 2D targets that each isolate a different failure mode of the forward KL: Himmelblau (four isolated modes), Annulus (a thin one-dimensional ring of minima together with an isolated central minimum), and Chessboard (a Gaussian mixture on $26$ of the $32$ black squares of an $8 \times 8$ grid, with six cells removed to break the chessboard symmetry). The potentials are listed in Table~\ref{tab: 2d-benchmark}.
 
 \begin{table}[h]
     \centering
@@ -469,33 +502,55 @@ We test the same training scheme on two complementary 2D targets, Himmelblau and
         \textbf{name} & \textbf{potential $U(x_1, x_2)$} & \textbf{minima} \\ \hline
         Himmelblau & $\bigl(x_1^2 + x_2 - 11\bigr)^2 + \bigl(x_1 + x_2^2 - 7\bigr)^2$ & four isolated points \\
         Annulus    & $20\,\bigl(r^6 - 8 r^4 + 16 r^2 + 1\bigr)^{1/3}$, $r^2 = x_1^2 + x_2^2$ & $r = 0$ and ring at $r = 2$ \\
+        Chessboard & Gaussian mixture & $26$ centers \\
     \end{tabular}
     \end{tcolorbox}
-    \caption{Two 2D benchmark targets.}
+    \caption{Three 2D benchmark targets.}
     \label{tab: 2d-benchmark}
 \end{table}
 
-For both targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$ ($\sigma = 1.0$ for Himmelblau, $\sigma = 0.8$ for Annulus). The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, hidden widths $(128, 128)$, on a square box ($[-6, 6]^2$ for Himmelblau, $[-3.6, 3.6]^2$ for Annulus). Training uses Adam with learning rate $10^{-3}$, batch size $500$, for $1000$ steps; at each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. We fix $\lambda = \hat\lambda = 1$ throughout. The wide-coverage measure $\hat\mu$ is built once at the start of training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of $500$ source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the resulting samples are recycled (with one Langevin rejuvenation per training step) inside the training loop.
+For all three targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$, with $\sigma = 1.0$ on Himmelblau and $\sigma = 0.8$ on Annulus and Chessboard. The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, defined on the square box $[-L, L]^2$ with $L = 6, 3.6, 5$ for Himmelblau, Annulus, and Chessboard respectively. Training uses Adam with learning rate $10^{-3}$, batch size $500$, for $1000$ steps; at each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. The loss coefficients are fixed at the preferred default of \S\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = 1/2$. The wide-coverage measure $\hat\mu$ is built once before training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of $500$ source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the QT pool is then recycled across training steps with one Langevin rejuvenation per step.
 
-\paragraph{Himmelblau (mode-coverage regime).} The source places nearly all its mass near the central saddle, so the initial pushforward is far from any of the four Himmelblau modes. Both forward KL and forward KL $+\,\X_\mu$ converge to a flow that covers only two of the four modes (coverage $\approx 0.53$ in both cases), and the ESS alone gives no warning that the other two modes have been missed. Adding $\X_{\hat\mu}$ steers mass toward the QT-discovered modes and the trained flow reaches coverage $1.00$ (Figure~\ref{fig: himmelblau}). This confirms the role of $\X_{\hat\mu}$ as the safeguard one needs precisely when $\mu_0$ does not by itself cover all modes of $\mu$ --- the regime in which the forward KL alone is silent.
+For each target we compare four losses obtained by progressively adding one X regularizer at a time:
+\begin{enumerate}
+    \setzero
+    \item \textbf{KL}: the bare forward KL \eqref{eq: forward KL};
+    \item \textbf{KL $+\,\X_\mu$}: adding the raw-target regularizer with $\lambda = 1$;
+    \item \textbf{KL $+\,\X_\mu+\,\X_{\hat\mu}$}: also adding the wide-coverage regularizer ($\alpha = 1$, $\beta = 0$);
+    \item \textbf{KL $+\,\X_\mu+\,\X_{(\hat\mu + \bar\nu)/2}$}: the preferred mixture, with $\alpha = \beta = 1/2$.
+\end{enumerate}
+
+\paragraph{Himmelblau (mode-coverage regime).} The source places nearly all its mass near the central saddle, so the initial pushforward is far from any of the four Himmelblau modes. Forward KL and forward KL $+\,\X_\mu$ both converge to a flow that covers only two of the four modes (coverage $\approx 0.53$ in both cases), and the ESS alone gives no warning that the other two modes are missing. Adding $\X_{\hat\mu}$ steers mass toward the QT-discovered modes and recovers coverage $1.00$ (Figure~\ref{fig: himmelblau}). The mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ also reaches coverage $1.00$ and attains the highest ESS of the four. This case confirms the role of $\X_{\hat\mu}$ (or its mixture extension) as the safeguard one needs precisely when $\mu_0$ does not by itself cover all modes of $\mu$ --- the regime in which the forward KL is silent.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.84\linewidth]{../2D_Himmelblau/samples.png} \\[0.6em]
-    \includegraphics[width=0.84\linewidth]{../2D_Himmelblau/resample.png}
-    \caption{Himmelblau target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns: forward KL, forward KL $+\,\X_\mu$, forward KL $+\,\X_\mu+\,\X_{\hat\mu}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage of the QT-generated $\hat\mu$.}
+    \includegraphics[width=0.95\linewidth]{../2D_Himmelblau/samples.png} \\[0.6em]
+    \includegraphics[width=0.95\linewidth]{../2D_Himmelblau/resample.png}
+    \caption{Himmelblau target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns left to right: forward KL, $+\,\X_\mu$, $+\,\X_\mu+\X_{\hat\mu}$, $+\,\X_\mu+\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage against $\hat\mu$.}
     \label{fig: himmelblau}
 \end{figure}
 
-\paragraph{Annulus (shape-correction regime).} All three methods reach $k = 5$ coverage $1.00$, so $\X_{\hat\mu}$ contributes no mode rescue here; the discriminating quantities are the flow shape and ESS. Forward KL alone settles at ESS $\approx 0.66$, leaving visible axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts ESS to $\approx 0.95$ (Figure~\ref{fig: annulus}); appending $\X_{\hat\mu}$ on top changes neither qualitatively. This case isolates the role of $\X_\mu$ as a shape regularizer: it pointwise penalizes log-ratio variations that the global forward KL leaves untouched.
+\paragraph{Annulus (shape-correction regime).} All four methods reach coverage $1.00$, so $\X_{\hat\mu}$ contributes no mode rescue here and the discriminating quantities are the flow shape and ESS. Forward KL alone settles at ESS $\approx 0.66$, leaving visible axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts the ESS to $\approx 0.96$; appending $\X_{\hat\mu}$ on top slightly degrades the ESS, while the mixture $\X_{(\hat\mu+\bar\nu)/2}$ attains the best ESS of the four (Figure~\ref{fig: annulus}). This case isolates the role of $\X_\mu$ as a shape regularizer: it pointwise penalizes log-ratio variations that the global forward KL leaves untouched.
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.84\linewidth]{../2D_Annulus/samples.png} \\[0.6em]
-    \includegraphics[width=0.84\linewidth]{../2D_Annulus/resample.png}
-    \caption{Annulus target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns: forward KL, forward KL $+\,\X_\mu$, forward KL $+\,\X_\mu+\,\X_{\hat\mu}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage of the QT-generated $\hat\mu$.}
+    \includegraphics[width=0.95\linewidth]{../2D_Annulus/samples.png} \\[0.6em]
+    \includegraphics[width=0.95\linewidth]{../2D_Annulus/resample.png}
+    \caption{Annulus target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: himmelblau}.}
     \label{fig: annulus}
 \end{figure}
+
+\paragraph{Chessboard (mode-overfitting regime).} Coverage is $1.00$ for all four methods, but the visible mode structure varies dramatically. Forward KL alone scatters mass loosely across most of the black squares, with some leakage into the six removed cells; adding $\X_\mu$ sharpens each in-cell cluster but does not stop the leakage. Adding $\X_{\hat\mu}$ on top is actively harmful here: because $\hat\mu$ alone is sample-blind to the removed cells, the regularizer pushes mass into every black square indiscriminately and the ESS drops to $\approx 0.64$. The mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ resolves this: the $\bar\nu$ half of the sampling sees the holes whenever $\nu$ leaks mass there, and the resulting cross contributions $|\log(\mu/\nu)(y) - \log(\mu/\nu)(y')|$ with $y \sim \hat\mu$ and $y' \sim \bar\nu$ anchor in-cell and out-of-cell log-ratios to each other. The trained flow then places mass cleanly on exactly the $26$ filled cells and attains the highest ESS of the four ($\approx 0.91$, Figure~\ref{fig: chessboard}).
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=0.95\linewidth]{../2D_Chessboard/samples.png} \\[0.6em]
+    \includegraphics[width=0.95\linewidth]{../2D_Chessboard/resample.png}
+    \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: himmelblau}.}
+    \label{fig: chessboard}
+\end{figure}
+
+Across the three targets, the mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ is the only one that simultaneously achieves full mode coverage and the highest ESS: it absorbs the mode-discovery role of $\X_{\hat\mu}$ while also suppressing the mode-overfitting leakage that $\X_{\hat\mu}$ alone can cause when the target has off-support regions interspersed with its modes.
 
 
 \bibliographystyle{plainnat}
