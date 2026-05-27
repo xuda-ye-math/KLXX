@@ -25,10 +25,10 @@ METHOD_LABEL = {
     'KL+X_mu+X_mix':            r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$',
 }
 METHOD_COLOR = {
-    'KL':                       "#00008B",   # dark blue
-    'KL+X_mu':                  "#006400",   # dark green
-    'KL+X_mu+X_hat_mu':         "#8B0000",   # dark red
-    'KL+X_mu+X_mix':            "#4B0082",   # indigo
+    'KL':                       "#00008BC4",   # dark blue
+    'KL+X_mu':                  "#006400C4",   # dark green
+    'KL+X_mu+X_hat_mu':         "#8B0000C4",   # dark red
+    'KL+X_mu+X_mix':            "#4B0082C4",   # indigo
 }
 
 cmap = LinearSegmentedColormap.from_list('light_yellow_red', ["#fffefa", "#ffe5e5"])
@@ -107,7 +107,7 @@ for m in METHODS:
 # ESS figure
 fig_ess, ax_ess = plt.subplots(1, 1, figsize=(4.5, 3.5))
 for m in METHODS:
-    ax_ess.plot(runs_data[m]['ess_history'], color=METHOD_COLOR[m], label=METHOD_LABEL[m], linewidth=1.0)
+    ax_ess.plot(runs_data[m]['ess_history'], color=METHOD_COLOR[m], label=METHOD_LABEL[m], linewidth=0.6)
 ax_ess.set_xlabel('step')
 ax_ess.set_ylabel('ESS')
 ax_ess.set_xlim(0, STEPS)
@@ -127,8 +127,8 @@ for key, suffix, stage_label in STAGES:
         ax = axes[idx]
         ax.contourf(X1.numpy(), X2.numpy(), U_grid, levels=levels, cmap=cmap.reversed(), extend='max')
         ax.contour (X1.numpy(), X2.numpy(), U_grid, levels=levels, colors='gray', linewidths=0.2, alpha=0.2)
-        ax.scatter(prior_np[:, 0], prior_np[:, 1], s=0.05, alpha=0.3, color='gray', zorder=5)
-        ax.scatter(samples_np[:, 0], samples_np[:, 1], s=0.05, alpha=0.5, color=METHOD_COLOR[m], zorder=10)
+        ax.scatter(prior_np[:, 0], prior_np[:, 1], s=0.04, alpha=0.3, color='gray', zorder=5)
+        ax.scatter(samples_np[:, 0], samples_np[:, 1], s=0.04, alpha=0.35, color=METHOD_COLOR[m], zorder=10)
         ax.set_xlim(xlim); ax.set_ylim(ylim); ax.set_aspect('equal')
         ax.set_xlabel(r'$x_1$'); ax.set_ylabel(r'$x_2$')
         title = METHOD_LABEL[m]
