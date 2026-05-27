@@ -518,16 +518,16 @@ For each target we compare four losses obtained by progressively adding one X re
     \centering
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Threewell/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Threewell/resample.png}
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Threewell/resample.png}
         \caption{Threewell target.}
         \label{fig: threewell}
     \end{subfigure}
     \\[0.8em]
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Himmelblau/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Himmelblau/resample.png}
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Himmelblau/resample.png}
         \caption{Himmelblau target.}
         \label{fig: himmelblau}
     \end{subfigure}
@@ -543,16 +543,16 @@ For each target we compare four losses obtained by progressively adding one X re
     \centering
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Annulus/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Annulus/resample.png}
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Annulus/resample.png}
         \caption{Annulus target.}
         \label{fig: annulus}
     \end{subfigure}
     \\[0.8em]
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Python/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Python/resample.png}
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Python/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Python/resample.png}
         \caption{Python target.}
         \label{fig: python}
     \end{subfigure}
@@ -564,9 +564,9 @@ For each target we compare four losses obtained by progressively adding one X re
 
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\textwidth]{../2D_Chessboard/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Chessboard/resample.png} \\[0.6em]
-    \includegraphics[width=0.5\textwidth]{../2D_Chessboard/ESS.png}
+    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/samples.png} \\[0.6em]
+    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/resample.png} \\[0.6em]
+    \includegraphics[width=0.5\textwidth]{../2D_Benchmark/2D_Chessboard/ESS.png}
     \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}. Row 3: ESS trajectory across training steps -- bare forward KL and $\KL{+}\X_\mu$ fluctuate strongly throughout training, while the wide-coverage $\X_{\hat\mu}$ and mixture variants settle into markedly steadier curves, with the mixture both the highest and the tightest.}
     \label{fig: chessboard}
 \end{figure}
