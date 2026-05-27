@@ -64,12 +64,16 @@ runs_data = data['runs']
 y_hat_mu = data.get('y_hat_mu')
 x_unif = data['x_unif']
 
+# final ESS of each method's raw pushforward -- always available
+for m in METHODS:
+    print(f"[{m:<16}] final ESS = {runs_data[m]['final_ess']:.4f}")
+
 # coverage of each method's pushforward samples against the QT-generated y_hat_mu
 if y_hat_mu is not None:
     for m in METHODS:
         cov = coverage(runs_data[m]['samples'], y_hat_mu, k=5)
         runs_data[m]['coverage'] = cov
-        print(f"[{m:<16}] coverage_k=5 vs y_hat_mu = {cov:.4f}")
+        print(f"[{m:<16}] ESS = {runs_data[m]['final_ess']:.4f}   coverage_k=5 vs y_hat_mu = {cov:.4f}")
 
 # Replay the IS+Langevin pipeline on x_unif for each trained flow.
 pipeline = {}
