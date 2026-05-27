@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from zflows.potential import Gaussian
 
-from core import Rosenbrock, quench_and_temper
+from core import Threewell, quench_and_temper
 from parameters import SIGMA, PLT_LIM, BATCH
 
 HERE = Path(__file__).resolve().parent
@@ -15,19 +15,16 @@ def test_qt():
     torch.manual_seed(1)
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    # Rosenbrock target: single minimum at (0.5, 0.125) along a narrow curved valley
-    target = Rosenbrock().to(device)
+    # Threewell target
+    target = Threewell().to(device)
     target.enable_grad() # required by lbfgs and langevin
     target.enable_eval() # required by lbfgs(armijo=True)
 
-    # start from a unimodal Gaussian at origin: without diffusion, the outer modes would be unreachable
+    # start from a tight Gaussian at origin
     source = Gaussian(mean=[0.0, 0.0], variance=[SIGMA**2, SIGMA**2]).to(device)
     x = source.samples(BATCH)
 
-    # Rosenbrock grows quartically off-axis, so we use a small melt sigma and a
-    # gentle lbfgs step to avoid blowups; the narrow banana valley also benefits
-    # from many short Langevin steps in the temper stage.
-    x_out = quench_and_temper(x, target, sigma=2.0, opt_step=0.05, opt_iters=40, mc_step=1e-5, mc_iters=1000)
+    x_out = quench_and_temper(x, target, sigma=2.0, opt_step=0.5, opt_iters=200, mc_step=2e-3, mc_iters=1000)
     assert torch.isfinite(x_out).all(), "QT produced non-finite samples"
     print("QT sanity: OK")
 
@@ -41,7 +38,9 @@ def test_qt():
     grid = torch.stack([X1.flatten(), X2.flatten()], dim=-1).to(device)
     with torch.no_grad():
         U_grid = target(grid).reshape(*X1.shape).cpu().numpy()
-    levels = torch.linspace(0.0, 30.0, 50).tolist()
+    # Narrow level range around the annulus features (min 20, barrier ~44, ring 20);
+    # extend='max' clips higher values outside the ring to the top color.
+    levels = torch.linspace(20.0, 60.0, 50).tolist()
 
     x_np     = x.cpu().numpy()
     x_out_np = x_out.cpu().numpy()

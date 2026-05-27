@@ -3,15 +3,13 @@ from zflows.potential import Potential
 from zflows.flow import ComposedTransform
 from zflows.utils import lbfgs, langevin
 
-# Rosenbrock potential: classical 2D form with coefficient 100
-#   U(x1, x2) = (1 - x1)^2 + 100 * (x2 - x1^2)^2
-# Global minimum U = 0 at (x1, x2) = (1, 1), with a long curved banana-shaped valley.
-class Rosenbrock(Potential):
+# Threewell potential
+class Threewell(Potential):
     def __init__(self):
         super().__init__()
     def forward(self, x):
         x1, x2 = x[:, 0], x[:, 1]
-        return 2*(0.5 - x1).square() + 25.0 * (x2 + 5 - 0.5 * x1.square()).square()
+        return 6 * ((x1.square() - 1).square() + (x2.square() - 1).square() + (x1 + 2 * x2).sin())
 
 # forward KL
 def loss_KL(y: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform):

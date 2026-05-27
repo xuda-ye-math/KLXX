@@ -6,7 +6,7 @@ from zflows.flow import NSF
 from zflows.potential import Gaussian
 from zflows.utils import compute_ESS, importance_weights, resample, langevin
 
-from core import Rosenbrock, loss_KL, loss_X, quench_and_temper
+from core import Threewell, loss_KL, loss_X, quench_and_temper
 from parameters import SIGMA, PLT_LIM, NSF_LIM, BINS, TRANSFORMS, HIDDEN_FEATURES, N_TRAIN, N_VALID, BATCH, STEPS, LR
 
 import os
@@ -20,8 +20,8 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 # source: Gaussian U0
 u0 = Gaussian(mean=[0.0]*2, variance=[SIGMA**2]*2).to(device)
 
-# target: Rosenbrock potential U1
-u1 = Rosenbrock().to(device)
+# target: Threewell potential U1
+u1 = Threewell().to(device)
 u1.enable_grad() # enable_grad for Langevin rejuvenation
 u1.enable_eval() # enable_eval for QT's lbfgs(armijo=True)
 
@@ -62,15 +62,13 @@ def train(method: str, y_hat_mu: torch.Tensor):
             w = importance_weights(x, u0, u1, G_now.inv)
             ess_history.append(compute_ESS(w).item())
 
-            # one-step IS -> approximate mu samples.
-            # Rosenbrock has a narrow banana valley; a tiny Langevin step keeps
-            # the chain stable on the steep walls.
+            # one-step IS -> approximate mu samples
             y_mu = resample(y, w)
-            y_mu = langevin(y_mu, u1, step=1e-5, iters=100)
+            y_mu = langevin(y_mu, u1, step=2e-3, iters=50)
 
             # rejuvenate hat_mu samples across iterations (used by X_hat_mu and X_mix)
             if needs_hat_mu:
-                y_hat_mu = langevin(y_hat_mu, u1, step=1e-5, iters=100)
+                y_hat_mu = langevin(y_hat_mu, u1, step=2e-3, iters=50)
 
         G = flow.t()
         loss = loss_KL(y_mu, u0, u1, G)
@@ -95,12 +93,10 @@ def train(method: str, y_hat_mu: torch.Tensor):
 DATA_PATH = HERE / 'data.pth'
 
 if not DATA_PATH.exists():
-    # one-shot QT to build hat_mu samples used by X_{hat_mu}; same set is reused every step.
-    # Rosenbrock grows quartically off-axis, so the temper step uses a very small Langevin
-    # step to stay inside the narrow valley after the lbfgs quench lands there.
+    # one-shot QT to build hat_mu samples used by X_{hat_mu}; same set is reused every step
     torch.manual_seed(1)
     x_qt = u0.samples(BATCH)
-    y_hat_mu = quench_and_temper(x_qt, u1, sigma=2.0, opt_step=0.05, opt_iters=200, mc_step=1e-5, mc_iters=1000)
+    y_hat_mu = quench_and_temper(x_qt, u1, sigma=2.0, opt_step=0.5, opt_iters=200, mc_step=2e-3, mc_iters=1000)
     print(f"Generated {y_hat_mu.shape[0]} hat_mu samples via QT")
 
     results = {}

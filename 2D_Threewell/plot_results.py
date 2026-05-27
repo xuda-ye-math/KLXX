@@ -7,7 +7,7 @@ from zflows.flow import NSF
 from zflows.potential import Gaussian
 from zflows.utils import importance_weights, resample, langevin
 
-from core import Rosenbrock, coverage
+from core import Threewell, coverage
 from parameters import SIGMA, NSF_LIM, PLT_LIM, BINS, TRANSFORMS, HIDDEN_FEATURES, STEPS
 
 HERE = Path(__file__).resolve().parent
@@ -35,7 +35,7 @@ cmap = LinearSegmentedColormap.from_list('light_yellow_red', ["#fffefa", "#ffe5e
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-u1 = Rosenbrock().to(device)
+u1 = Threewell().to(device)
 u1.enable_grad()
 
 
@@ -52,8 +52,7 @@ def compute_pipeline(state_dict, x_unif):
         y, _ = G.inv.call_and_ladj(x)
         w = importance_weights(x, u0, u1, G.inv)
     y_resampled = resample(y, w)
-    # Rosenbrock's steep walls demand a tiny Langevin step (matches train.py).
-    y_mu = langevin(y_resampled, u1, step=1e-5, iters=100)
+    y_mu = langevin(y_resampled, u1, step=2e-3, iters=50)
     return y.cpu(), y_resampled.cpu(), y_mu.cpu()
 
 
@@ -65,12 +64,16 @@ runs_data = data['runs']
 y_hat_mu = data.get('y_hat_mu')
 x_unif = data['x_unif']
 
+# final ESS of each method's raw pushforward -- always available
+for m in METHODS:
+    print(f"[{m:<16}] final ESS = {runs_data[m]['final_ess']:.4f}")
+
 # coverage of each method's pushforward samples against the QT-generated y_hat_mu
 if y_hat_mu is not None:
     for m in METHODS:
         cov = coverage(runs_data[m]['samples'], y_hat_mu, k=5)
         runs_data[m]['coverage'] = cov
-        print(f"[{m:<16}] coverage_k=5 vs y_hat_mu = {cov:.4f}")
+        print(f"[{m:<16}] ESS = {runs_data[m]['final_ess']:.4f}   coverage_k=5 vs y_hat_mu = {cov:.4f}")
 
 # Replay the IS+Langevin pipeline on x_unif for each trained flow.
 pipeline = {}
@@ -93,9 +96,7 @@ plt.savefig(ess_path, dpi=300)
 plt.close(fig_ess)
 print(f"Saved {ess_path}")
 
-# Background contour data shared across all sample figures.
-# Rosenbrock = (1/2 - x1)^2 + 100 * (x2 - x1^2/2)^2 rises sharply away from its narrow
-# banana valley; we cap the level range at 30 to keep contours legible inside the valley.
+# Background contour data shared across all sample figures
 xlim = (-PLT_LIM, PLT_LIM)
 ylim = (-PLT_LIM, PLT_LIM)
 n = 300
@@ -105,7 +106,7 @@ X1, X2 = torch.meshgrid(xs, ys, indexing='xy')
 grid = torch.stack([X1.flatten(), X2.flatten()], dim=-1).to(device)
 with torch.no_grad():
     U_grid = u1(grid).reshape(*X1.shape).cpu().numpy()
-levels = torch.linspace(0.0, 30.0, 50).tolist()
+levels = torch.linspace(-1.0, 8.0, 20).tolist()
 
 STAGES = (
     ('pushforward', 'samples', r'$y = G^{-1}(x)$'),

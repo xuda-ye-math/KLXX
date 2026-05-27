@@ -4,6 +4,7 @@
 \usepackage{setspace}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
+\usepackage{subcaption}
 \usepackage[amsmath,thmmarks,framed]{ntheorem}
 \usepackage{authblk}
 \usepackage{tcolorbox}
@@ -113,7 +114,7 @@ where $\lambda,\alpha,\beta \Ge 0$ are tunable weights and the third term is $\X
 
 We pair ESS with the coverage metric of \citet{naeem2020reliable} for evaluation, which counts the fraction of QT-discovered $\hat\mu$ samples whose $k$-nearest-neighbor ball is reached by the trained $\nu$. Coverage exposes the modes that a fake ESS hides, so the two metrics together certify both density calibration and mode coverage.
 
-This paper makes three contributions. We introduce the cross-regularization framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{(\alpha\hat\mu + \beta\bar\nu)\otimes(\alpha\hat\mu + \beta\bar\nu)}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL augmented with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is strictly improved by the $\X_\mu$ term. We report an empirical study on four 2D benchmarks (Himmelblau, Annulus, Python, Chessboard) showing that the mixture variant is the only loss that simultaneously matches or beats the best full-coverage ESS and reaches full mode coverage on every target.
+This paper makes three contributions. We introduce the cross-regularization framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{(\alpha\hat\mu + \beta\bar\nu)\otimes(\alpha\hat\mu + \beta\bar\nu)}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL augmented with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is strictly improved by the $\X_\mu$ term. We report an empirical study on five 2D benchmarks (Threewell, Himmelblau, Annulus, Python, Chessboard) showing that the mixture variant is the only loss that simultaneously matches or beats the best full-coverage ESS and reaches full mode coverage on every target.
 
 \section{Fisher--Rao gradient flow with X functionals}
 \label{sec: FR}
@@ -485,7 +486,7 @@ i.e., the fraction of points in $\mathbf x$ whose $k$-nearest-neighbor ball cont
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-We test the training scheme on four 2D targets that each isolate a different failure mode of the forward KL: Himmelblau (four isolated modes), Annulus (a thin one-dimensional ring of minima together with an isolated central minimum), Python (a thin 1D-manifold version of the Python logo built from $1024$ stroke Gaussians traced along the skeleton of the two interlocking snake bodies, plus two larger eye Gaussians), and Chessboard (a Gaussian mixture on $26$ of the $32$ black squares of an $8 \times 8$ grid, with six cells removed to break the chessboard symmetry). The potentials are listed in Table~\ref{tab: 2d-benchmark}.
+We test the training scheme on five 2D targets that each isolate a different failure mode of the forward KL: Threewell (three asymmetric wells of a quartic-plus-sinusoid potential, with the narrow source far from all three), Himmelblau (four isolated modes), Annulus (a thin one-dimensional ring of minima together with an isolated central minimum), Python (a thin 1D-manifold version of the Python logo built from $1024$ stroke Gaussians traced along the skeleton of the two interlocking snake bodies, plus two larger eye Gaussians), and Chessboard (a Gaussian mixture on $26$ of the $32$ black squares of an $8 \times 8$ grid, with six cells removed to break the chessboard symmetry). The potentials are listed in Table~\ref{tab: 2d-benchmark}.
 
 \begin{table}[h]
     \centering
@@ -494,6 +495,7 @@ We test the training scheme on four 2D targets that each isolate a different fai
         \toprule
         name & potential $U(x_1, x_2)$ & minima \\
         \midrule
+        Threewell  & $6\bigl[(x_1^2 - 1)^2 + (x_2^2 - 1)^2 + \sin(x_1 + 2 x_2)\bigr]$ & three asymmetric wells \\
         Himmelblau & $\bigl(x_1^2 + x_2 - 11\bigr)^2 + \bigl(x_1 + x_2^2 - 7\bigr)^2$ & four isolated points \\
         Annulus    & $20 \bigl(r^6 - 8 r^4 + 16 r^2 + 1\bigr)^{1/3}$, $r^2 = x_1^2 + x_2^2$ & $r = 0$ and ring at $r = 2$ \\
         Python     & Python-like Gaussian mixture & $1024$ stroke centers $+ 2$ eye centers \\
@@ -504,38 +506,58 @@ We test the training scheme on four 2D targets that each isolate a different fai
     \label{tab: 2d-benchmark}
 \end{table}
 
-For all four targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$, with $\sigma = 1.0$ on Himmelblau, $\sigma = 0.8$ on Annulus, $\sigma = 1.0$ on Chessboard, and $\sigma = 2.0$ on Python (which lives on a larger box). The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, defined on the square box $[-L, L]^2$ with $L = 6, 3.6, 8, 5$ for Himmelblau, Annulus, Python, and Chessboard respectively. Training uses Adam with learning rate $10^{-3}$ on Himmelblau and Annulus, $2\times 10^{-3}$ on Python, and $5\times 10^{-3}$ on Chessboard. Batch size is $500$ on Himmelblau and Annulus and $400$ on Python, drawn from a source pool of $5\times 10^4$ samples. Chessboard is treated specially: the $26$-mode mixture needs simultaneous in-batch coverage of every cell, so the batch size is raised to $1000$ and the source pool to $8\times 10^4$ samples. The number of training steps is $1000$ on Himmelblau, Annulus, and Chessboard, and $2000$ on Python, since the narrow tubular support of the Python target needs longer for the X variants to saturate. At each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. The loss coefficients are fixed at the preferred default of Section~\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = 1/2$. The wide-coverage measure $\hat\mu$ is built once before training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the QT pool is then recycled across training steps with one Langevin rejuvenation per step.
+For all five targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$, with $\sigma = 0.25$ on Threewell, $\sigma = 1.0$ on Himmelblau, $\sigma = 0.8$ on Annulus, $\sigma = 1.0$ on Chessboard, and $\sigma = 2.0$ on Python (which lives on a larger box). The narrow Threewell source is deliberately concentrated near the origin, far from all three wells, so the initial pushforward covers none of them. The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, defined on the square box $[-L, L]^2$ with $L = 2, 6, 3.6, 8, 5$ for Threewell, Himmelblau, Annulus, Python, and Chessboard respectively. Training uses Adam with learning rate $10^{-3}$ on Threewell, Himmelblau, and Annulus, $2\times 10^{-3}$ on Python, and $5\times 10^{-3}$ on Chessboard. Batch size is $500$ on Himmelblau and Annulus and $400$ on Python, drawn from a source pool of $5\times 10^4$ samples; Threewell and Chessboard need simultaneous in-batch coverage of all their modes, so their batches are enlarged to $2000$ and $1000$ with source pools of $10^5$ and $8\times 10^4$ samples respectively. The number of training steps is $1000$ on every target except Python, which uses $2000$ because its narrow tubular support needs longer for the X variants to saturate. At each step the AIS surrogate is built by one importance-weighted resampling pass against the current pushforward, followed by $50$ Langevin steps of size $2\times 10^{-3}$. The loss coefficients are fixed at the preferred default of Section~\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = 1/2$. The wide-coverage measure $\hat\mu$ is built once before training by applying QT (Algorithm~\ref{alg: QT}) to a fresh batch of source samples, with diffusion standard deviation $2$, optimization step $0.5$ for $200$ LBFGS iterations, and rejuvenation step $2\times 10^{-3}$ for $1000$ Langevin iterations; the QT pool is then recycled across training steps with one Langevin rejuvenation per step.
 
 For each target we compare four losses obtained by progressively adding one X regularizer at a time: the bare forward KL \eqref{eq: forward KL}; $\KL{+}\X_\mu$ with $\lambda = 1$; $\KL{+}\X_\mu{+}\X_{\hat\mu}$ with $\alpha = 1$, $\beta = 0$; and the preferred mixture $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ with $\alpha = \beta = 1/2$.
+
+\paragraph{Threewell.} The quartic-plus-sinusoid potential has three asymmetric wells, and the narrow source $\mu_0$ (standard deviation $0.25$) sits at the origin, far from all of them, so the initial pushforward covers none. Forward KL and $\KL{+}\X_\mu$ lock onto only two of the three wells (coverage $\approx 0.75$ in both cases) and never discover the third, yet their ESS is essentially perfect ($0.99$ and $1.00$): this is the fake ESS pitfall in its starkest form, a flow that omits an entire mode while reporting near-uniform weights on the support it does reach. Adding $\X_{\hat\mu}$ pulls mass onto the QT-discovered third well and lifts coverage to $\approx 1.00$, and the mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ attains the same full coverage at the highest full-coverage ESS ($0.99$) with the cleanest wells of the four (Figure~\ref{fig: threewell}). Threewell is the clearest demonstration that $\X_{\hat\mu}$ and its mixture extension supply exactly the mode discovery the forward KL is blind to.
 
 \paragraph{Himmelblau.} The source places nearly all its mass near the central saddle, so the initial pushforward is far from any of the four Himmelblau modes. Forward KL and $\KL{+}\X_\mu$ both converge to a flow that covers only two of the four modes (coverage $\approx 0.53$ and $\approx 0.48$), yet the ESS gives no warning: $\KL{+}\X_\mu$ even posts the highest nominal ESS of the four ($0.97$) while silently missing half the modes, a textbook fake ESS. Adding $\X_{\hat\mu}$ steers mass toward the QT-discovered modes and recovers coverage $1.00$ (Figure~\ref{fig: himmelblau}); the mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ also reaches coverage $1.00$, and the two full-coverage losses tie at the best full-coverage ESS ($0.95$), with the mixture pushforward the visibly cleaner of the two. This case confirms the role of $\X_{\hat\mu}$ (or its mixture extension) as the safeguard one needs precisely when $\mu_0$ does not by itself cover all modes of $\mu$, the regime in which the forward KL is silent.
 
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\textwidth]{../2D_Himmelblau/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Himmelblau/resample.png}
-    \caption{Himmelblau target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward panel title reports the final ESS and the $k = 5$ coverage against $\hat\mu$.}
-    \label{fig: himmelblau}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../2D_Threewell/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Threewell/resample.png}
+        \caption{Threewell target.}
+        \label{fig: threewell}
+    \end{subfigure}
+    \\[0.8em]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../2D_Himmelblau/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Himmelblau/resample.png}
+        \caption{Himmelblau target.}
+        \label{fig: himmelblau}
+    \end{subfigure}
+    \caption{Mode-discovery targets. In each panel, Row 1 is the pushforward $y = G^{-1}(x)$ and Row 2 is $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward title reports the final ESS and the $k = 5$ coverage against $\hat\mu$. Forward KL and $\KL{+}\X_\mu$ miss modes at near-perfect ESS, while $\X_{\hat\mu}$ and the mixture recover full coverage.}
+    \label{fig: page-mode}
 \end{figure}
 
 \paragraph{Annulus.} All four methods reach coverage $1.00$, so $\X_{\hat\mu}$ contributes no mode rescue here and the discriminating quantities are the flow shape and ESS. Forward KL alone settles at ESS $\approx 0.66$, leaving visible axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts the ESS to $\approx 0.97$; appending $\X_{\hat\mu}$ on top slightly degrades it to $\approx 0.94$, while the mixture $\X_{(\hat\mu+\bar\nu)/2}$ attains the best ESS of the four ($\approx 0.97$, Figure~\ref{fig: annulus}). This case isolates the role of $\X_\mu$ as a shape regularizer: it pointwise penalizes log-ratio variations that the global forward KL leaves untouched.
-
-\begin{figure}[p]
-    \centering
-    \includegraphics[width=\textwidth]{../2D_Annulus/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Annulus/resample.png}
-    \caption{Annulus target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: himmelblau}.}
-    \label{fig: annulus}
-\end{figure}
 
 \paragraph{Python.} The Python target lives on an essentially one-dimensional manifold, the skeleton of the two interlocking snake bodies of the Python logo, traced by $1024$ stroke Gaussians of width $\sigma_\mathrm{stroke}=0.04$ plus two larger eye Gaussians of width $\sigma_\mathrm{eye}=0.30$. All four methods reach coverage $1.00$, so $\X_{\hat\mu}$ contributes no mode rescue. The ESS plateaus well below $1$: bare forward KL settles at $\approx 0.62$, adding $\X_\mu$ lifts it to $\approx 0.75$, appending $\X_{\hat\mu}$ holds it at $\approx 0.73$, and the mixture $\X_{(\hat\mu+\bar\nu)/2}$ reaches the best ESS of the four, $\approx 0.84$ (Figure~\ref{fig: python}). Even on a manifold-dominated target where mode rescue is irrelevant, the X functionals visibly help, and the mixture leads the next-best X variant by nearly $0.10$, anchoring the off-manifold profile of $\nu$ through its $\bar\nu$ half.
 
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\textwidth]{../2D_Python/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Python/resample.png}
-    \caption{Python target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: himmelblau}.}
-    \label{fig: python}
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../2D_Annulus/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Annulus/resample.png}
+        \caption{Annulus target.}
+        \label{fig: annulus}
+    \end{subfigure}
+    \\[0.8em]
+    \begin{subfigure}{\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{../2D_Python/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{../2D_Python/resample.png}
+        \caption{Python target.}
+        \label{fig: python}
+    \end{subfigure}
+    \caption{Shape and manifold targets. Rows and columns as in Figure~\ref{fig: page-mode}.}
+    \label{fig: page-shape}
 \end{figure}
 
 \paragraph{Chessboard.} Coverage is $1.00$ for all four methods, but the visible mode structure and ESS vary. Forward KL alone scatters mass loosely across the black squares, with diffuse bridges between cells and leakage into the six removed cells (ESS $\approx 0.77$); adding $\X_\mu$ sharpens the in-cell clusters but barely moves the ESS ($\approx 0.76$) and does not stop the leakage, and adding $\X_{\hat\mu}$ on top lifts it only marginally ($\approx 0.78$), since $\hat\mu$ alone is sample-blind to the removed cells. The mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ resolves this: the $\bar\nu$ half of the sampling sees the holes whenever $\nu$ leaks mass there, and the resulting cross contributions $|\log(\mu/\nu)(y) - \log(\mu/\nu)(y')|$ with $y \sim \hat\mu$ and $y' \sim \bar\nu$ anchor in-cell and out-of-cell log-ratios to each other. The trained flow then places mass cleanly on the $26$ filled cells and attains the best ESS of the four by a clear margin ($\approx 0.84$, Figure~\ref{fig: chessboard}).
@@ -545,7 +567,7 @@ For each target we compare four losses obtained by progressively adding one X re
     \includegraphics[width=\textwidth]{../2D_Chessboard/samples.png} \\[0.6em]
     \includegraphics[width=\textwidth]{../2D_Chessboard/resample.png} \\[0.6em]
     \includegraphics[width=0.5\textwidth]{../2D_Chessboard/ESS.png}
-    \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: himmelblau}. Row 3: ESS trajectory across training steps -- bare forward KL and $\KL{+}\X_\mu$ fluctuate strongly throughout training, while the wide-coverage $\X_{\hat\mu}$ and mixture variants settle into markedly steadier curves, with the mixture both the highest and the tightest.}
+    \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}. Row 3: ESS trajectory across training steps -- bare forward KL and $\KL{+}\X_\mu$ fluctuate strongly throughout training, while the wide-coverage $\X_{\hat\mu}$ and mixture variants settle into markedly steadier curves, with the mixture both the highest and the tightest.}
     \label{fig: chessboard}
 \end{figure}
 
@@ -555,17 +577,18 @@ For each target we compare four losses obtained by progressively adding one X re
         \toprule
         target & KL & $\KL{+}\X_\mu$ & $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ \\
         \midrule
+        Threewell  & $0.99 / 0.75$ & $1.00 / 0.75$ & $0.98 / \mathbf{1.00}$ & $\mathbf{0.99} / \mathbf{1.00}$ \\
         Himmelblau & $0.92 / 0.53$ & $0.97 / 0.48$ & $\mathbf{0.95} / \mathbf{1.00}$ & $\mathbf{0.95} / \mathbf{1.00}$ \\
         Annulus    & $0.66 / 1.00$ & $0.97 / 1.00$ & $0.94 / 1.00$ & $\mathbf{0.97} / 1.00$ \\
         Python     & $0.62 / 1.00$ & $0.75 / 1.00$ & $0.73 / 1.00$ & $\mathbf{0.84} / 1.00$ \\
         Chessboard & $0.77 / 1.00$ & $0.76 / 1.00$ & $0.78 / 1.00$ & $\mathbf{0.84} / 1.00$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS / $k=5$ coverage against $\hat\mu$ for each loss on each 2D target (best full-coverage ESS per row in bold). $\X_\mu$ improves the ESS on the ring and manifold targets but trades coverage for a higher nominal ESS on Himmelblau; $\X_{\hat\mu}$ rescues coverage on multimodal targets; the mixture is the only variant that attains the best (or tied-best) full-coverage ESS on every target while always retaining full coverage.}
+    \caption{Final ESS / $k=5$ coverage against $\hat\mu$ for each loss on each 2D target (best full-coverage ESS per row in bold). On the mode-discovery targets (Threewell, Himmelblau) forward KL and $\X_\mu$ post high ESS while silently missing modes, and only $\X_{\hat\mu}$ and the mixture restore full coverage. On the remaining targets coverage is complete and $\X_\mu$ improves the ESS except on Chessboard, where only the mixture does. The mixture is the only variant that attains the best (or tied-best) full-coverage ESS on every target while always retaining full coverage.}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
-Across the four targets, adding $\X_\mu$ raises the ESS sharply on the ring and manifold targets ($+0.31$ on Annulus, $+0.13$ on Python) but is essentially flat on Chessboard ($-0.01$) and, on Himmelblau, buys a higher nominal ESS only by sacrificing coverage. The mixture is the consistent winner: it improves on bare forward KL by $+0.03$, $+0.31$, $+0.22$, and $+0.07$ respectively, attains the best (or, on Himmelblau, tied-best) full-coverage ESS on every target, and never trades away coverage. On Chessboard the bare forward KL ESS curve fluctuates strongly throughout training, while the X-augmented variants are visibly smoother. The gains concentrate in two regimes: multimodal targets, where the $\X_{\hat\mu}$ and mixture variants rescue missing modes, and thin low-dimensional manifold targets, where the X functionals correct the off-manifold profile that the forward KL leaves uncontrolled.
+Across the five targets two regimes emerge. On the mode-discovery targets (Threewell and Himmelblau) the ESS stays high for every loss, so on its own it is useless as a quality signal: forward KL and $\KL{+}\X_\mu$ post ESS up to $1.00$ while silently missing whole modes (coverage $0.75$ on Threewell, $0.53$ and $0.48$ on Himmelblau), and only the $\X_{\hat\mu}$ and mixture variants restore full coverage. On the shape, manifold, and leakage targets (Annulus, Python, Chessboard) coverage is already complete and ESS becomes the discriminator: adding $\X_\mu$ raises it sharply on Annulus ($+0.31$) and Python ($+0.13$) but is flat on Chessboard ($-0.01$), whereas the mixture improves on bare forward KL by $+0.31$, $+0.22$, and $+0.07$ and attains the best ESS on all three. Taken together, the mixture is the only loss that reaches full mode coverage and the best (or tied-best) full-coverage ESS on every one of the five targets, never trading one off against the other. On Chessboard the bare forward KL ESS curve fluctuates strongly throughout training, while the X-augmented variants are visibly smoother.
 
 The mixture loss $\mathcal L = \KL(\mu \| \nu) + \X_\mu(\mu\|\nu) + \X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)$ with $\lambda = 1$ and $\alpha = \beta = 1/2$ is the recommended default. It absorbs the mode-discovery role of $\X_{\hat\mu}$ while suppressing the off-support leakage that $\X_{\hat\mu}$ alone can introduce when the target has holes interleaved with its modes.
 
