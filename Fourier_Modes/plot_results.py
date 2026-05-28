@@ -18,10 +18,10 @@ LABEL = {
     'KL+X_mu+X_mix':     r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$',
 }
 COLOR = {
-    'KL':                "#00008BC4",
-    'KL+X_mu':           "#006400C4",
-    'KL+X_mu+X_hat_mu':  "#8B0000C4",
-    'KL+X_mu+X_mix':     "#4B0082C4",
+    'KL':                "#00008BA0",
+    'KL+X_mu':           "#006400A0",
+    'KL+X_mu+X_hat_mu':  "#8B0000A0",
+    'KL+X_mu+X_mix':     "#4B0082A0",
 }
 
 

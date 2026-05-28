@@ -25,10 +25,10 @@ METHOD_LABEL = {
     'KL+X_mu+X_mix':     r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$',
 }
 METHOD_COLOR = {
-    'KL':                "#00008BC4",   # dark blue
-    'KL+X_mu':           "#006400C4",   # dark green
-    'KL+X_mu+X_hat_mu':  "#8B0000C4",   # dark red
-    'KL+X_mu+X_mix':     "#4B0082C4",   # indigo
+    'KL':                "#00008BA0",   # dark blue
+    'KL+X_mu':           "#006400A0",   # dark green
+    'KL+X_mu+X_hat_mu':  "#8B0000A0",   # dark red
+    'KL+X_mu+X_mix':     "#4B0082A0",   # indigo
 }
 
 cmap = LinearSegmentedColormap.from_list('light_yellow_red', ["#fffefa", "#ffe5e5"])
@@ -132,7 +132,7 @@ for key, suffix, stage_label in STAGES:
         if key == 'pushforward':
             title += f"\nESS = $\\mathbf{{{runs_data[m]['final_ess']:.2f}}}$"
             if 'coverage' in runs_data[m]:
-                title += f", Cov = $\\mathbf{{{runs_data[m]['coverage']:.2f}}}$"
+                title += f", cvrg = $\\mathbf{{{runs_data[m]['coverage']:.2f}}}$"
         else:
             title += f"\n{stage_label}"
         ax.set_title(title)
