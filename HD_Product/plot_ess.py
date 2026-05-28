@@ -47,7 +47,7 @@ def main(k=7):
     ax.set_xlabel('step')
     ax.set_ylabel('ESS')
     ax.set_xlim(0, steps)
-    ax.set_ylim(0, 1)
+    ax.set_ylim(0, 0.9)
     ax.set_title(f'$d = {d}$')
     ax.legend(loc='lower right', fontsize=8)
     plt.tight_layout()
