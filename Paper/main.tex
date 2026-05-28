@@ -423,10 +423,22 @@ A large diffusion $\sigma$ biases the QT output toward modes that lie far from t
 On heavy-tailed manifold targets the thin outer tail consists of narrow-variance components whose basins are too small for the LBFGS quench to land in: the diffusion step rarely scatters particles close enough, and any near miss is pulled back into the wide-basin body. The resulting $\hat\mu$ traces the body but misses the tail, and $\X_{\hat\mu}$ inherits the blind spot.
 \end{remark}
 
-\subsection{Evaluation metrics: ESS and coverage}
+\subsection{Importance sampling at evaluation: ESS and coverage}
 \label{subsec: eval}
 
-The trained flow $G$ induces the distribution $\nu$ as an approximation to the target $\mu$. We assess its quality through two complementary metrics: the effective sample size (ESS), which measures how uniform the importance weights are on the support reached by the flow, and the coverage, which checks whether every mode of $\mu$ has been reached at all.
+At evaluation time the trained flow $G$ supplies the model distribution $\nu = G^{-1}_{\#}\mu_0$ as an approximation to $\mu$, together with the exact tractable density $\nu(y) = \mu_0(G(y))\,|\det J_G(y)|$ that any normalizing flow makes available. Because the density is exact, the importance weight $w(y) = \mu(y)/\nu(y) = \exp(z(y))$ of \eqref{eq: weight} can be evaluated for free on any pushforward sample and used at test time to correct the residual bias of $\nu$ as an approximation to $\mu$. Drawing $\mathbf y = (y_1,\dots,y_N)$ with $y_i = G^{-1}(x_i)$ and $x_i\sim\mu_0$ i.i.d., the self-normalized importance-sampling estimator
+\begin{equation}
+    \widehat{\mathbb E_\mu[f]} \;=\; \frac{\sum_{i=1}^N w(y_i)\, f(y_i)}{\sum_{i=1}^N w(y_i)}
+    \label{eq: snis}
+\end{equation}
+is a consistent estimator of $\mathbb E_\mu[f]$ for any $\mu$-integrable test function $f$, regardless of how far $\nu$ is from $\mu$: the flow does not need to be exact for the estimate to converge as $N\to\infty$. To obtain approximate samples from $\mu$ rather than just expectations one resamples $\mathbf y$ by the weights and refreshes with a short Langevin chain targeting $\mu$, exactly the surrogate that drove the AIS step in Section~\ref{subsec: ais} but now applied with the trained flow held fixed. The training bias the X functionals were designed to reduce is, at this stage, traded for sampling cost: the better the flow, the smaller the residual reweighting that \eqref{eq: snis} has to do, and the lower its variance.
+
+\begin{remark}[Coarse training, fine importance sampling]
+\label{rem: coarse-fine-IS}
+If the target has a natural coarse representation, the flow can be trained on the cheap low-dimensional coarse version and the resulting proposal reweighted via \eqref{eq: snis} against the fine high-dimensional target at evaluation -- the high-dimensional target then never enters a gradient step. This separation is the way \citet{lin2026jeffreys} applies the framework to path integral Monte Carlo.
+\end{remark}
+
+We assess the quality of this pipeline through two complementary metrics: the effective sample size (ESS), which measures how uniform the importance weights are on the support reached by the flow, and the coverage, which checks whether every mode of $\mu$ has been reached at all.
 
 The first metric is the effective sample size. Let $\mathbf y = (y_1,\dots,y_N) \in \mathbb R^{N\times d}$ be i.i.d.\ samples from $\nu$, with importance weights $w(y_i)$ given by \eqref{eq: weight}. The ESS is defined as
 \begin{equation}
