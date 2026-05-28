@@ -560,6 +560,64 @@ Across the five targets two regimes emerge. On the mode-discovery targets (Three
 
 The mixture loss $\mathcal L = \KL(\mu \| \nu) + \X_\mu(\mu\|\nu) + \X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)$ with $\lambda = 1$ and $\alpha = \beta = 1/2$ is the recommended default. It absorbs the mode-discovery role of $\X_{\hat\mu}$ while suppressing the off-support leakage that $\X_{\hat\mu}$ alone can introduce when the target has holes interleaved with its modes.
 
+\subsection{Bayesian inverse problem on a Fourier function space}
+\label{subsec: fourier}
+
+We turn next to a Bayesian benchmark in which the four losses are compared on the posterior of a finite set of Fourier coefficients of an unknown scalar field. The example is deliberately low-dimensional ($d = 9$), so that the equilibrium structure can be enumerated and verified by hand, and it is constructed so that the fake-ESS pitfall surfaces in a genuine Bayesian inverse problem rather than a hand-built mixture.
+
+Let $u : [0,1]^2 \to \mathbb R$ be a real scalar field on the 2-torus, expanded in its lowest Fourier modes under the half-plane convention $|k|^2 \Le 2$,
+\begin{equation*}
+    u(x;\theta) = \sum_{m=1}^{9} \theta_m\, \varphi_m(x),
+\end{equation*}
+with $\varphi_m$ either the cosine or the sine of $2\pi k_m \!\cdot\! x$. The nine real coefficients $\theta \in \mathbb R^9$ are partitioned contiguously into $G = 2$ groups of sizes 5 and 4, which define for each group $g$ a \emph{partial field} $v_g(x;\theta) = \sum_{m \in \mathcal G_g} \theta_m\, \varphi_m(x)$. The source $\mu_0$ is the centered Gaussian smoothness prior
+\begin{equation*}
+    \mu_0 = \mathcal N(0, \Sigma_0), \qquad \Sigma_0 = \operatorname{diag}\!\bigl(\gamma^2 / (1 + |k_m|^2)\bigr)_{m=1}^{9}, \qquad \gamma^2 = 2.
+\end{equation*}
+
+The data are generated once from a fixed truth $\theta^\star = A\,\sqrt{\Sigma_0}\, z$ with $z \sim \mathcal N(0, I_9)$ and amplitude $A = 2.5$, on a coarse $3 \times 3$ spatial grid $\{x_j\}_{j=1}^{9}$. We observe the squared partial fields with independent Gaussian noise of standard deviation $\sigma_{\mathrm{obs}} = 2$,
+\begin{equation*}
+    y_{g,j} \;=\; \bigl[v_g(x_j; \theta^\star)\bigr]^2 + \varepsilon_{g,j},
+    \qquad \varepsilon_{g,j} \sim \mathcal N(0, \sigma_{\mathrm{obs}}^2),
+\end{equation*}
+clamped to be non-negative. The target potential is the negative log-posterior up to an additive constant,
+\begin{equation}
+    U(\theta) \;=\; \tfrac12\,\theta^{\top} \Sigma_0^{-1}\, \theta
+    \;+\; \frac{1}{2\sigma_{\mathrm{obs}}^2}\sum_{g=1}^{G}\sum_{j=1}^{J}\Bigl(\bigl[v_g(x_j;\theta)\bigr]^2 - y_{g,j}\Bigr)^{2},
+    \label{eq: fourier-potential}
+\end{equation}
+with $G = 2$ groups and $J = 9$ observation points.
+
+The crucial feature is the squaring of $v_g$: it makes $U$ exactly invariant under each per-group sign flip $\theta \mapsto S_g \theta$, where $S_g$ negates the coordinates of $\theta$ that belong to $\mathcal G_g$ and leaves the others alone. The two commuting sign-flip operators generate a Klein four-group acting freely on a generic $\theta^\star$, so the posterior has exactly $2^G = 4$ degenerate, well-separated modes. On our seed they lie at parameter-space radius $\approx 6.3$ from the origin with pairwise separation $\approx 5.4$, and the degeneracy $U(\theta^\star) = U(S_1\theta^\star) = U(S_2\theta^\star) = U(S_1S_2\theta^\star) = 28.66$ holds to machine precision. The centered Gaussian source sits on the common symmetry saddle at $\theta = 0$, so the untrained pushforward covers none of the four modes.
+
+The flow is a neural spline flow on $[-12, +12]^9$ with six coupling transforms, sixteen bins, and hidden widths $(128, 128)$. Training uses Adam with learning rate $10^{-3}$, batch size $500$, and $2000$ steps; the AIS surrogate is the one-step ($M=1$) resample-plus-Langevin pass of Section~\ref{subsec: 2d-benchmark}, and $\hat\mu$ is built once before training by quench and temper (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per step. Mode coverage is measured by assigning each pushforward sample to the nearest of the four known sign-flip mode centers, with a mode counted as found when it holds at least $5\%$ of the pushforward mass; this is paired with the $k=5$ Naeem coverage against the QT pool.
+
+Table~\ref{tab: fourier-result} reports the headline numbers, and Figure~\ref{fig: fourier-ess} the in-batch ESS trajectory during training. The pattern is the cleanest fake-ESS demonstration in this paper. Bare forward KL posts the highest fresh-pool ESS, $0.926$, visually indistinguishable from a well-calibrated training run, while in fact placing $100\%$ of its pushforward mass on a single one of the four equal-mass modes. Adding $\X_\mu$ on top is, here, actively harmful: it collapses the flow to a \emph{different} single mode (which mode is dictated by the random-number path that the extra permutation in $\X_\mu$ injects, not by the loss) and lowers the eval ESS to $0.859$ while leaving coverage at $1/4$. Only the QT-driven $\X_{\hat\mu}$ and the mixture restore full coverage, attaining $4/4$ modes with occupancies within $\pm 1\%$ of the uniform $1/4$ share and a $k=5$ Naeem coverage of $1.00$, at fresh-pool eval ESS $\approx 0.89$ — only marginally below the bare-KL fake-high number. The in-batch ESS trajectory in Figure~\ref{fig: fourier-ess} shows that during training every method climbs above $0.85$, so the training-time ESS itself gives no warning of the missed modes; only the fresh-pool ESS and the coverage column in Table~\ref{tab: fourier-result} are discriminating.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{@{}lccc@{}}
+        \toprule
+        loss & fresh-pool ESS & modes discovered & $k{=}5$ coverage \\
+        \midrule
+        forward KL                                & 0.926 & 1 & 0.282 \\
+        $\KL{+}\X_\mu$                             & 0.859 & 1 & 0.258 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.890 & $\mathbf{4}$ & $\mathbf{1.000}$ \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.886 & $\mathbf{4}$ & $\mathbf{0.995}$ \\
+        \bottomrule
+    \end{tabular}
+    \caption{Bayesian Fourier benchmark \eqref{eq: fourier-potential} with $d = 9$ and four sign-flip posterior modes. Bare forward KL and $\KL{+}\X_\mu$ post fake-high ESS while covering only one of the four equal-mass modes; the QT-driven $\X_{\hat\mu}$ and mixture variants restore full $4$-mode coverage at small ESS cost.}
+    \label{tab: fourier-result}
+\end{table}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.6\textwidth]{../Fourier_Modes/ESS.png}
+    \caption{In-batch training-target ESS over $2000$ steps on the Bayesian Fourier benchmark \eqref{eq: fourier-potential}, four methods. Every method's per-step ESS climbs above $0.85$, so the training-time ESS itself does not reveal which methods have placed mass on more than one of the four posterior modes; the fresh-pool ESS and the coverage column in Table~\ref{tab: fourier-result} are the actual discriminators.}
+    \label{fig: fourier-ess}
+\end{figure}
+
+Two caveats are worth flagging. First, this benchmark is intentionally low-dimensional: the four sign-flip mode centers were chosen so that the equilibrium structure can be enumerated and verified by hand, and the result should be read as a clean isolation of the fake-ESS pitfall in a Bayesian setting rather than as a high-dimensional demonstration. Second, the reported numbers come from a single training seed; the qualitative ordering — bare KL and $\KL{+}\X_\mu$ at $1/4$ coverage, the QT-driven variants at $4/4$ — is robust by construction, but which single mode each $1/4$-coverage method collapses to is RNG-path determined and not a property of the loss.
+
 \subsection{High-dimensional product multi-well}
 \label{subsec: highd}
 
