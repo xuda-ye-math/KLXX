@@ -60,10 +60,11 @@ def transforms(k):
 
 
 def hidden(k):
-    # MLP width is ~free: the masked-autoregressive inverse is launch-overhead
-    # bound (d sequential passes), not matmul bound -- (64,64) and (256,256)
-    # invert at the same speed. So use a roomy conditioner at high d.
-    return (256, 256) if k >= 5 else (128, 128)
+    # Unified (256, 256) conditioner for every k. MLP width is ~free here since
+    # the masked-autoregressive inverse is launch-overhead bound (d sequential
+    # passes), not matmul bound -- (64,64) and (256,256) invert at the same
+    # speed -- so removing the d-dependent split simplifies the description.
+    return (256, 256)
 
 
 def steps(k):

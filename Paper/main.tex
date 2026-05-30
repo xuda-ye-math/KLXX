@@ -128,7 +128,7 @@ which is the loss we minimize by stochastic gradient descent and the central obj
 
 We pair ESS with the coverage metric of \citet{naeem2020reliable} for evaluation, which counts the fraction of QT-discovered $\hat\mu$ samples whose $k$-nearest-neighbor ball is reached by the trained $\nu$. Coverage exposes the modes that a fake ESS hides, so the two metrics together certify both density calibration and mode coverage.
 
-This paper makes three contributions. We introduce the cross-regularization framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{(\alpha\hat\mu + \beta\bar\nu)\otimes(\alpha\hat\mu + \beta\bar\nu)}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL augmented with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is strictly improved by the $\X_\mu$ term. We report an empirical study on five 2D benchmarks (Threewell, Himmelblau, Annulus, Python, Chessboard), where, among the four losses we compare, the mixture variant is the only one that both matches or beats the best full-coverage ESS and reaches full mode coverage on every target, together with a high-dimensional product multi-well family up to $d = 128$, where the gap between the X-augmented losses and the bare forward KL widens with the dimension.
+This paper makes three contributions. We introduce the cross-regularization framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{(\alpha\hat\mu + \beta\bar\nu)\otimes(\alpha\hat\mu + \beta\bar\nu)}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL augmented with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is strictly improved by the $\X_\mu$ term. We report an empirical study on six 2D benchmarks (Threewell, Himmelblau, Annulus, Python, Chessboard, Sparse), where, among the four losses we compare, the mixture variant is the only one that both matches or beats the best full-coverage ESS and reaches full mode coverage on every target, together with a high-dimensional product multi-well family up to $d = 128$, where the gap between the X-augmented losses and the bare forward KL widens with the dimension.
 
 \section{Fisher--Rao gradient flow with X functionals}
 \label{sec: FR}
@@ -466,7 +466,7 @@ i.e., the fraction of points in $\mathbf x$ whose $k$-nearest-neighbor ball cont
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-We test the training scheme on five 2D targets, each chosen to isolate a different failure mode of the forward KL rather than to match the GMM/DW community suite \citep{akhound2024iterated,woo2024iefm}: Threewell (three asymmetric wells of a quartic-plus-sinusoid potential, with the narrow source far from all three), Himmelblau (four isolated modes), Annulus (a thin one-dimensional ring of minima together with an isolated central minimum), Python (a thin 1D-manifold version of the Python logo built from $1024$ stroke Gaussians traced along the skeleton of the two interlocking snake bodies, plus two larger eye Gaussians), and Chessboard (a Gaussian mixture on $26$ of the $32$ black squares of an $8 \times 8$ grid, with six cells removed to break the chessboard symmetry). The potentials are listed in Table~\ref{tab: 2d-benchmark}.
+We test the training scheme on six 2D targets, each chosen to isolate a different failure mode of the forward KL rather than to match the GMM/DW community suite \citep{akhound2024iterated,woo2024iefm}: Threewell (three asymmetric wells of a quartic-plus-sinusoid potential, with the narrow source far from all three), Himmelblau (four isolated modes), Annulus (a thin one-dimensional ring of minima together with an isolated central minimum), Python (a thin 1D-manifold version of the Python logo built from $1024$ stroke Gaussians traced along the skeleton of the two interlocking snake bodies, plus two larger eye Gaussians), Chessboard (a Gaussian mixture on $26$ of the $32$ black squares of an $8 \times 8$ grid, with six cells removed to break the chessboard symmetry), and Sparse (a four-mode Gaussian mixture with a dense pair near the origin and two isolated modes in opposite corners, several source-standard-deviations away, that the narrow source tail cannot reach). The potentials are listed in Table~\ref{tab: 2d-benchmark}.
 
 \begin{table}[h]
     \centering
@@ -480,13 +480,14 @@ We test the training scheme on five 2D targets, each chosen to isolate a differe
         Annulus    & $20 \bigl(r^6 - 8 r^4 + 16 r^2 + 1\bigr)^{1/3}$, $r^2 = x_1^2 + x_2^2$ & $r = 0$ and ring at $r = 2$ \\
         Python     & Python-like Gaussian mixture & $1024$ stroke centers $+ 2$ eye centers \\
         Chessboard & Chessboard-like Gaussian mixture & $26$ centers \\
+        Sparse     & Sparse Gaussian mixture & $2$ dense $+\, 2$ isolated centers \\
         \bottomrule
     \end{tabular}
-    \caption{Four 2D benchmark targets.}
+    \caption{Six 2D benchmark targets.}
     \label{tab: 2d-benchmark}
 \end{table}
 
-For all five targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$ with $\sigma$ between $0.25$ and $2.0$; on Threewell it is deliberately narrow and centered at the origin, far from all three wells, so the initial pushforward covers none of them. The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, on a square box matched to each target. Training uses Adam (learning rate $10^{-3}$ to $5\times 10^{-3}$) for $1000$ steps ($2000$ on Python, whose narrow tubular support takes longer to saturate), with batch size $500$, enlarged to $1000$--$2000$ on the multi-mode Threewell and Chessboard so a single batch can cover all modes. At each step the AIS surrogate is one importance-weighted resampling pass against the current pushforward followed by $50$ Langevin steps. The loss coefficients are the preferred default of Section~\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = 1/2$, and the wide-coverage measure $\hat\mu$ is built once before training by QT (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per step.
+For all six targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$ with $\sigma$ between $0.25$ and $2.0$; on Threewell it is deliberately narrow and centered at the origin, far from all three wells, so the initial pushforward covers none of them. The flow is a neural spline flow with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, on a square box matched to each target. Training uses Adam (learning rate $10^{-3}$ to $5\times 10^{-3}$) for $1000$ steps ($2000$ on Python, whose narrow tubular support takes longer to saturate), with batch size $500$, enlarged to $1000$--$2000$ on the multi-mode Threewell, Chessboard, and Sparse so a single batch can cover all modes. At each step the AIS surrogate is one importance-weighted resampling pass against the current pushforward followed by $50$ Langevin steps. The loss coefficients are the preferred default of Section~\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = 1/2$, and the wide-coverage measure $\hat\mu$ is built once before training by QT (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per step.
 
 For each target we compare four losses obtained by progressively adding one X regularizer at a time: the bare forward KL \eqref{eq: forward KL}; $\KL{+}\X_\mu$ with $\lambda = 1$; $\KL{+}\X_\mu{+}\X_{\hat\mu}$ with $\alpha = 1$, $\beta = 0$; and the preferred mixture $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ with $\alpha = \beta = 1/2$.
 
@@ -545,10 +546,19 @@ For each target we compare four losses obtained by progressively adding one X re
 \begin{figure}[p]
     \centering
     \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/resample.png} \\[0.6em]
-    \includegraphics[width=0.5\textwidth]{../2D_Benchmark/2D_Chessboard/ESS.png}
-    \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}. Row 3: ESS trajectory across training steps -- bare forward KL and $\KL{+}\X_\mu$ fluctuate strongly throughout training, while the wide-coverage $\X_{\hat\mu}$ and mixture variants settle into markedly steadier curves, with the mixture both the highest and the tightest.}
+    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/resample.png}
+    \caption{Chessboard target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}.}
     \label{fig: chessboard}
+\end{figure}
+
+\paragraph{Sparse.} A four-mode Gaussian mixture with a dense pair at the origin and two isolated modes in opposite corners; the source $\mu_0$ (standard deviation $0.6$) is narrow enough that its tail never reaches the corners, so the initial pushforward covers only the central pair. Forward KL and $\KL{+}\X_\mu$ lock onto the two central modes and never discover the isolated corners (coverage $\approx 0.50$ in both cases), yet their ESS stays high and stable ($0.88$ and $0.94$): another fake-ESS instance, in which collapsing onto the easy half of the support is rewarded with near-uniform weights. Adding $\X_{\hat\mu}$ pulls mass onto the QT-discovered corner modes and restores coverage $1.00$, but at a cost: lacking the $\bar\nu$ half, it overfits the wide-coverage measure $\hat\mu$ and leaves visible artificial bridges of mass between the modes (ESS $\approx 0.87$). The mixture variant $\X_{(\hat\mu+\bar\nu)/2}$ also reaches coverage $1.00$ while removing these bridges, placing clean mass on all four modes at the best full-coverage ESS ($\approx 0.93$, Figure~\ref{fig: sparse}).
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Sparse/samples.png} \\[0.6em]
+    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Sparse/resample.png}
+    \caption{Sparse target. Row 1: pushforward $y = G^{-1}(x)$. Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}. Forward KL and $\KL{+}\X_\mu$ collapse onto the two central modes and miss both isolated corners at high, stable ESS (a fake-ESS instance); $\X_{\hat\mu}$ recovers all four modes but leaves artificial bridges of mass between them, while the mixture recovers them cleanly.}
+    \label{fig: sparse}
 \end{figure}
 
 \begin{table}[h]
@@ -562,37 +572,57 @@ For each target we compare four losses obtained by progressively adding one X re
         Annulus    & $0.66 / 1.00$ & $0.97 / 1.00$ & $0.94 / 1.00$ & $\mathbf{0.97} / 1.00$ \\
         Python     & $0.62 / 1.00$ & $0.75 / 1.00$ & $0.73 / 1.00$ & $\mathbf{0.84} / 1.00$ \\
         Chessboard & $0.77 / 1.00$ & $0.76 / 1.00$ & $0.78 / 1.00$ & $\mathbf{0.84} / 1.00$ \\
+        Sparse     & $0.88 / 0.50$ & $0.94 / 0.50$ & $0.87 / \mathbf{1.00}$ & $\mathbf{0.93} / \mathbf{1.00}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS / $k=5$ coverage against $\hat\mu$ for each loss on each 2D target (best full-coverage ESS per row in bold). On the mode-discovery targets (Threewell, Himmelblau) forward KL and $\X_\mu$ post high ESS while silently missing modes, and only $\X_{\hat\mu}$ and the mixture restore full coverage. On the remaining targets coverage is complete and $\X_\mu$ improves the ESS except on Chessboard, where only the mixture does. The mixture is the only variant that attains the best (or tied-best) full-coverage ESS on every target while always retaining full coverage.}
+    \caption{Final ESS / $k=5$ coverage against $\hat\mu$ for each loss on each 2D target (best full-coverage ESS per row in bold). On the mode-discovery targets (Threewell, Himmelblau, Sparse) forward KL and $\X_\mu$ post high ESS while silently missing modes, and only $\X_{\hat\mu}$ and the mixture restore full coverage. On the remaining targets coverage is complete and $\X_\mu$ improves the ESS except on Chessboard, where only the mixture does. The mixture is the only variant that attains the best (or tied-best) full-coverage ESS on every target while always retaining full coverage.}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
-Across the five targets two regimes emerge. On the mode-discovery targets (Threewell, Himmelblau) the ESS stays high for every loss and is therefore useless on its own: forward KL and $\KL{+}\X_\mu$ post ESS up to $1.00$ while silently missing whole modes, and only the $\X_{\hat\mu}$ and mixture variants restore full coverage. On the shape, manifold, and leakage targets (Annulus, Python, Chessboard) coverage is already complete and ESS becomes the discriminator: $\X_\mu$ helps on Annulus and Python but is flat on Chessboard, whereas the mixture improves on bare forward KL by $+0.31$, $+0.22$, and $+0.07$ and attains the best ESS on all three. Overall the mixture is the only loss among the four compared that reaches full mode coverage and the best (or tied-best) full-coverage ESS on every target, and its ESS curves are visibly smoother than bare forward KL.
+Across the six targets two regimes emerge. On the mode-discovery targets (Threewell, Himmelblau, Sparse) the ESS stays high for every loss and is therefore useless on its own: forward KL and $\KL{+}\X_\mu$ post ESS up to $1.00$ while silently missing whole modes, and only the $\X_{\hat\mu}$ and mixture variants restore full coverage. On the shape, manifold, and leakage targets (Annulus, Python, Chessboard) coverage is already complete and ESS becomes the discriminator: $\X_\mu$ helps on Annulus and Python but is flat on Chessboard, whereas the mixture improves on bare forward KL by $+0.31$, $+0.22$, and $+0.07$ and attains the best ESS on all three. Overall the mixture is the only loss among the four compared that reaches full mode coverage and the best (or tied-best) full-coverage ESS on every target, and its ESS curves are visibly smoother than bare forward KL.
 
 The mixture loss $\mathcal L = \KL(\mu \| \nu) + \X_\mu(\mu\|\nu) + \X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)$ with $\lambda = 1$ and $\alpha = \beta = 1/2$ is the recommended default. It absorbs the mode-discovery role of $\X_{\hat\mu}$ while suppressing the off-support leakage that $\X_{\hat\mu}$ alone can introduce when the target has holes interleaved with its modes.
 
 \subsection{Bayesian inverse problem on a Fourier function space}
 \label{subsec: fourier}
 
-We turn next to a Bayesian benchmark in which the four losses are compared on the posterior of a finite set of Fourier coefficients of an unknown scalar field. The example is deliberately low-dimensional ($d = 9$), so that the equilibrium structure can be enumerated and verified by hand, and it is constructed so that the fake-ESS pitfall surfaces in a genuine Bayesian inverse problem rather than a hand-built mixture.
+Our next benchmark tackles a small Bayesian inverse problem in function space: a smooth scalar field on the 2-torus is parameterised by a handful of Fourier coefficients, and from a few noisy non-linear measurements of the field on a coarse grid we want to recover the coefficients. The example is deliberately low-dimensional ($d = 9$), so that the posterior's mode structure can be enumerated and verified by hand; the non-linear observation operator is chosen so that the fake-ESS pitfall arises in a genuine Bayesian inverse problem rather than a hand-built mixture.
 
-Let $u(x;\theta) = \sum_{m=1}^{9} \theta_m \varphi_m(x)$ be a real scalar field on the 2-torus $[0,1]^2$, expanded in the $d = 9$ Fourier modes with $|k|^2 \Le 2$ (half-plane convention), $\varphi_m$ either a cosine or sine of $2\pi k_m\!\cdot\! x$. Split the nine coefficients $\theta\in\mathbb R^9$ contiguously into two groups of sizes 5 and 4, and let $v_g(x;\theta)$ denote the partial field summed over the modes in group $g$. The source is the centered Gaussian smoothness prior $\mu_0 = \mathcal N(0,\Sigma_0)$ with diagonal covariance $(\Sigma_0)_{mm} = 2/(1+|k_m|^2)$.
+\paragraph{Field and basis.} The unknown is a real scalar field $u(\cdot\,;\theta) : [0,1]^2 \to \mathbb R$ on the 2-torus, expanded on its 9 lowest Fourier basis functions,
+\begin{equation*}
+    u(x;\theta) = \sum_{m=1}^{9} \theta_m\,\varphi_m(x), \qquad \theta \in \mathbb R^9.
+\end{equation*}
+We take $\{\varphi_m\}_{m=1}^{9}$ to be the cosine and sine modes with frequency-squared $|k|^2 \le 2$ on the half-plane convention: $\varphi_1 \equiv 1$ (the constant mode), $\varphi_2, \varphi_3 = \cos, \sin\bigl(2\pi x_2\bigr)$, $\varphi_4, \varphi_5 = \cos, \sin\bigl(2\pi(x_1{-}x_2)\bigr)$, $\varphi_6, \varphi_7 = \cos, \sin\bigl(2\pi x_1\bigr)$, $\varphi_8, \varphi_9 = \cos, \sin\bigl(2\pi(x_1{+}x_2)\bigr)$. The basis is orthogonal in $L^2([0,1]^2)$, with $\|\varphi_1\|_{L^2} = 1$ and $\|\varphi_m\|_{L^2} = 1/\sqrt 2$ for $m \ge 2$.
 
-Observations are produced once from a fixed $\theta^\star$ drawn from the prior (rescaled to amplitude $2.5$), as squared partial fields on a $3\times 3$ spatial grid $\{x_j\}_{j=1}^{9}$ with independent Gaussian noise of variance $4$,
-$y_{g,j} = [v_g(x_j;\theta^\star)]^2 + \varepsilon_{g,j}$,
-clamped to be non-negative. The target potential is the negative log-posterior, up to an additive constant,
+\paragraph{Observations: noisy squared partial fields.} We split the nine coordinates into two contiguous groups $\mathcal G_1 = \{1,\dots,5\}$ and $\mathcal G_2 = \{6,\dots,9\}$ and look at each group's partial field,
+\begin{equation*}
+    v_g(x;\theta) = \sum_{m\in\mathcal G_g} \theta_m\,\varphi_m(x), \qquad g \in \{1, 2\}.
+\end{equation*}
+The data are the per-group squared partial fields, observed on a cell-centred $3\times 3$ grid $\{x_j\}_{j=1}^{9}\subset[0,1]^2$ and corrupted by i.i.d.\ Gaussian noise of variance $4$ (clipped to be non-negative, so $y\ge 0$ is well defined as a squared norm):
+\begin{equation*}
+    y_{g,j} = \max\!\bigl(\, v_g(x_j;\theta^\star)^2 + \varepsilon_{g,j},\; 0\,\bigr), \qquad \varepsilon_{g,j} \sim \mathcal N(0, 4),
+\end{equation*}
+for $g\in\{1,2\}$ and $j = 1,\dots,9$. Squaring the partial field makes the observation operator invariant under sign-flipping any group's coordinates, which is the symmetry we exploit below.
+
+\paragraph{Prior and ground truth.} The prior is a centred Gaussian smoothness prior on the coefficients, with per-mode variance shrinking with the squared frequency,
+\begin{equation*}
+    \mu_0 = \mathcal N(0,\Sigma_0), \qquad (\Sigma_0)_{mm} = \frac{2}{1 + |k_m|^2}.
+\end{equation*}
+The ground truth $\theta^\star$ is a single draw from $\mathcal N(0, 6.25\,\Sigma_0)$ -- i.e.\ at $2.5$ prior standard deviations along a random direction -- drawn once with a fixed seed and frozen across all four methods. The data $\{y_{g,j}\}$ are generated at that $\theta^\star$ and held fixed.
+
+\paragraph{Target.} The negative log-posterior, up to an additive constant, combines the Gaussian prior with the four-quadratic data fit,
 \begin{equation}
-    U(\theta)  =  \frac12 \theta^{\top} \Sigma_0^{-1} \theta
-     +  \frac{1}{8}\!\sum_{g=1}^{2}\sum_{j=1}^{9}\Bigl(\bigl[v_g(x_j;\theta)\bigr]^2 - y_{g,j}\Bigr)^{2}.
+    U(\theta) \;=\; \tfrac12\,\theta^{\top} \Sigma_0^{-1} \theta
+     \;+\; \tfrac{1}{8}\!\sum_{g=1}^{2}\sum_{j=1}^{9}\bigl( v_g(x_j;\theta)^2 - y_{g,j} \bigr)^{2}.
     \label{eq: fourier-potential}
 \end{equation}
+(The $1/8$ is $1/(2\sigma_{\mathrm{obs}}^2)$ for $\sigma_{\mathrm{obs}}^2 = 4$.)
 
-Squaring $v_g$ makes $U$ exactly invariant under each per-group sign flip $\theta\mapsto S_g\theta$ that negates the coordinates of $\theta$ in group $g$; the two commuting sign-flips generate a Klein four-group acting freely on a generic $\theta^\star$, producing exactly $4$ degenerate, well-separated modes (radius $\approx 6.3$, pairwise separation $\approx 5.4$ on our seed; degeneracy $U \equiv 28.66$ verified to machine precision). The centered Gaussian source sits on the common symmetry saddle at $\theta = 0$. The posterior is nontrivial to sample for two reasons that combine: the four modes are far from any point of significant prior mass (each lies several prior-standard-deviations out), and the curved high-$U$ barriers between adjacent sign-flip basins are very rarely crossed by a Langevin chain on $U$ during the short rejuvenation step that the AIS surrogate can afford — so a flow trained by bare forward KL is starved of $\mu$-samples outside whichever basin its pushforward first happens to reach, and collapses there.
+\paragraph{Posterior structure: a Klein four-group of equal modes.} Since the observation operator only sees the squared partial fields, the likelihood -- and hence $U$ -- is exactly invariant under each per-group sign flip $\theta\mapsto S_g\theta$ (negating all coordinates in group $g$). The two sign flips commute and generate a Klein four-group acting freely on a generic $\theta^\star$, so the posterior has exactly $4$ degenerate, well-separated modes (radius $\approx 6.3$, pairwise separation $\approx 5.4$ on our seed; degeneracy $U \equiv 28.66$ verified to machine precision). The centred Gaussian source sits on their common symmetry saddle at $\theta = 0$. The four mode centres are several prior-standard-deviations from any point with significant prior mass, and the curved high-$U$ barriers between adjacent sign-flip basins are rarely crossed by the short Langevin rejuvenation step that the AIS surrogate can afford -- so a flow trained by bare forward KL is starved of $\mu$-samples outside whichever basin its pushforward first happens to reach, and collapses there.
 
-The flow is a neural spline flow on $[-12, +12]^9$ with six coupling transforms, sixteen bins, and hidden widths $(128, 128)$. Training uses Adam with learning rate $10^{-3}$, batch size $500$, and $2000$ steps; the AIS surrogate is the one-step ($M=1$) resample-plus-Langevin pass of Section~\ref{subsec: 2d-benchmark}, and $\hat\mu$ is built once before training by quench and temper (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per step. Mode coverage is measured by assigning each pushforward sample to the nearest of the four known sign-flip mode centers, with a mode counted as found when it holds at least $5\%$ of the pushforward mass; this is paired with the $k=5$ Naeem coverage against the QT pool.
+\paragraph{Flow and training.} A neural spline flow on $[-12,+12]^9$ with $6$ coupling transforms, $16$ knot bins, and hidden widths $(128, 128)$. Training uses Adam at learning rate $10^{-3}$, batch size $500$, and $2000$ steps; the AIS surrogate is the one-step ($M=1$) resample-plus-Langevin pass of Section~\ref{subsec: 2d-benchmark}, and $\hat\mu$ is built once before training by quench and temper (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per training step. Mode coverage is measured by assigning each pushforward sample to the nearest of the four known sign-flip mode centres, with a mode counted as found when it holds at least $5\%$ of the pushforward mass; this is paired with the $k=5$ Naeem coverage against the QT pool.
 
-Table~\ref{tab: fourier-result} reports the four-method comparison. Bare forward KL attains a fresh-pool ESS of $0.926$ while concentrating its entire pushforward on a single one of the four equal-mass modes; adding $\X_\mu$ does not improve coverage and reduces the ESS to $0.859$, with the pushforward landing in a different single basin. The QT-driven $\X_{\hat\mu}$ and the mixture reach $4/4$ coverage with per-mode occupancies within $\pm 1\%$ of the uniform $1/4$ share and $k=5$ Naeem coverage close to $1$, at fresh-pool ESS $\approx 0.89$.
+\paragraph{Results.} Table~\ref{tab: fourier-result} reports the four-method comparison. Bare forward KL attains a fresh-pool ESS of $0.926$ while placing essentially all of its pushforward mass on a single one of the four equal-weight modes; adding $\X_\mu$ does not improve coverage and reduces the ESS to $0.859$, the pushforward landing in a different single basin. The QT-driven $\X_{\hat\mu}$ and the mixture reach $4/4$ coverage with per-mode occupancies within $\pm 1\%$ of the uniform $1/4$ share and $k=5$ Naeem coverage close to $1$, at fresh-pool ESS $\approx 0.89$.
 
 \begin{table}[h]
     \centering
@@ -622,9 +652,9 @@ To test the framework beyond two dimensions we construct a family of product mul
 \end{equation}
 a double well in each of the first $k$ coordinates (minima at $\pm\sqrt{\ln 24} \approx \pm 1.78$, separated by a barrier of height $\approx 9.9$) and a standard Gaussian in the remaining $2^k - k$. The source is the standard Gaussian $\mu_0 = \mathcal N(0, I_d)$, whose potential is the quadratic part of $U$. Because $U$ is separable, the target factorizes into $k$ identical double wells and $2^k - k$ Gaussians, so it has exactly $2^k = d$ modes -- the number of modes equals the dimension -- and the optimal transport map is diagonal. The source sits exactly on the barrier of every double well, so the untrained pushforward covers none of the $2^k$ mode combinations. We sweep $k = 1, \dots, 7$, i.e.\ $d = 2, 4, 8, 16, 32, 64, 128$.
 
-The flow is a neural spline flow on $[-4, 4]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(128, 128)$ for $d \Le 16$ and $(256, 256)$ for $d \Ge 32$. Training uses Adam at learning rate $10^{-3}$ with batch size $200$ -- forward KL is highly sensitive to the batch size, so a small batch sharpens the contrast between the losses -- drawn from a source pool of $10^4 \cdot 2^k$ samples; the number of steps decreases with $d$ from $3000$ ($d \Le 4$) to $1200$ ($d \Ge 64$). The $\mu$-surrogate is the same one-step importance-resampling pass followed by $50$ Langevin steps used in the 2D experiments, and $\hat\mu$ is built once by QT from $100 \cdot 2^k$ samples. The four losses are exactly those of Section~\ref{subsec: 2d-benchmark}, with $\lambda = 1$ and $\alpha = \beta = 1/2$.
+The flow is a neural spline flow on $[-4, 4]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$. Training uses Adam at learning rate $10^{-3}$ with batch size $200$ -- forward KL is highly sensitive to the batch size, so a small batch sharpens the contrast between the losses -- drawn from a source pool of $10^4 \cdot 2^k$ samples; the number of steps decreases with $d$ from $3000$ ($d \Le 4$) to $1200$ ($d \Ge 64$). The $\mu$-surrogate is the same one-step importance-resampling pass followed by $50$ Langevin steps used in the 2D experiments, and $\hat\mu$ is built once by QT from $100 \cdot 2^k$ samples. The four losses are exactly those of Section~\ref{subsec: 2d-benchmark}, with $\lambda = 1$ and $\alpha = \beta = 1/2$.
 
-Table~\ref{tab: highd-ess} reports the final ESS of each loss across the seven dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.997$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Two trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.99$ at $d = 2$ to $0.55$ at $d = 128$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.18$--$0.21$ at $d = 64$ and $128$. The mixture $\X_{(\hat\mu+\bar\nu)/2}$ attains the best (or tied-best) ESS at every $d \Ge 4$, and at the highest dimensions the wide-coverage $\X_{\hat\mu}$ and the mixture pull clearly ahead of $\X_\mu$ alone. Figure~\ref{fig: highd-ess} shows the ESS trajectories at $d = 128$: bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture is both the highest and the steadiest -- the same ordering observed on Chessboard (Figure~\ref{fig: chessboard}), now in $128$ dimensions.
+Table~\ref{tab: highd-ess} reports the final ESS of each loss across the seven dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.997$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Two trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.96$ at $d = 2$ to $0.55$ at $d = 128$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.21$--$0.22$ at $d = 64$ and $128$. The mixture $\X_{(\hat\mu+\bar\nu)/2}$ attains the best (or tied-best) ESS at every $d \Ge 4$, and at the highest dimensions the wide-coverage $\X_{\hat\mu}$ and the mixture pull clearly ahead of $\X_\mu$ alone. Figure~\ref{fig: highd-ess} shows the ESS trajectories at $d = 128$: bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture is both the highest and the steadiest -- the same ordering observed on Chessboard, now in $128$ dimensions.
 
 \begin{table}[h]
     \centering
@@ -632,20 +662,20 @@ Table~\ref{tab: highd-ess} reports the final ESS of each loss across the seven d
         \toprule
         loss $\backslash$ $d$ & 2 & 4 & 8 & 16 & 32 & 64 & 128 \\
         \midrule
-        forward KL                                & 0.985 & 0.958 & 0.924 & 0.882 & 0.790 & 0.669 & 0.547 \\
-        $\KL{+}\X_\mu$                             & $\mathbf{0.997}$ & 0.983 & 0.971 & 0.963 & 0.893 & 0.845 & 0.657 \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.986 & 0.989 & 0.974 & 0.961 & 0.948 & 0.835 & 0.745 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.987 & $\mathbf{0.992}$ & $\mathbf{0.977}$ & $\mathbf{0.970}$ & $\mathbf{0.953}$ & $\mathbf{0.878}$ & $\mathbf{0.752}$ \\
+        forward KL                                & 0.958 & 0.937 & 0.935 & 0.871 & 0.790 & 0.669 & 0.547 \\
+        $\KL{+}\X_\mu$                             & $\mathbf{0.998}$ & 0.983 & 0.972 & 0.961 & 0.893 & 0.845 & 0.657 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.987 & 0.990 & 0.973 & 0.955 & 0.948 & 0.835 & 0.750 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.986 & $\mathbf{0.992}$ & $\mathbf{0.975}$ & $\mathbf{0.969}$ & $\mathbf{0.953}$ & $\mathbf{0.878}$ & $\mathbf{0.767}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS of each loss on the product multi-well target \eqref{eq: highd-potential} across dimension $d = 2^k$ (best per column in bold). All four losses reach full mode coverage at every $d$, so ESS is the discriminator. Forward KL degrades steadily with $d$ while the X-augmented losses stay high; the mixture is best or tied-best for every $d \Ge 4$, and its margin over bare forward KL grows from negligible at $d = 2$ to $+0.18$--$0.21$ at $d = 64, 128$.}
+    \caption{Final ESS of each loss on the product multi-well target \eqref{eq: highd-potential} across dimension $d = 2^k$ (best per column in bold). All four losses reach full mode coverage at every $d$, so ESS is the discriminator. Forward KL degrades steadily with $d$ while the X-augmented losses stay high; the mixture is best or tied-best for every $d \Ge 4$, and its margin over bare forward KL grows from negligible at $d = 2$ to $+0.21$--$0.22$ at $d = 64, 128$.}
     \label{tab: highd-ess}
 \end{table}
 
 \begin{figure}[h]
     \centering
     \includegraphics[width=0.6\textwidth]{../HD_Product/ESS_k7.png}
-    \caption{ESS trajectory across training steps on the product multi-well target at $d = 128$ ($2^7$ modes). Bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture $\X_{(\hat\mu+\bar\nu)/2}$ is both the highest and the steadiest, mirroring the Chessboard behaviour (Figure~\ref{fig: chessboard}) at $128$ dimensions. Faint lines are the raw per-step ESS; bold lines are a moving average.}
+    \caption{ESS trajectory across training steps on the product multi-well target at $d = 128$ ($2^7$ modes). Bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture $\X_{(\hat\mu+\bar\nu)/2}$ is both the highest and the steadiest, mirroring the Chessboard behaviour at $128$ dimensions. Faint lines are the raw per-step ESS; bold lines are a moving average.}
     \label{fig: highd-ess}
 \end{figure}
 
