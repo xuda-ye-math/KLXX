@@ -156,9 +156,18 @@ def run_k(k, steps, t_budget):
     d = P.dim(k)
     log(SWEEP, f"=== k={k} d={d} START  (steps={steps}) ===")
     data_path = HERE / f"data_k{k}.pth"
+    resume_runs = {}
     if data_path.exists():
-        log(SWEEP, f"k={k}: {data_path.name} exists, skipping")
-        return
+        try:
+            existing = torch.load(data_path, weights_only=False)
+            resume_runs = existing.get('runs', {})
+            if set(resume_runs.keys()) >= set(P.METHODS):
+                log(SWEEP, f"k={k}: {data_path.name} exists with all {len(P.METHODS)} methods, skipping")
+                return
+            log(SWEEP, f"k={k}: resuming from {data_path.name} ({len(resume_runs)} methods done: {sorted(resume_runs.keys())})")
+        except Exception as e:
+            log(SWEEP, f"k={k}: failed to load existing {data_path.name} ({e}); starting fresh")
+            resume_runs = {}
 
     u0 = Gaussian(mean=[0.0] * d, variance=[P.SIGMA ** 2] * d).to(device)
     u1 = MultiWell(k).to(device)
@@ -183,8 +192,11 @@ def run_k(k, steps, t_budget):
     # inverse is compute-bound, so cap the eval pool (20k -> ESS stable to ~1e-2).
     eval_n = min(P.n_valid(k), 20000)
 
-    runs = {}
+    runs = dict(resume_runs)
     for m in P.METHODS:
+        if m in runs:
+            log(SWEEP, f"k={k} d={d}  {m:<18} already done (resumed), skipping")
+            continue
         flow, ess_hist, wall, aborted = train_method(
             m, k, u0, u1, x_pool, hat_pool, steps, t_budget)
         ess, y = eval_flow(flow, u0, u1, k, eval_n)
@@ -203,16 +215,18 @@ def run_k(k, steps, t_budget):
         log(SWEEP, f"k={k} d={d}  {m:<18} final_ess={ess:.4f}  mode_cov={mcov:.3f}  "
                    f"knn_cov={kcov:.3f}  wall={wall:.1f}s"
                    + ("  [ABORTED]" if aborted else ""))
+        # incremental snapshot: save after every method so a kill-mid-run loses at most one method
+        torch.save({
+            'k': k, 'd': d, 'steps': steps,
+            'config': {kk: getattr(P, kk) for kk in
+                       ('SIGMA', 'NSF_LIM', 'BATCH', 'LR', 'LAMBDA', 'ALPHA', 'BETA',
+                        'IS_MC_STEP', 'IS_MC_ITERS', 'QT_SIGMA')},
+            'arch': {'bins': P.bins(k), 'transforms': P.transforms(k), 'hidden': P.hidden(k)},
+            'qt_mode_coverage': cov_qt,
+            'runs': runs,
+        }, data_path)
+        log(SWEEP, f"k={k} d={d}  snapshot saved ({len(runs)} methods) -> {data_path.name}")
 
-    torch.save({
-        'k': k, 'd': d, 'steps': steps,
-        'config': {kk: getattr(P, kk) for kk in
-                   ('SIGMA', 'NSF_LIM', 'BATCH', 'LR', 'LAMBDA', 'ALPHA', 'BETA',
-                    'IS_MC_STEP', 'IS_MC_ITERS', 'QT_SIGMA')},
-        'arch': {'bins': P.bins(k), 'transforms': P.transforms(k), 'hidden': P.hidden(k)},
-        'qt_mode_coverage': cov_qt,
-        'runs': runs,
-    }, data_path)
     log(SWEEP, f"=== k={k} d={d} DONE -> {data_path.name} ===")
 
 

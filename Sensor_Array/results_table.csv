@@ -1,0 +1,5 @@
+loss,ESS,modes_found,nmodes,knn_coverage,occ_0,occ_1,occ_2,occ_3,occ_4,occ_5
+forward KL,0.904,2,6,0.128,0.0,0.4957,0.0,0.5042,0.0,0.0
+forward KL + X_mu,0.979,1,6,0.062,0.0,0.0,0.9996,0.0,0.0003,0.0
+forward KL + X_mu + X_hat_mu,0.913,6,6,0.293,0.1678,0.1741,0.158,0.1715,0.1594,0.1691
+forward KL + X_mu + X_(hat_mu+bar_nu)/2,0.934,6,6,0.307,0.1675,0.1678,0.1676,0.16,0.1641,0.1731

@@ -583,46 +583,26 @@ Across the six targets two regimes emerge. On the mode-discovery targets (Threew
 
 The mixture loss $\mathcal L = \KL(\mu \| \nu) + \X_\mu(\mu\|\nu) + \X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)$ with $\lambda = 1$ and $\alpha = \beta = 1/2$ is the recommended default. It absorbs the mode-discovery role of $\X_{\hat\mu}$ while suppressing the off-support leakage that $\X_{\hat\mu}$ alone can introduce when the target has holes interleaved with its modes.
 
-\subsection{Bayesian inverse problem on a Fourier function space}
-\label{subsec: fourier}
+\subsection{Bayesian inverse problem: sensor-array source localization}
+\label{subsec: sensor}
 
-Our next benchmark tackles a small Bayesian inverse problem in function space: a smooth scalar field on the 2-torus is parameterised by a handful of Fourier coefficients, and from a few noisy non-linear measurements of the field on a coarse grid we want to recover the coefficients. The example is deliberately low-dimensional ($d = 9$), so that the posterior's mode structure can be enumerated and verified by hand; the non-linear observation operator is chosen so that the fake-ESS pitfall arises in a genuine Bayesian inverse problem rather than a hand-built mixture.
-
-\paragraph{Field and basis.} The unknown is a real scalar field $u(\cdot\,;\theta) : [0,1]^2 \to \mathbb R$ on the 2-torus, expanded on its 9 lowest Fourier basis functions,
+Our next benchmark is a physical Bayesian inverse problem where the multimodality comes from a symmetry of the measurement, not from a hand-built mixture. The setting is source localization, a standard problem in acoustics and signal processing: a line of fixed sensors records the combined signal of several identical point sources, and we infer the source positions from the noisy readings. The unknown is the vector of source positions $\theta = (\theta_1, \dots, \theta_n) \in \mathbb R^n$ for $n = 3$ sources. A source at $\theta_i$ leaves a Gaussian bump of width $\ell = 0.8$ at each sensor and the sensors read the sum, so with $J = 25$ sensors at fixed positions $s_1, \dots, s_J$ equispaced on $[-6, 6]$ the reading at sensor $j$ is
 \begin{equation*}
-    u(x;\theta) = \sum_{m=1}^{9} \theta_m\,\varphi_m(x), \qquad \theta \in \mathbb R^9.
+    g_j(\theta) \;=\; \sum_{i=1}^{n} \exp\!\Bigl( -\frac{(s_j - \theta_i)^2}{2\ell^2} \Bigr).
 \end{equation*}
-We take $\{\varphi_m\}_{m=1}^{9}$ to be the cosine and sine modes with frequency-squared $|k|^2 \le 2$ on the half-plane convention: $\varphi_1 \equiv 1$ (the constant mode), $\varphi_2, \varphi_3 = \cos, \sin\bigl(2\pi x_2\bigr)$, $\varphi_4, \varphi_5 = \cos, \sin\bigl(2\pi(x_1{-}x_2)\bigr)$, $\varphi_6, \varphi_7 = \cos, \sin\bigl(2\pi x_1\bigr)$, $\varphi_8, \varphi_9 = \cos, \sin\bigl(2\pi(x_1{+}x_2)\bigr)$. The basis is orthogonal in $L^2([0,1]^2)$, with $\|\varphi_1\|_{L^2} = 1$ and $\|\varphi_m\|_{L^2} = 1/\sqrt 2$ for $m \ge 2$.
-
-\paragraph{Observations: noisy squared partial fields.} We split the nine coordinates into two contiguous groups $\mathcal G_1 = \{1,\dots,5\}$ and $\mathcal G_2 = \{6,\dots,9\}$ and look at each group's partial field,
+The data are these readings at the true positions $\theta^\star = (5, 0, -5)$ with i.i.d.\ Gaussian noise,
 \begin{equation*}
-    v_g(x;\theta) = \sum_{m\in\mathcal G_g} \theta_m\,\varphi_m(x), \qquad g \in \{1, 2\}.
+    y_j \;=\; g_j(\theta^\star) + \varepsilon_j, \qquad \varepsilon_j \sim \mathcal N(0, \sigma_{\mathrm{obs}}^2), \quad \sigma_{\mathrm{obs}} = 0.3,
 \end{equation*}
-The data are the per-group squared partial fields, observed on a cell-centred $3\times 3$ grid $\{x_j\}_{j=1}^{9}\subset[0,1]^2$ and corrupted by i.i.d.\ Gaussian noise of variance $4$ (clipped to be non-negative, so $y\ge 0$ is well defined as a squared norm):
-\begin{equation*}
-    y_{g,j} = \max\!\bigl(\, v_g(x_j;\theta^\star)^2 + \varepsilon_{g,j},\; 0\,\bigr), \qquad \varepsilon_{g,j} \sim \mathcal N(0, 4),
-\end{equation*}
-for $g\in\{1,2\}$ and $j = 1,\dots,9$. Squaring the partial field makes the observation operator invariant under sign-flipping any group's coordinates, which is the symmetry we exploit below.
-
-\paragraph{Prior and ground truth.} The prior is a centred Gaussian smoothness prior on the coefficients, with per-mode variance shrinking with the squared frequency,
-\begin{equation*}
-    \mu_0 = \mathcal N(0,\Sigma_0), \qquad (\Sigma_0)_{mm} = \frac{2}{1 + |k_m|^2}.
-\end{equation*}
-The ground truth $\theta^\star$ is a single draw from $\mathcal N(0, 6.25\,\Sigma_0)$ -- i.e.\ at $2.5$ prior standard deviations along a random direction -- drawn once with a fixed seed and frozen across all four methods. The data $\{y_{g,j}\}$ are generated at that $\theta^\star$ and held fixed.
-
-\paragraph{Target.} The negative log-posterior, up to an additive constant, combines the Gaussian prior with the four-quadratic data fit,
+fixed across all runs. The prior on the positions is a centred isotropic Gaussian $\mu_0 = \mathcal N(0, \sigma_{\mathrm{prior}}^2 I_n)$ with $\sigma_{\mathrm{prior}} = 1.6$, which is also the flow's source, and the negative log-posterior is the prior plus the data fit,
 \begin{equation}
-    U(\theta) \;=\; \tfrac12\,\theta^{\top} \Sigma_0^{-1} \theta
-     \;+\; \tfrac{1}{8}\!\sum_{g=1}^{2}\sum_{j=1}^{9}\bigl( v_g(x_j;\theta)^2 - y_{g,j} \bigr)^{2}.
-    \label{eq: fourier-potential}
+    U(\theta) \;=\; \frac{1}{2\sigma_{\mathrm{obs}}^2} \sum_{j=1}^{J} \bigl( g_j(\theta) - y_j \bigr)^2 \;+\; \frac{1}{2\sigma_{\mathrm{prior}}^2}\,\|\theta\|^2 .
+    \label{eq: sensor-potential}
 \end{equation}
-(The $1/8$ is $1/(2\sigma_{\mathrm{obs}}^2)$ for $\sigma_{\mathrm{obs}}^2 = 4$.)
 
-\paragraph{Posterior structure: a Klein four-group of equal modes.} Since the observation operator only sees the squared partial fields, the likelihood -- and hence $U$ -- is exactly invariant under each per-group sign flip $\theta\mapsto S_g\theta$ (negating all coordinates in group $g$). The two sign flips commute and generate a Klein four-group acting freely on a generic $\theta^\star$, so the posterior has exactly $4$ degenerate, well-separated modes (radius $\approx 6.3$, pairwise separation $\approx 5.4$ on our seed; degeneracy $U \equiv 28.66$ verified to machine precision). The centred Gaussian source sits on their common symmetry saddle at $\theta = 0$. The four mode centres are several prior-standard-deviations from any point with significant prior mass, and the curved high-$U$ barriers between adjacent sign-flip basins are rarely crossed by the short Langevin rejuvenation step that the AIS surrogate can afford -- so a flow trained by bare forward KL is starved of $\mu$-samples outside whichever basin its pushforward first happens to reach, and collapses there.
+Because the sources are identical, $g_j$ is a sum over them and is unchanged by any permutation of the coordinates, $g_j(\theta_{\pi(1)}, \dots, \theta_{\pi(n)}) = g_j(\theta)$ for $\pi \in S_3$; the prior is permutation-invariant too, so $U(\pi\cdot\theta) = U(\theta)$. The posterior therefore has exactly $3! = 6$ equal, well-separated modes -- the permutations of $\theta^\star$ -- and the centred prior sits on their common symmetry point at the origin, about $4.4$ prior standard deviations from every mode ($\|\theta^\star\| = 7.07$). The prior tail reaches none of them, so a flow trained by bare forward KL only sees the one or two modes its pushforward first lands on and collapses there. We use the same flow, training, and diagnostics as Section~\ref{subsec: 2d-benchmark}.
 
-\paragraph{Flow and training.} A neural spline flow on $[-12,+12]^9$ with $6$ coupling transforms, $16$ knot bins, and hidden widths $(128, 128)$. Training uses Adam at learning rate $10^{-3}$, batch size $500$, and $2000$ steps; the AIS surrogate is the one-step ($M=1$) resample-plus-Langevin pass of Section~\ref{subsec: 2d-benchmark}, and $\hat\mu$ is built once before training by quench and temper (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per training step. Mode coverage is measured by assigning each pushforward sample to the nearest of the four known sign-flip mode centres, with a mode counted as found when it holds at least $5\%$ of the pushforward mass; this is paired with the $k=5$ Naeem coverage against the QT pool.
-
-\paragraph{Results.} Table~\ref{tab: fourier-result} reports the four-method comparison. Bare forward KL attains a fresh-pool ESS of $0.926$ while placing essentially all of its pushforward mass on a single one of the four equal-weight modes; adding $\X_\mu$ does not improve coverage and reduces the ESS to $0.859$, the pushforward landing in a different single basin. The QT-driven $\X_{\hat\mu}$ and the mixture reach $4/4$ coverage with per-mode occupancies within $\pm 1\%$ of the uniform $1/4$ share and $k=5$ Naeem coverage close to $1$, at fresh-pool ESS $\approx 0.89$.
+Table~\ref{tab: sensor-result} and Figure~\ref{fig: sensor} report the comparison. Bare forward KL covers only $2$ of the $6$ modes at ESS $0.90$, and adding $\X_\mu$ posts the highest ESS of the four, $0.98$, while collapsing onto a single mode -- the ESS improves exactly as coverage gets worse. The QT-driven $\X_{\hat\mu}$ and the mixture both recover all $6$ modes, with mass split evenly, at ESS $0.91$ and $0.93$.
 
 \begin{table}[h]
     \centering
@@ -630,17 +610,25 @@ The ground truth $\theta^\star$ is a single draw from $\mathcal N(0, 6.25\,\Sigm
         \toprule
         loss & fresh-pool ESS & modes discovered & $k{=}5$ coverage \\
         \midrule
-        forward KL                                & 0.926 & 1 & 0.282 \\
-        $\KL{+}\X_\mu$                             & 0.859 & 1 & 0.258 \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.890 & $\mathbf{4}$ & $\mathbf{1.000}$ \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.886 & $\mathbf{4}$ & $\mathbf{0.995}$ \\
+        forward KL                                & 0.904 & 2 & 0.128 \\
+        $\KL{+}\X_\mu$                             & $\mathbf{0.979}$ & 1 & 0.062 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.913 & $\mathbf{6}$ & 0.293 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.934 & $\mathbf{6}$ & $\mathbf{0.307}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Bayesian Fourier benchmark \eqref{eq: fourier-potential} with $d = 9$ and four sign-flip posterior modes. Bare forward KL and $\KL{+}\X_\mu$ post fake-high ESS while covering only one of the four equal-mass modes; the QT-driven $\X_{\hat\mu}$ and mixture variants restore full $4$-mode coverage at small ESS cost.}
-    \label{tab: fourier-result}
+    \caption{Sensor-array source-localization benchmark \eqref{eq: sensor-potential} with $d = 3$ and $3! = 6$ permutation posterior modes. Bare forward KL and $\KL{+}\X_\mu$ post fake-high ESS (the highest, $0.98$, for $\X_\mu$) while covering only $1$--$2$ of the six equal-mass modes; the QT-driven $\X_{\hat\mu}$ and mixture variants restore full $6$-mode coverage. Coverage is modes-found out of $6$; $k = 5$ coverage is the Naeem score against the QT pool.}
+    \label{tab: sensor-result}
 \end{table}
 
-Two caveats. First, this benchmark is intentionally low-dimensional: the four sign-flip mode centers were chosen so that the equilibrium structure can be enumerated and verified by hand, and the result is not a high-dimensional demonstration. Second, the reported numbers come from a single training seed, and which single mode each $1/4$-coverage method collapses to is RNG-path determined rather than a property of the loss.
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{../Sensor_Array/samples.png} \\[0.4em]
+    \includegraphics[width=\textwidth]{../Sensor_Array/resample.png}
+    \caption{Sensor-array posterior, pushforward positions projected onto $(\theta_1, \theta_2)$. Row 1: raw pushforward $y = G^{-1}(x)$; Row 2: $\mathrm{resample}(y, w)$ with Langevin rejuvenation. Columns left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Light-gray circles mark the six permutation mode centres (the permutations of $\theta^\star$); each title reports the final ESS and the modes found out of six. Forward KL and $\KL{+}\X_\mu$ collapse onto $1$--$2$ modes at high ESS, while $\X_{\hat\mu}$ and the mixture fill all six.}
+    \label{fig: sensor}
+\end{figure}
+
+This benchmark is intentionally low-dimensional, and the numbers come from a single training seed; which modes a collapsed method happens to keep is set by the random path, not by the loss.
 
 \subsection{High-dimensional product multi-well}
 \label{subsec: highd}
@@ -654,21 +642,21 @@ a double well in each of the first $k$ coordinates (minima at $\pm\sqrt{\ln 24} 
 
 The flow is a neural spline flow on $[-4, 4]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$. Training uses Adam at learning rate $10^{-3}$ with batch size $200$ -- forward KL is highly sensitive to the batch size, so a small batch sharpens the contrast between the losses -- drawn from a source pool of $10^4 \cdot 2^k$ samples; the number of steps decreases with $d$ from $3000$ ($d \Le 4$) to $1200$ ($d \Ge 64$). The $\mu$-surrogate is the same one-step importance-resampling pass followed by $50$ Langevin steps used in the 2D experiments, and $\hat\mu$ is built once by QT from $100 \cdot 2^k$ samples. The four losses are exactly those of Section~\ref{subsec: 2d-benchmark}, with $\lambda = 1$ and $\alpha = \beta = 1/2$.
 
-Table~\ref{tab: highd-ess} reports the final ESS of each loss across the seven dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.997$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Two trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.96$ at $d = 2$ to $0.55$ at $d = 128$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.21$--$0.22$ at $d = 64$ and $128$. The mixture $\X_{(\hat\mu+\bar\nu)/2}$ attains the best (or tied-best) ESS at every $d \Ge 4$, and at the highest dimensions the wide-coverage $\X_{\hat\mu}$ and the mixture pull clearly ahead of $\X_\mu$ alone. Figure~\ref{fig: highd-ess} shows the ESS trajectories at $d = 128$: bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture is both the highest and the steadiest -- the same ordering observed on Chessboard, now in $128$ dimensions.
+Table~\ref{tab: highd-ess} reports the final ESS of each loss across the eight dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.94$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Three trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.96$ at $d = 2$ to $0.38$ at $d = 256$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.21$--$0.22$ at $d = 64$ and $128$, and $+0.18$ at $d = 256$ where the wide-coverage $\X_{\hat\mu}$ becomes the best loss. Third, the QT-driven losses ($\X_{\hat\mu}$ and the mixture) overtake $\X_\mu$ alone at high dimension: $\X_\mu$ tracks the mixture closely through $d = 64$ but falls back to the bare-KL level by $d = 256$ ($0.33$ vs $0.38$), while $\X_{\hat\mu}$ and the mixture hold their lead because the QT pool keeps the flow anchored on the wells even as the log-weight variance grows. Figure~\ref{fig: highd-ess} shows the ESS trajectories at $d = 128$: bare forward KL settles lowest and stays the noisiest, while the X-augmented variants climb higher and the mixture is both the highest and the steadiest -- the same ordering observed on Chessboard, now in $128$ dimensions.
 
 \begin{table}[h]
     \centering
-    \begin{tabular}{@{}lccccccc@{}}
+    \begin{tabular}{@{}lcccccccc@{}}
         \toprule
-        loss $\backslash$ $d$ & 2 & 4 & 8 & 16 & 32 & 64 & 128 \\
+        loss $\backslash$ $d$ & 2 & 4 & 8 & 16 & 32 & 64 & 128 & 256 \\
         \midrule
-        forward KL                                & 0.958 & 0.937 & 0.935 & 0.871 & 0.790 & 0.669 & 0.547 \\
-        $\KL{+}\X_\mu$                             & $\mathbf{0.998}$ & 0.983 & 0.972 & 0.961 & 0.893 & 0.845 & 0.657 \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.987 & 0.990 & 0.973 & 0.955 & 0.948 & 0.835 & 0.750 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.986 & $\mathbf{0.992}$ & $\mathbf{0.975}$ & $\mathbf{0.969}$ & $\mathbf{0.953}$ & $\mathbf{0.878}$ & $\mathbf{0.767}$ \\
+        forward KL                                & 0.958 & 0.937 & 0.935 & 0.871 & 0.790 & 0.669 & 0.547 & 0.384 \\
+        $\KL{+}\X_\mu$                             & $\mathbf{0.998}$ & 0.983 & 0.972 & 0.961 & 0.893 & 0.845 & 0.657 & 0.333 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.987 & 0.990 & 0.973 & 0.955 & 0.948 & 0.835 & 0.750 & $\mathbf{0.565}$ \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.986 & $\mathbf{0.992}$ & $\mathbf{0.975}$ & $\mathbf{0.969}$ & $\mathbf{0.953}$ & $\mathbf{0.878}$ & $\mathbf{0.767}$ & 0.543 \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS of each loss on the product multi-well target \eqref{eq: highd-potential} across dimension $d = 2^k$ (best per column in bold). All four losses reach full mode coverage at every $d$, so ESS is the discriminator. Forward KL degrades steadily with $d$ while the X-augmented losses stay high; the mixture is best or tied-best for every $d \Ge 4$, and its margin over bare forward KL grows from negligible at $d = 2$ to $+0.21$--$0.22$ at $d = 64, 128$.}
+    \caption{Final ESS of each loss on the product multi-well target \eqref{eq: highd-potential} across dimension $d = 2^k$, $k = 1,\dots,8$ (best per column in bold). All four losses reach full mode coverage at every $d$, so ESS is the discriminator. Forward KL degrades steadily with $d$; the QT-driven losses ($\X_{\hat\mu}$ and the mixture) are best or tied-best for every $d \Ge 4$. The mixture leads from $d = 4$ to $d = 128$, with a margin of $+0.21$--$0.22$ over bare forward KL at $d = 64, 128$; at $d = 256$ the wide-coverage $\X_{\hat\mu}$ alone takes the lead by $+0.18$ over bare KL, while $\X_\mu$ alone falls back to the bare-KL level.}
     \label{tab: highd-ess}
 \end{table}
 
