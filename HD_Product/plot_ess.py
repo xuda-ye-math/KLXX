@@ -1,4 +1,4 @@
-"""ESS-trajectory figure for one k (default k=7, d=128), styled like the paper's
+"""ESS-trajectory figure for one k (default k=8, d=256), styled like the paper's
 Figure 3 (2D_Chessboard/ESS.png): the four losses' training-ESS curves overlaid.
 Raw per-step ESS (faint) plus a moving average (bold) for readability."""
 import sys
@@ -30,7 +30,7 @@ def moving_average(a, w):
     return np.convolve(a, np.ones(w) / w, mode='valid')
 
 
-def main(k=7):
+def main(k=8):
     data = torch.load(HERE / f'data_k{k}.pth', weights_only=False)
     d = data['d']
     steps = data['steps']
@@ -47,9 +47,9 @@ def main(k=7):
     ax.set_xlabel('step')
     ax.set_ylabel('ESS')
     ax.set_xlim(0, steps)
-    ax.set_ylim(0, 0.9)
+    ax.set_ylim(0, 0.6)
     ax.set_title(f'$d = {d}$')
-    ax.legend(loc='lower right', fontsize=8)
+    ax.legend(loc='upper left', fontsize=8)
     plt.tight_layout()
     out = HERE / f'ESS_k{k}.png'
     plt.savefig(out, dpi=400)
@@ -60,4 +60,4 @@ def main(k=7):
 
 
 if __name__ == '__main__':
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 7)
+    main(int(sys.argv[1]) if len(sys.argv) > 1 else 8)
