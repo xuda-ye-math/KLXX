@@ -371,10 +371,10 @@ Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples f
 \end{equation}
 followed by a resampling step and a short Langevin simulation to diffuse the duplicates. In high dimensions, however, $\mu$ and $\nu$ typically differ greatly, so the weights $w(y_i)$ collapse onto a few outliers and the resulting samples are of very low quality. Annealed importance sampling (AIS) bridges this gap by inserting $M+1$ intermediate distributions
 \begin{equation}
-    \pi_k = \nu^{1-\frac{k}{M}} (\mu)^{\frac{k}{M}} = \nu \cdot w(y)^{\frac{k}{M}}, \qquad k = 0,1,\dots,M,
+    \pi_k(y) = \nu^{1-\frac{k}{M}} \mu^{\frac{k}{M}} = \nu(y) \cdot w(y)^{\frac{k}{M}}, \qquad k = 0,1,\dots,M,
     \label{eq: pi-k}
 \end{equation}
-so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each rung of the ladder reweights by only $w(y)^{\frac{1}{M}}$, keeping the weight ratio close to $1$ and avoiding the degeneracy of direct importance sampling:
+so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each rung of the ladder reweights by only $w(y)^{\frac{1}{M}}$, keeping the weight ratio close to $1$ and avoiding the degeneracy of direct importance sampling: 
 
 \begin{algorithm}[H]
 \setstretch{1.2}
@@ -389,6 +389,8 @@ so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each rung of the ladder reweights by on
     Apply a short Langevin simulation to $y_1',\dots,y_B'$, returning fresh samples $y_1,\dots,y_B \sim \pi_k$\;
 }
 \end{algorithm}
+\mbox{} \\
+The Langevin step nominally targets the intermediate distribution $\pi_k$, and so requires its score $\nabla_y \log \pi_k(y)$. Through the pushforward density $\nu(y) = \mu_0(G(y))\,\lvert\det J_G(y)\rvert$, this score carries the term $\nabla_y \log\lvert\det J_G(y)\rvert$, whose evaluation needs the Jacobian $J_G(y)$ itself -- not merely its determinant, which the flow already provides -- and is therefore expensive for a deep map. In practice we instead diffuse the resampled particles directly under the target $\mu$, whose score $\nabla_y \log\mu(y) = -\nabla U(y)$ is cheap. Since the per-rung reweighting already follows the geometric path \eqref{eq: pi-k} and $\mu$ is the ultimate target, this substitution introduces no essential bias: the Langevin kernel serves only to decorrelate the duplicates left by resampling.
 
 \begin{remark}[Choosing the ladder length $M$]
 \label{rem: ladder-length}
@@ -642,7 +644,9 @@ a double well in each of the first $k$ coordinates (minima at $\pm\sqrt{\ln 24} 
 
 The flow is a neural spline flow on $[-4, 4]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$. Training uses Adam at learning rate $10^{-3}$ with batch size $200$ -- forward KL is highly sensitive to the batch size, so a small batch sharpens the contrast between the losses -- drawn from a source pool of $10^4 \cdot 2^k$ samples; the number of steps decreases with $d$ from $3000$ ($d \Le 4$) to $1200$ ($d \Ge 64$). The $\mu$-surrogate is the same one-step importance-resampling pass followed by $50$ Langevin steps used in the 2D experiments, and $\hat\mu$ is built once by QT from $100 \cdot 2^k$ samples. The four losses are exactly those of Section~\ref{subsec: 2d-benchmark}, with $\lambda = 1$ and $\alpha = \beta = 1/2$.
 
-Table~\ref{tab: highd-ess} reports the final ESS of each loss across the eight dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.94$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Three trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.96$ at $d = 2$ to $0.38$ at $d = 256$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.21$--$0.22$ at $d = 64$ and $128$, and $+0.18$ at $d = 256$ where the wide-coverage $\X_{\hat\mu}$ becomes the best loss. Third, the QT-driven losses ($\X_{\hat\mu}$ and the mixture) overtake $\X_\mu$ alone at high dimension: $\X_\mu$ tracks the mixture closely through $d = 64$ but falls back to the bare-KL level by $d = 256$ ($0.33$ vs $0.38$), for the first-stage convergence reason traced out on the trajectories below, while $\X_{\hat\mu}$ and the mixture hold their lead because the QT pool keeps the flow anchored on the wells even as the log-weight variance grows. Figure~\ref{fig: highd-ess} shows the ESS trajectories at $d = 256$, where a first-stage convergence trade-off becomes visible. Although $\X_\mu$ alone improves the asymptotic accuracy in principle, it reweights samples from the live one-step IS surrogate, whose pushforward is still poorly formed early in training; this slows its convergence in the first stage, where $\X_\mu$ is the last to leave the floor and ultimately settles lowest. Introducing $\X_{\hat\mu}$, which draws from the \emph{fixed} QT pool $\hat\mu$ rather than the evolving surrogate, anchors the flow on the wells from the first step and restores early-stage stability: the $\X_{\hat\mu}$ and mixture curves rise earliest, climb highest, and stay the steadiest.
+Table~\ref{tab: highd-ess} reports the final ESS of each loss across the eight dimensions. Unlike the 2D mode-discovery targets, here the flow reaches all $2^k$ modes for every loss -- each mode is filled to within a few percent of its uniform $2^{-k}$ share, and the $k = 5$ coverage against $\hat\mu$ stays $\Ge 0.94$ throughout -- so this is the calibration regime of Annulus, Python, and Chessboard rather than the fake-ESS regime, and ESS is the sole discriminator. Three trends are clear. First, the bare forward KL degrades monotonically with dimension, from $0.96$ at $d = 2$ to $0.38$ at $d = 256$, as the log-weight variance accumulates one double well at a time. Second, the X regularizers counteract this and the gap widens with dimension: negligible at $d = 2$, it reaches $+0.21$--$0.22$ at $d = 64$ and $128$, and $+0.18$ at $d = 256$ where the wide-coverage $\X_{\hat\mu}$ becomes the best loss. Third, the QT-driven losses ($\X_{\hat\mu}$ and the mixture) overtake $\X_\mu$ alone at high dimension: $\X_\mu$ tracks the mixture closely through $d = 64$ but falls back to the bare-KL level by $d = 256$ ($0.33$ vs $0.38$), because it reweights the live one-step IS surrogate whose pushforward is poorly formed early in training, while $\X_{\hat\mu}$ and the mixture hold their lead because the fixed QT pool keeps the flow anchored on the wells even as the log-weight variance grows.
+
+Although the nominal dimension is $d = 256$, the \emph{essential} dimension of this target is only $8$: the potential \eqref{eq: highd-potential} is a double well in the first $k = 8$ coordinates and a standard Gaussian in the remaining $248$, so all the multimodality lives in an $8$-dimensional subspace. Figure~\ref{fig: highd-ladder} sweeps the annealed-importance-sampling ladder length $M \in \{1, 2, 4, 8\}$ that builds the $\mu$-surrogate for the mixture loss at $d = 256$. Increasing $M$ accelerates convergence in the first training stage -- a longer ladder leaves the floor sooner -- but does not affect the long-time limit: the ESS curves differ only in the first stage and settle at a comparable value. The ladder length is therefore a first-stage accelerator rather than a determinant of the final flow quality.
 
 \begin{table}[h]
     \centering
@@ -662,9 +666,9 @@ Table~\ref{tab: highd-ess} reports the final ESS of each loss across the eight d
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.6\textwidth]{../HD_Product/ESS_k8.png}
-    \caption{ESS trajectory across training steps on the product multi-well target at $d = 256$ ($2^8$ modes). The QT-driven $\X_{\hat\mu}$ and mixture $\X_{(\hat\mu+\bar\nu)/2}$ climb highest and stay the steadiest, while $\X_\mu$ alone is the slowest to converge in the first stage and settles lowest -- the fixed QT pool behind $\X_{\hat\mu}$ stabilizes the early training that the live $\X_\mu$ surrogate cannot. Faint lines are the raw per-step ESS; bold lines are a moving average.}
-    \label{fig: highd-ess}
+    \includegraphics[width=0.5\textwidth]{../HD_Product_Ladder/ESS_ladder.png}
+    \caption{ESS trajectory across training steps for the mixture loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ on the product multi-well at $d = 256$, as the annealed-importance-sampling ladder length $M$ that builds the $\mu$-surrogate is varied over $\{1, 2, 4, 8\}$. A longer ladder $M$ accelerates the first-stage convergence -- the $M = 1$ one-step surrogate is slowest to leave the floor -- but does not change the long-time limit: the curves differ only early and settle at a comparable ESS. Faint lines are the raw per-step ESS; bold lines are a moving average.}
+    \label{fig: highd-ladder}
 \end{figure}
 
 
