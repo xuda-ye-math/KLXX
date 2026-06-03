@@ -43,7 +43,7 @@ def main(mlist=None):
     ax.set_xlabel('step')
     ax.set_ylabel('ESS')
     ax.set_xlim(0, steps)
-    ax.set_ylim(0, None)
+    ax.set_ylim(0, 0.6)
     ax.set_title(rf'ESS with AIS ladder length $M$ ($d={d}$)')
     ax.legend(loc='upper left', fontsize=8)
     plt.tight_layout()
