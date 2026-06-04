@@ -14,6 +14,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    'font.size': 9, 'axes.labelsize': 10, 'axes.titlesize': 10,
+    'legend.fontsize': 8, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+    'mathtext.fontset': 'cm', 'font.family': 'serif',
+})
+
 HERE = Path(__file__).resolve().parent
 COLORS = {'balance': 'tab:blue', 'kl': 'tab:orange'}
 
@@ -56,7 +62,7 @@ def main(L: int):
     np.atleast_1d(axes)[-1].set_xlabel('gradient step (stages concatenated)')
     fig.suptitle(f'training ESS history, L={L} (balance vs kl)', fontsize=10)
     plt.tight_layout()
-    plt.savefig(figdir / f'cmp_ess_steps_L{L}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'cmp_ess_steps_L{L}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
 
     # ---- sector occupancy side by side ----
     x = np.arange(P); w = 0.8 / len(runs)
@@ -71,7 +77,7 @@ def main(L: int):
     ax.set_title(f'sector occupancy, $P={P}$, L={L}')
     ax.legend(fontsize=8)
     plt.tight_layout()
-    plt.savefig(figdir / f'cmp_sectors_L{L}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'cmp_sectors_L{L}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
 
     # ---- ladder + validation ESS overlay ----
     fig, axs = plt.subplots(1, 2, figsize=(8, 3))
@@ -90,7 +96,7 @@ def main(L: int):
     axs[1].set_title('acceptance gate (floor 0.3)'); axs[1].set_ylim(0, 1.05)
     axs[1].legend(fontsize=8)
     plt.tight_layout()
-    plt.savefig(figdir / f'cmp_ladder_L{L}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'cmp_ladder_L{L}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
     print(f'figures written to {figdir}/cmp_(ess_steps|sectors|ladder)_L{L}.png')
 
 

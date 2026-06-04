@@ -13,6 +13,12 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    'font.size': 10, 'axes.labelsize': 11, 'axes.titlesize': 11,
+    'legend.fontsize': 9, 'xtick.labelsize': 9, 'ytick.labelsize': 9,
+    'mathtext.fontset': 'cm', 'font.family': 'serif',
+})
+
 from zflows.flow import NSF
 from zflows.potential import Gaussian
 from zflows.utils import importance_weights, resample, langevin
@@ -85,7 +91,7 @@ def main():
     ax.legend(loc='lower right', fontsize=8)
     plt.tight_layout()
     out1 = HERE / 'ESS.png'
-    plt.savefig(out1, dpi=400)
+    plt.savefig(out1, dpi=400, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out1}")
 
@@ -107,7 +113,7 @@ def main():
     axes[0].set_ylabel(r'$\theta_2$')
     plt.tight_layout()
     out2 = HERE / 'samples.png'
-    plt.savefig(out2, dpi=400)
+    plt.savefig(out2, dpi=400, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out2}")
 
@@ -134,7 +140,7 @@ def main():
     axes[0].set_ylabel(r'$\theta_2$')
     plt.tight_layout()
     out3 = HERE / 'resample.png'
-    plt.savefig(out3, dpi=400)
+    plt.savefig(out3, dpi=400, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out3}")
 

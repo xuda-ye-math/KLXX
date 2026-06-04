@@ -11,6 +11,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+plt.rcParams.update({
+    'font.size': 9, 'axes.labelsize': 10, 'axes.titlesize': 10,
+    'legend.fontsize': 8, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+    'mathtext.fontset': 'cm', 'font.family': 'serif',
+})
+
 HERE = Path(__file__).resolve().parent
 
 
@@ -34,7 +40,7 @@ def main(tag: str):
     ax[1].set_xlabel('stage $k$'); ax[1].set_ylabel('validation ESS')
     ax[1].set_title('acceptance gate (floor 0.3)'); ax[1].set_ylim(0, 1.05)
     plt.tight_layout()
-    plt.savefig(figdir / f'ladder_{tag}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'ladder_{tag}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
 
     # ---- sector occupancy ----
     cp = np.asarray(d['counts_push'], dtype=float)
@@ -48,7 +54,7 @@ def main(tag: str):
     ax.set_title(f'sector occupancy, $P={P}$ ({tag})')
     ax.legend(fontsize=8)
     plt.tight_layout()
-    plt.savefig(figdir / f'sectors_{tag}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'sectors_{tag}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
 
     # ---- per-step training ESS across stages (full recorded history) ----
     fig, ax = plt.subplots(figsize=(6, 3))
@@ -65,7 +71,7 @@ def main(tag: str):
     ax.set_title(f'training ESS history ({tag})')
     ax.legend(fontsize=7)
     plt.tight_layout()
-    plt.savefig(figdir / f'ess_steps_{tag}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'ess_steps_{tag}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
 
     # ---- magnetization scatter ----
     y = d['samples_push'][:5000]
@@ -81,7 +87,7 @@ def main(tag: str):
     ax.set_xlabel(r'$\mathrm{Re}\,m$'); ax.set_ylabel(r'$\mathrm{Im}\,m$')
     ax.set_title(f'magnetization ({tag})')
     plt.tight_layout()
-    plt.savefig(figdir / f'magnetization_{tag}.png', dpi=300); plt.close(fig)
+    plt.savefig(figdir / f'magnetization_{tag}.png', dpi=300, bbox_inches='tight'); plt.close(fig)
     print(f"figures written to {figdir}/(ladder|sectors|magnetization)_{tag}.png")
 
 

@@ -1,6 +1,12 @@
 from pathlib import Path
 import torch
 import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    'font.size': 10, 'axes.labelsize': 11, 'axes.titlesize': 11,
+    'legend.fontsize': 9, 'xtick.labelsize': 9, 'ytick.labelsize': 9,
+    'mathtext.fontset': 'cm', 'font.family': 'serif',
+})
 from matplotlib.colors import LinearSegmentedColormap
 
 from zflows.flow import NSF
@@ -115,7 +121,7 @@ ax_ess.set_ylim(0, 1)
 ax_ess.legend(loc='lower right')
 plt.tight_layout()
 ess_path = HERE / 'ESS.png'
-plt.savefig(ess_path, dpi=400)
+plt.savefig(ess_path, dpi=400, bbox_inches='tight')
 plt.close(fig_ess)
 print(f"Saved {ess_path}")
 
@@ -141,6 +147,6 @@ for key, suffix, stage_label in STAGES:
         ax.set_title(title)
     plt.tight_layout()
     out_path = HERE / f"{suffix}.png"
-    plt.savefig(out_path, dpi=400)
+    plt.savefig(out_path, dpi=400, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out_path}")

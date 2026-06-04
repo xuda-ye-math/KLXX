@@ -6,6 +6,12 @@ from pathlib import Path
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+
+plt.rcParams.update({
+    'font.size': 9, 'axes.labelsize': 10, 'axes.titlesize': 10,
+    'legend.fontsize': 8, 'xtick.labelsize': 8, 'ytick.labelsize': 8,
+    'mathtext.fontset': 'cm', 'font.family': 'serif',
+})
 import matplotlib.cm as cm
 
 HERE = Path(__file__).resolve().parent
@@ -48,7 +54,7 @@ def main(mlist=None):
     ax.legend(loc='upper left', fontsize=8)
     plt.tight_layout()
     out = HERE / 'ESS_ladder.png'
-    plt.savefig(out, dpi=400)
+    plt.savefig(out, dpi=400, bbox_inches='tight')
     plt.close(fig)
     print(f"Saved {out}  (d={d}, steps={steps})")
     print("final ESS by M:", {M: round(v, 4) for M, v in finals.items()})
