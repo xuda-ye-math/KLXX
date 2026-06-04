@@ -1,0 +1,29 @@
+This file specifies the essential parameters required in the Boltzmann generator, as a usual parameter.py should do.
+
+# domain & flow parameters
+D: int = 8 # the physical dimension if needed 
+SIGMA: float = 1.0 # source Gaussian width
+NSF_LIM: float = 4.0 # NSF LIM of the potential. For realNVP and OT-Flow, this is not required
+BINS = 16 # number of bins
+TRANSFORMS = 6 # number of transforms in a flow
+HIDDEN = (256, 256) # hidden feature of MLP
+
+# basic training parameters
+N_VALID = 80000 # the validation set size. no N_TRAIN needed
+N_POOL = 10000 # pool size of quench and temper and adaptive temperature selection
+N_BATCH = 2000 # batch size of drawing both mu and hat_mu
+STEPS = 2000 # number of optimization steps. No epochs notion, only steps. So increasing N_VALID does not increase training difficulty (only affects inference)
+LR = 1e-3 # learning rate
+
+# optimization and rejuvenation parameters (for stability and efficiency)
+OPT_STEP = 1e-2
+OPT_ITERS = 100
+MC_STEP = 1e-3
+MC_ITERS = 100 (QT and usual Langevin can differ, up to your choice)
+
+# empirical parameters (should be not very sensitive)
+SHRINK_FACTOR = 0.7
+ADAPIVE_TAU = 0.5
+VALIDATION_TAU = 0.3
+
+Essential files (invariant with specific potential) stored in the core folder, potential specific files are stored in the project folder directly
