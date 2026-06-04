@@ -74,20 +74,24 @@ ax[0].text(0.02, 0.02, r'each point: one $\theta \in [-\pi,\pi)^{64}$',
            transform=ax[0].transAxes, fontsize=7)
 ax[0].set_title(r'(a) magnetization plane, $p=6$ sectors')
 
-# (b) per-site angle marginal
+# (b) per-site angle marginal: validation set (fill) vs iid pushforward (line)
 ax[1].hist(y.flatten().numpy(), bins=181, range=(-np.pi, np.pi),
-           density=True, color='tab:blue', alpha=0.85)
+           density=True, histtype='stepfilled', color='tab:blue', alpha=0.45,
+           edgecolor='tab:blue', lw=0.8, label='validation set')
+yp_sites = bal['samples_push'].to(torch.float32).flatten().numpy()
+ax[1].hist(yp_sites, bins=181, range=(-np.pi, np.pi), density=True,
+           histtype='step', color='0.2', lw=0.9, label='pushforward')
 for k in range(-P // 2, P // 2 + 1):
     ax[1].axvline(2 * np.pi * k / P, ls='--', lw=0.6, color='gray')
-ax[1].axhline(1 / (2 * np.pi), ls=':', lw=0.8, color='black',
+ax[1].axhline(1 / (2 * np.pi), ls=':', lw=0.9, color='black',
               label=r'source $\mathrm{Unif}[-\pi,\pi)$')
 ax[1].set_xlim(-np.pi, np.pi)
 ax[1].set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
 ax[1].set_xticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
 ax[1].set_xlabel(r'site angle $\theta_j$')
-ax[1].set_ylabel('density')
+ax[1].set_ylabel('density histogram')
 ax[1].set_title(r'(b) site marginal: locking at $2\pi k/6$')
-ax[1].legend(loc='upper right')
+ax[1].legend(loc='lower right', framealpha=0.9)
 
 # (c) sector occupancy
 cv = np.asarray(bal['counts_valid'], dtype=float); cv /= cv.sum()
@@ -96,6 +100,17 @@ x = np.arange(P); w = 0.4
 from matplotlib.patches import Patch
 ax[2].bar(x - w / 2, cv, w, color=[c for c in colors])
 ax[2].bar(x + w / 2, cp, w, color=[c for c in colors], alpha=0.45)
+# +-2 sigma multinomial whiskers on the iid pushforward bars: the sampling
+# error is tiny, so the pushforward's deviations from 1/6 are genuine flow
+# bias, while the larger validation-set imbalance is unrestored resampling
+# fluctuation (see the closing paragraph of Section 5.4).
+n_push = np.asarray(bal['counts_push'], dtype=float).sum()
+sig = np.sqrt(cp * (1.0 - cp) / n_push)
+ax[2].errorbar(x + w / 2, cp, yerr=2.0 * sig, fmt='none', ecolor='black',
+               elinewidth=0.9, capsize=2.5, capthick=0.9)
+for xi, v in zip(x, cv):
+    ax[2].text(xi - w / 2, v + 0.005, f'{v:.3f}', ha='center',
+               fontsize=6.5)
 ax[2].axhline(1.0 / P, ls='--', lw=0.8, color='black')
 ax[2].text(P - 0.45, 1.0 / P + 0.004, r'$1/6$', fontsize=8)
 ax[2].set_xlabel(r'sector $s$')
@@ -104,10 +119,11 @@ ax[2].set_ylim(0, 0.30)
 ax[2].set_title('(c) sector occupancy (6/6 covered)')
 ax[2].legend(handles=[Patch(facecolor='0.35', label='validation set'),
                       Patch(facecolor='0.35', alpha=0.45,
-                            label='pushforward')], loc='upper right')
+                            label=r'pushforward ($\pm 2\sigma$)')],
+             loc='upper right')
 
 plt.tight_layout()
-plt.savefig(FIGDIR / 'fig_clock_target.pdf', bbox_inches='tight')
+plt.savefig(FIGDIR / 'fig_clock_target.pdf', bbox_inches='tight', pad_inches=0.02)
 plt.close(fig)
 
 # ---------------------------------------------------------------- figure 2
@@ -176,7 +192,7 @@ plt.setp(axB.get_xticklabels(), visible=False)
 axK.set_xlabel('gradient step (accepted stages, concatenated)')
 
 plt.tight_layout()
-plt.savefig(FIGDIR / 'fig_clock_training.pdf', bbox_inches='tight')
+plt.savefig(FIGDIR / 'fig_clock_training.pdf', bbox_inches='tight', pad_inches=0.02)
 plt.close(fig)
 print('wrote', FIGDIR / 'fig_clock_target.pdf')
 print('wrote', FIGDIR / 'fig_clock_training.pdf')
