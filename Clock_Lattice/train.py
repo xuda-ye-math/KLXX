@@ -1,10 +1,15 @@
 # pyright: reportArgumentType=false, reportCallIssue=false, reportAttributeAccessIssue=false
 """Driver: p-state clock Boltzmann generator via Algorithm 4 (Paper/main.tex).
 
-One flow ladder per invocation. The L sweep is separate invocations:
-    ~/.envs/torch/bin/python train.py --L 4 --smoke   # tiny sanity pass first
-    ~/.envs/torch/bin/python train.py --L 4           # full run, D = 16
-    ~/.envs/torch/bin/python train.py --L 8           # full run, D = 64
+One flow ladder per invocation; the loss is chosen by --method:
+    --method balance   KL + X_mu + X_mix at balanced hyperparameters (default)
+    --method kl        bare forward KL only (baseline: fused_kl_loss, mean of
+                       z_k -- no X terms, no QT pool; all else identical)
+The L sweep is separate invocations; tag = L{L}_{method}:
+    ~/.envs/torch/bin/python train.py --L 6 --smoke             # tiny sanity pass first
+    ~/.envs/torch/bin/python train.py --L 6 --method balance    # full run, D = 36
+    ~/.envs/torch/bin/python train.py --L 6 --method kl         # bare KL baseline
+    ~/.envs/torch/bin/python train.py --L 8 --method balance    # full run, D = 64
 
 Writes (in this folder): train_status.log, data_<tag>.pth (incl. every stage's
 flow state_dict), results_table.md/.csv, summary.md, figures/*.png.
