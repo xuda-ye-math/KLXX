@@ -56,13 +56,14 @@ def write_results():
             tag=d['tag'], D=c['D'], P=c['P'],
             method=c.get('method', 'balance'), K=len(d['ladder']),
             complete=d.get('complete', '?'),
+            B=c.get('n_batch', '?'), steps=c.get('steps', '?'),
             ladder=' '.join(f"{t:.3f}" for t in d['ladder']),
             final_ess=d['final_ess'],
             sectors=f"{d['sectors_push']}/{c['P']}",
             tv=d['tv_push'], abs_m=d['abs_m_push'], knn=d['knn_coverage'],
             wall_min=d['wall_s'] / 60.0))
-    hdr = ['tag', 'D', 'P', 'method', 'K', 'complete', 'ladder', 'final_ess',
-           'sectors', 'tv', 'abs_m', 'knn', 'wall_min']
+    hdr = ['tag', 'D', 'P', 'method', 'B', 'steps', 'K', 'complete', 'ladder',
+           'final_ess', 'sectors', 'tv', 'abs_m', 'knn', 'wall_min']
     with open(HERE / 'results_table.csv', 'w') as f:
         f.write(','.join(hdr) + '\n')
         for r in rows:
@@ -125,15 +126,19 @@ def main():
     ap.add_argument('--method', choices=['balance', 'kl'], default='balance',
                     help='balance: KL + X_mu + X_mix; kl: forward KL only')
     ap.add_argument('--smoke', action='store_true', help='tiny sanity run')
+    ap.add_argument('--suffix', default='', help='tag suffix to keep output '
+                    'files (data_<tag>.pth, figures) from clashing')
     args = ap.parse_args()
     L, smoke, method = args.L, args.smoke, args.method
     D = L * L
-    tag = f"L{L}_{method}" + ("_smoke" if smoke else "")
 
     # smoke overrides scale everything down but exercise the full path
     NV = 4000 if smoke else PRM.N_VALID
     NP = 1000 if smoke else PRM.N_POOL
     NB = 500 if smoke else PRM.N_BATCH
+    # tag carries the batch size so runs at different B never clash
+    blabel = f"B{NB // 1000}k" if NB % 1000 == 0 else f"B{NB}"
+    tag = f"L{L}_{method}_{blabel}{args.suffix}" + ("_smoke" if smoke else "")
     ST = 60 if smoke else PRM.STEPS
     MC = 20 if smoke else PRM.MC_ITERS
     RUNG = 5 if smoke else PRM.SMC_RUNG_ITERS
@@ -147,7 +152,8 @@ def main():
                bins=PRM.BINS, transforms=PRM.TRANSFORMS, hidden=PRM.HIDDEN,
                mc_iters=MC, smc_rung_iters=RUNG,
                adaptive_tau=PRM.ADAPIVE_TAU, validation_tau=PRM.VALIDATION_TAU,
-               shrink=PRM.SHRINK_FACTOR, smoke=smoke)
+               shrink=PRM.SHRINK_FACTOR, smoke=smoke, t_safe=PRM.T_SAFE,
+               grad_clip=PRM.GRAD_CLIP, max_skip=PRM.MAX_SKIP)
 
     torch.manual_seed(0)
     lim = PRM.NSF_LIM                       # canonical box half-width (= pi)
@@ -182,7 +188,8 @@ def main():
         adaptive_tau=PRM.ADAPIVE_TAU,
         validation_tau=PRM.VALIDATION_TAU, shrink=PRM.SHRINK_FACTOR,
         wrap=wrap, qt_fn=qt_fn, device=device, status=log,
-        max_stages=MAXS, max_retry=MAXR, t_safe=PRM.T_SAFE, method=method)
+        max_stages=MAXS, max_retry=MAXR, t_safe=PRM.T_SAFE, method=method,
+        grad_clip=PRM.GRAD_CLIP, max_skip=PRM.MAX_SKIP)
     wall = time.perf_counter() - t0
 
     # ---- final evaluation: compose the stage inverses (shared flow) ----

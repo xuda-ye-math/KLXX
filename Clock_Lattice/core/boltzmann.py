@@ -153,6 +153,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
                 u_next: Potential, hat_pool, *, steps: int,
                 batch: int, lr: float, mc_step: float,
                 rungs: int, rung_iters: int, wrap, method: str = 'balance',
+                grad_clip: float = 1e3, max_skip: int = 10,
                 status=print, report_every: int = 1):
     """Per gradient step (Algorithm 4 step (iv); batches per step (i) drawn at
     run time from the validation set):
@@ -180,7 +181,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
     opt = torch.optim.Adam(flow.parameters(), lr=lr)
     Nv, half = y_valid.shape[0], batch // 2
     Ph = hat_pool.shape[0] if hat_pool is not None else 0
-    ess_hist, t0 = [], time.perf_counter()
+    ess_hist, t0, n_skip = [], time.perf_counter(), 0
     for step in range(steps):
         with torch.no_grad():
             G_now = flow.t()                                      # forward (cheap, eager)
@@ -206,10 +207,29 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
                 x_mix = x_mix[torch.randperm(batch, device=device)]  # pre-shuffle (roll)
         loss = (closs(torch.cat([x_mu, x_mix], dim=0)) if method == 'balance'
                 else closs(x_mu))                                 # 'kl': forward KL only
-        if not torch.isfinite(loss):                              # guard BEFORE step
-            status(f"    [train] non-finite loss at step {step}; stage aborted")
-            return ess_hist, False
-        opt.zero_grad(); loss.backward(); opt.step()
+        if not torch.isfinite(loss):                              # pathological batch:
+            n_skip += 1                                           # params untouched; fresh
+            params_ok = all(torch.isfinite(p).all().item()        # batch next step.
+                            for p in flow.parameters())           # params_ok=False would
+            status(f"    [train] non-finite loss at step {step} "  # mean grad poisoning
+                   f"(params finite: {params_ok}); step skipped "  # slipped through.
+                   f"({n_skip}/{max_skip})")
+            if n_skip >= max_skip or not params_ok:
+                status(f"    [train] stage aborted (skips={n_skip}, "
+                       f"params finite: {params_ok})")
+                return ess_hist, False
+            continue
+        opt.zero_grad(); loss.backward()
+        gnorm = torch.nn.utils.clip_grad_norm_(flow.parameters(), grad_clip)
+        if torch.isfinite(gnorm):                                 # spike -> clipped step
+            opt.step()
+        else:                                                     # inf/NaN grads: skip the
+            n_skip += 1                                           # update BEFORE Adam eats
+            status(f"    [train] non-finite grad at step {step} (loss was "
+                   f"{loss.item():.3e}); step skipped ({n_skip}/{max_skip})")
+            if n_skip >= max_skip:
+                status(f"    [train] stage aborted (skips={n_skip})")
+                return ess_hist, False
         if (step + 1) % report_every == 0 or step == 0:
             ms = 1000.0 * (time.perf_counter() - t0) / (step + 1)
             status(f"    [train] step {step+1:>5}/{steps}  loss={loss.item():.3e}  "
@@ -221,7 +241,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
 # (v) validation set update (importance weights of the trained inverse)
 # ---------------------------------------------------------------------------
 def validation_update(F_inv, y_valid: torch.Tensor, u_prev: Potential,
-                      u_next: Potential, *, chunk: int = 200000):
+                      u_next: Potential, *, chunk: int = 500000):
     """Push Y_{k-1} through G_k^{-1} (compiled fused inverse); w =
     exp(U_{k-1}(Y_{k-1}) - U_k(Ytilde) + ladj_inv) (zflows convention:
     ladj_inv = -log|det J_{G_k}(Ytilde)|). Returns (y_tilde, logw, ESS(w))."""
@@ -246,7 +266,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                   adaptive_tau: float, validation_tau: float, shrink: float,
                   wrap, qt_fn, device, status=print,
                   max_stages: int = 30, max_retry: int = 6, t_tol: float = 1e-3,
-                  t_safe: float = 0.25, method: str = 'balance'):
+                  t_safe: float = 0.25, method: str = 'balance',
+                  grad_clip: float = 1e3, max_skip: int = 10):
     """Returns (stages, Y, complete, flow, F_inv) -- per-stage records (t_k,
     diagnostics, state_dict), the final validation set, whether the ladder
     reached t = 1 (False = INCOMPLETE: a stage failed its gate or max_stages
@@ -307,10 +328,13 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                 flow, F_inv, closs, Y, u_prev, u_next, hat, steps=steps,
                 batch=n_batch, lr=lr, mc_step=mc_step,
                 rungs=smc_rungs, rung_iters=smc_rung_iters,
-                wrap=wrap, method=method, status=status)
+                wrap=wrap, method=method, grad_clip=grad_clip,
+                max_skip=max_skip, status=status)
             y_tilde, logw, val_ess = validation_update(F_inv, Y, u_prev, u_next)
             attempts.append(dict(t_k=t_k, val_ess=val_ess, train_ok=ok,
-                                 accepted=bool(ok and val_ess >= validation_tau)))
+                                 accepted=bool(ok and val_ess >= validation_tau),
+                                 ess_hist=list(ess_hist)))   # full per-step ESS,
+                                                             # rejected attempts too
             status(f"[stage {k}] attempt {attempt+1}: validation ESS={val_ess:.3f} "
                    f"(floor {validation_tau})")
             if ok and val_ess >= validation_tau:
@@ -343,7 +367,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
 # final evaluation: compose the stage inverses and accumulate the weights
 # ---------------------------------------------------------------------------
 def compose_pushforward(flow, F_inv, state_dicts, u0: Potential, u: Potential,
-                        n: int, device, chunk: int = 200000):
+                        n: int, device, chunk: int = 500000):
     """Generate y = G_K^{-1}(... G_1^{-1}(x)) for x ~ mu_0 and return
     (y, logw) with logw = u0(x) - u(y) + sum_k ladj_inv_k (the direct
     importance weight of the composed generator against the target).

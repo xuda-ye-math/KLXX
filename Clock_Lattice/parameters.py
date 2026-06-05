@@ -15,7 +15,7 @@ HIDDEN = (256, 256)    # hidden widths of the coupling networks
 # ---- basic training parameters ----
 N_VALID = 1000000      # validation set size (no N_TRAIN)
 N_POOL = 200000        # pool size P: QT pool and adaptive-selection particles
-N_BATCH = 80000        # batch size B: per-gradient-step batch for both mu and hat_mu draws
+N_BATCH = 10000        # batch size B: per-gradient-step batch for both mu and hat_mu draws
 STEPS = 500            # gradient steps per stage
 LR = 1e-3              # Adam learning rate
 
@@ -28,7 +28,10 @@ SMC_RUNG_ITERS = 20    # Langevin iters per rung -- SHARED by SMC (Alg. 3, G=ide
                        # and the during-training AIS (G=flow): same algorithm,
                        # exactly the same parameters
 SMC_RUNGS = 4          # ladder rungs M, shared by SMC and the AIS surrogate
-T_SAFE = 0.25          # safe start: stage-1 initial guess t_init (Algorithm 4)
+T_SAFE = 0.2           # safe start: stage-1 initial guess t_init (Algorithm 4)
+                       # (0.25 hit non-finite loss at stage-1 step 12 for L=8, B=100k,
+                       # at both lr=1e-3 and 5e-4; 0.1 was safe; 0.2 relies on the
+                       # grad-clip + skip-step guard in train_stage)
 
 # ---- empirical parameters (should be not very sensitive) ----
 SHRINK_FACTOR = 0.7    # step shrink factor gamma on abort
@@ -46,4 +49,6 @@ H = 0.5                # Z_p anisotropy strength
 # ---- safety guards / diagnostics ----
 MAX_STAGES = 30        # hard cap on ladder stages
 MAX_RETRY = 12         # hard cap on abort-and-shrink retries per stage
+GRAD_CLIP = 1e3        # clip_grad_norm_ ceiling: tames finite grad spikes only
+MAX_SKIP = 10          # skipped steps (non-finite loss/grad) per stage before abort
 MODE_FRAC = 0.01       # a sector counts as found if it holds >= MODE_FRAC/P mass
