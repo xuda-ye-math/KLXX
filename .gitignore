@@ -5,6 +5,8 @@
 # Data / model checkpoints (any subfolder)
 *.pth
 *.pt
+# ... except the Clock_Lattice runs (tracked per user decision 2026-06-04)
+!Clock_Lattice/*.pth
 
 # Python bytecode caches
 __pycache__/

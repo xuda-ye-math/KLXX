@@ -153,7 +153,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
                 u_next: Potential, hat_pool, *, steps: int,
                 batch: int, lr: float, mc_step: float,
                 rungs: int, rung_iters: int, wrap, method: str = 'balance',
-                status=print, report_every: int = 200):
+                status=print, report_every: int = 1):
     """Per gradient step (Algorithm 4 step (iv); batches per step (i) drawn at
     run time from the validation set):
       X       ~ Y_{k-1}                              (size `batch`)

@@ -5,19 +5,23 @@
 import math
 
 # ---- domain & flow parameters ----
-L = 4                  # lattice side (train.py --L overrides); first 4, then 8
+L = 4                  # lattice side (train.py --L overrides); L=6 run: D=36
 D = L * L              # dimension: one angle per site
 NSF_LIM = math.pi      # box half-width: NCSF acts on the torus [-pi, pi)^D
 BINS = 16
 TRANSFORMS = 6
-HIDDEN = (256, 256)
+HIDDEN = (192, 192)    # slightly smaller net at D=36 (was (256, 256) at D=64)
 
 # ---- basic training parameters ----
-# Aggressive VRAM profile (16 GB fully free, tty mode): large batch + pools.
-N_VALID = 80000        # validation set size (no N_TRAIN)
-N_POOL = 20000         # QT set and adaptive-temperature-selection particles
-N_BATCH = 8000         # per-gradient-step batch for both mu and hat_mu draws
-STEPS = 1000           # gradient steps per stage (halved: 4x batch needs fewer steps)
+# Anti-overfitting profile (L=6 rerun): the L=8 run trained AND gated on the
+# same 80000-point set (in-sample gate ESS 0.845 vs 0.58 on fresh points,
+# occ_debug 2026-06-04). A 5x larger validation set + larger batch make each
+# point seen far fewer times, so the set covers the landscape instead of
+# being memorized.
+N_VALID = 400000       # validation set size (no N_TRAIN)
+N_POOL = 100000        # QT set and adaptive-temperature-selection particles
+N_BATCH = 20000        # per-gradient-step batch for both mu and hat_mu draws
+STEPS = 500            # gradient steps per stage (B=20000: fewer steps)
 LR = 1e-3
 
 # ---- optimization and rejuvenation parameters ----
@@ -28,7 +32,7 @@ MC_ITERS = 100
 SMC_RUNG_ITERS = 20    # Langevin iters per rung -- SHARED by SMC (Alg. 3, G=identity)
                        # and the during-training AIS (G=flow): same algorithm,
                        # exactly the same parameters
-SMC_RUNGS = 4          # SMC ladder rungs M (fixed M=4 for both L=4 and L=8)
+SMC_RUNGS = 6          # SMC ladder rungs M (raised 4 -> 6 for the L=6 rerun)
 T_SAFE = 0.25          # safe start: stage-1 initial guess t_init (Algorithm 4)
 
 # ---- empirical parameters (should be not very sensitive) ----

@@ -168,3 +168,51 @@ frustration model (Parisi, replica symmetry breaking).
    quality); >= 6/10 with no critical items to accept. Reviews stored under
    .aris/reviews/<task>/.
 3. Claims go into .aris/wiki/claims/ with supported / partial / invalidated verdicts.
+
+---
+
+## Task 1b — occupancy-bias Monte Carlo scaling   [status: in progress]
+
+Question: is the staged-sampler sector-occupancy bias a pure finite-size
+(Monte Carlo) effect, i.e. does it scale as N^{-1/2}?
+
+Procedure: full staged sampler of Algorithm 4 step (v) — per stage k=1..5:
+load state_dict G_k (from data_L8_balance.pth, NO retraining), push chunked
+compiled inverse, logw = U_{k-1}(x) - U_k(y) + ladj, resample by w, Langevin
+on U_k (MC_STEP=1e-3, MC_ITERS=100), wrap. After stage 5 compute occupancy
+bias err = (1/6) * sum_s |p_s - 1/6| over the p=6 magnetization sectors.
+
+| multiplier m | N = 80000*m | independent tests | total particles |
+|---|---|---|---|
+| 1  | 80000   | 64 | 5.12M |
+| 4  | 320000  | 16 | 5.12M |
+| 16 | 1.28M   | 4  | 5.12M |
+| 64 | 5.12M   | 1  | 5.12M |
+
+Equal total work per row; report mean bias (+- std/sqrt(tests)) as a 1x4
+table; N^{-1/2} predicts the bias to halve per row. Reference point: the
+training run's validation set (N=80000) had TV 0.17 => bias ~ 0.057.
+
+VRAM: chunked compiled inverse, chunk chosen adaptively from free VRAM
+(160k/80k/40k), last chunk padded to keep ONE compile shape. Outputs (new
+files only): occupancy_scaling.{md,csv,png}, occ_scaling_status.log.
+Run by root executor in background; independent code review BEFORE launch.
+
+### Task 1b RESULT (2026-06-04): NOT Monte Carlo rate -- in-sample gate exposed
+Controls validated the harness (iid multinomial bias halves 0.0014->0.0005
+from N=80k->320k; single-map pushforward constant 0.003). The staged-sampler
+bias does NOT scale: mean 0.121 (N=80k, 64 tests) -> ~0.106 (N=320k). Cause
+(occ_debug per-stage trace): flows overfit the carried 80000-point set --
+fresh-point stage-1 ESS 0.58 vs in-sample gate 0.845 (N-independent);
+fresh-chain ESS collapses to ~0.006 by stage 5; winner-take-all resampling
+makes the occupancy error O(1) per run. L=8 flows are dataset-bound; the
+balance-vs-kl comparison stands (kl failed the easier in-sample test).
+Artifacts: .archive/occ_debug_status.log, .archive/occ_scaling_status.log.
+
+## Task 1c -- L=6 anti-overfitting rerun   [status: running]
+6x6 lattice (D=36), still p=6 sectors. Parameters updated (parameters.py):
+N_VALID=400000 (5x, covers the landscape), N_POOL=100000, N_BATCH=20000,
+M=SMC_RUNGS=6, HIDDEN=(192,192) (slightly smaller net), STEPS=1000, LR 1e-3
+unchanged. Old L=4/L=8 data + logs moved to .archive/. Goal: a generator
+whose gates are honest (fresh-sample rebuild should reproduce gate ESS).
+Post-run check: occ_debug-style fresh rebuild vs gate values.
