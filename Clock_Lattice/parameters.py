@@ -5,12 +5,12 @@
 import math
 
 # ---- domain & flow parameters ----
-L = 4                  # lattice side (train.py --L overrides); L=6 run: D=36
+L = 8                  # lattice side (train.py --L overrides); L=6 run: D=36
 D = L * L              # dimension: one angle per site
 NSF_LIM = math.pi      # box half-width: NCSF acts on the torus [-pi, pi)^D
 BINS = 16
 TRANSFORMS = 6
-HIDDEN = (192, 192)    # slightly smaller net at D=36 (was (256, 256) at D=64)
+HIDDEN = (256, 256)    # enlarged for the L=8 (D=64) run on the larger GPU
 
 # ---- basic training parameters ----
 # Anti-overfitting profile (L=6 rerun): the L=8 run trained AND gated on the
@@ -18,9 +18,9 @@ HIDDEN = (192, 192)    # slightly smaller net at D=36 (was (256, 256) at D=64)
 # occ_debug 2026-06-04). A 5x larger validation set + larger batch make each
 # point seen far fewer times, so the set covers the landscape instead of
 # being memorized.
-N_VALID = 400000       # validation set size (no N_TRAIN)
-N_POOL = 100000        # QT set and adaptive-temperature-selection particles
-N_BATCH = 20000        # per-gradient-step batch for both mu and hat_mu draws
+N_VALID = 1000000       # validation set size (no N_TRAIN)
+N_POOL = 200000        # QT set and adaptive-temperature-selection particles
+N_BATCH = 5000        # per-gradient-step batch for both mu and hat_mu draws
 STEPS = 500            # gradient steps per stage (B=20000: fewer steps)
 LR = 1e-3
 
@@ -32,7 +32,7 @@ MC_ITERS = 100
 SMC_RUNG_ITERS = 20    # Langevin iters per rung -- SHARED by SMC (Alg. 3, G=identity)
                        # and the during-training AIS (G=flow): same algorithm,
                        # exactly the same parameters
-SMC_RUNGS = 6          # SMC ladder rungs M (raised 4 -> 6 for the L=6 rerun)
+SMC_RUNGS = 4          # SMC ladder rungs M (back to 4 for the L=8 run)
 T_SAFE = 0.25          # safe start: stage-1 initial guess t_init (Algorithm 4)
 
 # ---- empirical parameters (should be not very sensitive) ----
