@@ -501,7 +501,7 @@ Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtai
     \setstretch{1.2}
 \caption{Adaptive selection of the temperature step $\Delta t_k$}
 \label{alg: step}
-\KwInput{potentials $U_0, U$, previous level $t_{k-1}$, selection pool $\mathcal P$ of $P$ samples from $\mu_{k-1}$, floor $\tau = 0.5$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
+\KwInput{potentials $U_0, U$, previous level $t_{k-1}$, selection pool $\mathcal P$ of $P$ samples from $\mu_{k-1}$, floor $\tau = 0.7$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
 \KwOutput{next level $t_{k}$, giving the step $\Delta t_k = t_k - t_{k-1}$}
 
 $U_{k-1} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
@@ -521,7 +521,7 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 \mbox{}\\
-These SMC runs are purely classical (they involve only the potentials $U_0$ and $U$, never the flow map) and are therefore cheap. They also use no QT samples, so the per-step ESS they report may be a fake ESS that overlooks modes the SMC chain never reaches. This is harmless here, because Algorithm~\ref{alg: step} selects only the increment $\Delta t_k$ and never produces training samples, so its ESS is used solely to gauge the shape deformation $\mu_{k-1}\to\mu_k$ and needs no faithful target. The floor $\tau = 0.5$ and shrink factor $\gamma = 0.7$ are empirical; the initial guess $t_{\mathrm{init}}$ is supplied by the outer loop (Algorithm~\ref{alg: boltzmann}). The procedure returns the largest admissible step below the initial guess: the coarsest level $t_k$, and hence the most distant intermediate $U_k$, on which the flow $G_k$ can still be trained reliably from $U_{k-1}$. It always terminates, since as $t_k \to t_{k-1}$ the bridge $\mu_{k-1}\to\mu_k$ collapses and $\mathrm{ESS}_{\min}\to 1 \Ge \tau$, so the shrink loop is exited after finitely many steps.
+These SMC runs are purely classical (they involve only the potentials $U_0$ and $U$, never the flow map) and are therefore cheap. They also use no QT samples, so the per-step ESS they report may be a fake ESS that overlooks modes the SMC chain never reaches. This is harmless here, because Algorithm~\ref{alg: step} selects only the increment $\Delta t_k$ and never produces training samples, so its ESS is used solely to gauge the shape deformation $\mu_{k-1}\to\mu_k$ and needs no faithful target. The floor $\tau = 0.7$ and shrink factor $\gamma = 0.7$ are empirical; the initial guess $t_{\mathrm{init}}$ is supplied by the outer loop (Algorithm~\ref{alg: boltzmann}). The procedure returns the largest admissible step below the initial guess: the coarsest level $t_k$, and hence the most distant intermediate $U_k$, on which the flow $G_k$ can still be trained reliably from $U_{k-1}$. It always terminates, since as $t_k \to t_{k-1}$ the bridge $\mu_{k-1}\to\mu_k$ collapses and $\mathrm{ESS}_{\min}\to 1 \Ge \tau$, so the shrink loop is exited after finitely many steps.
 
 \subsection{The full training procedure}
 
@@ -560,7 +560,7 @@ Its effective sample size $\ESS(w)$ is the final, flow-based check on the increm
 \caption{Adaptive-temperature Boltzmann generator training}
 \label{alg: boltzmann}
 \small
-\KwInput{potentials $U_0, U$, pool size $P$, batch size $B$, validation ESS floor $\tau_{\mathrm v} = 0.3$, shrink factor $\gamma = 0.7$, enlarge factor $\Gamma = 2$, safe start $t_{\mathrm{safe}} = 0.25$}
+\KwInput{potentials $U_0, U$, pool size $P$, batch size $B$, validation ESS floor $\tau_{\mathrm v} = 0.3$, shrink factor $\gamma = 0.7$, enlarge factor $\Gamma = 2$, safe start $t_{\mathrm{safe}} = 0.2$}
 \KwOutput{ladder $0 = t_0 < \cdots < t_K = 1$ and flow maps $\{G_k\}_{k=1}^{K}$ with $(G_k^{-1})_{\#}\mu_{k-1} \approx \mu_k$}
 
 \tcp{validation set, $\mathcal Y_k \approx \mu_k$}
