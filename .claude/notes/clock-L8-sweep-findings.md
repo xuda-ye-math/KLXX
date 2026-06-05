@@ -1,6 +1,7 @@
 # Clock L=8 batch-size sweep — findings for the main.tex revision
 
-Date: 2026-06-05. Status: B ∈ {1k, 5k, 100k} pairs complete; B=10k pair running.
+Date: 2026-06-05. Status: SWEEP COMPLETE — B ∈ {1k, 10k, 100k} pairs featured
+(B=5k pair archived, see below); all runs complete=True, 6/6 sectors.
 Written for editing `Paper/main.tex` (Section "Boltzmann generator on p-state
 clock model") on the host machine. All data lives in `Clock_Lattice/`.
 
@@ -21,10 +22,31 @@ the loss: `balance` = KL + X_mu + X_mix at (lambda=1, alpha=beta=1/2);
 |---|---|---|---|---|---|---|
 | balance_B100k | 6 | yes | 0.0012 | 6/6 | 0.212 | 125.5 |
 | kl_B100k      | 6 | yes | 0.0015 | 6/6 | 0.083 | 122.8 |
-| balance_B5k   | 7 | yes | 0.0006 | 6/6 | 0.176 | 43.1 |
-| kl_B5k        | 6 | yes | 0.0004 | 6/6 | 0.083 | 31.8 |
+| balance_B10k  | 6 | yes | 0.0019 | 6/6 | 0.181 | 35.7 |
+| kl_B10k       | 6 | yes | 0.0004 | 6/6 | 0.046 | 34.8 |
 | balance_B1k   | 8 | yes | 0.0009 | 6/6 | 0.140 | 51.9 |
 | kl_B1k        | 8 | yes | 0.0002 | 6/6 | 0.120 | 50.7 |
+
+B=10k pair, validation ESS at every attempted rung (same ladder both):
+  stage 1-3: bal 0.703/0.628/0.381, kl 0.531/0.523/0.347 (first try both)
+  stage 4: 0.776 rejected (bal 0.164 / kl 0.178) -> 0.720 (bal 0.412 / kl 0.396)
+  stage 5: 0.904 rejected (bal 0.160 / kl 0.175) -> 0.849 (bal 0.336 / kl 0.349)
+  stage 6: 1.000 first try (bal 0.303 / kl 0.341)
+Same pattern as all pairs: balance leads early accepted rungs (+0.17/+0.11/
++0.03), gap ~0 in the transition window, KL marginally higher on rejected
+rungs. balance_B10k posts the best composed ESS of the sweep (0.0019).
+NOTE: from the B10k pair onward the .pth stores ess_hist for EVERY attempt
+(rejected included) under stages[*].attempts.
+
+A B=5k pair was also run and is NOT featured (user decision 2026-06-05:
+B=1k carries the small-batch story). Archived under `Clock_Lattice/archive/`
+(data + figures); per-step records remain in ess_history_all_attempts.csv.
+Honest record: at B=5k both completed; balance kept the accepted-rung ESS
+edge (e.g. 0.723/0.631 vs 0.568/0.518 on stages 1-2), but KL finished with a
+shorter ladder (K=6 vs 7) and lower wall (31.8 vs 43.1 min) -- partly a
+MAX_SKIP=10 guard artifact that discarded a balance attempt whose val ESS
+(0.320) was above the floor. If a reviewer asks for intermediate batch
+sizes, this pair exists and is consistent with the B=1k/B=100k pattern.
 
 **The paper's current D=64 claim does not reproduce at the new setting.**
 Original narrative (main.tex Sec. 6.4 figures): bare KL stalls at t=0.577,
@@ -72,6 +94,41 @@ actually at risk.
    success/failure: both losses complete; the difference appears as per-rung
    ESS, retries, ladder length. The adaptive machinery is itself a robustness
    mechanism (it was effectively absent/noisy at N_VALID=80k).
+
+## Where along the ladder is it hard? (two senses of difficulty)
+
+Per-stage data at B=1k (dt = accepted increment; gap = balance - kl val ESS;
+t50 = steps for the identity-initialized stage flow to reach half its own
+ESS plateau):
+
+| stage | t span | dt | bal/kl val ESS | gap | t50 bal/kl |
+|---|---|---|---|---|---|
+| 1 | 0.000-0.200 | 0.200 | 0.602/0.391 | +0.211 | 670/162 |
+| 2 | 0.200-0.396 | 0.196 | 0.524/0.398 | +0.125 | 79/81 |
+| 3 | 0.396-0.530 | 0.134 | 0.559/0.463 | +0.096 | 26/2 |
+| 4 | 0.530-0.662 | 0.132 | 0.401/0.366 | +0.035 | 27/23 |
+| 5 | 0.662-0.753 | 0.090 | 0.500/0.467 | +0.033 | 1/1 |
+| 6 | 0.753-0.841 | 0.089 | 0.453/0.465 | -0.012 | 1/1 |
+| 7 | 0.841-0.952 | 0.111 | 0.369/0.400 | -0.031 | 1/1 |
+| 8 | 0.952-1.000 | 0.048 | 0.778/0.708 | +0.069 | 1/1 |
+
+- Early stages (t<=0.66): FAR BUT SMOOTH. Large, structurally simple
+  deformation (site-wise marginal warps); clean AIS signal (fast Langevin
+  mixing in the disordered phase); real optimization work (t50 up to 670).
+  Loss quality is the binding constraint -> balance wins big (+0.10..+0.21).
+- Transition window (t~0.66-0.95): NEAR BUT CRITICAL. Selector compresses
+  dt 2x (its accepted step is an empirical readout of the Fisher-information
+  peak along the geometric path -- the annealing bottleneck at the phase
+  transition). t50=1: identity start already at half plateau; the ceiling is
+  set by surrogate quality (critical slowing of Langevin) + network capacity
+  for collective modes -- shared constraints, so the loss gap collapses to
+  ~0 and even flips sign slightly.
+- Final hop (t->1, dt=0.048): easy for both (0.778/0.708). "Hard at the end"
+  is really "hard at the transition"; the last rung is the easiest.
+
+Paper-ready phrasing: the X functionals improve training precisely where the
+training signal is the constraint, and are neutral where the sampling physics
+is the constraint.
 
 ## Suggested main.tex revisions
 
@@ -131,8 +188,16 @@ ESS was 0.320 >= 0.3 floor); consider ~5% of STEPS after the sweep.
 - `figures/(ladder|sectors|magnetization|ess_steps)_<tag>.png` — per run.
 - Tag scheme: `L8_<method>_B<batch>`; `_ts01` = pre-guard t_safe=0.1 run.
 
-## Pending
+## Data availability
 
-- B=10k pair (balance running, kl queued) — will complete the sweep.
-- Cross-sweep comparison figure + convergence-rate fits from the CSV.
-- This file will be updated when the B10k pair lands.
+The .pth checkpoints (157-206 MB each) exceed GitHub's 100 MB git limit and
+are published as release assets on the private repo instead (release tag
+`data-L8-sweep`, incl. the archived B5k pair). Restore into place with:
+  gh release download data-L8-sweep -D Clock_Lattice/ [--pattern '...']
+Comparison figures: figures/ess_steps_L8_{B1k,B10k,B100k}_compare.png.
+
+## Possible follow-ups (not scheduled)
+
+- Convergence-rate fits (transient vs limit) from ess_history_all_attempts.csv.
+- A genuinely mode-isolating high-D target (HD_Product) if a qualitative
+  high-D separation is wanted for the paper.
