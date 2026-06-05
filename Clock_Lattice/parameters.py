@@ -15,7 +15,7 @@ HIDDEN = (256, 256)    # hidden widths of the coupling networks
 # ---- basic training parameters ----
 N_VALID = 1000000      # validation set size (no N_TRAIN)
 N_POOL = 200000        # pool size P: QT pool and adaptive-selection particles
-N_BATCH = 5000         # batch size B: per-gradient-step batch for both mu and hat_mu draws
+N_BATCH = 80000        # batch size B: per-gradient-step batch for both mu and hat_mu draws
 STEPS = 500            # gradient steps per stage
 LR = 1e-3              # Adam learning rate
 

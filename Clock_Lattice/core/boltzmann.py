@@ -221,7 +221,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
 # (v) validation set update (importance weights of the trained inverse)
 # ---------------------------------------------------------------------------
 def validation_update(F_inv, y_valid: torch.Tensor, u_prev: Potential,
-                      u_next: Potential, *, chunk: int = 40000):
+                      u_next: Potential, *, chunk: int = 200000):
     """Push Y_{k-1} through G_k^{-1} (compiled fused inverse); w =
     exp(U_{k-1}(Y_{k-1}) - U_k(Ytilde) + ladj_inv) (zflows convention:
     ladj_inv = -log|det J_{G_k}(Ytilde)|). Returns (y_tilde, logw, ESS(w))."""
@@ -343,7 +343,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
 # final evaluation: compose the stage inverses and accumulate the weights
 # ---------------------------------------------------------------------------
 def compose_pushforward(flow, F_inv, state_dicts, u0: Potential, u: Potential,
-                        n: int, device, chunk: int = 40000):
+                        n: int, device, chunk: int = 200000):
     """Generate y = G_K^{-1}(... G_1^{-1}(x)) for x ~ mu_0 and return
     (y, logw) with logw = u0(x) - u(y) + sum_k ladj_inv_k (the direct
     importance weight of the composed generator against the target).
