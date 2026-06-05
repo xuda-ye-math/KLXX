@@ -6,11 +6,11 @@
 !.claude/skills/
 !.claude/notes/
 
-# Data / model checkpoints (any subfolder)
+# Data / model checkpoints (any subfolder) -- published as GitHub release
+# assets instead (tag data-L8-sweep); restore with:
+#   gh release download data-L8-sweep -D Clock_Lattice/
 *.pth
 *.pt
-# ... except the Clock_Lattice runs (tracked per user decision 2026-06-04)
-!Clock_Lattice/*.pth
 
 # Python bytecode caches
 __pycache__/
