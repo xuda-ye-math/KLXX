@@ -1,6 +1,9 @@
-# Hidden files (except .gitignore)
+# Hidden files (except .gitignore and the project skills)
 .*
 !.gitignore
+!.claude/
+.claude/*
+!.claude/skills/
 
 # Data / model checkpoints (any subfolder)
 *.pth
