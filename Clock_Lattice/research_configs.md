@@ -101,9 +101,13 @@ domain = torus [-pi, pi)^D with D = L^2.
 ### Run commands
 ```
 cd /mnt/projects/Log-Likelihood-Ratio-Discrepancy/Clock_Lattice
-~/.envs/torch/bin/python train.py --L 4              # full run, d=16
-~/.envs/torch/bin/python train.py --L 8              # full run, d=64 (after L=4 passes)
-~/.envs/torch/bin/python train.py --L 4 --smoke      # tiny sanity run first
+~/.envs/torch/bin/python train.py --L 6 --method balance   # KL + X_mu + X_mix (default method)
+~/.envs/torch/bin/python train.py --L 6 --method kl        # bare forward KL only (baseline)
+~/.envs/torch/bin/python train.py --L 8 --method balance   # d=64 (larger GPU)
+~/.envs/torch/bin/python train.py --L 6 --smoke            # tiny sanity run first
+# --method {balance,kl}, default balance; tag = L{L}_{method}, so the two
+# methods write separate data_*.pth / table rows / figures. 'kl' compiles
+# fused_kl_loss (mean of z_k only, no X terms, no QT pool); all else shared.
 ```
 
 ---
