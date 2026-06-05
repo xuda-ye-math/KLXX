@@ -31,10 +31,10 @@ METHOD_LABEL = {
     'KL+X_mu+X_mix':            r'forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$',
 }
 METHOD_COLOR = {
-    'KL':                       "#00008BA0",   # dark blue
-    'KL+X_mu':                  "#006400A0",   # dark green
-    'KL+X_mu+X_hat_mu':         "#8B0000A0",   # dark red
-    'KL+X_mu+X_mix':            "#4B0082A0",   # indigo
+    'KL':                       "#1F77B4A0",   # tab:blue
+    'KL+X_mu':                  "#2CA02CA0",   # tab:green
+    'KL+X_mu+X_hat_mu':         "#D62728A0",   # tab:red
+    'KL+X_mu+X_mix':            "#9467BDA0",   # tab:purple
 }
 
 cmap = LinearSegmentedColormap.from_list('light_yellow_red', ["#fffefa", "#ffe5e5"])

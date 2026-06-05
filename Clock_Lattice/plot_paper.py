@@ -1,18 +1,18 @@
 # pyright: reportArgumentType=false
-"""Publication figures for the L=8 (D=64) clock-model subsection of the paper.
+"""Publication figures for the L=8 (D=64) clock-model subsection (sweep story).
 
-fig_clock_target.pdf   — structure/difficulty of the cold target (validation
-                         set of the X-regularized run, val ESS 0.67):
+fig_clock_target.pdf   — structure of the cold target, displayed on the
+                         validation set of the X-regularized B=10k run:
                          (a) magnetization-plane scatter colored by sector,
-                         (b) per-site angle marginal with the 6 clock angles,
-                         (c) sector occupancy vs the uniform 1/6 line.
-fig_clock_training.pdf — (a) per-attempt timeline of the acceptance loop
-                         (every attempt = one full 1000-step training),
-                         (b) in-training direct ESS, balance vs forward KL.
+                         (b) per-site angle marginal (validation vs pushforward),
+                         (c) sector occupancy with +-2sigma whiskers.
+fig_clock_training.pdf — the sweep comparison, B=1000 and B=10000 pairs:
+                         (a) acceptance timeline at B=10k (both methods,
+                             same ladder, same rejections, both reach t=1),
+                         (b,c) accepted-rung validation ESS by stage,
+                             balance vs bare KL, at B=1k and B=10k.
 
-Sources: data_L8_balance.pth, data_L8_kl.pth; the 12 stage-4 forward-KL
-attempts are not stored in the .pth (the stage was never accepted) and are
-transcribed verbatim from train_status.log (run 2026-06-04 00:40-04:21).
+Data: data_L8_{balance,kl}_B{1k,10k}.pth (release data-L8-sweep).
 """
 from pathlib import Path
 
@@ -21,6 +21,7 @@ import torch
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.patheffects as pe
 
 plt.rcParams.update({
     'font.size': 9, 'axes.labelsize': 10, 'axes.titlesize': 10,
@@ -31,168 +32,151 @@ plt.rcParams.update({
 HERE = Path(__file__).resolve().parent
 FIGDIR = HERE / 'figures'
 P = 6
+COL = {'balance': 'tab:red', 'kl': 'tab:blue'}
+LBL = {'balance': r'KL$+$X$_{\mu}+$X$_{(\hat{\mu}+\bar{\nu})/2}$', 'kl': 'forward KL'}
 
-bal = torch.load(HERE / 'data_L8_balance.pth', weights_only=False,
-                 map_location='cpu')
-kl = torch.load(HERE / 'data_L8_kl.pth', weights_only=False,
-                map_location='cpu')
-
-# forward-KL stage-4 attempts (t_k, val ESS) — verbatim from train_status.log;
-# the stage was never accepted, so these are absent from data_L8_kl.pth.
-KL_S4_T = [0.7421, 0.6927, 0.6581, 0.6338, 0.6169, 0.6050,
-           0.5967, 0.5909, 0.5868, 0.5840, 0.5820, 0.5806]
-KL_S4_ESS = [0.112, 0.105, 0.103, 0.097, 0.091, 0.090,
-             0.099, 0.096, 0.061, 0.104, 0.097, 0.084]
+D = {}
+for meth in ['balance', 'kl']:
+    for b in ['B1k', 'B10k', 'B100k']:
+        D[meth, b] = torch.load(HERE / f'data_L8_{meth}_{b}.pth',
+                                weights_only=False, map_location='cpu')
 
 # ---------------------------------------------------------------- figure 1
-y = bal['samples_valid'].to(torch.float32)          # validation set ~ mu
+bal = D['balance', 'B10k']
+REB = torch.load(HERE / 'rebuild_L8_balance_B10k_N1000000.pth',
+                 weights_only=False, map_location='cpu')
+y = REB['y'].to(torch.float32)          # fresh staged-rebuild samples (N=1e6)
 m = torch.exp(1j * y).mean(dim=1)
 sector = torch.remainder(torch.round(torch.angle(m) * P / (2 * np.pi)),
                          P).to(torch.long)
 colors = plt.get_cmap('tab10')(np.arange(P))
+print(f"B10k balance: tv_valid={bal['tv_valid']:.4f} tv_push={bal['tv_push']:.4f} "
+      f"abs_m_valid={bal['abs_m_valid']:.4f} abs_m_push={bal['abs_m_push']:.4f} "
+      f"N_valid={y.shape[0]} N_push={bal['samples_push'].shape[0]}")
 
-fig, ax = plt.subplots(1, 3, figsize=(10.0, 3.1))
+fig = plt.figure(figsize=(10.0, 3.1))
+gs = fig.add_gridspec(1, 3)
+axA = fig.add_subplot(gs[0])
+gsb = gs[1].subgridspec(2, 1, hspace=0.0)   # (b): two glued histograms
+axB1 = fig.add_subplot(gsb[0])
+axB2 = fig.add_subplot(gsb[1], sharex=axB1)
+axC = fig.add_subplot(gs[2])
 
 # (a) magnetization plane
 for k in range(P):
-    sel = sector == k
-    ax[0].scatter(m.real[sel][:1500], m.imag[sel][:1500], s=2, alpha=0.35,
-                  color=colors[k], rasterized=True)
+    sel = (sector == k).nonzero(as_tuple=True)[0][:1500]
+    axA.scatter(m.real[sel], m.imag[sel], s=2, alpha=0.18,
+                color=colors[k], rasterized=True)
 th = np.linspace(0, 2 * np.pi, 256)
-ax[0].plot(np.cos(th), np.sin(th), lw=0.6, color='gray')
+axA.plot(np.cos(th), np.sin(th), lw=0.6, color='gray')
 for k in range(P):
     a = 2 * np.pi * k / P
-    ax[0].plot([0, 1.05 * np.cos(a)], [0, 1.05 * np.sin(a)], lw=0.5, ls=':',
-               color='gray')
-    ax[0].annotate(f'$s={k}$', (0.78 * np.cos(a), 0.78 * np.sin(a)),
-                   fontsize=7, ha='center', va='center', color='black')
-ax[0].set_xlim(-1.12, 1.12); ax[0].set_ylim(-1.12, 1.12)
-ax[0].set_aspect('equal')
-ax[0].set_xlabel(r'$\mathrm{Re}\, m(\theta)$')
-ax[0].set_ylabel(r'$\mathrm{Im}\, m(\theta)$')
-ax[0].text(0.02, 0.02, r'each point: one $\theta \in [-\pi,\pi)^{64}$',
-           transform=ax[0].transAxes, fontsize=7)
-ax[0].set_title(r'(a) magnetization plane, $p=6$ sectors')
+    axA.plot([0, 1.05 * np.cos(a)], [0, 1.05 * np.sin(a)], lw=0.5, ls=':',
+             color='gray')
+    axA.annotate(f'$s={k}$', (0.78 * np.cos(a), 0.78 * np.sin(a)),
+                 fontsize=7.5, ha='center', va='center', color='black',
+                 path_effects=[pe.withStroke(linewidth=1.6, foreground='white')])
+axA.set_xlim(-1.12, 1.12); axA.set_ylim(-1.12, 1.12)
+axA.set_aspect('equal')
+axA.set_xlabel(r'$\mathrm{Re}\, m(\theta)$')
+axA.set_ylabel(r'$\mathrm{Im}\, m(\theta)$')
+axA.text(0.02, 0.02, r'each point: one $\theta \in [-\pi,\pi)^{64}$',
+         transform=axA.transAxes, fontsize=7)
+axA.set_title(r'(a) magnetization plane')
 
-# (b) per-site angle marginal: validation set (fill) vs iid pushforward (line)
-ax[1].hist(y.flatten().numpy(), bins=181, range=(-np.pi, np.pi),
-           density=True, histtype='stepfilled', color='tab:blue', alpha=0.45,
-           edgecolor='tab:blue', lw=0.8, label='validation set')
+# (b) per-site angle marginal: reweighted (top) / pushforward (bottom)
+from matplotlib.ticker import MaxNLocator
+shift = lambda a: np.remainder(a + np.pi / 6, 2 * np.pi) - np.pi / 6
 yp_sites = bal['samples_push'].to(torch.float32).flatten().numpy()
-ax[1].hist(yp_sites, bins=181, range=(-np.pi, np.pi), density=True,
-           histtype='step', color='0.2', lw=0.9, label='pushforward')
-for k in range(-P // 2, P // 2 + 1):
-    ax[1].axvline(2 * np.pi * k / P, ls='--', lw=0.6, color='gray')
-ax[1].axhline(1 / (2 * np.pi), ls=':', lw=0.9, color='black',
-              label=r'source $\mathrm{Unif}[-\pi,\pi)$')
-ax[1].set_xlim(-np.pi, np.pi)
-ax[1].set_xticks([-np.pi, -np.pi / 2, 0, np.pi / 2, np.pi])
-ax[1].set_xticklabels([r'$-\pi$', r'$-\pi/2$', r'$0$', r'$\pi/2$', r'$\pi$'])
-ax[1].set_xlabel(r'site angle $\theta_j$')
-ax[1].set_ylabel('density histogram')
-ax[1].set_title(r'(b) site marginal: locking at $2\pi k/6$')
-ax[1].legend(loc='lower right', framealpha=0.9)
+edges = np.linspace(-np.pi / 6, 2 * np.pi - np.pi / 6, 181)  # 30 bins per block
+for a, dat, alf in ((axB1, y.flatten().numpy(), None),       # colors as in (c)
+                    (axB2, yp_sites, 0.45)):
+    h, _ = np.histogram(shift(dat), bins=edges, density=True)
+    for k in range(P):
+        a.stairs(h[30 * k:30 * (k + 1)], edges[30 * k:30 * (k + 1) + 1],
+                 fill=True, color=colors[k], alpha=alf)
+axB1.text(0.98, 0.90, 'reweighted', transform=axB1.transAxes,
+          fontsize=8, ha='right', va='top')
+axB2.text(0.98, 0.90, 'pushforward', transform=axB2.transAxes,
+          fontsize=8, ha='right', va='top')
+axB1.set_xlim(-np.pi / 6, 2 * np.pi - np.pi / 6)
+ytop = max(axB1.get_ylim()[1], axB2.get_ylim()[1])
+for a in (axB1, axB2):
+    a.set_ylim(0, ytop)
+    a.set_ylabel('density')
+    for k in range(5):                # six blocks, one per clock angle
+        a.axvline(np.pi / 6 + k * np.pi / 3, ls='--', lw=0.6, color='gray')
+    a.axhline(1 / (2 * np.pi), ls='--', lw=0.8, color='black')  # uniform density
+secx = axB1.secondary_xaxis('top')    # block labels s=0..5 along the top
+secx.set_xticks([k * np.pi / 3 for k in range(6)])
+secx.set_xticklabels([f'$s={k}$' for k in range(6)])
+secx.tick_params(length=0, pad=2, labelsize=7.5)
+axB1.tick_params(labelbottom=False)            # glued: labels only below
+axB1.yaxis.set_major_locator(MaxNLocator(4, prune='lower'))
+axB2.yaxis.set_major_locator(MaxNLocator(4, prune='upper'))
+axB2.set_xticks([k * np.pi / 3 for k in range(6)])
+axB2.set_xticklabels([r'$0$', r'$\pi/3$', r'$2\pi/3$', r'$\pi$',
+                      r'$4\pi/3$', r'$5\pi/3$'])
+axB2.set_xlabel(r'site angle $\theta_j$')
+axB1.set_title(r'(b) site angle marginal', pad=14)
 
 # (c) sector occupancy
-cv = np.asarray(bal['counts_valid'], dtype=float); cv /= cv.sum()
+from matplotlib.patches import Patch
+sec_reb = torch.remainder(torch.round(torch.angle(m) * P / (2 * np.pi)),
+                          P).to(torch.long)
+cv = torch.bincount(sec_reb, minlength=P).double().numpy(); cv /= cv.sum()
 cp = np.asarray(bal['counts_push'], dtype=float); cp /= cp.sum()
 x = np.arange(P); w = 0.4
-from matplotlib.patches import Patch
-ax[2].bar(x - w / 2, cv, w, color=[c for c in colors])
-ax[2].bar(x + w / 2, cp, w, color=[c for c in colors], alpha=0.45)
-# +-2 sigma multinomial whiskers on the iid pushforward bars: the sampling
-# error is tiny, so the pushforward's deviations from 1/6 are genuine flow
-# bias, while the larger validation-set imbalance is unrestored resampling
-# fluctuation (see the closing paragraph of Section 5.4).
-n_push = np.asarray(bal['counts_push'], dtype=float).sum()
-sig = np.sqrt(cp * (1.0 - cp) / n_push)
-ax[2].errorbar(x + w / 2, cp, yerr=2.0 * sig, fmt='none', ecolor='black',
-               elinewidth=0.9, capsize=2.5, capthick=0.9)
+axC.bar(x - w / 2, cv, w, color=[c for c in colors])
+axC.bar(x + w / 2, cp, w, color=[c for c in colors], alpha=0.45)
 for xi, v in zip(x, cv):
-    ax[2].text(xi - w / 2, v + 0.005, f'{v:.3f}', ha='center',
-               fontsize=6.5)
-ax[2].axhline(1.0 / P, ls='--', lw=0.8, color='black')
-ax[2].text(P - 0.45, 1.0 / P + 0.004, r'$1/6$', fontsize=8)
-ax[2].set_xlabel(r'sector $s$')
-ax[2].set_ylabel('occupancy')
-ax[2].set_ylim(0, 0.30)
-ax[2].set_title('(c) sector occupancy (6/6 covered)')
-ax[2].legend(handles=[Patch(facecolor='0.35', label='validation set'),
-                      Patch(facecolor='0.35', alpha=0.45,
-                            label=r'pushforward ($\pm 2\sigma$)')],
-             loc='upper right')
+    axC.text(xi - w / 2, v + 0.005, f'{v:.3f}', ha='center', fontsize=6.5,
+             path_effects=[pe.withStroke(linewidth=1.6, foreground='white')])
+axC.axhline(1 / 6, ls='--', lw=0.8, color='black')     # uniform occupancy
+axC.set_xlabel(r'sector $s$')
+axC.set_ylabel('occupancy')
+axC.set_ylim(0, max(0.30, cv.max() + 0.05))
+axC.set_title('(c) sector occupancy')
+axC.legend(handles=[Patch(facecolor='0.35', label='reweighted'),
+                    Patch(facecolor='0.35', alpha=0.45,
+                          label='pushforward')],
+           loc='upper right')
 
 plt.tight_layout()
-plt.savefig(FIGDIR / 'fig_clock_target.pdf', bbox_inches='tight', pad_inches=0.02)
+plt.savefig(FIGDIR / 'fig_clock_target.png', dpi=400, bbox_inches='tight',
+            pad_inches=0.02)
 plt.close(fig)
 
-# ---------------------------------------------------------------- figure 2
-fig = plt.figure(figsize=(10.0, 3.4))
-gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 1.15], hspace=0.12,
-                      wspace=0.22)
-axL = fig.add_subplot(gs[:, 0])
-axB = fig.add_subplot(gs[0, 1])
-axK = fig.add_subplot(gs[1, 1], sharex=axB, sharey=axB)
-
-# (a) acceptance-loop timeline: every marker = one full training of a stage
-def attempts_series(d):
-    out = []
-    for s in d['stages']:
-        for a in s['attempts']:
-            out.append((a['t_k'], a['val_ess'], a['accepted']))
-    return out
-
-for (xoff, series, label, color) in [
-        (0, attempts_series(bal), 'balance', 'tab:blue'),
-        (0, attempts_series(kl) + [(t, e, False) for t, e in
-                                   zip(KL_S4_T, KL_S4_ESS)],
-         'forward KL', 'tab:orange')]:
-    xs = np.arange(1, len(series) + 1)
-    ts = [s[0] for s in series]
-    acc = np.array([s[2] for s in series])
-    ax_ = axL
-    ax_.plot(xs, ts, lw=0.8, color=color, alpha=0.6)
-    ax_.scatter(xs[acc], np.array(ts)[acc], marker='o', s=34, color=color,
-                label=f'{label}: accepted', zorder=3)
-    if (~acc).any():
-        ax_.scatter(xs[~acc], np.array(ts)[~acc], marker='x', s=30,
-                    color=color, label=f'{label}: rejected', zorder=3)
-axL.axhline(1.0, ls=':', lw=0.8, color='gray')
-axL.annotate('ladder complete ($t=1$)', (1.2, 1.012), fontsize=8,
-             color='gray')
-axL.annotate('12 rejected attempts,\nstuck at $t=0.577$', (10.3, 0.50),
-             fontsize=8, color='tab:orange', ha='center')
-axL.set_xlabel('training attempt (each = one full stage training)')
-axL.set_ylabel('attempted level $t_k$')
-axL.set_ylim(0.15, 1.08)
-axL.set_title('(a) acceptance loop: attempted levels')
-axL.legend(loc='lower right', fontsize=7)
-
-# (b) in-training direct ESS, balance (top) and forward KL (bottom)
-for ax_, d, name, color in [(axB, bal, 'balance', 'tab:blue'),
-                            (axK, kl, 'forward KL (incomplete)',
-                             'tab:orange')]:
-    off = 0
-    for s in d['stages']:
-        h = np.asarray(s['train_ess_hist'], dtype=float)
-        ax_.plot(np.arange(off, off + len(h)), h, lw=0.55, color=color,
-                 rasterized=True)
-        ax_.axvline(off, color='gray', lw=0.4, ls=':')
-        ax_.text(off + len(h) / 2, 0.9, f"$t_k={s['t']:.2f}$", ha='center',
-                 fontsize=7)
-        off += len(h)
-    ax_.set_ylabel('direct ESS')
-    ax_.set_ylim(0, 1.05)
-    ax_.set_title(f'({"b" if ax_ is axB else "c"}) per-step ESS, {name}',
-                  fontsize=9, pad=2)
-axK.annotate(r'$0.52 \to 0.30$', xy=(2350, 0.36), xytext=(2520, 0.62),
-             fontsize=8, color='tab:orange',
-             arrowprops=dict(arrowstyle='->', color='tab:orange', lw=0.8))
-plt.setp(axB.get_xticklabels(), visible=False)
-axK.set_xlabel('gradient step (accepted stages, concatenated)')
-
+# ---------------------------------------------------------------- figure 3
+# per-step ESS curves of the FIRST THREE stages, one panel per stage;
+# rows = batch sizes; total width matches fig_clock_training
+fig, axes = plt.subplots(3, 3, figsize=(8.0, 6.4), sharey=True)
+for row, (b, bb) in enumerate([('B1k', '10^3'), ('B10k', '10^4'),
+                               ('B100k', '10^5')]):
+    for col in range(3):
+        ax_ = axes[row, col]
+        st_b = D['balance', b]['stages'][col]
+        for meth in ['kl', 'balance']:
+            h = np.asarray(D[meth, b]['stages'][col]['train_ess_hist'],
+                           dtype=float)
+            lw_row = [0.55, 0.8, 1.3][row]      # larger B: smoother curve
+            ax_.plot(np.arange(len(h)), h, lw=lw_row, color=COL[meth],
+                     alpha=0.85, label=LBL[meth], rasterized=True)
+        ax_.set_xlim(0, len(h))
+        ax_.set_ylim(0, 1.0)
+        ax_.grid(True, color='0.85', lw=0.5, ls='--', zorder=0)
+        ax_.set_axisbelow(True)
+        ax_.set_title(f"stage {col+1} ($t_{{{col+1}}}={st_b['t']:.2f}$), $B={bb}$",
+                      fontsize=8.5, pad=6)
+        if col == 0:
+            ax_.set_ylabel('per-step ESS')
+        if row == 2:
+            ax_.set_xlabel('gradient step')
+for row in range(3):
+    axes[row, 0].legend(loc='upper left', fontsize=7)
 plt.tight_layout()
-plt.savefig(FIGDIR / 'fig_clock_training.pdf', bbox_inches='tight', pad_inches=0.02)
+plt.savefig(FIGDIR / 'fig_clock_esscurves.png', dpi=400, bbox_inches='tight',
+            pad_inches=0.02)
 plt.close(fig)
-print('wrote', FIGDIR / 'fig_clock_target.pdf')
-print('wrote', FIGDIR / 'fig_clock_training.pdf')
+print('wrote', FIGDIR / 'fig_clock_target.png')
+print('wrote', FIGDIR / 'fig_clock_esscurves.png')

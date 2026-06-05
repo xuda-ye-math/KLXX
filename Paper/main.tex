@@ -36,7 +36,7 @@
 
 \theoremstyle{plain}
 
-\title{Forward KL Can Be Better: Cross-Regularization Loss for Normalizing Flow Boltzmann Sampling}
+\title{Forward KL Can Be More Robust: Cross-Regularization Loss for Normalizing Flow Boltzmann Sampling}
 \author[1]{Qi Feng}
 \author[2]{Rongjie Lai}
 \author[2]{Di Qi}
@@ -110,7 +110,7 @@ The three weights are complementary: $\X_\mu$ refines what AIS already reaches, 
     \mathcal{L}[\nu] = \KL(\mu\|\nu) + \lambda \X_\mu(\mu\|\nu) + \X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu),
     \label{eq: total-loss}
 \end{equation}
-where $\lambda,\alpha,\beta \Ge 0$ are tunable weights and the third term is $\X_\omega$ with mixture weight $\omega = \alpha\hat\mu + \beta\bar\nu$. This mixture form goes beyond the self-terms $\alpha^2 \X_{\hat\mu} + \beta^2 \X_{\bar\nu}$: expanding the squared base measure, the pairwise integral also generates a cross term of weight $2\alpha\beta$, contributions $\bigl|\log(\mu/\nu)(x) - \log(\mu/\nu)(y)\bigr|$ with $x \sim \hat\mu$ and $y \sim \bar\nu$ that anchor the in-support and out-of-support log-ratios to each other (at $\alpha = \beta = 1/2$ the three weights are $\tfrac14, \tfrac12, \tfrac14$).
+where $\lambda,\alpha,\beta \Ge 0$ are tunable weights and the third term is $\X_\omega$ with mixture weight $\omega = \alpha\hat\mu + \beta\bar\nu$. This mixture form goes beyond the self-terms $\alpha^2 \X_{\hat\mu} + \beta^2 \X_{\bar\nu}$: expanding the squared base measure, the pairwise integral also generates a cross term of weight $2\alpha\beta$, contributions $\bigl|\log(\mu/\nu)(x) - \log(\mu/\nu)(y)\bigr|$ with $x \sim \hat\mu$ and $y \sim \bar\nu$ that anchor the in-support and out-of-support log-ratios to each other.
 
 Equation~\eqref{eq: total-loss} is written in the abstract density $\nu$, but the trainable object is the flow map $G$. By the change of variables $\nu(y) = \mu_0(G(y))|\det J_G(y)|$, and writing $U_0 = -\log\mu_0$ for the source potential, the log-ratio along the flow is the single field
 \begin{equation}
@@ -129,7 +129,7 @@ which is the loss we minimize by stochastic gradient descent and the central obj
 
 We pair ESS with the coverage metric of \citet{naeem2020reliable} for evaluation, which counts the fraction of QT-discovered $\hat\mu$ samples whose $\kappa$-nearest-neighbor ball is reached by the trained $\nu$. Coverage exposes the modes that a fake ESS hides, so the two metrics together certify both density calibration and mode coverage.
 
-This paper makes four contributions. We introduce the X-functional framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{\alpha\hat\mu + \beta\bar\nu}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL regularized with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is lowered by the $\X_\mu$ term (strictly, unless $\mu/\nu^\star$ is constant on the support of the AIS surrogate). We report an empirical study on six 2D benchmarks (Threewell, Himmelblau, Annulus, Python, Chessboard, Sparse), where, among the four losses we compare, the mixture variant is the only one that both matches or beats the best full-coverage ESS and reaches full mode coverage on every target, together with a high-dimensional product multi-well family up to $d = 256$, where the gap between the X-regularized losses and the bare forward KL widens with the dimension. Finally, we give an adaptive-temperature Boltzmann-generator training scheme (Section~\ref{sec: boltzmann}) that grows a temperature ladder automatically by sizing each step from the classical SMC effective sample size.
+This paper makes four contributions. We introduce the X-functional framework $\X_\omega$, study three concrete instances $\X_\mu$, $\X_{\hat\mu}$, $\X_{\bar\nu}$, and identify the mixture variant $\X_{\alpha\hat\mu + \beta\bar\nu}$ that combines mode discovery and leakage suppression inside a single pairwise integral. We carry out a Fisher--Rao convergence analysis showing that the forward KL regularized with $\X_\mu$ decays exponentially with no structural assumption on $\mu$, and that the asymptotic accuracy floor under biased AIS samples is lowered by the $\X_\mu$ term (strictly, unless $\mu/\nu^\star$ is constant on the support of the AIS surrogate). We report an empirical study on six 2D benchmarks (Threewell, Himmelblau, Annulus, Python, Chessboard, Sparse), where, among the four losses we compare, the mixture variant is the only one that both matches or beats the best full-coverage ESS and reaches full mode coverage on every target, together with a high-dimensional product multi-well family up to $d = 256$, where the gap between the X-regularized losses and the bare forward KL widens with the dimension. Finally, we give an adaptive-temperature Boltzmann-generator training scheme (Section~\ref{sec: boltzmann}) that grows a temperature ladder automatically by sizing each step from the classical SMC effective sample size. On a $6$-state clock lattice at $D = 64$ the adaptive ladder completes for the X-regularized and the bare forward KL loss alike, along identical ladders; the X terms deliver consistently higher per-stage validation ESS, largest on the early bridges where the training signal rather than the sampling physics is the binding constraint, at no extra cost. The gain at scale is robustness and per-stage quality, a larger training limit rather than a faster transient.
 
 \section{Fisher--Rao gradient flow with X functionals}
 \label{sec: FR}
@@ -270,6 +270,8 @@ The uniform convergence rate \eqref{eq: KL-exponential} should \emph{not} be rea
 
 A naive comparison of dissipation rates between $\KL$-only and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: while the pure-KL FR gradient is local in $x$, the rank field $S_t$ is global, so the regularized flow \eqref{eq: FR-L-flow} couples the update at $x$ to the entire distribution of importance weights under $\mu$. This nonlocal coupling amplifies the birth rate on undercovered regions of $\mu$ and suppresses it on overcovered ones, a global comparison that pure forward KL (which knows only whether $\mu(x)/\nu_t(x)$ exceeds or falls below $1$ pointwise) cannot produce.
 
+Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no faster transient on this basis; the rejected-rung values of Section~\ref{subsec: clock} confirm that none materializes. Second, the dissipation \eqref{eq: combined-rate} is a population statement, while each gradient step sees a $B$-sample estimate. At large batch the estimated forward KL gradient already approximates its population direction well, the idealized rate \eqref{eq: KL-exponential} is nearly realized by the bare loss, and the headroom left for the X terms narrows; the regularizer earns its keep when the training signal is noisy or biased: small batches, early bridges, imperfect AIS samples. The clock ladder of Table~\ref{tab: clock-ladder} shows this contraction directly, the early-rung validation-ESS gap shrinking from $+0.21$ at $B = 10^3$ to $+0.13$ at $B = 10^5$.
+
 \begin{remark}[Monotone decay of $\X_\mu$]
 The regularizer $\X_\mu$ also decreases monotonically along the regularized flow: pairing the variation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: var-X} against the flow \eqref{eq: FR-L-flow} gives
 \begin{equation*}
@@ -351,6 +353,19 @@ By the change-of-variables formula the pullback density of $\mu_0$ under $G$ is 
 \end{align}
 We call the objective \eqref{eq: total-loss-G}, previewed as \eqref{eq: total-loss-G-intro} in the introduction, the \emph{X-regularized forward KL} (the cross-regularization loss of the title). We stress the two pushforward measures appearing in \eqref{eq: total-loss-G}. The model distribution $\nu = (G^{-1})_{\#}\mu_0$, with density $\nu(y) = \mu_0(G(y))|\det J_G(y)|$, is the flow's live approximation to the target $\mu$ and depends on the trainable parameters of $G$. The barred measure $\bar\nu$ is the \emph{same} pushforward frozen at the current parameters (a stop-gradient copy of $\nu$), which enters the mixture term only as a sampling weight and is never differentiated through.
 
+The three sampling measures entering \eqref{eq: total-loss-G} address complementary failure modes of the bare forward KL:
+\begin{itemize}
+    \item \emph{$\mu$: accuracy at small batch.} The shape term $\X_\mu$ compares the importance weights pairwise across the batch and lowers the asymptotic accuracy floor under biased AIS samples (Section~\ref{subsec: accuracy}); the gain is largest when the batch is small and the $B$-sample KL gradient is noisy.
+    \item \emph{$\hat\mu$: mode discovery.} The wide-coverage measure built by quench and temper (Section~\ref{subsec: QT}) places sample pairs across modes that AIS from the current pushforward cannot reach, pulling $\nu$ toward mass the bare loss never sees.
+    \item \emph{$\bar\nu$: leakage suppression.} The frozen pushforward penalizes the mass the flow places outside the support of $\mu$, preventing the overfit that target samples alone cannot detect: where $\mu$ provides no samples, the bare forward KL provides no signal.
+\end{itemize}
+None of the three changes the minimizer, each X term vanishing at $\nu = \mu$; what they add to the existing forward KL is numerical robustness, not a new objective.
+
+\begin{remark}[Robustness, not speed]
+\label{rem: robustness-not-speed}
+As discussed in Section~\ref{subsec: FR-convergence}, the exponential rate \eqref{eq: KL-exponential} is a statement about the idealized FR flow: the discrete Adam dynamics carries no such guarantee and may take many steps to converge. Moreover, at large batch the margin over the bare forward KL can be minor, since a large batch is already a powerful safeguard against mode collapse in practice; the gap is widest in the small-batch regime (Table~\ref{tab: clock-ladder}).
+\end{remark}
+
 All three terms are computed in a single forward pass: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$ once on a batch, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$ of the batch for each X term. Backpropagation passes through $\mathbf z$ exactly once, identical to a vanilla forward KL step, so the X functionals add essentially no extra cost.
 
 The loss draws on three measures, of which only two must be built. The $\bar\nu$ batch is free: it is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$, taken with the gradient through $G$ detached (a stop-gradient); this detached sampler keeps the loss numerically stable on sharp targets, where differentiating through the sampling chain (as a true reverse KL gradient does) would explode. The other two require construction: samples of the target $\mu$ for the forward KL and $\X_\mu$ terms, supplied by annealed importance sampling (Section~\ref{subsec: ais}), and samples of the wide-coverage measure $\hat\mu$ for the mixture term, supplied by quench and temper (Section~\ref{subsec: QT}).
@@ -373,10 +388,10 @@ followed by a resampling step and a short Langevin simulation to diffuse the dup
 so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each stage of the ladder reweights by only $w(y)^{\frac{1}{M}}$, keeping the weight ratio close to $1$ and avoiding the degeneracy of direct importance sampling.
 
 
-\begin{algorithm}[H]
-\label{alg: AIS}
+\begin{algorithm}[h]
 \setstretch{1.2}
 \caption{Annealed importance sampling (AIS) from $(G^{-1})_{\#}\mu_0$ to $\mu$}
+\label{alg: AIS}
 \KwInput{samples $y_1,\dots,y_B$ from $(G^{-1})_{\#}\mu_0$, ladder length $M$, intermediate distributions $\pi_m$ \eqref{eq: pi-m}}
 \KwOutput{samples $y_1,\dots,y_B$ approximately distributed as $\mu$}
 
@@ -404,10 +419,10 @@ For simple targets close to the source, $M = 1$ already suffices. The choice $M 
 
 The mixture term needs samples from the wide-coverage measure $\hat\mu$. These are prepared once, before training, as a fixed pool of $P$ samples $x_1,\dots,x_P$ distributed as $\hat\mu$; at each training step a mini-batch is drawn from this set and refreshed by a short Langevin chain before entering the $\X_\omega$ computation of Section~\ref{subsec: total-loss} with $\mu$ replaced by $\hat\mu$. The set is produced by quench and temper (QT), which proceeds in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
 
-\begin{algorithm}[H]
-\label{alg: QT}
+\begin{algorithm}[h]
 \setstretch{1.2}
 \caption{Quench and temper (QT): proactive mode discovery}
+\label{alg: QT}
 \KwInput{target potential $U$ (with fixed pool size $P$ and diffusion scale $\sigma_{\mathrm{QT}}$)}
 \KwOutput{wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ forming $\hat\mu$, written $\hat{\mathcal Y} = \mathrm{QT}(U)$}
 Draw an initial pool $x_1,\dots,x_P \sim \mu_0$\;
@@ -482,7 +497,7 @@ so that $\mu_0$ is the source and $\mu_K$ the target, together with $K$ flow map
 
 Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtain by SMC (Algorithm~\ref{alg: AIS} with $G$ the identity). The smallest per-step ESS of that SMC run is then a natural criterion for the step $\Delta t_k$: it measures how well the run bridges $\mu_{k-1}$ to $\mu_k$, so we enlarge the step until this ESS drops to a fixed floor.
 
-\begin{algorithm}[H]
+\begin{algorithm}[h]
     \setstretch{1.2}
 \caption{Adaptive selection of the temperature step $\Delta t_k$}
 \label{alg: step}
@@ -805,7 +820,7 @@ At $d = 256$ ($k = 8$), although the nominal dimension is $256$ the \emph{essent
 \subsection{Boltzmann generator on \texorpdfstring{$p$}{p}-state clock model}
 \label{subsec: clock}
 
-The preceding experiments train a single flow map; this experiment exercises the full adaptive-temperature procedure of Section~\ref{sec: boltzmann} (Algorithm~\ref{alg: boltzmann}), contrasting the X-regularized stage loss \eqref{eq: stage-loss} against the bare forward KL through an otherwise identical pipeline. The target is the $p$-state clock model on a periodic $8 \times 8$ square lattice, one angle per site,
+The preceding experiments train a single flow map; this experiment exercises the full adaptive-temperature procedure of Algorithm~\ref{alg: boltzmann}, contrasting the X-regularized stage loss \eqref{eq: stage-loss} against the bare forward KL through an otherwise identical pipeline. The target is the $p$-state clock model on a periodic $8 \times 8$ square lattice, one angle per site,
 \begin{equation}
     U(\theta) = -J \sum_{\langle j l \rangle} \cos(\theta_j - \theta_l) \;-\; h \sum_{j=1}^{D} \cos(p\, \theta_j),
     \qquad \theta \in [-\pi, \pi)^{D}, \quad D = 64,
@@ -821,44 +836,49 @@ where $\lfloor \cdot \rceil$ denotes rounding to the nearest integer. The anneal
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_target.pdf}
-    \caption{Structure of the cold clock measure \eqref{eq: clock-potential} at $D = 64$, displayed on the validation set of the X-regularized run (final-stage validation ESS $0.670$). (a) Global magnetization $m(\theta)$ of each sample, colored by sector index $s(\theta)$ ($1500$ points per sector shown; colors index sectors, not losses): the measure splits into $p = 6$ equivalent sectors, and the moderate $|m|$ (mean $0.29$) is consistent with the system sitting in the BKT window, with sectors entangled near the origin rather than isolated point modes: the hardest regime for sector-hopping. (b) Marginal of the site angles $\theta_j$: the anisotropy biases each site toward the six clock angles $2\pi k/6$ (dashed), far from the uniform source (dotted); the gray line, the same marginal for the iid pushforward, tracks the validation set closely, and the peak-height scatter mirrors the sector imbalance of panel (c). (c) Sector occupancy of the validation set (numeric labels) and of the single-shot pushforward (whiskers: $\pm 2\sigma$ multinomial error): all six sectors are populated, with no mode collapse. The pushforward's deviation from $1/6$ exceeds its sampling error (genuine flow bias, total variation $0.09$); the validation set's larger imbalance ($0.17$) is unrestored resampling fluctuation, a side effect of finite-size sampling.}
+    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_target.png}
+    \caption{Structure of the cold clock measure \eqref{eq: clock-potential} at $D = 64$, displayed on $10^6$ reweighted samples: fresh source draws advanced through the trained ladder by the map--reweight--resample step (v), X-regularized loss at $B = 10^4$. (a) Global magnetization $m(\theta)$, colored by sector index $s(\theta)$, $1500$ points per sector: the measure splits into $p = 6$ equivalent sectors with mean $|m| = 0.73$, well developed yet contiguous through the disordered center, so every training batch touches all sectors and the multimodality is soft rather than isolated. (b) Site-angle marginal: the anisotropy locks each site to the six clock angles $2\pi k/6$; dashed lines bound the six wells, colored as in (c), and the black line marks the uniform density $1/(2\pi)$; the pushforward marginal, the maps alone without reweighting, tracks the reweighted one closely. (c) Sector occupancy of reweighted and pushforward samples, the black line marking the uniform occupancy $1/6$: all six sectors are populated, and reweighting corrects the occupancy bias from total variation $0.18$ to $0.025$, uniform to $\pm 0.02$ per sector.}
     \label{fig: clock-target}
 \end{figure}
 
-The source is the uniform measure on the torus ($U_0 = 0$, so $U_t = t\, U$), and each stage map $G_k$ is a circular neural spline flow on $[-\pi, \pi)^{64}$, trained for $1000$ Adam steps per stage with batch size $B = 8000$, pool size $P = 2 \times 10^4$, and a validation set of $8 \times 10^4$ samples. The AIS surrogate and the SMC of the adaptive selection share the ladder length $M = 4$; the SMC floor is raised to $\tau = 0.7$, so the cheap SMC gate trims over-aggressive guesses before any training is spent. The remaining constants are those of Algorithm~\ref{alg: boltzmann}. The two losses compared are the full stage loss \eqref{eq: stage-loss} at the balanced hyperparameters $\lambda = 1$, $\alpha = \beta = 1/2$, and the bare forward KL, its first term alone; everything else is shared.
+The source is the uniform measure on the torus, $U_0 = 0$, so $U_t = t\, U$; each stage map $G_k$ is a circular neural spline flow on $[-\pi, \pi)^{64}$. The protocol is deliberately large-sample: a validation set of $10^6$ samples, pool size $P = 2 \times 10^5$, safe start $t_{\mathrm{safe}} = 0.2$, shared ladder length $M = 4$, and SMC floor $\tau = 0.7$, which trims over-aggressive guesses before any training is spent. We report three batch sizes $B = 10^3$, $10^4$, $10^5$, with $2000$, $500$, $200$ Adam steps per stage; the remaining constants are those of Algorithm~\ref{alg: boltzmann}. Training carries a stability guard: a non-finite loss skips the gradient step under gradient clipping and a fresh batch is drawn, with a stage abort only after repeated skips. The two losses compared are the full stage loss \eqref{eq: stage-loss} at the balanced hyperparameters $\lambda = 1$, $\alpha = \beta = 1/2$, and the bare forward KL, its first term alone; everything else is shared.
 
-Table~\ref{tab: clock-ladder} reports the core metric: the validation ESS of step (v) for every training attempt. The X-regularized loss completes the ladder in five stages, each accepted on its first attempt (validation ESS $0.85$--$0.67$). The bare forward KL passes the first two levels at visibly lower ESS, needs three trainings to clear a shrunken third level, and then fails outright: twelve consecutive attempts at the fourth increment are rejected with validation ESS pinned at $0.06$--$0.11$, and the run terminates incomplete at $t = 0.577$ (Figure~\ref{fig: clock-training}(a)). Shrinking the attempted increment by a factor of $50$ leaves the ESS unchanged: the failure is one of the loss, and no temperature schedule rescues it.
+Table~\ref{tab: clock-ladder} reports the core metric, the validation ESS of step (v) on every accepted rung. Both losses complete the ladder at every batch size, along \emph{identical} ladders with \emph{identical} rejected rungs: the adaptive machinery converts loss quality into schedule, not into success or failure. Figure~\ref{fig: clock-curves} shows the per-step training ESS on the first three stages of each run. The discrimination lives in the per-rung quality. On accepted rungs the X-regularized loss posts the higher validation ESS on stages 1--3 at all three batch sizes, $+0.21/+0.13/+0.10$ at $B = 10^3$, $+0.17/+0.11/+0.03$ at $B = 10^4$, $+0.13/+0.09/+0.04$ at $B = 10^5$; the gap closes to zero in the transition window, slightly reversing on a few late rungs, at equal wall time per pair. A generalization check pushes $10^6$ independent source samples through the trained $B = 10^4$ ladders, stage by stage with the resampling of step (v): the fresh-sample per-stage ESS tracks the gate values within $0.02$--$0.10$ for both losses, and the final sector occupancy is uniform to $\pm 0.02$ per sector, total variation $0.025$, so the gates measure generalization rather than memorization of the carried set.
 
 \begin{table}[h]
     \centering
-    \begin{tabular}{@{}c cc cc@{}}
+    \begin{tabular}{@{}l cccccccc@{}}
         \toprule
-        & \multicolumn{2}{c}{$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$} & \multicolumn{2}{c}{forward KL} \\
-        \cmidrule(lr){2-3} \cmidrule(l){4-5}
-        stage $k$ & $t_k$ & validation $\ESS(w)$ & $t_k$ (attempts) & validation $\ESS(w)$ \\
+        stage $k$ & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
         \midrule
-        1 & $0.250$ & $0.845$ & $0.250$ & $0.518$ \\
-        2 & $0.495$ & $0.784$ & $0.495$ & $0.414$ \\
-        3 & $0.663$ & $0.775$ & $0.663 \to 0.613 \to 0.577$ \;(3) & $0.285,\ 0.297,\ 0.306$ \\
-        4 & $0.828$ & $0.711$ & $0.742 \to \cdots \to 0.581$ \;(12) & $0.061$--$0.112$, all rejected \\
-        5 & $1.000$ & $0.670$ & \multicolumn{2}{c}{--- \quad terminates incomplete at $t = 0.577$} \\
+        $t_k$ \;($B = 10^3$) & $0.200$ & $0.396$ & $0.530$ & $0.662$ & $0.753$ & $0.841$ & $0.952$ & $1.000$ \\
+        \quad $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.602}$ & $\mathbf{0.524}$ & $\mathbf{0.559}$ & $\mathbf{0.401}$ & $\mathbf{0.500}$ & $0.453$ & $0.369$ & $\mathbf{0.778}$ \\
+        \quad forward KL & $0.391$ & $0.398$ & $0.463$ & $0.366$ & $0.467$ & $\mathbf{0.465}$ & $\mathbf{0.400}$ & $0.708$ \\
+        \midrule
+        $t_k$ \;($B = 10^4$) & $0.200$ & $0.396$ & $0.588$ & $0.720$ & $0.849$ & $1.000$ & --- & --- \\
+        \quad $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.703}$ & $\mathbf{0.628}$ & $\mathbf{0.381}$ & $\mathbf{0.412}$ & $0.336$ & $0.303$ & --- & --- \\
+        \quad forward KL & $0.531$ & $0.523$ & $0.347$ & $0.396$ & $\mathbf{0.349}$ & $\mathbf{0.341}$ & --- & --- \\
+        \midrule
+        $t_k$ \;($B = 10^5$) & $0.200$ & $0.396$ & $0.588$ & $0.720$ & $0.849$ & $1.000$ & --- & --- \\
+        \quad $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.745}$ & $\mathbf{0.688}$ & $\mathbf{0.451}$ & $\mathbf{0.489}$ & $\mathbf{0.405}$ & $0.383$ & --- & --- \\
+        \quad forward KL & $0.611$ & $0.602$ & $0.416$ & $0.461$ & $0.400$ & $\mathbf{0.387}$ & --- & --- \\
         \bottomrule
     \end{tabular}
-    \caption{Per-stage validation ESS (the acceptance gate of Algorithm~\ref{alg: boltzmann}, floor $\tau_{\mathrm v} = 0.3$) on the $p = 6$ clock model at $D = 64$. The X-regularized loss passes all five stages on the first attempt and reaches $t = 1$; the bare forward KL clears its third stage only after two rejections, then fails the fourth twelve times in a row, the validation ESS staying at $0.06$--$0.11$ while the attempted increment shrinks by a factor of $50$, a failure of the loss rather than of the temperature schedule. Wall time: $65$ minutes for the complete X-regularized ladder versus $215$ minutes for the incomplete forward KL run, most of it spent on rejected trainings.}
+    \caption{Validation ESS on every accepted rung, the acceptance gate of Algorithm~\ref{alg: boltzmann} with floor $\tau_{\mathrm v} = 0.3$, on the $p = 6$ clock model at $D = 64$; bold marks the better loss on each rung. Within each pair the two losses traverse the same accepted ladder and reject the same rungs, seven rejections per run at $B = 10^3$ and two at $B = 10^4$ and $10^5$, so the rows are directly comparable. The X-regularized loss leads on the early rungs; the gap closes in the transition window $t \approx 0.66$--$0.95$, where the selector halves the increment and the sampling physics, shared by both losses, sets the ceiling. Wall time per pair is equal within $3\%$.}
     \label{tab: clock-ladder}
 \end{table}
 
+
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_training.pdf}
-    \caption{The acceptance loop of Algorithm~\ref{alg: boltzmann} on the $D = 64$ clock model, X-regularized stage loss \eqref{eq: stage-loss} versus bare forward KL. (a) Every attempted level $t_k$, in training order; each marker is one full $1000$-step stage training. The X-regularized run ($5$ accepted attempts, no rejections) climbs to $t = 1$; the forward KL run needs $17$ trainings for $3$ accepted stages and stalls at $t = 0.577$, the abort-and-shrink loop contracting the fourth increment twelve times without ever passing the gate. (b, c) Per-step ESS of the training surrogate within each accepted stage. Under the X-regularized loss the ESS climbs to a $0.7$--$0.85$ plateau in all five stages; under forward KL it plateaus lower stage by stage and, in the third stage, peaks and then decays during training: the log-weight fluctuations grow unpenalized, the AIS surrogate degenerates, and the loss appears to turn mode-seeking (Sections~\ref{subsec: accuracy} and \ref{subsec: eval}).}
-    \label{fig: clock-training}
+    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_esscurves.png}
+    \caption{Per-step ESS of the training surrogate on the first three stages, bare forward KL (blue) versus the X-regularized loss (red); rows $B = 10^3$, $10^4$, $10^5$, one panel per stage. These are the far-but-smooth early bridges where the training loss is the binding constraint: the X-regularized curve plateaus visibly higher in every panel, mirroring the accepted-rung gates of Table~\ref{tab: clock-ladder}.}
+    \label{fig: clock-curves}
 \end{figure}
 
-Figure~\ref{fig: clock-training}(b, c) shows why the forward KL fails: under the bare forward KL the per-step ESS of the training surrogate peaks early and then \emph{decays as training proceeds}. The mechanism is the self-referential bias of Section~\ref{subsec: accuracy}: the $\mu_k$-expectation is estimated through the model's own AIS surrogate, and the bare forward KL minimizes only the mean of the stage log-ratio $z_k$, leaving unpenalized the fluctuations that the weights $w = e^{z_k}$ exponentiate. As the sectors deepen, the flow keeps lowering the mean while the variance of $z_k$ grows; the surrogate weights degenerate, and the feedback appears to drive the nominally mode-covering forward KL into mode-seeking concentration, the fake ESS pathology of Section~\ref{subsec: eval} arising \emph{during} training. The two X terms of \eqref{eq: stage-loss} penalize the deviation $|z_k(y) - z_k(y')|$ on the AIS batch and the QT-anchored mixture, and this control is precisely what succeeds: under the X-regularized loss the same surrogate ESS climbs to a stable plateau in every stage (Figure~\ref{fig: clock-training}(b)) and the validation ESS stays far above the floor.
+The pattern is consistent with the theory: the X terms lower the asymptotic accuracy floor of each stage (Section~\ref{subsec: accuracy}), a larger training \emph{limit}, but promise no faster transient, and the rejected-rung values confirm that the bare forward KL trains no slower. The anatomy of the ladder shows where the gain lives. The early bridges, $t \Le 0.66$, are far but smooth: a large, structurally simple deformation with a clean AIS signal, so the training loss is the binding constraint and the X terms win by up to $+0.21$. In the transition window, $t \approx 0.66$--$0.95$, the selector halves the accepted increment, an empirical readout of the annealing bottleneck at the BKT crossing; there the ceiling is set by the critically slow Langevin rejuvenation and the shared network capacity, constraints common to both losses, so the gap collapses to zero. The final hop to $t = 1$ is the easiest rung for both. On this target the six sectors are never isolated (Figure~\ref{fig: clock-target}(a)), so the mode-discovery channel of $\X_{\hat\mu}$ is not load-bearing; the qualitative separations of Sections~\ref{subsec: 2d-benchmark}--\ref{subsec: highd}, where modes are isolated by construction, do not transfer to soft multimodality. What transfers is a uniform per-rung quality improvement at zero extra cost: the X-regularized loss was never worse than the bare forward KL where it mattered and never failed where the bare loss passed.
 
-The trained ladder is used as a staged sampler: each stage applies its map $G_k^{-1}$ and then reweights and resamples as in step (v), so fresh samples attain the validation-set quality. The sector occupancy in Figure~\ref{fig: clock-target}(c) is uneven (between $0.10$ and $0.25$ against the exactly symmetric law $1/6$) despite full sector coverage and high per-stage validation ESS: a side effect of finite-size sampling, not a training failure, and one that reweighting cannot simply repair. The weights of step (v) are pointwise density ratios, exchangeable within a sector and hence sector-blind: they neither detect the imbalance, seeded by the slight flow bias that the iid pushforward exposes, nor correct it; the cold Langevin rejuvenation transports no mass between sectors; and the final validation set is resampled, carrying no weights at all. The occupancy is thus unbiased in expectation over runs but unrestored within any single one, and the per-stage fluctuations accumulate along the ladder: the Monte Carlo error grows with the number of stages, which makes the side effect particularly visible in a multi-stage generator. Coverage, ESS, and occupancy evenness are three distinct axes of sample quality; the failure that no post-processing could repair, a \emph{missing} sector, does not occur. The comparison is unaffected: the bare forward KL never reaches $t = 1$ at any resampling budget.
+The trained ladder is used as a staged sampler: each stage applies its map $G_k^{-1}$ and then reweights and resamples as in step (v), and Figure~\ref{fig: clock-target}(c) shows the resulting occupancy, uniform to $\pm 0.02$. The residual is nonetheless well above the iid multinomial floor of $3 \times 10^{-4}$ at $10^6$ samples, and the carried training set itself is less uniform, at total variation $0.11$: a side effect of finite-size sampling, not a training failure, and one that reweighting cannot simply repair. The weights of step (v) are pointwise density ratios, exchangeable within a sector and hence sector-blind: they neither detect the imbalance, seeded by the slight flow bias that the iid pushforward exposes, nor correct it; the cold Langevin rejuvenation transports no mass between sectors; and the final validation set is resampled, carrying no weights at all. The occupancy is thus unbiased in expectation over runs but unrestored within any single one, and the per-stage fluctuations accumulate along the ladder: in the fresh rebuild, essentially the whole residual arises at the two coldest rungs, where the ESS is lowest and resampling concentrates the lineages. Coverage, ESS, and occupancy evenness are three distinct axes of sample quality; the failure that no post-processing could repair, a \emph{missing} sector, does not occur for either loss.
 
 \bibliographystyle{plainnat}
 \bibliography{references}
