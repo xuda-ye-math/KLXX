@@ -48,13 +48,16 @@ def log(msg):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--t', type=float, default=0.1)
-    ap.add_argument('--m-low', type=int, default=4)
+    ap.add_argument('--m-low', type=int, default=6)
     ap.add_argument('--m-full', type=int, default=8)
+    ap.add_argument('--sigma-obs', type=float, default=p.SIGMA_OBS)
     ap.add_argument('--method', choices=['balance', 'kl'], default='balance')
     ap.add_argument('--steps', type=int, default=400)
     ap.add_argument('--batch', type=int, default=1000)
     args = ap.parse_args()
     p.M_LOW, p.M_FULL = args.m_low, args.m_full
+    p.SIGMA_OBS = args.sigma_obs
+    p.N_SENSORS = int(1.5 * args.m_low ** 2 + 0.5)
 
     NV, NP = 20000, 4000
     torch.manual_seed(0)

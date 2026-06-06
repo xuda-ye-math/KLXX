@@ -6,8 +6,9 @@ Unknown field on the periodic unit square, parameterized by a real Fourier basis
     v(x; theta) = sum_m theta_m phi_m(x),
 
 phi_m = sqrt(2) cos(2 pi k.x) / sqrt(2) sin(2 pi k.x) over a half-plane of wave
-vectors k (constant mode included once), enumerated LOW BLOCK FIRST: all modes
-with max(|k1|,|k2|) <= m_low/2 precede the extension modes of the full m_full set.
+vectors k (constant mode included once), enumerated by increasing |k|^2 (isotropic
+cutoff): the first m_low^2 modes form the trained low block, the first m_full^2
+the full set -- see mode_list.
 
 Forward (spectral, exact on the grid):
 

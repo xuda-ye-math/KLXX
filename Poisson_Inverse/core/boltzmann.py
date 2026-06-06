@@ -121,7 +121,7 @@ def quench_and_temper_torus(target: Potential, n: int, d: int, lim: float,
 # ---------------------------------------------------------------------------
 # (ii) adaptive temperature selection (Algorithm 3)
 # ---------------------------------------------------------------------------
-def adaptive_step(pool: torch.Tensor, u0: Potential, u: Potential, t_prev: float,
+def adaptive_step(pool: torch.Tensor, ub_prev, ub_next, t_prev: float,
                   *, tau: float, shrink: float, rungs: int, rung_iters: int,
                   mc_step: float, wrap, status=print, max_shrinks: int = 60,
                   t_init: float = 1.0):
@@ -131,9 +131,10 @@ def adaptive_step(pool: torch.Tensor, u0: Potential, u: Potential, t_prev: float
     min per-rung ESS >= tau, else shrink t_k toward t_prev. Returns
     (t_k, ess_min, n_shrinks)."""
     t_k = min(max(t_init, t_prev + 1e-4), 1.0)
+    ub_prev.set_coeffs([float(t_prev), 1.0 - float(t_prev)])
     for s in range(max_shrinks):
-        u_prev, u_next = bridge(u0, u, t_prev), bridge(u0, u, t_k)
-        _, ess = sequential_monte_carlo(wrap(pool.clone()), u_prev, u_next,
+        ub_next.set_coeffs([float(t_k), 1.0 - float(t_k)])
+        _, ess = sequential_monte_carlo(wrap(pool.clone()), ub_prev, ub_next,
                                         ladder=rungs, step=mc_step,
                                         iters=rung_iters)
         ess_min, n_low = min(ess), sum(1 for e in ess if e < tau)
@@ -234,6 +235,10 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
             ms = 1000.0 * (time.perf_counter() - t0) / (step + 1)
             status(f"    [train] step {step+1:>5}/{steps}  loss={loss.item():.3e}  "
                    f"direct ESS={ess_hist[-1]:.3f}  {ms:6.1f} ms/step")
+        if (step + 1) % 200 == 0 and (step + 1) < steps and ess_hist[-1] < 0.05:
+            status(f"    [train] EARLY ABORT at step {step+1}: direct ESS "
+                   f"{ess_hist[-1]:.4f} < 0.05 (user rule)")
+            return ess_hist, False
     return ess_hist, True
 
 
@@ -241,7 +246,7 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
 # (v) validation set update (importance weights of the trained inverse)
 # ---------------------------------------------------------------------------
 def validation_update(F_inv, y_valid: torch.Tensor, u_prev: Potential,
-                      u_next: Potential, *, chunk: int = 500000):
+                      u_next: Potential, *, chunk: int = 50000):
     """Push Y_{k-1} through G_k^{-1} (compiled fused inverse); w =
     exp(U_{k-1}(Y_{k-1}) - U_k(Ytilde) + ladj_inv) (zflows convention:
     ladj_inv = -log|det J_{G_k}(Ytilde)|). Returns (y_tilde, logw, ESS(w))."""
@@ -267,7 +272,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                   wrap, qt_fn, device, status=print,
                   max_stages: int = 30, max_retry: int = 6, t_tol: float = 1e-3,
                   t_safe: float = 0.25, method: str = 'balance',
-                  grad_clip: float = 1e3, max_skip: int = 10):
+                  grad_clip: float = 1e3, max_skip: int = 10, fine_fn=None,
+                  checkpoint_fn=None):
     """Returns (stages, Y, complete, flow, F_inv) -- per-stage records (t_k,
     diagnostics, state_dict), the final validation set, whether the ladder
     reached t = 1 (False = INCOMPLETE: a stage failed its gate or max_stages
@@ -284,6 +290,20 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
     # shape is fixed, so no recompile ever occurs after the first step.
     flow = flow_factory()
     F_inv = flow.t().enable_inv_ladj()
+    # Compile-once bridges: TWO persistent linear combinations whose coeffs are
+    # mutated per stage with set_coeffs (zflows: no recompile); every Langevin/
+    # SMC/eval across all stages reuses these two compiled closures.
+    ub_prev = bridge(u0, u, 0.0)
+    ub_next = bridge(u0, u, 0.0)
+    _tc = time.perf_counter()
+    status("[compile] bridge grad/eval closures compiling...")
+    _probe = Y[:64].clone()
+    for _ub in (ub_prev, ub_next):
+        _ub.enable_grad(mode="reduce-overhead")
+        _ub.enable_eval(mode="default")
+        _ub.grad(_probe)                       # eager warmup: compile NOW,
+        _ub.eval(_probe)                       # not silently mid-stage
+    status(f"[compile] bridges ready ({time.perf_counter() - _tc:.1f} s)")
     tp_buf = torch.zeros((), device=device)
     tn_buf = torch.zeros((), device=device)
     if method == 'balance':
@@ -293,7 +313,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         closs = loss_compile(fused_kl_loss, u0, u, tp_buf, tn_buf, flow.t())
     while t_prev < 1.0 and len(stages) < max_stages:
         k = len(stages) + 1
-        u_prev = bridge(u0, u, t_prev)
+        ub_prev.set_coeffs([float(t_prev), 1.0 - float(t_prev)])
+        u_prev = ub_prev
         # (i) selection pool: draw from Y_{k-1}, rejuvenate on U_{k-1}
         pool = Y[torch.randint(0, n_valid, (n_pool,), device=device)]
         if t_prev > 0.0:
@@ -307,7 +328,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         ts = [0.0] + [s['t'] for s in stages]
         t_init = min(3.0 * ts[-1] - 2.0 * ts[-2], 1.0) if len(ts) >= 2 else t_safe
         t_k, smc_ess, n_shrink = adaptive_step(
-            pool, u0, u, t_prev, tau=adaptive_tau, shrink=shrink,
+            pool, ub_prev, ub_next, t_prev, tau=adaptive_tau, shrink=shrink,
             rungs=smc_rungs, rung_iters=smc_rung_iters, mc_step=mc_step,
             wrap=wrap, status=status, t_init=t_init)
         if 1.0 - t_k < t_tol:
@@ -319,7 +340,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         # y_tilde, logw, u_next) are captured at the moment of acceptance.
         attempts, accepted = [], None
         for attempt in range(max_retry):
-            u_next = bridge(u0, u, t_k)
+            ub_next.set_coeffs([float(t_k), 1.0 - float(t_k)])
+            u_next = ub_next
             hat = qt_fn(u_next) if method == 'balance' else None  # (iii)
             flow.zeros()                                          # identity reset, in place
             tp_buf.fill_(t_prev)
@@ -330,36 +352,93 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                 rungs=smc_rungs, rung_iters=smc_rung_iters,
                 wrap=wrap, method=method, grad_clip=grad_clip,
                 max_skip=max_skip, status=status)
+            _tr = time.perf_counter()
+            status(f"[stage {k}] reweighting: validation update (low) "
+                   f"+ fine ESS on N={Y.shape[0]}...")
             y_tilde, logw, val_ess = validation_update(F_inv, Y, u_prev, u_next)
-            attempts.append(dict(t_k=t_k, val_ess=val_ess, train_ok=ok,
-                                 accepted=bool(ok and val_ess >= validation_tau),
+            # Gate placement (user rule, revised after the 2026-06-06 kl run):
+            # intermediate stages gate on the LOW validation ESS -- their fine
+            # ESS is bounded by the truncation ceiling at temper t_k, which no
+            # training can lift; the FINAL stage (t_k = 1) gates on the FINE
+            # ESS, the accurate-potential metric the benchmark reports.
+            gate_ess = val_ess
+            fine_ess = None
+            if fine_fn is not None:
+                # carried pre-images + extension correction (NOT a fresh
+                # prior pushed through the stage inverse -- wrong source
+                # for every stage after the first)
+                fine_ess = fine_fn(y_tilde, logw, t_k)
+                if t_k >= 1.0:
+                    gate_ess = fine_ess
+            attempts.append(dict(t_k=t_k, val_ess=val_ess, fine_ess=fine_ess,
+                                 train_ok=ok,
+                                 accepted=bool(ok and gate_ess >= validation_tau),
                                  ess_hist=list(ess_hist)))   # full per-step ESS,
                                                              # rejected attempts too
-            status(f"[stage {k}] attempt {attempt+1}: validation ESS={val_ess:.3f} "
-                   f"(floor {validation_tau})")
-            if ok and val_ess >= validation_tau:
+            status(f"[stage {k}] attempt {attempt+1}: validation ESS={val_ess:.3f}"
+                   + (f"  FINE ESS={fine_ess:.3f}" if fine_ess is not None else "")
+                   + f" (gate floor {validation_tau}; reweighting took "
+                   f"{time.perf_counter() - _tr:.1f} s)")
+            if ok and gate_ess >= validation_tau:
+                # NOTE: deliberately no u_next reference here -- ub_next is a
+                # mutable shared bridge; post-loop code re-sets its coeffs
+                # explicitly from the accepted t_k (aliasing hardening, R1).
                 accepted = dict(t_k=t_k, flow=flow, y_tilde=y_tilde, logw=logw,
-                                u_next=u_next, val_ess=val_ess, ess_hist=ess_hist)
+                                val_ess=val_ess,
+                                fine_ess=fine_ess, ess_hist=ess_hist)
                 break
-            t_k = t_prev + shrink * (t_k - t_prev)                # abort & shrink
-            status(f"[stage {k}] abort -> shrink to t_k={t_k:.4f}")
+            if fine_fn is not None and t_k >= 1.0:
+                # At t = 1 nothing ever shrinks (user rule 2026-06-06): a
+                # FINE-gate failure is a verdict on the composed flow's
+                # quality, and a TRAINING failure gets a fresh attempt (new
+                # QT pool, identity re-init) at the same t. Accepting a
+                # shrunken t via the low gate would launder the failure into
+                # fake ladder progress. After max_retry attempts the stage --
+                # and the run -- is claimed FAILED. Log the true cause (R2).
+                cause = "TRAINING failed" if not ok else "FINE gate failed"
+                status(f"[stage {k}] abort ({cause} at t=1) -> retrain at "
+                       f"t=1, attempt {attempt+2}/{max_retry} (no shrink)")
+            else:
+                t_k = t_prev + shrink * (t_k - t_prev)            # abort & shrink
+                status(f"[stage {k}] abort -> shrink to t_k={t_k:.4f}")
         if accepted is None:
             status(f"[stage {k}] STAGE FAILED: validation ESS never reached "
                    f"{validation_tau} in {max_retry} attempts; stopping with an "
                    f"INCOMPLETE ladder (reached t={t_prev:.4f})")
             return stages, Y, False, flow, F_inv
         # (v) accept: resample + rejuvenate the validation set
-        t_k, u_next = accepted['t_k'], accepted['u_next']
+        t_k = accepted['t_k']
+        ub_next.set_coeffs([float(t_k), 1.0 - float(t_k)])
+        u_next = ub_next
         logw = accepted['logw']
+        _ta = time.perf_counter()
+        status(f"[stage {k}] accepted t_k={t_k:.4f}: resample + rejuvenate "
+               f"validation set (N={Y.shape[0]}, {mc_iters} Langevin iters)")
         Y = resample(accepted['y_tilde'], (logw - logw.max()).exp())
         Y = wrap(langevin(Y, u_next, step=mc_step, iters=mc_iters))
+        status(f"[stage {k}] validation set advanced "
+               f"({time.perf_counter() - _ta:.1f} s)")
         stages.append(dict(
             t=t_k, smc_ess=smc_ess, n_shrink=n_shrink,
-            val_ess=accepted['val_ess'], attempts=attempts,
+            val_ess=accepted['val_ess'], fine_ess=accepted['fine_ess'],
+            attempts=attempts,
             train_ess_hist=accepted['ess_hist'],
             state_dict={key: v.cpu().clone()
                         for key, v in accepted['flow'].state_dict().items()}))
         t_prev = t_k
+        if checkpoint_fn is not None:                # per-stage partial .pth
+            checkpoint_fn(stages, t_prev)            # (user: fast inference)
+        # stall rule (user 2026-06-06): two consecutive accepted increments
+        # below 0.005 while t < 1 is a Zeno stall -- the gate at t = 1 is
+        # unreachable; stop and claim failure rather than crawl to max_stages.
+        if t_prev < 1.0 and len(stages) >= 2:
+            dt_last = stages[-1]['t'] - stages[-2]['t']
+            dt_prev = stages[-2]['t'] - (stages[-3]['t'] if len(stages) >= 3
+                                         else 0.0)      # k=2: t_1 - t_0, t_0=0
+            if dt_last < 0.005 and dt_prev < 0.005:
+                status(f"[stall] accepted increments < 0.005 twice in a row at "
+                       f"t={t_prev:.4f}: claiming FAILURE (Zeno stall)")
+                return stages, Y, False, flow, F_inv
     return stages, Y, (t_prev >= 1.0), flow, F_inv
 
 
@@ -367,7 +446,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
 # final evaluation: compose the stage inverses and accumulate the weights
 # ---------------------------------------------------------------------------
 def compose_pushforward(flow, F_inv, state_dicts, u0: Potential, u: Potential,
-                        n: int, device, chunk: int = 500000):
+                        n: int, device, chunk: int = 50000):
     """Generate y = G_K^{-1}(... G_1^{-1}(x)) for x ~ mu_0 and return
     (y, logw) with logw = u0(x) - u(y) + sum_k ladj_inv_k (the direct
     importance weight of the composed generator against the target).
