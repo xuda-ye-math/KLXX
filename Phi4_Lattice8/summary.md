@@ -1,4 +1,4 @@
-# phi^4 8x8: the showcase fake-ESS case (paper headline together with 6x6; 3 seeds)
+# phi^4 8x8: the showcase fake ESS case (paper headline together with 6x6; 3 seeds)
 
 ## 3-seed aggregate (referee p_+ = 0.139)
 
@@ -49,7 +49,7 @@ Larger lattices were measured and excluded deliberately: at 12x12 the collapsed 
 0.15 (no longer misleading -- it already looks bad) and the honest methods' ESS drops to
 0.01-0.06 (correct physics, but sampling grows expensive); at 16x16 single-flow training and
 mode-truncated proposals both hit measured ceilings (see Phi4_Lattice16/, .aris wiki). The
-fake-ESS showcase lives at 6x6-8x8, where the fake is high, training is clean, and the exact
+fake ESS showcase lives at 6x6-8x8, where the fake is high, training is clean, and the exact
 PT referee is cheap. The 12x12/16x16 records remain on disk as the measured boundary of the
 single-flow regime (appendix/referee-response material, not headline).
 

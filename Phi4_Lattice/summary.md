@@ -20,7 +20,7 @@ QT set (2000 samples, 45/55 across vacua), and validation batch. VRAM < 2 GB (ca
 ## Interpretation (one paragraph)
 
 Bare forward KL and KL+X_mu collapse onto the favored (m<0) vacuum and report the *highest* ESS
-of the four (0.72, 0.91) while carrying zero mass in the m>0 phase: the fake-ESS pitfall realized
+of the four (0.72, 0.91) while carrying zero mass in the m>0 phase: the fake ESS pitfall realized
 in a genuine field theory, with the physical observable (the inter-vacuum free-energy difference)
 infinitely wrong. The two oracle-driven losses recover the missing vacuum at p(m>0) = 0.125/0.126
 versus the PT referee's 0.128 — Delta F correct to 0.02 kT — at an honest ESS of ~0.88. Training
