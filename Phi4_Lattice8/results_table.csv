@@ -1,0 +1,5 @@
+method,final_ess,p_plus,delta_F
+KL,0.4432,0.0,-20.723
+KL+X_mu,0.8211,0.0,-20.723
+KL+X_mu+X_hat_mu,0.6444,0.1268,-1.929
+KL+X_mu+X_mix,0.6579,0.1265,-1.933
