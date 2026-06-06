@@ -67,7 +67,7 @@ which needs only samples from $\nu$ and is therefore cheap to estimate. It is, h
     \mathrm{KL}(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x,
     \label{eq: forward KL}
 \end{equation}
-which is mode-covering but needs samples from $\mu$. Such samples are produced by annealed importance sampling (AIS) \citep{neal2001annealed}, which transports $\nu$ toward $\mu$ through a ladder of intermediate distributions while accumulating importance weights. The flow AIS bootstrap (FAB) of \citet{midgley2022flow} couples AIS to flow training and replaces the target by the mode-sensitive surrogate $\mu^2/\nu$ to encourage exploration.
+which is mode-covering but needs samples from $\mu$. Such samples are produced by annealed importance sampling (AIS) \citep{neal2001annealed}, which transports $\nu$ toward $\mu$ through a ladder of intermediate distributions while accumulating importance weights. The flow AIS bootstrap (FAB) of \citet{midgley2022flow} couples AIS to flow training and replaces the target by the mode-sensitive surrogate $\mu^2/\nu$ to encourage exploration; Remark~\ref{rem: fab} contrasts the two constructions.
 
 A separate line of work drops the explicit-density requirement and trains a diffusion- or SDE-based sampler directly: the path-integral sampler \citep{zhang2022path}, denoising diffusion samplers \citep{vargas2023denoising}, and the more recent iterated denoising / energy-matching family \citep{akhound2024iterated,woo2024iefm} learn a stochastic process whose terminal distribution matches $\mu$. These samplers are expressive and scale well, but they do not deliver an exact tractable density of their output, so importance reweighting against $\mu$ is no longer available. We commit to flow-based methods for that reason: the invertibility of $G$ gives an explicit $\nu$ and therefore an exact, finite-sample importance-sampling pipeline, in which the effective sample size (ESS) \citep{liu2001monte,doucet2001introduction,martino2017rethinking} computed from the flow's own weights is a standard and convenient diagnostic of training quality, with known blind spots that motivate the failure-mode analysis below.
 
@@ -412,6 +412,15 @@ In the general case, the Langevin step nominally targets the intermediate distri
 \begin{remark}[Choosing the ladder length $M$]
 \label{rem: ladder-length}
 For simple targets close to the source, $M = 1$ already suffices. The choice $M = d$ is typical but not necessary in every test --- an empirical rule by which the ladder length scales with the dimension of the deformation the flow must bridge, of which $d$ is the worst case. For instance, annealing $\mu_0 \propto e^{-|x|^2}$ to $\mu \propto e^{-2|x|^2}$ on $\mathbb R^d$ deforms all $d$ coordinates at once, and a ladder of $M = d$ steps keeps the weighted empirical distribution at a finite ESS that does not degrade with $d$; when the deformation concentrates on fewer directions, a much shorter ladder suffices.
+\end{remark}
+
+\begin{remark}[Comparison with FAB]
+\label{rem: fab}
+The flow AIS bootstrap of \citet{midgley2022flow} also couples AIS to flow training, but places the flow inside the chains. Its transitions target the mode-seeking surrogate $\mu^2/\nu$, whose score
+\begin{equation*}
+    \nabla_y \log \frac{\mu^2(y)}{\nu(y)} = -2\nabla U(y) - \nabla_y \log\nu(y)
+\end{equation*}
+carries the positional gradient of the pushforward density at every MCMC step, precisely the term avoided by diffusing under $\mu$ above; training then feeds on a replay buffer of past AIS samples reweighted against staleness. The scheme of this paper is score-free in the flow: every chain targets $\mu$ with score $-\nabla U$, the flow enters only through evaluations of the log-ratio $z$, and each gradient step runs Algorithm~\ref{alg: AIS} afresh on a new source batch, so no buffer is kept; the one persistent set, the QT pool of Section~\ref{subsec: QT}, is built once and covered by sample robustness. FAB explores through its AIS chain, which must still cross the barriers of $\mu$; here mode discovery is delegated to the chain-free quench. The trade-offs are real: the $\alpha = 2$ divergence behind $\mu^2/\nu$ carries a stronger tail-coverage incentive than the forward KL, and with sufficient AIS budget FAB needs no oracle construction.
 \end{remark}
 
 \subsection{Constructing $\hat\mu$ by quench and temper}
