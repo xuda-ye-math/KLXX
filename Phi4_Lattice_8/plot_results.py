@@ -85,12 +85,12 @@ for j, (sel, tag) in enumerate([(msamp.argmin(), r'$m<0$ vacuum'),
     ax.set_title(('(c) ' if j == 0 else '(d) ') + tag)
     plt.colorbar(im, ax=ax, fraction=0.046)
 plt.tight_layout()
-plt.savefig(FIG / 'fig_background.png', dpi=300, bbox_inches='tight', pad_inches=0.02)
+plt.savefig(FIG / 'fig_background.png', dpi=400, bbox_inches='tight', pad_inches=0.02)
 plt.close(fig)
 
 # ---------------- fig_methods: per-method reweighted p(m) vs reference
 n = len(have)
-fig, axes = plt.subplots(1, n, figsize=(2.9 * n, 2.9), squeeze=False)
+fig, axes = plt.subplots(1, n, figsize=(2.2 * n, 2.2), squeeze=False)
 rows = []
 for j, meth in enumerate(have):
     r = runs[meth]
@@ -109,11 +109,14 @@ for j, meth in enumerate(have):
     ax.set_xlabel(r'$m$')
     ax.set_ylim(1e-4, 30)
     if j == 0:
-        ax.set_ylabel(r'$p(m)$'); ax.legend(loc='lower center', fontsize=6.5)
+        ax.set_ylabel(r'$p(m)$')
     rows.append(dict(method=meth, final_ess=round(r['final_ess'], 4),
                      p_plus=round(p_plus, 4), delta_F=round(dF, 3)))
+handles, labels = axes[0][0].get_legend_handles_labels()
+fig.legend(handles, labels, loc='upper center', ncol=3, fontsize=8,
+           frameon=False, bbox_to_anchor=(0.5, 1.10))
 plt.tight_layout()
-plt.savefig(FIG / 'fig_methods.png', dpi=300, bbox_inches='tight', pad_inches=0.02)
+plt.savefig(FIG / 'fig_methods.png', dpi=400, bbox_inches='tight', pad_inches=0.02)
 plt.close(fig)
 
 # ---------------- fig_ess
@@ -124,7 +127,7 @@ ax.set_xlabel('step'); ax.set_ylabel('training ESS')
 ax.set_xlim(0, STEPS); ax.set_ylim(0, 1)
 ax.legend(loc='lower right')
 plt.tight_layout()
-plt.savefig(FIG / 'fig_ess.png', dpi=300, bbox_inches='tight', pad_inches=0.02)
+plt.savefig(FIG / 'fig_ess.png', dpi=400, bbox_inches='tight', pad_inches=0.02)
 plt.close(fig)
 
 # ---------------- tables
