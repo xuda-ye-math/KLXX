@@ -1,5 +1,5 @@
 # pyright: reportArgumentType=false
-"""Parameter pilot for the 6x6 phi^4 benchmark: parallel-tempering MALA reference.
+"""Parameter pilot for the 8x8 phi^4 benchmark: parallel-tempering MALA reference.
 
 Scans KAPPA at H=0 to find a magnetization barrier in the 8-12 kT window,
 then fixes H for Delta F approx 1 kT and produces the frozen reference set.

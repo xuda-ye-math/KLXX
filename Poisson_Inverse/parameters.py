@@ -26,7 +26,7 @@ LR = 1e-3              # Adam learning rate
 
 # ---- optimization and rejuvenation parameters ----
 OPT_STEP = 1e-2        # QT quench step (L-BFGS, armijo)
-OPT_ITERS = 100        # QT quench iterations
+OPT_ITERS = 200        # QT quench iterations (doubled for the hardened sharp misfit)
 MC_STEP = 1e-4         # Langevin step (scaled down for sigma_obs=0.005: ULA stability)
 MC_ITERS = 200         # more iters to keep iters*step useful at the smaller step
 SMC_RUNG_ITERS = 20    # Langevin iters per rung -- shared by SMC (Alg. 3) and AIS
