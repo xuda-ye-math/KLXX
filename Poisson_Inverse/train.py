@@ -4,8 +4,8 @@
 One ladder per invocation, loss chosen by --method (kl first, then balance --
 user protocol: observe the bare KL fail, then the balanced loss repair):
 
-    ~/.envs/torch/bin/python train.py --method kl
-    ~/.envs/torch/bin/python train.py --method balance
+    ~/.envs/torch/bin/python train.py --method kl --m-low 6 --m-full 8
+    ~/.envs/torch/bin/python train.py --method balance --m-low 6 --m-full 8
 
 The acceptance gate uses the FINE validation ESS (user rule): extend the stage
 inverse by identity on the whitened high modes and reweight against the
