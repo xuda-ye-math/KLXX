@@ -957,7 +957,7 @@ where each basis function is attached to a wave vector $k = (k_1, k_2) \in \math
     \qquad
     \varphi(x) = \sqrt{2}\sin\bigl(2\pi (k_1 x_1 + k_2 x_2)\bigr)
 \end{equation*}
-for every other $k$, taken once per $\pm k$ pair over the half-plane $k_1 > 0$ or ($k_1 = 0$, $k_2 > 0$); together these form an orthonormal basis of $L^2([0,1]^2)$. The wave vectors are enumerated by increasing $k_1^2 + k_2^2$, cosine before sine, so that the first $m^2$ basis functions form an isotropic ``$m \times m$'' block; we use $d = 64$ modes in total, of which the first $d_{\mathrm L} = 36$ form the trained block. The prior is Gaussian with a steeply decaying spectrum, $\theta_m \sim \mathcal N(0, \sigma_m^2)$ with $\sigma_m^2 = 2/(1 + |k_m|^2)^{6}$, the fast decay being a structural requirement of the truncation. The field drives a screened Poisson equation with a periodic cosine source,
+for every other $k$, taken once per $\pm k$ pair over the half-plane $k_1 > 0$ or ($k_1 = 0$, $k_2 > 0$); together these form an orthonormal basis of $L^2([0,1]^2)$. The wave vectors are enumerated by increasing $k_1^2 + k_2^2$, cosine before sine, so that the first $m^2$ basis functions form an isotropic $m \times m$ block; we use $d = 64$ modes in total, of which the first $d_{\mathrm L} = 36$ form the trained block. The prior is Gaussian with a steeply decaying spectrum, $\theta_m \sim \mathcal N(0, \sigma_m^2)$ with $\sigma_m^2 = 2/(1 + |k_m|^2)^{6}$, the fast decay being a structural requirement of the truncation. The field drives a screened Poisson equation with a periodic cosine source,
 \begin{equation}
     (-\Delta + c^2)\, u = G_0 \bigl(1 + \delta \cos(\alpha\, v(\cdot\,; \theta))\bigr),
     \qquad c^2 = 25, \quad G_0 = 3, \quad \delta = \frac12, \quad \alpha = 3,
