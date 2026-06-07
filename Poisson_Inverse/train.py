@@ -77,10 +77,7 @@ def main():
     args = ap.parse_args()
     PRM.M_LOW, PRM.M_FULL = args.m_low, args.m_full
     PRM.N_SENSORS = args.n_sensors or int(1.5 * args.m_low ** 2 + 0.5)
-    blabel = (f"B{PRM.N_BATCH // 1000}k" if PRM.N_BATCH % 1000 == 0
-              else f"B{PRM.N_BATCH}")
-    tag = (f"m{args.m_low}_s{PRM.PRIOR_S}_o{PRM.SIGMA_OBS:g}_{blabel}"
-           f"_{args.method}{args.suffix}")
+    tag = f"{args.method}{args.suffix}"      # full regime recorded in config
 
     torch.manual_seed(0)
     B = pot.build(PRM, device)
@@ -185,7 +182,7 @@ def main():
 
     # ---- results table + figures ----
     rows = []
-    for f_ in sorted(HERE.glob('data_m*.pth')):
+    for f_ in sorted(HERE.glob('data_*.pth')):
         if 'partial' in f_.name or 'FAILED' in f_.name:
             continue
         D_ = torch.load(f_, weights_only=False, map_location='cpu')

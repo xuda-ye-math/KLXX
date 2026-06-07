@@ -236,8 +236,8 @@ def train_stage(flow, F_inv, closs, y_valid: torch.Tensor, u_prev: Potential,
             ms = 1000.0 * (time.perf_counter() - t0) / (step + 1)
             status(f"    [train] step {step+1:>5}/{steps}  loss={loss.item():.3e}  "
                    f"direct ESS={ess_hist[-1]:.3f}  {ms:6.1f} ms/step")
-        if (step + 1) % 200 == 0 and (step + 1) < steps and ess_hist[-1] < 0.05:
-            status(f"    [train] EARLY ABORT at step {step+1}: direct ESS "
+        if (step + 1) == 500 and ess_hist[-1] < 0.05:
+            status(f"    [train] EARLY ABORT at step 500: direct ESS "
                    f"{ess_hist[-1]:.4f} < 0.05 (user rule)")
             return ess_hist, False
     return ess_hist, True
@@ -389,20 +389,9 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                                 val_ess=val_ess,
                                 fine_ess=fine_ess, ess_hist=ess_hist)
                 break
-            if fine_fn is not None and t_k >= 1.0:
-                # At t = 1 nothing ever shrinks (user rule 2026-06-06): a
-                # FINE-gate failure is a verdict on the composed flow's
-                # quality, and a TRAINING failure gets a fresh attempt (new
-                # QT pool, identity re-init) at the same t. Accepting a
-                # shrunken t via the low gate would launder the failure into
-                # fake ladder progress. After max_retry attempts the stage --
-                # and the run -- is claimed FAILED. Log the true cause (R2).
-                cause = "TRAINING failed" if not ok else "FINE gate failed"
-                status(f"[stage {k}] abort ({cause} at t=1) -> retrain at "
-                       f"t=1, attempt {attempt+2}/{max_retry} (no shrink)")
-            else:
-                t_k = t_prev + shrink * (t_k - t_prev)            # abort & shrink
-                status(f"[stage {k}] abort -> shrink to t_k={t_k:.4f}")
+            t_k = t_prev + shrink * (t_k - t_prev)                # abort & shrink
+            status(f"[stage {k}] abort ({'TRAINING failed' if not ok else 'gate failed'}) "
+                   f"-> shrink to t_k={t_k:.4f}")
         if accepted is None:
             status(f"[stage {k}] STAGE FAILED: validation ESS never reached "
                    f"{validation_tau} in {max_retry} attempts; stopping with an "

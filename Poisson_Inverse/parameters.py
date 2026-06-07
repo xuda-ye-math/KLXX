@@ -52,7 +52,7 @@ PRIOR_S = 6            # prior decay (hardened point: s=6 + sigma_obs=0.005, gat
 SENSOR_RING_CENTER = (0.50, 0.50)
 SENSOR_RING_RADIUS = 0.30
 N_SENSORS = 54         # overdetermination rule: >= 1.5 * d_low
-SIGMA_OBS = 0.01       # softened from 0.005 (user: collapse too severe even for KLXX); gate PASS 0.995
+SIGMA_OBS = 0.006       # softened from 0.005 (user: collapse too severe even for KLXX); gate PASS 0.995
 SEED_TRUTH = 42        # theta_truth draw
 SEED_NOISE = 43        # observation noise draw
 
