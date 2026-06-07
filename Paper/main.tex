@@ -830,10 +830,9 @@ At $d = 256$, i.e.\ $k = 8$, although the nominal dimension is $256$ the \emph{e
 \label{subsec: phi4}
 
 The scalar $\varphi^4$ lattice theory is a standard testbed on which flow-based samplers are known to collapse. We use its \emph{tilted} broken phase as the sharpest fake ESS instance of this paper. The target is the scalar $\varphi^4$ field on a periodic $L \times L$ lattice, one real value $\varphi_j$ per site, $\varphi \in \mathbb R^{d}$ with $d = L^2$, distributed as $\mu \propto e^{-U}$ with action
-\begin{equation}
+\begin{equation*}
     U(\varphi) = -2\kappa \sum_{\langle j l \rangle} \varphi_j \varphi_l + \sum_{j=1}^{d} \Big[ \varphi_j^2 + \lambda\,\big(\varphi_j^2 - 1\big)^2 \Big] + h \sum_{j=1}^{d} \varphi_j ,
-    \label{eq: phi4-action}
-\end{equation}
+\end{equation*}
 with $\langle j l \rangle$ running over nearest-neighbor pairs. In the broken phase the lattice orders into two aligned states near $\pm v\,\mathbf 1$, separated by a \emph{collective} barrier, the free energy of the domain wall any continuous path between them must build; the order parameter is the magnetization $m(\varphi) = \frac{1}{d}\sum_{j=1}^{d} \varphi_j$, whose distribution is sharply bimodal. The tilt $h$ breaks the symmetry and carries the design: at $h = 0$ the two vacua hold weight $1/2$ each \emph{by symmetry}, so a collapsed flow loses nothing that symmetrization cannot restore, and equivariant architectures bypass the failure entirely; with $h \ne 0$ the relative weight $p_+/p_- = e^{-\Delta F}$ is a nontrivial number that the sampler must earn. We report $L = 6$ and $L = 8$. The parameters are frozen by a classical pilot scan: $\lambda = 1/2$ throughout; $\kappa = 0.40$, $h = 0.0257$ at $L = 6$ and $\kappa = 0.40$, $h = 0.0144$ at $L = 8$, placing the measured barrier at $8.0$ and $10.2\,k_BT$ and the minority-phase weight at $p_+ = 0.128$ and $0.139$. The reference is parallel tempering MALA over an action-scaling ladder, completing $3.7\times 10^3$--$4.9\times 10^4$ ladder round trips per run.
 
 The protocol is the single-flow pipeline of Section~\ref{subsec: 2d-benchmark}, unchanged: a neural spline flow on $[-3,3]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$; source $\mathcal N(0, 0.25\, I_d)$ centered on the barrier top; batch size $500$, $2000$ Adam steps at learning rate $10^{-3}$; the $\mu$-surrogate is the one-step importance-resampling pass followed by $50$ Langevin steps; $\hat\mu$ is built once by QT on $U$, which lands in both vacua from $45$--$51\%$ of melted starts. Training carries a stability guard: a non-finite loss or gradient skips the gradient step under gradient clipping. Single-flow training is deliberate: a large lattice calls for the adaptive-temperature generator of Section~\ref{sec: boltzmann}, whose hot rungs mix the vacua by construction and would dissolve the failure under study; this benchmark isolates the regime in which the ESS diagnostic itself is the danger.
@@ -947,23 +946,21 @@ The trained ladder is used as a staged sampler: each stage applies its map $G_k^
 \label{subsec: poisson}
 
 The final experiment applies the adaptive-temperature generator to a Bayesian PDE inverse problem. It tests one further structural idea: the ladder is trained on the low-frequency Fourier modes only and extended by the identity on the remaining modes, while every acceptance gate and every reported weight is computed from the \emph{full} posterior. The unknown is a periodic field on $[0,1]^2$,
-\begin{equation}
+\begin{equation*}
     v(x; \theta) = \sum_{m=1}^{d} \theta_m \varphi_m(x),
     \qquad
     x = (x_1, x_2) \in [0,1]^2,
-    \label{eq: poisson-field}
-\end{equation}
+\end{equation*}
 where each basis function is attached to a wave vector $k = (k_1, k_2) \in \mathbb Z^2$: the constant $\varphi(x) = 1$ for $k = (0,0)$, and the pair
-\begin{equation}
+\begin{equation*}
     \varphi(x) = \sqrt{2}\cos\bigl(2\pi (k_1 x_1 + k_2 x_2)\bigr),
     \qquad
     \varphi(x) = \sqrt{2}\sin\bigl(2\pi (k_1 x_1 + k_2 x_2)\bigr)
-    \label{eq: poisson-basis}
-\end{equation}
+\end{equation*}
 for every other $k$, taken once per $\pm k$ pair over the half-plane $k_1 > 0$ or ($k_1 = 0$, $k_2 > 0$); together these form an orthonormal basis of $L^2([0,1]^2)$. The wave vectors are enumerated by increasing $k_1^2 + k_2^2$, cosine before sine, so that the first $m^2$ basis functions form an isotropic ``$m \times m$'' block; we use $d = 64$ modes in total, of which the first $d_{\mathrm L} = 36$ form the trained block. The prior is Gaussian with a steeply decaying spectrum, $\theta_m \sim \mathcal N(0, \sigma_m^2)$ with $\sigma_m^2 = 2/(1 + |k_m|^2)^{6}$, the fast decay being a structural requirement of the truncation. The field drives a screened Poisson equation with a periodic cosine source,
 \begin{equation}
     (-\Delta + c^2)\, u = G_0 \bigl(1 + \delta \cos(\alpha\, v(\cdot\,; \theta))\bigr),
-    \qquad c^2 = 25, \quad G_0 = 3, \quad \delta = \tfrac12, \quad \alpha = 3,
+    \qquad c^2 = 25, \quad G_0 = 3, \quad \delta = \frac12, \quad \alpha = 3,
     \label{eq: poisson-forward}
 \end{equation}
 solved spectrally on a $32 \times 32$ grid, and the observation operator $F(\theta) = (u(x_j))_{j=1}^{54}$ reads the solution at $54$ sensors on the ring of radius $0.3$ about the center, more sensors than unknowns in the trained block; Figure~\ref{fig: poisson-setup}(a,b) shows the true source and the observed solution. The observation geometry drives much of the difficulty: all sensors lie on a single small circle, so distinct source configurations produce nearly identical data on the ring, and the posterior concentrates on the resulting family of near-equivalent wells. The data are $y = F(\theta^\dagger) + \sigma_{\mathrm{obs}}\, \eta$ with $\theta^\dagger$ a fixed prior draw and $\eta$ standard normal.
@@ -976,17 +973,16 @@ solved spectrally on a $32 \times 32$ grid, and the observation operator $F(\the
 \end{figure}
 
 All sampling runs on whitened coordinates $\xi_m = \theta_m / \sigma_m$, on which the posterior potential and its low-mode truncation read
-\begin{equation}
+\begin{equation*}
     U(\xi) = \frac12 |\xi|^2 + \Phi(S^{1/2}\xi),
-    \qquad
+    \quad
     \Phi(\theta) = \frac{|y - F(\theta)|^2}{2 \sigma_{\mathrm{obs}}^2},
-    \qquad
+    \quad
     U_{\mathrm L}(\xi_{\mathrm L}) = \frac12 |\xi_{\mathrm L}|^2 + \Phi_{\mathrm L}(\xi_{\mathrm L}),
-    \qquad
+    \quad
     \Phi_{\mathrm L}(\xi_{\mathrm L}) = \Phi\bigl(S^{1/2}[\xi_{\mathrm L}; 0]\bigr),
-    \label{eq: poisson-posterior}
-\end{equation}
-with $S = \mathrm{diag}(\sigma_m^2)$ and $S^{1/2} = \mathrm{diag}(\sigma_m)$; $\Phi_{\mathrm L}$ is the truncated misfit on whitened coordinates, $\Phi$ itself always acting on the full $d$-dimensional field. The ladder runs on the trained block with the $d_{\mathrm L}$-dimensional whitened prior as its source, $U_0(\xi_{\mathrm L}) = \tfrac12|\xi_{\mathrm L}|^2$, so the Algorithm~\ref{alg: boltzmann} bridge tempers exactly the likelihood, $(1-t)\, U_0 + t\, U_{\mathrm L} = \tfrac12|\xi_{\mathrm L}|^2 + t\, \Phi_{\mathrm L}$. The cosine makes the posterior multimodal with an enumerable structure. $\cos(\alpha v)$ is invariant under $v \to -v$ and under the constant-mode shifts $v \to v + 2\pi n/\alpha$, so the wells form a lattice indexed by the shift integer $n$ and a sign, around ten of which carry visible mass, shown in Figure~\ref{fig: poisson-setup}(c). The prior tilts the shift weights and the truth draw tilts the signs, so the well weights are nontrivial numbers. A parallel tempering MALA referee at the full dimension, $20$ temper rungs and $128$ chains certified by $7\,300$--$35\,000$ ladder round trips per noise level, supplies the reference weights.
+\end{equation*}
+with $S = \mathrm{diag}(\sigma_m^2)$ and $S^{1/2} = \mathrm{diag}(\sigma_m)$; $\Phi_{\mathrm L}$ is the truncated misfit on whitened coordinates, $\Phi$ itself always acting on the full $d$-dimensional field. The ladder runs on the trained block with the $d_{\mathrm L}$-dimensional whitened prior as its source, $U_0(\xi_{\mathrm L}) = \frac12|\xi_{\mathrm L}|^2$, so the Algorithm~\ref{alg: boltzmann} bridge tempers exactly the likelihood, $(1-t)\, U_0 + t\, U_{\mathrm L} = \frac12|\xi_{\mathrm L}|^2 + t\, \Phi_{\mathrm L}$. The cosine makes the posterior multimodal with an enumerable structure. $\cos(\alpha v)$ is invariant under $v \to -v$ and under the constant-mode shifts $v \to v + 2\pi n/\alpha$, so the wells form a lattice indexed by the shift integer $n$ and a sign, around ten of which carry visible mass, shown in Figure~\ref{fig: poisson-setup}(c). The prior tilts the shift weights and the truth draw tilts the signs, so the well weights are nontrivial numbers. A parallel tempering MALA referee at the full dimension, $20$ temper rungs and $128$ chains certified by $7\,300$--$35\,000$ ladder round trips per noise level, supplies the reference weights.
 
 The ladder is trained on $U_{\mathrm L}$ in dimension $d_{\mathrm L} = 36$ and extended by the identity on the whitened high modes: each stage map acts on the low block only, $[\xi_{\mathrm L};\, \xi_{\mathrm H}] \mapsto [G_k^{-1}(\xi_{\mathrm L});\, \xi_{\mathrm H}]$, so the high modes remain prior-distributed through every stage. Validity rests on the smoothing of the forward map: a perturbation of a high mode passes through the cosine into a band near its own frequency and is then damped by the factor $(|2\pi k|^2 + c^2)^{-1}$, so the whitened likelihood curvature of the extension modes is below $10^{-2}$ while the trained block carries curvatures up to $10^3$. Every stage extends its validation pre-images $\tilde y \sim \nu_k$ by fresh prior draws $\xi_{\mathrm H}$ and corrects the stage weight to the $t_k$-tempered full posterior,
 \begin{equation}
