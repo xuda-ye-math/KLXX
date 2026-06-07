@@ -232,6 +232,7 @@ def quench_and_temper(target: Potential, n: int, d: int, sigma: float,
     Langevin temper. Mirrors the 2D pipeline's quench_and_temper."""
     from zflows.utils import langevin, lbfgs
     x = sigma * torch.randn(n, d, device=device)
-    x = lbfgs(x, target, step=opt_step, iters=opt_iters, armijo=True)
-    x = langevin(x, target, step=mc_step, iters=mc_iters)
+    ck = max(1, n // 50000)
+    x = lbfgs(x, target, step=opt_step, iters=opt_iters, armijo=True, chunk=ck)
+    x = langevin(x, target, step=mc_step, iters=mc_iters, chunk=ck)
     return x

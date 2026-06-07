@@ -136,7 +136,8 @@ def adaptive_step(pool: torch.Tensor, ub_prev, ub_next, t_prev: float,
         ub_next.set_coeffs([float(t_k), 1.0 - float(t_k)])
         _, ess = sequential_monte_carlo(wrap(pool.clone()), ub_prev, ub_next,
                                         ladder=rungs, step=mc_step,
-                                        iters=rung_iters)
+                                        iters=rung_iters,
+                                        chunk=max(1, pool.shape[0] // 50000))
         ess_min, n_low = min(ess), sum(1 for e in ess if e < tau)
         status(f"    [select] t_k={t_k:.4f}  SMC ESS_min={ess_min:.3f} "
                f"rungs<{tau}: {n_low}/{len(ess)} "
@@ -318,7 +319,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         # (i) selection pool: draw from Y_{k-1}, rejuvenate on U_{k-1}
         pool = Y[torch.randint(0, n_valid, (n_pool,), device=device)]
         if t_prev > 0.0:
-            pool = wrap(langevin(pool, u_prev, step=mc_step, iters=mc_iters))
+            pool = wrap(langevin(pool, u_prev, step=mc_step, iters=mc_iters,
+                                 chunk=max(1, pool.shape[0] // 50000)))
         # (ii) adaptive temperature selection (Algorithm 4). Initial guess:
         # the safe start t_safe on stage 1 (the leading increment faces the
         # largest deformation; an over-aggressive start is exposed only
@@ -415,7 +417,8 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         status(f"[stage {k}] accepted t_k={t_k:.4f}: resample + rejuvenate "
                f"validation set (N={Y.shape[0]}, {mc_iters} Langevin iters)")
         Y = resample(accepted['y_tilde'], (logw - logw.max()).exp())
-        Y = wrap(langevin(Y, u_next, step=mc_step, iters=mc_iters))
+        Y = wrap(langevin(Y, u_next, step=mc_step, iters=mc_iters,
+                          chunk=max(1, Y.shape[0] // 50000)))
         status(f"[stage {k}] validation set advanced "
                f"({time.perf_counter() - _ta:.1f} s)")
         stages.append(dict(

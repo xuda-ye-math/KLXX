@@ -96,7 +96,8 @@ def main():
             f"{(hat[:, 0] * B['std_all'][0].to(device)).max():.2f}]")
 
     Y = u0.samples(NV)
-    tag = f"m{args.m_low}_t{args.t}_{args.method}"
+    tag = (f"m{args.m_low}_s{p.PRIOR_S}_o{p.SIGMA_OBS:g}"
+           f"_t{args.t}_{args.method}")
     log(f"##### SINGLE-STAGE START {tag} d={d} steps={args.steps} "
         f"batch={args.batch} device={device} #####")
     t0 = time.perf_counter()

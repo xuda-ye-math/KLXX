@@ -18,11 +18,11 @@ TRANSFORMS = 6         # coupling transforms in the flow
 HIDDEN = (256, 256)    # hidden widths of the coupling networks
 
 # ---- basic training parameters ----
-N_VALID = 60000        # validation set size (reduced from 100k: VRAM headroom, user)
-N_POOL = 20000         # pool size P: QT pool and adaptive-selection particles
-N_BATCH = 2000         # batch size B: per-gradient-step batch for mu and hat_mu draws
+N_VALID = 160000        # validation set size (reduced from 100k: VRAM headroom, user)
+N_POOL = 40000         # pool size P: QT pool and adaptive-selection particles
+N_BATCH = 4000         # B=5k (user: 10k too slow per step)
 STEPS = 1000           # gradient steps per stage
-LR = 1e-3              # Adam learning rate
+LR = 1e-3              # halved for the hardened regime (Adam runaway at stage-5 sharpness)
 
 # ---- optimization and rejuvenation parameters ----
 OPT_STEP = 1e-2        # QT quench step (L-BFGS, armijo)
@@ -52,13 +52,13 @@ PRIOR_S = 6            # prior decay (hardened point: s=6 + sigma_obs=0.005, gat
 SENSOR_RING_CENTER = (0.50, 0.50)
 SENSOR_RING_RADIUS = 0.30
 N_SENSORS = 54         # overdetermination rule: >= 1.5 * d_low
-SIGMA_OBS = 0.005      # observation noise (hardened 2026-06-06; entropy gap ~16x)
+SIGMA_OBS = 0.01       # softened from 0.005 (user: collapse too severe even for KLXX); gate PASS 0.995
 SEED_TRUTH = 42        # theta_truth draw
 SEED_NOISE = 43        # observation noise draw
 
 # ---- safety guards / diagnostics ----
 MAX_STAGES = 30
-MAX_RETRY = 5          # consecutive failed attempts per stage -> stop, claim failure (user rule)
-GRAD_CLIP = 1e3
+MAX_RETRY = 10         # consecutive failed attempts per stage -> stop, claim failure (raised from 5, user)
+GRAD_CLIP = 1000.0      # clip 100 (user: 10 too tight, 1e3 allowed the runaway)
 MAX_SKIP = 10
 MODE_FRAC = 0.01

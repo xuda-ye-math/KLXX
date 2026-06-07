@@ -77,7 +77,10 @@ def main():
     args = ap.parse_args()
     PRM.M_LOW, PRM.M_FULL = args.m_low, args.m_full
     PRM.N_SENSORS = args.n_sensors or int(1.5 * args.m_low ** 2 + 0.5)
-    tag = f"m{args.m_low}_{args.method}{args.suffix}"
+    blabel = (f"B{PRM.N_BATCH // 1000}k" if PRM.N_BATCH % 1000 == 0
+              else f"B{PRM.N_BATCH}")
+    tag = (f"m{args.m_low}_s{PRM.PRIOR_S}_o{PRM.SIGMA_OBS:g}_{blabel}"
+           f"_{args.method}{args.suffix}")
 
     torch.manual_seed(0)
     B = pot.build(PRM, device)
