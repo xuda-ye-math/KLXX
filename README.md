@@ -3,9 +3,12 @@
 Numerical test suite for the paper in `Paper/main.tex` (X-functional regularization of
 forward KL training for normalizing-flow Boltzmann generators). Each benchmark folder is
 self-contained: parameters, training driver, saved run data, result tables, and the exact
-figures `main.tex` includes by relative path. All flows use the `zflows` package; the
-canonical interpreter is `~/.envs/torch/bin/python`. Data (`*.pth`) and logs (`*.log`)
-are gitignored; code, tables, and paper figures are tracked.
+figures `main.tex` includes by relative path. All flows use the `zflows` package
+(`pip install zflows`); a reproducible GPU stack is the prebuilt image
+`xudayemath/zflows` (https://hub.docker.com/r/xudayemath/zflows), needing an
+NVIDIA driver >= 580 (>= 595 recommended). Invoke scripts with a plain `python`;
+repo paths are never machine-specific. Data (`*.pth`) and logs (`*.log`) are
+gitignored; code, tables, and paper figures are tracked.
 
 `Poisson_Inverse/` is ongoing work (Bayesian screened-Poisson inversion with a low-mode
 Boltzmann generator), not yet part of the paper; see its `PLAN.md` and `MATH.md`.
@@ -55,8 +58,8 @@ Run / visualize (per target):
 
 ```bash
 cd 2D_Benchmark/2D_Threewell
-~/.envs/torch/bin/python train.py          # no flags; full run, writes data.pth
-~/.envs/torch/bin/python plot_results.py   # rebuilds the three PNGs from data.pth
+python train.py          # no flags; full run, writes data.pth
+python plot_results.py   # rebuilds the three PNGs from data.pth
 ```
 
 ## Sensor_Array/ — Bayesian source localization (Sec 5.2)
@@ -77,9 +80,9 @@ Sensor_Array/
 
 ```bash
 cd Sensor_Array
-~/.envs/torch/bin/python train.py              # full run (--steps N for a sanity pass)
-~/.envs/torch/bin/python plot_results.py
-~/.envs/torch/bin/python build_table.py        # rebuilds tab: sensor-result numbers
+python train.py              # full run (--steps N for a sanity pass)
+python plot_results.py
+python build_table.py        # rebuilds tab: sensor-result numbers
 ```
 
 ## HD_Product/ — dimension sweep d = 2^k (Sec 5.3, table only)
@@ -102,9 +105,9 @@ HD_Product/
 
 ```bash
 cd HD_Product
-~/.envs/torch/bin/python train.py --klist 8,7   # selected k (default K_LIST is k=1..7;
+python train.py --klist 8,7   # selected k (default K_LIST is k=1..7;
                                                 #  k=8 explicit; --budget S caps wall-clock)
-~/.envs/torch/bin/python build_table.py         # rebuilds tab: highd-ess source tables
+python build_table.py         # rebuilds tab: highd-ess source tables
 ```
 
 ## HD_Product_Ladder/ — AIS ladder-length sweep at d = 256 (Sec 5.3, Fig 6)
@@ -128,7 +131,7 @@ HD_Product_Ladder/
 ```bash
 cd HD_Product_Ladder
 bash run_sweep.sh                               # full sweep (or train.py --M 4 single)
-~/.envs/torch/bin/python plot_ess.py            # rebuilds Fig 6 (default mlist 1,2,4,8)
+python plot_ess.py            # rebuilds Fig 6 (default mlist 1,2,4,8)
 ```
 
 ## Phi4_Lattice_6/ and Phi4_Lattice_8/ — lattice phi^4 fake ESS (Sec 5.4)
@@ -162,10 +165,10 @@ Phi4_Lattice_{6,8}/
 
 ```bash
 cd Phi4_Lattice_8
-~/.envs/torch/bin/python pilot.py                          # (re)build the PT referee
-~/.envs/torch/bin/python train.py --methods KL --seed 0    # stage 1: confirm collapse
-~/.envs/torch/bin/python train.py --seed 1                 # all four methods, next seed
-~/.envs/torch/bin/python plot_results.py                   # Fig 7 + results_table
+python pilot.py                          # (re)build the PT referee
+python train.py --methods KL --seed 0    # stage 1: confirm collapse
+python train.py --seed 1                 # all four methods, next seed
+python plot_results.py                   # Fig 7 + results_table
 ```
 
 ## Clock_Lattice/ — adaptive-temperature Boltzmann generator (Secs 4 + 5.5)
@@ -184,7 +187,7 @@ the staged sampler, measured log-log slope ~ -1/3, slower than the Monte Carlo -
 Clock_Lattice/
 ├── core/boltzmann.py        # Algorithms 3+4 (potential-invariant, reused by Poisson_Inverse)
 ├── potential.py             # Clock Potential, sector occupancy, torus coverage
-├── parameters.py            # canonical names per .aris/parameters.txt
+├── parameters.py            # canonical parameter names (see STYLE.md)
 ├── train.py                 # one ladder per run: --L 8 --method {balance,kl} [--smoke]
 ├── plot_paper.py            # figures/fig_clock_target.png + fig_clock_esscurves.png (Figs 8-9)
 ├── occupancy_bias_B10k.py   # occupancy-bias scaling study -> Fig 10 + csv/md
@@ -197,17 +200,17 @@ Clock_Lattice/
 
 ```bash
 cd Clock_Lattice
-~/.envs/torch/bin/python train.py --L 8 --smoke              # tiny sanity ladder first
-~/.envs/torch/bin/python train.py --L 8 --method balance     # full run; for the B-sweep edit
+python train.py --L 8 --smoke              # tiny sanity ladder first
+python train.py --L 8 --method balance     # full run; for the B-sweep edit
                                                              #  N_BATCH in parameters.py per run
-~/.envs/torch/bin/python train.py --L 8 --method kl
-~/.envs/torch/bin/python plot_paper.py                       # Figs 8-9
-~/.envs/torch/bin/python occupancy_bias_B10k.py              # Fig 10 + occupancy csv/md
+python train.py --L 8 --method kl
+python plot_paper.py                       # Figs 8-9
+python occupancy_bias_B10k.py              # Fig 10 + occupancy csv/md
 ```
 
 ## Conventions shared by all folders
 
-- `parameters.py` is the single source of truth (canonical names in `.aris/parameters.txt`).
+- `parameters.py` is the single source of truth (canonical names in STYLE.md).
 - Long runs append a timestamped, tail-friendly `*_status.log` in the folder (no tqdm).
 - Every run saves all flow / per-stage `state_dict`s inside its `data*.pth`, so any
   figure can be regenerated without retraining.
