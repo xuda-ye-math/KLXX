@@ -30,7 +30,7 @@ sys.path.insert(0, str(HERE))
 from zflows.flow import NSF
 from zflows.potential import Gaussian
 from zflows.utils import compute_ESS_log, suppress_warnings
-from core import run_boltzmann, compose_pushforward, identity_wrap
+from core import run_boltzmann, identity_wrap
 import parameters as PRM
 import potential as pot
 
@@ -150,20 +150,19 @@ def main():
         checkpoint_fn=checkpoint_fn)
     wall = time.perf_counter() - t0
 
-    # ---- final evaluation: compose stages, extend, reweight FULL posterior ----
-    n_eval = 100000
-    torch.manual_seed(123)
-    y_low, logw_low = compose_pushforward(
-        flow, F_inv, [s['state_dict'] for s in stages], u0, u, n_eval, device)
-    low_ess = compute_ESS_log(logw_low).item()
+    # ---- final evaluation: the staged sampler's own output (the carried
+    # validation set Y after the last accepted stage), extended per-step by
+    # prior draws on the whitened high modes and corrected to the full
+    # potential at the final temper. NO composed map anywhere.
+    t_top = stages[-1]['t'] if stages else 0.0
+    y_low = Y
     u_full = B['u_full']
     with torch.no_grad():
-        xh = torch.randn(n_eval, d_full - d, device=device)
+        xh = torch.randn(y_low.shape[0], d_full - d, device=device)
         y_ext = torch.cat([y_low, xh], dim=1)
-        # logw_full = logw_low + [Phi_low(y_low) - Phi_full(y_ext)] (priors of
-        # the high block cancel against their source draw)
-        logw_full = logw_low + u.misfit(y_low) - u_full.misfit(y_ext)
-    fine_ess = compute_ESS_log(logw_full).item()
+        logw_full = float(t_top) * (u.misfit(y_low) - u_full.misfit(y_ext))
+    low_ess = float('nan')                      # composed metric removed
+    fine_ess = compute_ESS_log(logw_full).item()  # per-step extension ESS
 
     tr_nc = B['xi_truth'][:d].to(device).clone(); tr_nc[0] = 0.0
     occ_push = well_census(y_low, std_all, tr_nc, PRM.ALPHA)

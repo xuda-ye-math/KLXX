@@ -279,7 +279,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
     diagnostics, state_dict), the final validation set, whether the ladder
     reached t = 1 (False = INCOMPLETE: a stage failed its gate or max_stages
     hit; final metrics are then NOT target-faithful), and the run's shared
-    flow + compiled inverse (for compose_pushforward). `qt_fn(u_next)` must
+    flow + compiled inverse. `qt_fn(u_next)` must
     return the wide-coverage set on the stage target (step (iii))."""
     Y = u0.samples(n_valid).to(device)
     t_prev, stages, d = 0.0, [], Y.shape[1]
@@ -432,30 +432,3 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                        f"t={t_prev:.4f}: claiming FAILURE (Zeno stall)")
                 return stages, Y, False, flow, F_inv
     return stages, Y, (t_prev >= 1.0), flow, F_inv
-
-
-# ---------------------------------------------------------------------------
-# final evaluation: compose the stage inverses and accumulate the weights
-# ---------------------------------------------------------------------------
-def compose_pushforward(flow, F_inv, state_dicts, u0: Potential, u: Potential,
-                        n: int, device, chunk: int = 50000):
-    """Generate y = G_K^{-1}(... G_1^{-1}(x)) for x ~ mu_0 and return
-    (y, logw) with logw = u0(x) - u(y) + sum_k ladj_inv_k (the direct
-    importance weight of the composed generator against the target).
-    Reuses the run's single flow + compiled inverse: each stage's state_dict
-    is loaded in place (the captured F_inv keeps tracking the parameters)."""
-    x = u0.samples(n).to(device)
-    y = x
-    ladj_sum = torch.zeros(n, device=device)
-    with torch.no_grad():
-        for sd in state_dicts:                                    # stages 1..K
-            flow.load_state_dict({k: v.to(device) for k, v in sd.items()})
-            outs, lds = [], []
-            for yb in y.split(chunk):
-                yt, ladj = F_inv.inv_ladj(yb)
-                outs.append(yt.clone())            # out of the static buffers
-                lds.append(ladj.clone())
-            y = torch.cat(outs)
-            ladj_sum = ladj_sum + torch.cat(lds)
-        logw = u0.eval(x) - u.eval(y) + ladj_sum
-    return y, logw
