@@ -28,8 +28,8 @@ LR = 1e-3              # halved for the hardened regime (Adam runaway at stage-5
 OPT_STEP = 1e-2        # QT quench step (L-BFGS, armijo)
 OPT_ITERS = 200        # QT quench iterations (doubled for the hardened sharp misfit)
 MC_STEP = 1e-4         # Langevin step (scaled down for sigma_obs=0.005: ULA stability)
-MC_ITERS = 200         # more iters to keep iters*step useful at the smaller step
-SMC_RUNG_ITERS = 20    # Langevin iters per rung -- shared by SMC (Alg. 3) and AIS
+MC_ITERS = 400         # more iters to keep iters*step useful at the smaller step
+SMC_RUNG_ITERS = 40    # Langevin iters per rung -- shared by SMC (Alg. 3) and AIS
 SMC_RUNGS = 6          # ladder rungs M = 6 (user, hardened regime)
 T_SAFE = 0.1           # safe start (hardened regime: 0.2 over-shrinks from ESS 0.004)
 
@@ -52,13 +52,13 @@ PRIOR_S = 6            # prior decay (hardened point: s=6 + sigma_obs=0.005, gat
 SENSOR_RING_CENTER = (0.50, 0.50)
 SENSOR_RING_RADIUS = 0.30
 N_SENSORS = 54         # overdetermination rule: >= 1.5 * d_low
-SIGMA_OBS = 0.008       # softened from 0.005 (user: collapse too severe even for KLXX); gate PASS 0.995
+SIGMA_OBS = 0.01       # softened from 0.005 (user: collapse too severe even for KLXX); gate PASS 0.995
 SEED_TRUTH = 42        # theta_truth draw
 SEED_NOISE = 43        # observation noise draw
 
 # ---- safety guards / diagnostics ----
 MAX_STAGES = 30
 MAX_RETRY = 10         # consecutive failed attempts per stage -> stop, claim failure (raised from 5, user)
-GRAD_CLIP = 1000.0      # clip 100 (user: 10 too tight, 1e3 allowed the runaway)
+GRAD_CLIP = 200      # clip 100 (user: 10 too tight, 1e3 allowed the runaway)
 MAX_SKIP = 10
 MODE_FRAC = 0.01

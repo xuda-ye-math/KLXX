@@ -71,13 +71,16 @@ def main():
                     help='validation gate floor; 0 disables the gate so a '
                          'collapsing baseline still completes its ladder '
                          '(per-stage ESS remains logged)')
+    ap.add_argument('--sigma-obs', type=float, default=PRM.SIGMA_OBS,
+                    help='observation noise (overrides parameters.SIGMA_OBS)')
     ap.add_argument('--n-sensors', type=int, default=0,
                     help='0: auto = ceil(1.5 * d_low) (overdetermination rule)')
     ap.add_argument('--suffix', default='')
     args = ap.parse_args()
     PRM.M_LOW, PRM.M_FULL = args.m_low, args.m_full
+    PRM.SIGMA_OBS = args.sigma_obs
     PRM.N_SENSORS = args.n_sensors or int(1.5 * args.m_low ** 2 + 0.5)
-    tag = f"{args.method}{args.suffix}"      # full regime recorded in config
+    tag = f"{args.method}_o{PRM.SIGMA_OBS:g}{args.suffix}"   # sigma_obs in the name (sweep 0.01/0.015/0.02)
 
     torch.manual_seed(0)
     B = pot.build(PRM, device)
