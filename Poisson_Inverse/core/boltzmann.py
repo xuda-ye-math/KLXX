@@ -366,7 +366,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
             gate_ess = val_ess
             fine_ess = None
             if fine_fn is not None:
-                # carried pre-images + extension correction (NOT a fresh
+                # carried low-mode samples + extension correction (NOT a fresh
                 # prior pushed through the stage inverse -- wrong source
                 # for every stage after the first)
                 fine_ess = fine_fn(y_tilde, logw, t_k)

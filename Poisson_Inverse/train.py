@@ -7,10 +7,10 @@ user protocol: observe the bare KL fail, then the balanced loss repair):
     ~/.envs/torch/bin/python train.py --method kl --m-low 6 --m-full 8
     ~/.envs/torch/bin/python train.py --method balance --m-low 6 --m-full 8
 
-The acceptance gate uses the FINE validation ESS (user rule): extend the stage
-inverse by identity on the whitened high modes and reweight against the
-t_k-tempered FULL posterior. Early-abort rule: direct ESS < 0.05 at any
-200-step checkpoint aborts the stage attempt.
+Acceptance gates (paper Sec 5.6): intermediate stages gate on the low-mode
+validation ESS; the final stage (t_k = 1) gates on the FINE validation ESS --
+extend by identity on the whitened high modes and reweight against the
+t_k-tempered FULL posterior. Early-abort: direct ESS < 0.05 at step 500.
 
 Writes train_status.log, data_<tag>.pth (per-stage state_dicts), results_table
 .md/.csv, summary.md, figures/ladder_<tag>.png, figures/wells_<tag>.png.
@@ -94,9 +94,10 @@ def main():
     u_full_base = B['u_full']                           # untempered Phi_full
 
     def fine_fn(y_tilde, logw_low, t_k):
-        """FINE validation ESS at stage temper t_k: extend the CARRIED
-        validation pre-images y_tilde ~ nu_k by identity on the whitened high
-        modes; logw_fine = logw_low + t_k*(Phi_low(y) - Phi_full([y; xi_h]))."""
+        """FINE validation ESS at stage temper t_k: take the carried low-mode
+        validation samples y_tilde (the stage pushforward), extend each by a
+        fresh prior draw on the whitened high modes, and correct the low weight
+        to the full posterior; logw_fine = logw_low + t_k*(Phi_low - Phi_full)."""
         tk = float(t_k)
         lws = []
         with torch.no_grad():
@@ -161,16 +162,16 @@ def main():
         xh = torch.randn(y_low.shape[0], d_full - d, device=device)
         y_ext = torch.cat([y_low, xh], dim=1)
         logw_full = float(t_top) * (u.misfit(y_low) - u_full.misfit(y_ext))
-    low_ess = float('nan')                      # composed metric removed
-    fine_ess = compute_ESS_log(logw_full).item()  # per-step extension ESS
+    fine_ess = compute_ESS_log(logw_full).item()  # final-temper extension ESS
 
     tr_nc = B['xi_truth'][:d].to(device).clone(); tr_nc[0] = 0.0
     occ_push = well_census(y_low, std_all, tr_nc, PRM.ALPHA)
     w_full = (logw_full - logw_full.max()).exp()
     occ_rew = well_census(y_low, std_all, tr_nc, PRM.ALPHA, weights=w_full)
     log(f"##### DONE {tag}: complete={complete} K={len(stages)} "
-        f"ladder={[round(s['t'], 3) for s in stages]} low ESS={low_ess:.4f} "
-        f"FINE full-d ESS={fine_ess:.4f} wall={wall/60:.1f} min #####")
+        f"ladder={[round(s['t'], 3) for s in stages]} "
+        f"per-stage val ESS={[round(s['val_ess'], 3) for s in stages]} "
+        f"final FINE ESS={fine_ess:.4f} wall={wall/60:.1f} min #####")
     log(f"wells pushforward: {occ_push}")
     log(f"wells reweighted:  {occ_rew}")
 
@@ -178,7 +179,7 @@ def main():
                     ladder=[s['t'] for s in stages],
                     stages=[{k_: v for k_, v in s.items() if k_ != 'flow'}
                             for s in stages],
-                    low_ess=low_ess, fine_ess=fine_ess,
+                    fine_ess=fine_ess,
                     occ_push=occ_push, occ_rew=occ_rew, wall_s=wall),
                HERE / f'data_{tag}.pth')
 
@@ -191,9 +192,9 @@ def main():
         rows.append((D_['tag'], D_['config']['method'], len(D_['ladder']),
                      D_['complete'],
                      ' '.join(f"{t:.3f}" for t in D_['ladder']),
-                     D_['low_ess'], D_['fine_ess'],
+                     D_['fine_ess'],
                      len(D_['occ_rew']), D_['wall_s'] / 60))
-    hdr = ('tag', 'method', 'K', 'complete', 'ladder', 'low_ess',
+    hdr = ('tag', 'method', 'K', 'complete', 'ladder',
            'fine_ess', 'wells_rew', 'wall_min')
     with open(HERE / 'results_table.md', 'w') as f:
         f.write('# Poisson_Inverse - Algorithm 4 results\n\n| '
@@ -225,7 +226,7 @@ def main():
            width=0.4, label='reweighted', color='tab:purple')
     ax.set_xticks(list(xs_), [f"{k}" for k in keys], rotation=45, fontsize=7)
     ax.set_ylabel('well occupancy'); ax.legend(fontsize=8)
-    ax.set_title(f"low ESS {low_ess:.3f}, FINE ESS {fine_ess:.3f}")
+    ax.set_title(f"final FINE ESS {fine_ess:.3f}")
     plt.tight_layout()
     plt.savefig(HERE / 'figures' / f'ladder_{tag}.png', dpi=400,
                 bbox_inches='tight', pad_inches=0.02)
