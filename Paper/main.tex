@@ -998,17 +998,16 @@ solved spectrally on a $32 \times 32$ grid, and the observation operator $F(\the
 \end{figure}
 
 All sampling runs on whitened coordinates $\xi_m = \theta_m / \sigma_m$, on which the posterior potential and its low-mode truncation read
-\begin{equation*}
-    U(\xi) = \frac12 |\xi|^2 + \Phi(S^{1/2}\xi),
-    \quad
+\begin{align*}
+    U(\xi) &= \tfrac12 |\xi|^2 + \Phi(S^{1/2}\xi),
+    \qquad
     \Phi(\theta) = \frac{|y - F(\theta)|^2}{2 \sigma_{\mathrm{obs}}^2},
-    \quad
-    U_{\mathrm L}(\xi_{\mathrm L}) = \frac12 |\xi_{\mathrm L}|^2 + \Phi_{\mathrm L}(\xi_{\mathrm L}),
-    \quad
+    \qquad
+    U_{\mathrm H}(\xi_{\mathrm H}) = \tfrac12 |\xi_{\mathrm H}|^2 , \\
+    U_{\mathrm L}(\xi_{\mathrm L}) &= \tfrac12 |\xi_{\mathrm L}|^2 + \Phi_{\mathrm L}(\xi_{\mathrm L}),
+    \qquad
     \Phi_{\mathrm L}(\xi_{\mathrm L}) = \Phi\bigl(S^{1/2}[\xi_{\mathrm L}; 0]\bigr),
-    \quad
-    U_{\mathrm H}(\xi_{\mathrm H}) = \frac12 |\xi_{\mathrm H}|^2 ,
-\end{equation*}
+\end{align*}
 with $S = \mathrm{diag}(\sigma_m^2)$ and $S^{1/2} = \mathrm{diag}(\sigma_m)$; $\Phi_{\mathrm L}$ is the truncated misfit on whitened coordinates, $\Phi$ itself always acting on the full $d$-dimensional field. The high block is the standard normal $\mu_{\mathrm H} \propto e^{-U_{\mathrm H}}$, the directly-sampled block of Section~\ref{subsec: coarse-fine}; the separation $U \approx U_{\mathrm L} + U_{\mathrm H}$ holds when the misfit is nearly independent of the high modes, $\Phi \approx \Phi_{\mathrm L}$. The ladder runs on the trained block with the $d_{\mathrm L}$-dimensional whitened prior as its source, $U_0(\xi_{\mathrm L}) = \frac12|\xi_{\mathrm L}|^2$, so the Algorithm~\ref{alg: boltzmann} bridge tempers exactly the likelihood, $(1-t)\, U_0 + t\, U_{\mathrm L} = \frac12|\xi_{\mathrm L}|^2 + t\, \Phi_{\mathrm L}$. The cosine makes the posterior multimodal with an enumerable structure. $\cos(3v)$ is invariant under $v \to -v$ and under the constant-mode shifts $v \to v + 2\pi n/3$, so the wells form a lattice indexed by the shift integer $n$ and a sign, around ten of which carry visible mass, shown in Figure~\ref{fig: poisson-setup}(c). The prior tilts the shift weights and the truth draw tilts the signs, so the well weights are nontrivial numbers. A parallel tempering MALA referee at the full dimension, $20$ temper rungs and $128$ chains certified by $7\,300$--$35\,000$ ladder round trips per noise level, supplies the reference weights.
 
 The ladder is trained on $U_{\mathrm L}$ in dimension $d_{\mathrm L} = 36$ and extended by the identity on the whitened high modes, the construction of Section~\ref{subsec: coarse-fine} applied stage by stage: each stage map acts on the low block only, $[\xi_{\mathrm L};\, \xi_{\mathrm H}] \mapsto [G_k^{-1}(\xi_{\mathrm L});\, \xi_{\mathrm H}]$, so the high modes remain prior-distributed through every stage. Validity rests on the smoothing of the forward map: a perturbation of a high mode passes through the cosine into a band near its own frequency and is then damped by the factor $(|2\pi k|^2 + 25)^{-1}$, so the whitened likelihood curvature of the extension modes is below $10^{-2}$ while the trained block carries curvatures up to $10^3$. Every stage pushes its validation samples through the stage inverse, extends the resulting low-mode points $\xi_{\mathrm L}$ by fresh prior draws $\xi_{\mathrm H}$, and corrects the stage weight to the $t_k$-tempered full posterior,
