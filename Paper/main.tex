@@ -452,10 +452,17 @@ The output samples concentrate near the mode centers of $\mu$, and the initial B
 
 A large diffusion $\sigma_{\mathrm{QT}}$ biases the QT output toward modes that lie far from the bulk of $\mu_0$. This is desirable rather than problematic: the modes the current pushforward fails to cover are those far from $\mu_0$, and the bias is also harmless because the minimizer of $\X_{\hat\mu}$ is insensitive to the precise shape of $\hat\mu$.
 
-\begin{remark}[QT failure mode: heavy-tailed manifolds]
-\label{rem: QT-tail}
-On heavy-tailed manifold targets the thin outer tail consists of narrow-variance components whose basins are too small for the L-BFGS quench to land in: the diffusion step rarely scatters particles close enough, and any near miss is pulled back into the wide-basin body. The resulting $\hat\mu$ traces the body but misses the tail, and $\X_{\hat\mu}$ inherits the blind spot.
-\end{remark}
+Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within the support of $\mu$, and the temper step samples it directly. On extreme targets --- heavy tails or stiff potentials --- the L-BFGS quench can instead drive particles outside the support, into high-energy regions whose weights then destabilize training (the Langevin temper itself, like the AIS rejuvenation, stays well-behaved). A simple remedy tempers the rejuvenation: run the temper step on the flattened potential $(1-\alpha) U$,
+\begin{equation*}
+    x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\alpha) U\bigr),
+    \qquad \alpha \in (0, 1),
+\end{equation*}
+whose stationary law $\propto e^{-(1-\alpha)U}$ is broader and integrates stably, and attach to each sample the importance weight $e^{-\alpha U(x_i)}$. The weighted samples then target $e^{-(1-\alpha)U} \cdot e^{-\alpha U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
+
+% \begin{remark}[QT failure mode: heavy-tailed manifolds]
+% \label{rem: QT-tail}
+% On heavy-tailed manifold targets the thin outer tail consists of % narrow-variance components whose basins are too small for the L-BFGS quench to land in: the diffusion step rarely scatters particles close enough, and any near miss is pulled back into the wide-basin body. The resulting $\hat\mu$ traces the body but misses the tail, and $\X_{\hat\mu}$ inherits the blind spot.
+% \end{remark}
 
 \subsection{Importance sampling at evaluation: ESS and coverage}
 \label{subsec: eval}
@@ -483,7 +490,7 @@ i.e., the distance from $x_i$ to its $\kappa$-th nearest neighbor in $\mathbf x$
         \exists  1\Le j\Le N : |y_j - x_i| \Le \mathrm{NND}_\kappa(x_i;\mathbf x)
     \Bigr\},
 \end{equation}
-i.e., the fraction of points in $\mathbf x$ whose $\kappa$-nearest-neighbor ball contains at least one pushforward sample. A coverage close to $1$ certifies that every region populated by $\hat\mu$ has been reached by the flow, while a coverage substantially below $1$ exposes the missing modes that the ESS alone cannot see. Because $\hat\mu$ is the same wide-coverage measure that $\X_{\hat\mu}$ trains toward, the coverage metric certifies reach of the QT-discovered modes only, and inherits QT's blind spot for thin heavy tails (Remark~\ref{rem: QT-tail}).
+i.e., the fraction of points in $\mathbf x$ whose $\kappa$-nearest-neighbor ball contains at least one pushforward sample. A coverage close to $1$ certifies that every region populated by $\hat\mu$ has been reached by the flow, while a coverage substantially below $1$ exposes the missing modes that the ESS alone cannot see. Because $\hat\mu$ is the same wide-coverage measure that $\X_{\hat\mu}$ trains toward, the coverage metric certifies reach of the QT-discovered modes only, and inherits QT's blind spot for thin heavy tails, mitigated by the tempered rejuvenation of Section~\ref{subsec: QT}.
 
 \subsection{Coarse training and fine importance sampling}
 \label{subsec: coarse-fine}
