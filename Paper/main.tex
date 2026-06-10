@@ -457,7 +457,7 @@ Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within th
     x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\alpha) U\bigr),
     \qquad \alpha \in (0, 1),
 \end{equation*}
-whose stationary law $\propto e^{-(1-\alpha)U}$ is broader and integrates stably, and attach to each sample the importance weight $e^{-\alpha U(x_i)}$. The weighted samples then target $e^{-(1-\alpha)U} \cdot e^{-\alpha U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
+whose stationary law $\propto e^{-(1-\alpha)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\alpha U(x_i)} / \sum_{j} e^{-\alpha U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\alpha)U} \cdot e^{-\alpha U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
 
 % \begin{remark}[QT failure mode: heavy-tailed manifolds]
 % \label{rem: QT-tail}
