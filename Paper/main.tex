@@ -452,12 +452,12 @@ The output samples concentrate near the mode centers of $\mu$, and the initial B
 
 A large diffusion $\sigma_{\mathrm{QT}}$ biases the QT output toward modes that lie far from the bulk of $\mu_0$. This is desirable rather than problematic: the modes the current pushforward fails to cover are those far from $\mu_0$, and the bias is also harmless because the minimizer of $\X_{\hat\mu}$ is insensitive to the precise shape of $\hat\mu$.
 
-Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within the support of $\mu$, and the temper step samples it directly. On extreme targets --- heavy tails or stiff potentials --- the L-BFGS quench can instead drive particles outside the support, into high-energy regions whose weights then destabilize training (the Langevin temper itself, like the AIS rejuvenation, stays well-behaved). A simple remedy tempers the rejuvenation: run the temper step on the flattened potential $(1-\alpha) U$,
+Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within the support of $\mu$, and the temper step samples it directly. On extreme targets --- heavy tails or stiff potentials --- the L-BFGS quench can instead drive particles outside the support, into high-energy regions whose weights then destabilize training (the Langevin temper itself, like the AIS rejuvenation, stays well-behaved). A simple remedy tempers the rejuvenation: run the temper step on the flattened potential $(1-\delta) U$,
 \begin{equation*}
-    x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\alpha) U\bigr),
-    \qquad \alpha \in (0, 1),
+    x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\delta) U\bigr),
+    \qquad \delta \in (0, 1),
 \end{equation*}
-whose stationary law $\propto e^{-(1-\alpha)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\alpha U(x_i)} / \sum_{j} e^{-\alpha U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\alpha)U} \cdot e^{-\alpha U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
+whose stationary law $\propto e^{-(1-\delta)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\delta U(x_i)} / \sum_{j} e^{-\delta U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\delta)U} \cdot e^{-\delta U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
 
 % \begin{remark}[QT failure mode: heavy-tailed manifolds]
 % \label{rem: QT-tail}
