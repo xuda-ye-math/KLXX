@@ -3,7 +3,7 @@
 
 Per sigma_obs, one panel: the temperature axis 0 -> 1 with each accepted stage
 drawn as an arc -- forward KL above (blue), the X-regularized loss below (red) --
-the per-stage FINE validation ESS labelled on each arc apex, a cross at the
+the per-stage validation ESS labelled on each arc apex, a cross at the
 final bridge the forward KL run failed. Each panel title carries the staged-
 sampler TV to the PT referee. Style ported from zflows-md/make_summary.py.
 
@@ -40,7 +40,7 @@ def stages_of(tag):
     if not f.exists():
         return None, True
     D = torch.load(f, weights_only=False, map_location='cpu')
-    return [(s['t'], s['fine_ess']) for s in D['stages']], D['complete']
+    return [(s['t'], s['val_ess']) for s in D['stages']], D['complete']
 
 
 def draw(ax, st, complete, color, sign):

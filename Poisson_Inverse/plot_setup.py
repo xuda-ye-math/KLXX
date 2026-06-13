@@ -30,10 +30,9 @@ u = torch.fft.ifft2(G * inv.unsqueeze(0)).real[0]
 
 R = torch.load('referee_o0.01.pth', weights_only=False, map_location='cpu')
 cold = R['cold']
-tr_nc = B['xi_truth'][:d_full].clone(); tr_nc[0] = 0.0
-th0 = cold[:, 0] * std_all[0]
-proj = (cold * tr_nc.unsqueeze(0)).sum(-1) / tr_nc.norm()
-n_lab = torch.round(th0 * p.ALPHA / (2.0 * math.pi)).long()
+th1 = cold[:, 0] * std_all[0]
+th2 = cold[:, 1] * std_all[1]
+n_lab = torch.round(th1 * p.ALPHA / (2.0 * math.pi)).long()
 
 fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.4))
 ax = axes[0]
@@ -51,12 +50,11 @@ ax.set_xlabel(r'$x_1$'); ax.set_ylabel(r'$x_2$')
 plt.colorbar(im, ax=ax, fraction=0.046)
 ax = axes[2]
 sel = torch.randperm(cold.shape[0])[:8000]
-sc = ax.scatter(th0[sel], proj[sel], s=2, c=n_lab[sel], cmap='tab10',
+sc = ax.scatter(th1[sel], th2[sel], s=2, c=n_lab[sel], cmap='tab10',
                 alpha=0.35, vmin=-3, vmax=6)
-ax.set_xlabel(r'$\theta_1$ (constant mode)')
-ax.set_ylabel('projection on truth direction')
-ax.set_title(r'(c) posterior wells, referee at $\sigma_{\mathrm{obs}}=0.01$')
-ax.axhline(0.0, color='black', lw=0.6, ls=':')
+ax.set_xlabel(r'$\theta_{(0,0)}$')
+ax.set_ylabel(r'$\theta_{(0,1)}$')
+ax.set_title(r'(c) marginal posterior, referee at $\sigma_{\mathrm{obs}}=0.01$')
 plt.tight_layout()
 plt.savefig('figures/fig_setup.png', dpi=400, bbox_inches='tight', pad_inches=0.02)
 print('wrote figures/fig_setup.png')

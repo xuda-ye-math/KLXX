@@ -3,10 +3,10 @@
 
 Unknown field on the periodic unit square, parameterized by a real Fourier basis:
 
-    v(x; theta) = sum_m theta_m phi_m(x),
+    v(x; theta) = sum_k theta_{k} phi_{k}(x),
 
-phi_m = sqrt(2) cos(2 pi k.x) / sqrt(2) sin(2 pi k.x) over a half-plane of wave
-vectors k (constant mode included once), enumerated by increasing |k|^2 (isotropic
+phi_{k} = sqrt(2) cos(2 pi k.x) / sqrt(2) sin(2 pi k.x) over a half-plane of wave
+vectors k (constant mode phi_{(0,0)} = 1 included once), enumerated by increasing |k|^2 (isotropic
 cutoff): the first m_low^2 modes form the trained low block, the first m_full^2
 the full set -- see mode_list.
 
@@ -63,7 +63,7 @@ def prior_std(modes, amp: float, s: int) -> torch.Tensor:
 
 
 def eval_basis(modes, pts: torch.Tensor) -> torch.Tensor:
-    """Phi[n_pts, n_modes] with phi_m(x) = sqrt(2) cos/sin(2 pi k.x) (1 for k=0)."""
+    """Phi[n_pts, n_modes] with phi_{k}(x) = sqrt(2) cos/sin(2 pi k.x) (1 for k=0)."""
     n_pts = pts.shape[0]
     Phi = torch.empty(n_pts, len(modes), dtype=pts.dtype)
     for m, (k1, k2, parity) in enumerate(modes):
