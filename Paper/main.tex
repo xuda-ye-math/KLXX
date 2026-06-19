@@ -431,7 +431,11 @@ carries the positional gradient of the pushforward density at every MCMC step, t
 \subsection{Constructing $\hat\mu$ by quench and temper}
 \label{subsec: QT}
 
-The mixture term needs samples from the wide-coverage measure $\hat\mu$. These are prepared once, before training, as a fixed pool of $P$ samples $x_1,\dots,x_P$ distributed as $\hat\mu$; at each training step a mini-batch is drawn from this set and refreshed by a short Langevin chain before entering the $\X_\omega$ computation of Section~\ref{subsec: total-loss} with $\mu$ replaced by $\hat\mu$. The set is produced by quench and temper (QT), which proceeds in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
+The mixture term needs samples from the wide-coverage measure $\hat\mu$. These are prepared once, before training, as a fixed pool of $P$ samples $x_1,\dots,x_P$ distributed as $\hat\mu$; at each training step a mini-batch is drawn from this set and refreshed by a short Langevin chain before entering the $\X_\omega$ computation of Section~\ref{subsec: total-loss} with $\mu$ replaced by $\hat\mu$. The set is produced by quench and temper (QT), a map
+\begin{equation*}
+    \hat{\mathcal Y} = \mathrm{QT}(U)
+\end{equation*}
+from the target potential $U$ to a wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ distributed as $\hat\mu$, proceeding in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
 
 \begin{algorithm}[h]
 \setstretch{1.2}
@@ -457,7 +461,11 @@ Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within th
     x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\delta) U\bigr),
     \qquad \delta \in (0, 1),
 \end{equation*}
-whose stationary law $\propto e^{-(1-\delta)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\delta U(x_i)} / \sum_{j} e^{-\delta U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\delta)U} \cdot e^{-\delta U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction.
+whose stationary law $\propto e^{-(1-\delta)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\delta U(x_i)} / \sum_{j} e^{-\delta U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\delta)U} \cdot e^{-\delta U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged; the tempering only improves the conditioning of the wide-coverage construction. We write this $\delta$-reweighted construction as
+\begin{equation*}
+    \hat{\mathcal Y} = \mathrm{QT}_\delta(U),
+\end{equation*}
+recovering plain $\mathrm{QT}(U) = \mathrm{QT}_0(U)$ at $\delta = 0$.
 
 % \begin{remark}[QT failure mode: heavy-tailed manifolds]
 % \label{rem: QT-tail}
@@ -505,11 +513,11 @@ To bridge the simple source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propt
 \end{equation*}
 defining a sequence of intermediate distributions
 \begin{equation*}
-    \mu_k\propto \exp(-U_k), \qquad
-    U_k(x) = (1-t_k)\, U_0(x) + t_k\, U(x), \qquad
+    \mu_k\propto \exp(-U_{t_k}), \qquad
+    U_{t_k}(x) = (1-t_k)\, U_0(x) + t_k\, U_1(x), \qquad
     k = 0,1,\dots,K,
 \end{equation*}
-so that $\mu_0$ is the source and $\mu_K$ the target, together with $K$ flow maps $\{G_k\}_{k=1}^{K}$ trained so that $(G_k^{-1})_{\#} \mu_{k-1} \approx \mu_{k}$. The number of stages $K$ is left flexible; the crucial design choice is each increment $\Delta t_k = t_k - t_{k-1}$. Too large an increment degrades the training quality of stage $k$, while too small an increment wastes computation, so we want the largest step that each flow can still learn well.
+with $U_1 := U$ an alias for the target potential, so that $\mu_0$ is the source and $\mu_K$ the target, together with $K$ flow maps $\{G_k\}_{k=1}^{K}$ trained so that $(G_k^{-1})_{\#} \mu_{k-1} \approx \mu_{k}$. The number of stages $K$ is left flexible; the crucial design choice is each increment $\Delta t_k = t_k - t_{k-1}$. Too large an increment degrades the training quality of stage $k$, while too small an increment wastes computation, so we want the largest step that each flow can still learn well.
 
 Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtain by SMC (Algorithm~\ref{alg: AIS} with $G$ the identity). The smallest per-step ESS of that SMC run is then a natural criterion for the step $\Delta t_k$: it measures how well the run bridges $\mu_{k-1}$ to $\mu_k$, so we enlarge the step until this ESS drops to a fixed floor.
 
@@ -520,12 +528,12 @@ Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtai
 \KwInput{potentials $U_0, U$, previous level $t_{k-1}$, selection pool $\mathcal P$ of $P$ samples from $\mu_{k-1}$, floor $\tau = 0.7$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
 \KwOutput{next level $t_{k}$, giving the step $\Delta t_k = t_k - t_{k-1}$}
 
-$U_{k-1} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
+$U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U_1$\;
 \tcp{start from the supplied initial guess}
 $t_k \gets t_{\mathrm{init}}$\;
 \While{true}{
     \tcp{run classical SMC across the candidate step}
-    Run $M$-step SMC on the pool $\mathcal P$ (Algorithm~\ref{alg: AIS} with $G$ the identity, $M$ as in Remark~\ref{rem: ladder-length}) from the distributions $\mu_{k-1}\propto e^{-U_{k-1}}$ to $\mu_k\propto e^{-U_k}$, where the potential $U_{k} = (1-t_{k}) U_0 + t_{k} U$\;
+    Run $M$-step SMC on the pool $\mathcal P$ (Algorithm~\ref{alg: AIS} with $G$ the identity, $M$ as in Remark~\ref{rem: ladder-length}) from the distributions $\mu_{k-1}\propto e^{-U_{t_{k-1}}}$ to $\mu_k\propto e^{-U_{t_k}}$, where the potential $U_{t_k} = (1-t_{k}) U_0 + t_{k} U_1$\;
     \tcp{score the step by its worst per-step ESS}
     Record $\mathrm{ESS}_{\min}$, the smallest per-step ESS over the $M$ steps\;
     \eIf{$\mathrm{ESS}_{\min} \Ge \tau$}{
@@ -537,22 +545,22 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 \mbox{}\\
-These SMC runs are classical, involving only the potentials $U_0$ and $U$ and never the flow map, and are therefore cheap. They also use no QT samples, so the per-step ESS they report may be a fake ESS that overlooks modes the SMC chain never reaches. This is harmless here, because Algorithm~\ref{alg: step} selects only the increment $\Delta t_k$ and never produces training samples, so its ESS is used solely to gauge the shape deformation $\mu_{k-1}\to\mu_k$ and needs no faithful target. The floor $\tau = 0.7$ and shrink factor $\gamma = 0.7$ are empirical; the initial guess $t_{\mathrm{init}}$ is supplied by the outer loop (Algorithm~\ref{alg: boltzmann}). The procedure returns the largest admissible step below the initial guess: the coarsest level $t_k$, and hence the most distant intermediate $U_k$, on which the flow $G_k$ can still be trained reliably from $U_{k-1}$. It always terminates, since as $t_k \to t_{k-1}$ the bridge $\mu_{k-1}\to\mu_k$ collapses and $\mathrm{ESS}_{\min}\to 1 \Ge \tau$, so the shrink loop is exited after finitely many steps.
+These SMC runs are classical, involving only the potentials $U_0$ and $U$ and never the flow map, and are therefore cheap. They also use no QT samples, so the per-step ESS they report may be a fake ESS that overlooks modes the SMC chain never reaches. This is harmless here, because Algorithm~\ref{alg: step} selects only the increment $\Delta t_k$ and never produces training samples, so its ESS is used solely to gauge the shape deformation $\mu_{k-1}\to\mu_k$ and needs no faithful target. The floor $\tau = 0.7$ and shrink factor $\gamma = 0.7$ are empirical; the initial guess $t_{\mathrm{init}}$ is supplied by the outer loop (Algorithm~\ref{alg: boltzmann}). The procedure returns the largest admissible step below the initial guess: the coarsest level $t_k$, and hence the most distant intermediate $U_{t_k}$, on which the flow $G_k$ can still be trained reliably from $U_{t_{k-1}}$. It always terminates, since as $t_k \to t_{k-1}$ the bridge $\mu_{k-1}\to\mu_k$ collapses and $\mathrm{ESS}_{\min}\to 1 \Ge \tau$, so the shrink loop is exited after finitely many steps.
 
 \subsection{The full training procedure}
 
 The two ingredients now assemble into a single loop (Algorithm~\ref{alg: boltzmann}) that grows the ladder one stage at a time, from $U_0$ to $U$, carrying a validation set $\mathcal Y_k \approx \mu_k$ across stages. Stage $k$ runs five steps, with steps (iii)--(v) wrapped in an acceptance loop that shrinks the increment and retrains whenever the trained flow's validation ESS falls below a floor $\tau_{\mathrm v}$; the outer loop stops once $t_k$ reaches $1$, so the number of stages $K$ is selected automatically.
 
 \begin{enumerate}[(i)]
-\item \emph{Source samples.} Stage $k$ consumes source samples in three ways, governed by two size parameters: the \emph{pool size} $P$ and the \emph{batch size} $B$. First, a selection pool of $P$ samples, drawn from the validation set $\mathcal Y_{k-1}\approx\mu_{k-1}$ carried over from the previous stage and refreshed by a short Langevin rejuvenation on $U_{k-1}$, supplies the SMC particles for the adaptive step selection of step (ii). Second, the quench and temper of step (iii) melts an initial pool of $P$ source samples (Algorithm~\ref{alg: QT}). Third, the training batches of step (iv) are drawn at run time, $B$ samples per gradient step, from the same $\mathcal Y_{k-1}$; no separate training set is constructed.
+\item \emph{Source samples.} Stage $k$ consumes source samples in three ways, governed by two size parameters: the \emph{pool size} $P$ and the \emph{batch size} $B$. First, a selection pool of $P$ samples, drawn from the validation set $\mathcal Y_{k-1}\approx\mu_{k-1}$ carried over from the previous stage and refreshed by a short Langevin rejuvenation on $U_{t_{k-1}}$, supplies the SMC particles for the adaptive step selection of step (ii). Second, the quench and temper of step (iii) melts an initial pool of $P$ source samples (Algorithm~\ref{alg: QT}). Third, the training batches of step (iv) are drawn at run time, $B$ samples per gradient step, from the same $\mathcal Y_{k-1}$; no separate training set is constructed.
 
-\item \emph{Adaptive step.} The next level $t_k$ is fixed by the adaptive selection scheme (Algorithm~\ref{alg: step}): starting from an initial guess $t_{\mathrm{init}}$ and shrinking, it takes the largest step below the guess whose classical SMC ESS from $\mu_{k-1}$ to $\mu_k$, run on the selection pool of step (i), stays above the floor $\tau$. The first stage uses the safe start $t_{\mathrm{init}} = t_{\mathrm{safe}}$: the leading increment faces the largest deformation, and an over-aggressive start is exposed only after a full training, so the first stage begins from a level it is sure to handle. Later stages extrapolate the accepted increments, $t_{\mathrm{init}} = \min\bigl(1,\, t_{k-1} + \Gamma\,(t_{k-1} - t_{k-2})\bigr)$ with enlarge factor $\Gamma$: the step sizes are allowed to grow, since only the first few stages are difficult. This sets the stage target $\mu_k \propto \exp(-U_k)$ with $U_k = (1-t_k)U_0 + t_k U$.
+\item \emph{Adaptive step.} The next level $t_k$ is fixed by the adaptive selection scheme (Algorithm~\ref{alg: step}): starting from an initial guess $t_{\mathrm{init}}$ and shrinking, it takes the largest step below the guess whose classical SMC ESS from $\mu_{k-1}$ to $\mu_k$, run on the selection pool of step (i), stays above the floor $\tau$. The first stage uses the safe start $t_{\mathrm{init}} = t_{\mathrm{safe}}$: the leading increment faces the largest deformation, and an over-aggressive start is exposed only after a full training, so the first stage begins from a level it is sure to handle. Later stages extrapolate the accepted increments, $t_{\mathrm{init}} = \min\bigl(1,\, t_{k-1} + \Gamma\,(t_{k-1} - t_{k-2})\bigr)$ with enlarge factor $\Gamma$: the step sizes are allowed to grow, since only the first few stages are difficult. This sets the stage target $\mu_k \propto \exp(-U_{t_k})$ with $U_{t_k} = (1-t_k)U_0 + t_k U_1$.
 
-\item \emph{Wide-coverage set.} A wide-coverage set $\hat{\mathcal Y}_k$ of $P$ samples, distributed as $\hat\mu_k$, is drawn by quench and temper (Algorithm~\ref{alg: QT}) on the stage target $U_k$, spreading samples across its modes. It supplies the wide-coverage half of the mixture term in the training loss.
+\item \emph{Wide-coverage set.} A wide-coverage set $\hat{\mathcal Y}_k$ of $P$ samples, distributed as $\hat\mu_k$, is drawn by quench and temper (Algorithm~\ref{alg: QT}) on the stage target $U_{t_k}$, spreading samples across its modes. It supplies the wide-coverage half of the mixture term in the training loss.
 
 \item \emph{Training loss.} The flow $G_k$ is trained by the X-regularized forward KL of Section~\ref{subsec: total-loss}, specialized to the stage $\mu_{k-1}\to\mu_k$ at the balanced hyperparameters $\lambda = 1$, $\alpha = \beta = 1/2$. With model $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its stop-gradient copy $\bar\nu_k$, the stage log-ratio is
 \begin{equation*}
-    z_k(y) = U_{k-1}(G_k(y)) - U_k(y) - \log|\det J_{G_k}(y)| ,
+    z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)| ,
 \end{equation*}
 and the loss reads
 \begin{align}
@@ -568,7 +576,7 @@ its $\mu_k$-expectations estimated by annealed importance sampling: the level-$(
 \begin{equation*}
     w(\tilde y) = \frac{\mu_k(\tilde y)}{\nu_k(\tilde y)} = \exp\bigl(z_k(\tilde y)\bigr) .
 \end{equation*}
-Its effective sample size $\ESS(w)$ is the final, flow-based check on the increment: the adaptive selection of step~(ii) sizes $t_k$ from a classical SMC ESS that uses no QT samples and may therefore report a fake ESS, whereas $\ESS(w)$ measures the trained flow directly. If $\ESS(w) < \tau_{\mathrm v}$ (we use $\tau_{\mathrm v} = 0.3$), the increment was too aggressive: we discard $G_k$, shrink it to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced step. Otherwise the validation set is advanced to $\mathcal Y_k = \mathrm{langevin}\bigl(\mathrm{resample}(\tilde{\mathcal Y}, w),\, U_k\bigr) \approx \mu_k$: resample $\tilde{\mathcal Y}$ by its weights $w$, then rejuvenate with a short Langevin chain on $U_k$.
+Its effective sample size $\ESS(w)$ is the final, flow-based check on the increment: the adaptive selection of step~(ii) sizes $t_k$ from a classical SMC ESS that uses no QT samples and may therefore report a fake ESS, whereas $\ESS(w)$ measures the trained flow directly. If $\ESS(w) < \tau_{\mathrm v}$ (we use $\tau_{\mathrm v} = 0.3$), the increment was too aggressive: we discard $G_k$, shrink it to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced step. Otherwise the validation set is advanced to $\mathcal Y_k = \mathrm{langevin}\bigl(\mathrm{resample}(\tilde{\mathcal Y}, w),\, U_{t_k}\bigr) \approx \mu_k$: resample $\tilde{\mathcal Y}$ by its weights $w$, then rejuvenate with a short Langevin chain on $U_{t_k}$.
 \end{enumerate}
 
 \begin{algorithm}[p]
@@ -583,9 +591,9 @@ Its effective sample size $\ESS(w)$ is the final, flow-based check on the increm
 $\mathcal Y_0 \gets$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0$\;
 \While{$t_k < 1$}{
     $k \gets k + 1$\;
-    Form the stage source potential, $U_{k-1} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
+    Form the stage source potential, $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U_1$\;
     \tcp{(i) source samples (selection pool)}
-    Draw a pool $\mathcal P$ of $P$ samples from $\mathcal Y_{k-1}$ and rejuvenate, $\mathcal P \gets \mathrm{langevin}(\mathcal P, U_{k-1})$\;
+    Draw a pool $\mathcal P$ of $P$ samples from $\mathcal Y_{k-1}$ and rejuvenate, $\mathcal P \gets \mathrm{langevin}(\mathcal P, U_{t_{k-1}})$\;
     \tcp{(ii) adaptive temperature selection}
     \eIf{$k=1$}{
         Set $t_{\mathrm{init}} = t_{\mathrm{safe}}$\;
@@ -594,28 +602,28 @@ $\mathcal Y_0 \gets$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0
         Set $t_{\mathrm{init}} = \min\big(1, t_{k-1} + \Gamma(t_{k-1} - t_{k-2})\big)$\;
     }
     Choose $t_k$ by adaptive selection (Algorithm~\ref{alg: step}) on the pool $\mathcal P$ with initial guess $t_{\mathrm{init}}$\;
-    Form the target potential $U_k \gets (1-t_k) U_0 + t_k U$\;
+    Form the target potential $U_{t_k} \gets (1-t_k) U_0 + t_k U_1$\;
     \Repeat{$\ESS(w) \Ge \tau_{\mathrm v}$}{
         Initialize $G_k$ to the identity map\;
         \tcp{(iii) wide-coverage set}
-        Draw the wide-coverage set of $P$ samples by quench and temper, $\hat{\mathcal Y}_k \gets \mathrm{QT}(U_k)$ (Algorithm~\ref{alg: QT})\;
+        Draw the wide-coverage set of $P$ samples by quench and temper, $\hat{\mathcal Y}_k \gets \mathrm{QT}(U_{t_k})$ (Algorithm~\ref{alg: QT})\;
         \tcp{(iv) X-regularized training loss}
         \For{each gradient step}{
             Draw a training batch of $B$ samples $\mathcal X$ from the validation set $\mathcal Y_{k-1}$\;
             Form the detached model batch, $\bar{\mathcal X}_\nu \gets G_k^{-1}(\mathcal X)$, distributed as $\nu_k = (G_k^{-1})_{\#}\, \mu_{k-1}$\;
             Anneal from $\bar{\mathcal X}_\nu$ to $\mathcal X_\mu$ via AIS (Algorithm~\ref{alg: AIS}, from $\nu_k$ to $\mu_k$)\;
-            Draw a wide-coverage batch $\hat{\mathcal X}_\mu \subset \hat{\mathcal Y}_k$ and rejuvenate, $\hat{\mathcal X}_\mu \gets \mathrm{langevin}(\hat{\mathcal X}_\mu, U_k)$\;
+            Draw a wide-coverage batch $\hat{\mathcal X}_\mu \subset \hat{\mathcal Y}_k$ and rejuvenate, $\hat{\mathcal X}_\mu \gets \mathrm{langevin}(\hat{\mathcal X}_\mu, U_{t_k})$\;
             Update $G_k$ by a gradient step on the X-regularized forward KL \eqref{eq: stage-loss}, from $\mathcal X_\mu$ and the balanced mixture of $\hat{\mathcal X}_\mu$ and $\bar{\mathcal X}_\nu$\;
         }
         \tcp{(v) validation set update}
         Push the validation set $\tilde{\mathcal Y} \gets G_k^{-1}(\mathcal Y_{k-1})$\;
-        Compute the weights $w \gets \exp\bigl(U_{k-1}(\mathcal Y_{k-1}) - U_k(\tilde{\mathcal Y}) - \log|\det J_{G_k}(\tilde{\mathcal Y})|\bigr)$\;
+        Compute the weights $w \gets \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\tilde{\mathcal Y}) - \log|\det J_{G_k}(\tilde{\mathcal Y})|\bigr)$\;
         \eIf{$\ESS(w) < \tau_{\mathrm v}$}{
             \tcp{abort the step and shrink toward $t_{k-1}$}
-            $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, then re-form $U_k \gets (1-t_k) U_0 + t_k U$\;
+            $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, then re-form $U_{t_k} \gets (1-t_k) U_0 + t_k U_1$\;
         }{
             Resample $\mathcal Y_k \gets \mathrm{resample}(\tilde{\mathcal Y}, w)$\;
-            Employ Langevin rejuvenation to obtain $\mathcal Y_k \gets \mathrm{langevin}(\mathcal Y_k, U_k)$\;
+            Employ Langevin rejuvenation to obtain $\mathcal Y_k \gets \mathrm{langevin}(\mathcal Y_k, U_{t_k})$\;
         }
     }
 }
