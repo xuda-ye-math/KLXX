@@ -29,12 +29,9 @@
 \newcommand{\Le}{\leqslant}
 \newcommand{\Ge}{\geqslant}
 \newcommand{\D}{\mathrm{d}}
-\newcommand{\DB}{\mathrm{DB}}
 \newcommand{\KL}{\mathrm{KL}}
-\newcommand{\TV}{\mathrm{TV}}
 \newcommand{\X}{\mathrm{X}}
 \newcommand{\ESS}{\mathrm{ESS}}
-\newcommand{\setzero}{\setlength{\itemsep}{0pt}}
 
 \theoremstyle{plain}
 
@@ -1254,11 +1251,11 @@ The $\X$ regularizer is the dominant factor (Table~\ref{tab: glycerol}), roughly
 quench and temper lowers $F$ further in both schedules ($22.5 \!\to\! 14.2$ under sharpen, $22.0 \!\to\! 16.6$
 under raw). Once the sharpening reweight is charged to $F$, the \emph{sharpen} schedule no longer beats the
 fixed-cap \emph{raw} run on $F$ alone ($22.5 \approx 22.0$); its advantage is feasibility and speed, reaching
-$t = 1$ in $4$ stages / $73$ min versus $6$--$7$ stages / $160$--$215$ min. The lowest-$F$ and fastest run is
+$t = 1$ in $4$ stages / $73$ min versus $6$--$7$ stages / $158$--$215$ min. The lowest-$F$ and fastest run is
 $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted, under the sharpen schedule. Turning the trained
 flow off entirely (the identity map at every stage, i.e.\ plain adaptive annealed SMC over the same ladder
 and acceptance standard) gives $F = 463$ (sharpen) and $F = 636$ (raw), each in $K = 10$ stages. The trained
-flow thus cuts the propagation factor by ${\sim}30$--$40\times$ while more than halving the ladder length (Figure~\ref{fig: glycerol-ladder}): this
+flow thus cuts the propagation factor by ${\sim}30$--$40\times$ while shortening the ladder from $K = 10$ to $K = 4$--$6$ (Figure~\ref{fig: glycerol-ladder}): this
 is the quantitative value the transport map adds over annealing alone.
 
 \begin{figure}[htbp]
