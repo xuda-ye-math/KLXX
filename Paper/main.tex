@@ -574,9 +574,9 @@ its $\mu_k$-expectations estimated by annealed importance sampling: the level-$(
 
 \item \emph{Validation set update.} Once $G_k$ is trained, the validation set is advanced from $\mathcal Y_{k-1}$ to $\mathcal Y_k \approx \mu_k$ by importance sampling. Each $y \in \mathcal Y_{k-1}$ is pushed through the trained inverse to $\tilde y = G_k^{-1}(y)$, a sample of $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, and carries the importance weight
 \begin{equation*}
-    w(\tilde y) = \frac{\mu_k(\tilde y)}{\nu_k(\tilde y)} = \exp\bigl(z_k(\tilde y)\bigr) .
+    w_k(\tilde y) = \frac{\mu_k(\tilde y)}{\nu_k(\tilde y)} = \exp\bigl(z_k(\tilde y)\bigr) .
 \end{equation*}
-Its effective sample size $\ESS(w)$ is the final, flow-based check on the increment: the adaptive selection of step~(ii) sizes $t_k$ from a classical SMC ESS that uses no QT samples and may therefore report a fake ESS, whereas $\ESS(w)$ measures the trained flow directly. If $\ESS(w) < \tau_{\mathrm v}$ (we use $\tau_{\mathrm v} = 0.3$), the increment was too aggressive: we discard $G_k$, shrink it to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced step. Otherwise the validation set is advanced to $\mathcal Y_k = \mathrm{langevin}\bigl(\mathrm{resample}(\tilde{\mathcal Y}, w),\, U_{t_k}\bigr) \approx \mu_k$: resample $\tilde{\mathcal Y}$ by its weights $w$, then rejuvenate with a short Langevin chain on $U_{t_k}$.
+Its effective sample size $\ESS(w_k)$ is the final, flow-based check on the increment: the adaptive selection of step~(ii) sizes $t_k$ from a classical SMC ESS that uses no QT samples and may therefore report a fake ESS, whereas $\ESS(w_k)$ measures the trained flow directly. If $\ESS(w_k) < \tau_{\mathrm v}$ (we use $\tau_{\mathrm v} = 0.3$), the increment was too aggressive: we discard $G_k$, shrink it to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced step. Otherwise the validation set is advanced to $\mathcal Y_k = \mathrm{langevin}\bigl(\mathrm{resample}(\tilde{\mathcal Y}, w_k),\, U_{t_k}\bigr) \approx \mu_k$: resample $\tilde{\mathcal Y}$ by its weights $w_k$, then rejuvenate with a short Langevin chain on $U_{t_k}$.
 \end{enumerate}
 
 \begin{algorithm}[p]
@@ -603,7 +603,7 @@ $\mathcal Y_0 \gets$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0
     }
     Choose $t_k$ by adaptive selection (Algorithm~\ref{alg: step}) on the pool $\mathcal P$ with initial guess $t_{\mathrm{init}}$\;
     Form the target potential $U_{t_k} \gets (1-t_k) U_0 + t_k U_1$\;
-    \Repeat{$\ESS(w) \Ge \tau_{\mathrm v}$}{
+    \Repeat{$\ESS(w_k) \Ge \tau_{\mathrm v}$}{
         Initialize $G_k$ to the identity map\;
         \tcp{(iii) wide-coverage set}
         Draw the wide-coverage set of $P$ samples by quench and temper, $\hat{\mathcal Y}_k \gets \mathrm{QT}(U_{t_k})$ (Algorithm~\ref{alg: QT})\;
@@ -617,12 +617,12 @@ $\mathcal Y_0 \gets$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0
         }
         \tcp{(v) validation set update}
         Push the validation set $\tilde{\mathcal Y} \gets G_k^{-1}(\mathcal Y_{k-1})$\;
-        Compute the weights $w \gets \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\tilde{\mathcal Y}) - \log|\det J_{G_k}(\tilde{\mathcal Y})|\bigr)$\;
-        \eIf{$\ESS(w) < \tau_{\mathrm v}$}{
+        Compute the weights $w_k \gets \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\tilde{\mathcal Y}) - \log|\det J_{G_k}(\tilde{\mathcal Y})|\bigr)$\;
+        \eIf{$\ESS(w_k) < \tau_{\mathrm v}$}{
             \tcp{abort the step and shrink toward $t_{k-1}$}
             $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, then re-form $U_{t_k} \gets (1-t_k) U_0 + t_k U_1$\;
         }{
-            Resample $\mathcal Y_k \gets \mathrm{resample}(\tilde{\mathcal Y}, w)$\;
+            Resample $\mathcal Y_k \gets \mathrm{resample}(\tilde{\mathcal Y}, w_k)$\;
             Employ Langevin rejuvenation to obtain $\mathcal Y_k \gets \mathrm{langevin}(\mathcal Y_k, U_{t_k})$\;
         }
     }
@@ -632,6 +632,8 @@ $K \gets k$\;
 \end{algorithm}
 \mbox{}\\
 The trained ladder is a Boltzmann generator for $\mu$: starting from $x \sim \mu_0$, each stage applies its map $G_k^{-1}$ and then reweights and resamples by the importance weights of Section~\ref{subsec: eval}, exactly as in step (v), carrying the samples from the source to the target one bridge at a time.
+
+In particular, setting every stage flow $G_k$ to the identity reduces the adaptive-temperature generator to annealed SMC, a purely Monte Carlo sampler that requires no training and serves as the benchmark against the flow-based methods. With no flow to train, steps~(i), (iii), and~(iv) (the source pool, the wide-coverage set, and the X-regularized loss) fall away, leaving only step~(ii), the adaptive temperature selection, and step~(v), the reweight, resample, and rejuvenation. The pushforward is then $\tilde{\mathcal Y} = \mathcal Y_{k-1}$ and the log-Jacobian vanishes, so the stage weight reduces to the classical tempering weight $w_k = \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\mathcal Y_{k-1})\bigr)$, the outer-ladder counterpart of the identity-flow reduction of Algorithm~\ref{alg: AIS}. Run on the same adaptive ladder and acceptance standard, it isolates the value the trained flow adds over annealing alone.
 
 \section{Numerical experiments on model problems}
 
