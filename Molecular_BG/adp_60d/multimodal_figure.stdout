@@ -1,0 +1,24 @@
+[21:19:36] START [adp] device=cuda n_gen=5000 ref=2000x200 NCSF bins=32 transforms=10 hidden=[256, 256] three_line=True klxx_only=False compare=False smoke=False
+[21:19:36]   reference MD (short whitening MD) ...
+[21:22:00]   reference MD done: 2000 frames
+[21:22:01]   build done: potentials + IC transform ready
+[21:22:01]   MD reference: 200000 samples, 62000 steps at e=200 (from /mnt/projects/zflows-md/adp_60d/md_reference.npz)
+[21:22:01]   BG inference: klxx_delta_sharpen (best) via SMC replay with sharpening ...
+/home/xuda/miniconda3/envs/torch/lib/python3.11/site-packages/torch/_dynamo/variables/functions.py:2311: UserWarning: Dynamo does not know how to trace the builtin `<unknown module>.object.__new__.` This function is either a Python builtin (e.g. _warnings.warn) or a third-party C/C++ Python extension (perhaps created with pybind).
+If it is a Python builtin, please file an issue on GitHub so the PyTorch team can add support for it and see the next case for a workaround.
+If it is a third-party C/C++ Python extension, please either wrap it into a PyTorch-understood custom operator (see https://pytorch.org/tutorials/advanced/custom_ops_landing_page.html for more details) or, if it is traceable, use `torch.compiler.allow_in_graph`.
+  torch._dynamo.utils.warn_once(explanation + "\n" + "\n".join(hints))
+[21:22:49]     [SMC replay klxx_delta_sharpen] t=0.100  best_val_ess=0.833  sharpen_ess=0.983  e 100->110
+[21:23:35]     [SMC replay klxx_delta_sharpen] t=0.198  best_val_ess=0.651  sharpen_ess=0.995  e 110->120
+[21:24:20]     [SMC replay klxx_delta_sharpen] t=0.294  best_val_ess=0.582  sharpen_ess=0.994  e 120->129
+[21:25:06]     [SMC replay klxx_delta_sharpen] t=0.388  best_val_ess=0.528  sharpen_ess=1.000  e 129->139
+[21:25:51]     [SMC replay klxx_delta_sharpen] t=0.433  best_val_ess=0.767  sharpen_ess=1.000  e 139->143
+[21:26:37]     [SMC replay klxx_delta_sharpen] t=0.464  best_val_ess=0.957  sharpen_ess=1.000  e 143->146
+[21:27:23]     [SMC replay klxx_delta_sharpen] t=0.508  best_val_ess=0.933  sharpen_ess=1.000  e 146->151
+[21:28:08]     [SMC replay klxx_delta_sharpen] t=0.569  best_val_ess=0.908  sharpen_ess=1.000  e 151->157
+[21:28:54]     [SMC replay klxx_delta_sharpen] t=0.654  best_val_ess=0.873  sharpen_ess=1.000  e 157->165
+[21:29:39]     [SMC replay klxx_delta_sharpen] t=0.773  best_val_ess=0.836  sharpen_ess=1.000  e 165->177
+[21:30:25]     [SMC replay klxx_delta_sharpen] t=1.000  best_val_ess=0.782  sharpen_ess=1.000  e 177->200
+[21:30:25]   multimodal torsions: [('C-C-N-C', np.float64(1.0)), ('N-C-C-N', np.float64(1.0)), ('H-C-C-O', np.float64(1.0)), ('N-C-C-H', np.float64(1.0))]
+[21:30:36]   wrote /mnt/projects/zflows-md/adp_60d/dihedrals.png  (4 torsions, BG vs MD)
+[21:30:36] DONE -> /mnt/projects/zflows-md/adp_60d/dihedrals.png
