@@ -1,10 +1,6 @@
-# Hidden files (except .gitignore, the project skills, and tracked notes)
+# Hidden files (except .gitignore)
 .*
 !.gitignore
-!.claude/
-.claude/*
-!.claude/skills/
-!.claude/notes/
 
 # Data / model checkpoints and large arrays (any subfolder) -- published as
 # GitHub release assets instead (tag data-L8-sweep); restore with:
@@ -36,4 +32,8 @@ __pycache__/
 *.run.xml
 *.thm
 *.xdv
+
+# Local git helper scripts (machine-specific, untracked)
+git_init.sh
+git_overleaf.sh
 

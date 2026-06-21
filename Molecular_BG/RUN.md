@@ -102,7 +102,6 @@ Molecular_BG/
 │
 ├── glycerol_36d/                             # glycerol, d = 36
 │   ├── config.json                           # read-only per-molecule input (hyperparameters)
-│   ├── run.py                                # training driver (called via zflows_md.bg.hetero_bg)
 │   ├── plot_ablation.py                      # ladder.png: per-stage ESS arcs, raw vs sharpening panels
 │   ├── conformer_figure.py                   # conformers.png: gauche−/trans/gauche+ ball-and-stick
 │   ├── multimodal_figure.py                  # dihedrals.png: torsion marginals, BG vs annealed SMC
@@ -135,7 +134,6 @@ Molecular_BG/
 │
 ├── diethanolamine_48d/                       # diethanolamine, d = 48
 │   ├── config.json                           # read-only per-molecule input (hyperparameters)
-│   ├── run.py                                # training driver
 │   ├── plot_ablation.py                      # ladder.png: per-stage ESS arcs
 │   ├── conformer_figure.py                   # conformers.png: gauche−/trans/gauche+ ball-and-stick
 │   ├── multimodal_figure.py                  # dihedrals.png: torsion marginals, BG vs annealed SMC
@@ -160,7 +158,6 @@ Molecular_BG/
 │
 └── adp_60d/                                  # alanine dipeptide, d = 60
     ├── config.json                           # read-only per-molecule input (hyperparameters)
-    ├── run.py                                # training driver
     ├── conformer_figure.py                   # conformers.png: L/D enantiomers with chiral-Cα wedge marker
     ├── multimodal_figure.py                  # dihedrals.png: torsion marginals, BG vs annealed SMC
     ├── ess_history.py                        # ess_history.png: 3×4 per-stage ESS training history

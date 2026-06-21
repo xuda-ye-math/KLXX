@@ -32,8 +32,8 @@ conda install openmm cuda-version=13
 conda install parmed
 ```
 
-The MD-reference helper (`short_md` in `adp_60d/run.py` and
-`diethanolamine_48d/run.py`) requests OpenMM's `CUDA` platform (with a CPU
+The MD-reference helper (`short_md` in `zflows_md.bg.hetero_bg`) requests OpenMM's
+`CUDA` platform (with a CPU
 fallback), so pin the CUDA 13 build — matching the cu130 / Blackwell toolchain —
 then install ParmEd.
 
