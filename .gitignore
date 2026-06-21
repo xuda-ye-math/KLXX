@@ -40,3 +40,6 @@ git_overleaf.sh
 # Auto-written per-run driver snapshot (provenance; regenerated each run)
 Molecular_BG/*/run.py
 
+# Working lit-review notes (not part of the manuscript)
+Paper/references.md
+
