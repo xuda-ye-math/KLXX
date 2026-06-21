@@ -34,6 +34,7 @@ th1 = cold[:, 0] * std_all[0]
 th2 = cold[:, 1] * std_all[1]
 n_lab = torch.round(th1 * p.ALPHA / (2.0 * math.pi)).long()
 
+plt.rcParams['axes.titlepad'] = 10          # extra gap between subplot titles and axes
 fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.4))
 ax = axes[0]
 im = ax.imshow(g.T, origin='lower', extent=[0, 1, 0, 1], cmap='viridis')
