@@ -1,4 +1,4 @@
-# 2D phi^4 lattice, 6x6 periodic (D = 36), broken Z2 phase
+# 2D phi^4 lattice, 8x8 periodic (D = 64), broken Z2 phase
 L = 8                   # lattice side; D = L*L sites
 D = L * L
 

@@ -95,7 +95,6 @@ Phi4_Lattice_8/
 │
 ├── results_table.md       # per-method final ESS / p(m>0) / Delta F table (written by plot_results.py)
 ├── results_table.csv      # same, CSV format (written by plot_results.py)
-├── summary.md             # archived results report (retired; see Paper/main.tex)
 │
 └── figures/
     ├── fig_methods.png    # paper figure (load-bearing — included by Paper/main.tex; written by plot_results.py)

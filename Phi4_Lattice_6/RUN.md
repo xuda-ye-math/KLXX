@@ -99,7 +99,6 @@ Phi4_Lattice_6/
 ├── train_status.log       # timestamped training log (appended by train.py)
 ├── pilot_status.log       # timestamped pilot log (written by pilot.py; absent until pilot runs)
 ├── BACKGROUND.md          # extended background notes
-├── summary.md             # legacy results report (retired; see Paper/main.tex)
 └── figures/
     ├── pilot_scan.png     # κ scan and frozen tilted reference (pilot.py)
     ├── fig_background.png # potential + PT reference (plot_results.py)

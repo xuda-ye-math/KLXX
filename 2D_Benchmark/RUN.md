@@ -57,7 +57,6 @@ Each `plot_results.py` writes three figures into its sub-folder:
 ```
 2D_Benchmark/
 ├── RUN.md                       # this file
-├── summary.md                   # narrative overview (retired results report; kept for reference)
 ├── 2D_Annulus/
 │   ├── core.py                  # Annulus potential + loss functions + QT helper
 │   ├── parameters.py            # all hyperparameters (architecture, training)
@@ -137,6 +136,4 @@ A completed `train.py` + `plot_results.py` run writes into the sub-folder:
   history, the final pushforward samples, and the final ESS scalar.
 - `ESS.png`, `samples.png`, `resample.png` — the three result figures.
 
-Quantitative results (ESS values, coverage scores) are reported in `Paper/main.tex` §4.1. The legacy
-`summary.md` at the top of this folder documents the theoretical setup and is kept for reference but is not
-the authoritative source for paper numbers.
+Quantitative results (ESS values, coverage scores) are reported in `Paper/main.tex` §4.1.

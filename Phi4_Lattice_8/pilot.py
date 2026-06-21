@@ -149,7 +149,7 @@ def main():
                HERE / 'phi4_reference.pth')
 
     with open(HERE / 'pilot_results.md', 'w') as f:
-        f.write("# phi^4 6x6 pilot (PT-MALA reference)\n\n")
+        f.write("# phi^4 8x8 pilot (PT-MALA reference)\n\n")
         f.write("| kappa | barrier (kT) | v | roundtrips |\n|---|---|---|---|\n")
         for k in sorted(scan):
             s = scan[k]

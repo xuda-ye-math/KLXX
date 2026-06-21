@@ -1,5 +1,5 @@
 # pyright: reportArgumentType=false
-"""Figures + tables for the 6x6 phi^4 benchmark.
+"""Figures + tables for the 8x8 phi^4 benchmark.
 
 Reads data.pth (training runs) and phi4_reference.pth (PT referee).
 Writes figures/fig_background.png, figures/fig_methods.png, figures/fig_ess.png,
@@ -135,7 +135,7 @@ with open(HERE / 'results_table.csv', 'w', newline='') as f:
     wcsv = csv.DictWriter(f, fieldnames=['method', 'final_ess', 'p_plus', 'delta_F'])
     wcsv.writeheader(); wcsv.writerows(rows)
 with open(HERE / 'results_table.md', 'w') as f:
-    f.write(f"# phi^4 6x6 results (kappa={KAPPA}, lambda={LAMBDA}, h={H})\n\n")
+    f.write(f"# phi^4 8x8 results (kappa={KAPPA}, lambda={LAMBDA}, h={H})\n\n")
     f.write(f"PT reference: p(m>0) = {p_plus_ref:.3f}, Delta F = {dF_ref:.2f} kT, "
             f"barrier = {ref['barrier']:.2f} kT, roundtrips = {ref['roundtrips']}\n\n")
     f.write("| method | final ESS | p(m>0) reweighted | Delta F (kT) |\n|---|---|---|---|\n")

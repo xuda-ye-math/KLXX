@@ -83,7 +83,6 @@ HD_Product/
 ├── mode_balance_table.csv   # mode imbalance TV(occupancy, uniform)
 ├── tables.md                # Markdown rendering of the three tables above
 │
-├── summary.md               # legacy narrative (retired; superseded by Paper/main.tex)
 └── RUN.md                   # this file
 ```
 
@@ -104,5 +103,4 @@ A complete run writes:
   `tables.md` — produced by `build_table.py` after training.
 
 Quantitative results (the ESS table and mode-coverage commentary) are reported
-in **`Paper/main.tex`** §4.2, Table 3 and Figure 4. Do not rely on `summary.md`
-for the final numbers; that file is retired.
+in **`Paper/main.tex`** §4.2, Table 3 and Figure 4.

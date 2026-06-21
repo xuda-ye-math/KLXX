@@ -230,9 +230,7 @@ def main():
     write_results()
     write_summary(tag, cfg, stages, final_ess, sec_push, knn_cov, wall,
                   complete=complete)
-    import plot_results
-    plot_results.main(tag)
-    log(f"saved data_{tag}.pth + results_table + summary + figures")
+    log(f"saved data_{tag}.pth + results_table + summary")
 
 
 if __name__ == '__main__':
