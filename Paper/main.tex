@@ -678,16 +678,16 @@ For each target we compare four losses obtained by progressively adding one X fu
     \centering
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Threewell/resample.png}
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/resample.png}
         \caption{Threewell target.}
         \label{fig: threewell}
     \end{subfigure}
     \\[0.8em]
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Himmelblau/resample.png}
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/resample.png}
         \caption{Himmelblau target.}
         \label{fig: himmelblau}
     \end{subfigure}
@@ -703,16 +703,16 @@ For each target we compare four losses obtained by progressively adding one X fu
     \centering
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Annulus/resample.png}
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/resample.png}
         \caption{Annulus target.}
         \label{fig: annulus}
     \end{subfigure}
     \\[0.8em]
     \begin{subfigure}{\textwidth}
         \centering
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Python/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Python/resample.png}
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Python/samples.png} \\[0.3em]
+        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Python/resample.png}
         \caption{Python target.}
         \label{fig: python}
     \end{subfigure}
@@ -723,8 +723,8 @@ For each target we compare four losses obtained by progressively adding one X fu
 
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Chessboard/resample.png}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Chessboard/samples.png} \\[0.6em]
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Chessboard/resample.png}
     \caption{Chessboard target. Row 1: pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$. Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}.}
     \label{fig: chessboard}
 \end{figure}
@@ -733,8 +733,8 @@ For each target we compare four losses obtained by progressively adding one X fu
 
 \begin{figure}[p]
     \centering
-    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Sparse/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{../2D_Benchmark/2D_Sparse/resample.png}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/samples.png} \\[0.6em]
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/resample.png}
     \caption{Sparse target. Row 1: pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$. Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}.}
     \label{fig: sparse}
 \end{figure}
@@ -800,8 +800,8 @@ Table~\ref{tab: sensor-result} and Figure~\ref{fig: sensor} report the compariso
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../Sensor_Array/samples.png} \\[0.4em]
-    \includegraphics[width=\textwidth]{../Sensor_Array/resample.png}
+    \includegraphics[width=\textwidth]{figures/Sensor_Array/samples.png} \\[0.4em]
+    \includegraphics[width=\textwidth]{figures/Sensor_Array/resample.png}
     \caption{Sensor-array posterior, pushforward positions projected onto $(\theta_1, \theta_2)$. Row 1: raw pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$; Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Light-gray circles mark the six permutation mode centers; each title reports the final ESS and the modes found out of six.}
     \label{fig: sensor}
 \end{figure}
@@ -842,7 +842,7 @@ At $d = 256$, i.e.\ $k = 8$, although the nominal dimension is $256$ the \emph{e
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=0.45\textwidth]{../HD_Product_Ladder/ESS_ladder.png}
+    \includegraphics[width=0.45\textwidth]{figures/HD_Product_Ladder/ESS_ladder.png}
     \caption{ESS trajectory across training steps for the mixture loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ on the product multi-well at $d = 256$, as the AIS ladder length $M$ that builds the $\mu$-surrogate is varied over $\{1, 2, 4, 8\}$. Faint lines are the raw per-step ESS; bold lines are a moving average.}
     \label{fig: highd-ladder}
 \end{figure}
@@ -880,7 +880,7 @@ The protocol is the single-flow pipeline of Section~\ref{subsec: 2d-benchmark}, 
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{../Phi4_Lattice_8/figures/fig_methods.png}
+    \includegraphics[width=\textwidth]{figures/Phi4_Lattice_8/fig_methods.png}
     \caption{Magnetization density $p(m)$ on the $L = 8$ lattice, one panel per training loss. Each panel shows the pushforward density (gray), the reweighted density (color), and the PT reference (dotted); the title reports the final ESS and the reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
@@ -908,7 +908,7 @@ where $\lfloor \cdot \rceil$ denotes rounding to the nearest integer. The anneal
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_target.png}
+    \includegraphics[width=\textwidth]{figures/Clock_Lattice/fig_clock_target.png}
     \caption{Structure of the cold clock measure \eqref{eq: clock-potential} at $d = 64$, displayed on $10^6$ reweighted samples: fresh source draws advanced through the trained ladder by the map--reweight--resample step (v), X-regularized loss at $B = 10^4$. (a) Global magnetization $m(\boldsymbol{\theta})$, colored by sector index $s(\boldsymbol{\theta})$, $1500$ points per sector: the measure splits into $p = 6$ equivalent sectors with mean $|m| = 0.73$. (b) Site-angle marginal: the anisotropy locks each site to the six clock angles $2\pi s/6$, $s = 0, \dots, 5$; dashed lines bound the six wells, colored as in (c), and the black line marks the uniform density $\frac1{2\pi}$; the pushforward marginal is from the maps alone, without reweighting. (c) Sector occupancy of reweighted and pushforward samples, the black line marking the uniform occupancy $\frac16$.}
     \label{fig: clock-target}
 \end{figure}
@@ -946,7 +946,7 @@ Table~\ref{tab: clock-ladder} reports the core metric, the validation ESS of ste
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=\textwidth]{../Clock_Lattice/figures/fig_clock_esscurves.png}
+    \includegraphics[width=\textwidth]{figures/Clock_Lattice/fig_clock_esscurves.png}
     \caption{Per-step ESS of the training surrogate on the first three stages, bare forward KL (blue) versus the X-regularized loss (red); rows $B = 10^3$, $10^4$, $10^5$, one panel per stage.}
     \label{fig: clock-curves}
 \end{figure}
@@ -957,7 +957,7 @@ The trained ladder is used as a staged sampler: each stage applies its map $G_k^
 
 \begin{figure}[t]
     \centering
-    \includegraphics[width=0.5\textwidth]{../Clock_Lattice/figures/occupancy_bias_B10k.png}
+    \includegraphics[width=0.5\textwidth]{figures/Clock_Lattice/occupancy_bias_B10k.png}
     \caption{Occupancy bias of fresh staged rebuilds through the trained $B = 10^4$ ladder of the X-regularized loss, versus rebuild size $N = 10^4 \cdot 2^k$, $k = 0, \dots, 7$, averaged over $2^{7-k}$ independent rebuilds per size at equal total work; error bars are $\pm 2$ standard errors. The dashed line is the Monte Carlo reference $N^{-1/2}$.}
     \label{fig: clock-occbias}
 \end{figure}
@@ -987,7 +987,7 @@ solved spectrally on a $32 \times 32$ grid, and the observation operator $\mathc
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../Poisson_Inverse/figures/fig_setup.png}
+    \includegraphics[width=\textwidth]{figures/Poisson_Inverse/fig_setup.png}
     \caption{The screened Poisson inverse problem. (a) The true source $3(1 + \frac12\cos(3 v(\mathbf{x};\boldsymbol{\theta}^\dagger)))$ on $[0,1]^2$. (b) The corresponding solution $u$ of \eqref{eq: poisson-forward} and the $54$ sensors on the ring of radius $0.3$, the dotted circle, where $u$ is observed. (c) The marginal posterior in the coefficients $(\theta_{(0,0)}, \theta_{(0,1)})$ from the parallel-tempering referee at $\sigma_{\mathrm{obs}} = 0.01$, colored by the shift index $n$: the posterior splits into the well lattice of the cosine symmetries.}
     \label{fig: poisson-setup}
 \end{figure}
@@ -1004,7 +1004,7 @@ The ladder runs in dimension $d = 36$; each stage map acts on all $36$ whitened 
 
 \begin{figure}[h]
     \centering
-    \includegraphics[width=\textwidth]{../Poisson_Inverse/figures/poisson_ladders.png}
+    \includegraphics[width=\textwidth]{figures/Poisson_Inverse/poisson_ladders.png}
     \caption{ESS ladders on the screened Poisson posterior across the noise sweep, one panel per $\sigma_{\mathrm{obs}}$. The temperature axis runs $t = 0 \to 1$; each accepted stage is an arc spanning its increment $\Delta t_k$, forward KL above (blue) and the X-regularized loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ below (red), labelled by its per-stage validation ESS. The cross marks the final bridge that the forward KL run failed in all ten attempts at $\sigma_{\mathrm{obs}} = 0.01$. The recovered well weights are reported in Table~\ref{tab: poisson-tv}.}
     \label{fig: poisson-ladders}
 \end{figure}
@@ -1264,7 +1264,7 @@ is the quantitative value the transport map adds over annealing alone.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/glycerol_36d/ladder.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/glycerol_36d/ladder.png}
     \caption{Glycerol per-stage validation $\ESS$ as annealing-ladder arcs, raw (top) and sharpen (bottom).
     In each row forward KL is drawn above the axis (blue), $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ below
     (purple), and its $\delta$-reweighted variant further below (red). Each arc is an accepted stage; the apex
@@ -1280,7 +1280,7 @@ must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/glycerol_36d/conformers.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/glycerol_36d/conformers.png}
     \caption{Typical glycerol configurations at the three states of the backbone O-C-C-O torsion:
     gauche$^-$ ($-60^\circ$), trans ($180^\circ$), gauche$^+$ ($+60^\circ$). The gold arc marks the dihedral
     $\phi$; ball-and-stick (C grey, O red, H white).}
@@ -1289,7 +1289,7 @@ must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{../Molecular_BG/glycerol_36d/dihedrals.png}
+    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/glycerol_36d/dihedrals.png}
     \caption{Glycerol torsion marginals of both generators against a converged molecular-dynamics reference
     (grey, $2\times10^5$ Langevin walkers): forward KL (blue) and
     $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted (red), both sharpened with the cap annealed
@@ -1340,7 +1340,7 @@ closing it efficiently is the practical contribution of the X-regularized loss.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/diethanolamine_48d/ladder.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/diethanolamine_48d/ladder.png}
     \caption{Diethanolamine per-stage $\ESS$ as annealing-ladder arcs (sharpening schedule): forward KL above
     the axis (blue), $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted, below (red). Each arc is an
     accepted stage; the apex label is that stage's validation $\ESS$, with the sharpening $\ESS$ in
@@ -1355,7 +1355,7 @@ wide-coverage pool must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/diethanolamine_48d/conformers.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/diethanolamine_48d/conformers.png}
     \caption{Typical diethanolamine configurations at the three states of a backbone O-C-C-N torsion:
     gauche$^-$ ($-60^\circ$), trans ($180^\circ$), gauche$^+$ ($+60^\circ$). The gold arc marks the dihedral
     $\phi$; ball-and-stick (C grey, N blue, O red, H white).}
@@ -1364,7 +1364,7 @@ wide-coverage pool must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.8\textwidth]{../Molecular_BG/diethanolamine_48d/dihedrals.png}
+    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/diethanolamine_48d/dihedrals.png}
     \caption{Diethanolamine torsion marginals of both generators against a converged molecular-dynamics
     reference (grey, $2\times10^5$ Langevin walkers): forward KL (blue) and
     $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted (red), both sharpened with the cap annealed
@@ -1432,7 +1432,7 @@ per-stage $\ESS$ entering $F^{*}$, and none applied to the lighter targets.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/adp_60d/ess_history.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/adp_60d/ess_history.png}
     \caption{Alanine dipeptide per-stage $\ESS$ history: each panel is the per-step effective sample size
     during that stage's X-regularized $\delta$-reweighted flow training (red), against the identity-map
     baseline at $t = 0$ (blue dashed). Below each panel is that stage's accepted validation $\ESS$ with the
@@ -1467,7 +1467,7 @@ to the repulsive wall) are left to future work.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{../Molecular_BG/adp_60d/dihedrals.png}
+    \includegraphics[width=\textwidth]{figures/Molecular_BG/adp_60d/dihedrals.png}
     \caption{Alanine dipeptide torsion marginals of the BG deliverable (red) against a converged
     molecular-dynamics reference (grey, $2\times10^5$ Langevin walkers). The four most multimodal proper
     torsions are shown; the densities are $\pm\phi$-symmetrised, the achiral target having $p(\phi) = p(-\phi)$.
@@ -1488,7 +1488,7 @@ would show only one.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.74\linewidth]{../Molecular_BG/adp_60d/conformers.png}
+    \includegraphics[width=0.74\linewidth]{figures/Molecular_BG/adp_60d/conformers.png}
     \caption{The two enantiomers of alanine dipeptide: the energy-minimized L-form and the D-form, a 3D
     reflection of it, shown from different viewpoints (ball-and-stick; C grey, N blue, O red, H white). The
     chiral $\mathrm{C}_\alpha$ is ringed in gold with stereo bonds, a solid wedge toward the viewer and hashed
@@ -1500,7 +1500,7 @@ would show only one.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.92\linewidth]{../Molecular_BG/adp_60d/ramachandran.png}
+    \includegraphics[width=0.92\linewidth]{figures/Molecular_BG/adp_60d/ramachandran.png}
     \caption{Alanine dipeptide Ramachandran ($\phi,\psi$), shared log-density scale: the BG deliverable
     (right) against the annealed SMC reference (left). Red dots mark the maximum-probability conformer of
     each enantiomer (L at $\phi<0,\psi>0$; D at $\phi>0,\psi<0$). Both panels populate the same backbone basins
