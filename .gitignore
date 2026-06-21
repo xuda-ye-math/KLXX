@@ -37,3 +37,6 @@ __pycache__/
 git_init.sh
 git_overleaf.sh
 
+# Auto-written per-run driver snapshot (provenance; regenerated each run)
+Molecular_BG/*/run.py
+
