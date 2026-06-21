@@ -124,7 +124,7 @@ Clock_Lattice/
 ├── data_L8_kl_B1k.pth             # saved run
 ├── data_L8_kl_B10k.pth            # saved run
 ├── data_L8_kl_B100k.pth           # saved run
-├── rebuild_L8_balance_B10k_N1000000.pth  # 1M-sample staged rebuild for fig 1
+├── rebuild_L8_balance_B10k_N1000000.pth  # 1M-sample staged rebuild for fig_clock_target.png (paper Figure 8)
 ├── results_table.md                # auto-generated summary of all data_*.pth
 ├── results_table.csv               # same, CSV format
 ├── occupancy_bias_B10k.md          # occupancy-bias scaling table

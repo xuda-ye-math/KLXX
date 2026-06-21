@@ -3,7 +3,7 @@
 Six self-contained 2D multimodal targets — Annulus, Chessboard, Himmelblau, Python, Sparse, Threewell — each
 isolating a different failure mode of the bare forward KL. Every sub-folder trains four losses (forward KL,
 forward KL + X_mu, forward KL + X_mu + X_{hat_mu}, forward KL + X_mu + X_mix) and writes figures that make
-the coverage differences visible. These benchmarks correspond to §4.1, Figures 1–3, and Table 2 of
+the coverage differences visible. These benchmarks correspond to §5.1, Figures 1–4, and Tables 2–3 of
 `Paper/main.tex`.
 
 ## How to run
@@ -64,20 +64,20 @@ Each `plot_results.py` writes three figures into its sub-folder:
 │   ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
 │   ├── test_qt.py               # standalone QT diagnostic; writes qt.png (not needed for main results)
 │   ├── data.pth                 # saved run (flow state_dicts + ESS histories + samples)
-│   ├── ESS.png
 │   ├── samples.png
 │   ├── resample.png
-│   └── qt.png                   # QT diagnostic visualisation (output of test_qt.py)
+│   ├── ESS.png                  # ESS training history (regenerated on demand; not committed)
+│   └── qt.png                   # QT diagnostic visualisation (regenerated on demand; not committed)
 ├── 2D_Chessboard/
 │   ├── core.py                  # Chessboard potential + loss functions + QT helper
 │   ├── parameters.py            # all hyperparameters (architecture, training)
 │   ├── train.py                 # trains four methods; saves data.pth
 │   ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
 │   ├── data.pth
-│   ├── ESS.png
 │   ├── samples.png
 │   ├── resample.png
-│   └── core.png                 # target potential visualisation (output of `python core.py`)
+│   ├── ESS.png                  # ESS training history (regenerated on demand; not committed)
+│   └── core.png                 # target potential visualisation (regenerated on demand; not committed)
 ├── 2D_Himmelblau/
 │   ├── core.py                  # Himmelblau potential + loss functions + QT helper
 │   ├── parameters.py            # all hyperparameters (architecture, training)
@@ -85,20 +85,20 @@ Each `plot_results.py` writes three figures into its sub-folder:
 │   ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
 │   ├── test_qt.py               # standalone QT diagnostic; writes qt.png (not needed for main results)
 │   ├── data.pth
-│   ├── ESS.png
 │   ├── samples.png
 │   ├── resample.png
-│   └── qt.png                   # QT diagnostic visualisation (output of test_qt.py)
+│   ├── ESS.png                  # ESS training history (regenerated on demand; not committed)
+│   └── qt.png                   # QT diagnostic visualisation (regenerated on demand; not committed)
 ├── 2D_Python/
 │   ├── core.py                  # Python-logo potential + loss functions + QT helper
 │   ├── parameters.py            # all hyperparameters (architecture, training)
 │   ├── train.py                 # trains four methods; saves data.pth
 │   ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
 │   ├── data.pth
-│   ├── ESS.png
 │   ├── samples.png
 │   ├── resample.png
-│   ├── core.png                 # target potential visualisation (output of `python core.py`)
+│   ├── ESS.png                  # ESS training history (regenerated on demand; not committed)
+│   ├── core.png                 # target potential visualisation (regenerated on demand; not committed)
 │   ├── python.jpg               # reference Python-logo image used to define the potential
 │   └── train.log                # training log from the last run
 ├── 2D_Sparse/
@@ -107,9 +107,9 @@ Each `plot_results.py` writes three figures into its sub-folder:
 │   ├── train.py                 # trains four methods; saves data.pth
 │   ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
 │   ├── data.pth
-│   ├── ESS.png
 │   ├── samples.png
-│   └── resample.png
+│   ├── resample.png
+│   └── ESS.png                  # ESS training history (regenerated on demand; not committed)
 └── 2D_Threewell/
     ├── core.py                  # Threewell potential + loss functions + QT helper
     ├── parameters.py            # all hyperparameters (architecture, training)
@@ -117,10 +117,10 @@ Each `plot_results.py` writes three figures into its sub-folder:
     ├── plot_results.py          # reads data.pth; writes ESS.png, samples.png, resample.png
     ├── test_qt.py               # standalone QT diagnostic; writes qt.png (not needed for main results)
     ├── data.pth
-    ├── ESS.png
     ├── samples.png
     ├── resample.png
-    └── qt.png                   # QT diagnostic visualisation (output of test_qt.py)
+    ├── ESS.png                  # ESS training history (regenerated on demand; not committed)
+    └── qt.png                   # QT diagnostic visualisation (regenerated on demand; not committed)
 ```
 
 `test_qt.py` (present in Annulus, Himmelblau, Threewell) is a standalone diagnostic that runs Quench-and-Temper
@@ -136,4 +136,4 @@ A completed `train.py` + `plot_results.py` run writes into the sub-folder:
   history, the final pushforward samples, and the final ESS scalar.
 - `ESS.png`, `samples.png`, `resample.png` — the three result figures.
 
-Quantitative results (ESS values, coverage scores) are reported in `Paper/main.tex` §4.1.
+Quantitative results (ESS values, coverage scores) are reported in `Paper/main.tex` §5.1.

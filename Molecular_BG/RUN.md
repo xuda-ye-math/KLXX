@@ -2,7 +2,8 @@
 
 Reproduction guide for the three molecular Boltzmann-generator targets: **glycerol** (`d = 36`),
 **diethanolamine** (`d = 48`), and **alanine dipeptide** (`d = 60`, vacuum). Environment setup is in
-[PYTHON.md](PYTHON.md); run everything from the repository root with the `zflows` (or `torch`) env active.
+[PYTHON.md](../PYTHON.md); run everything from the **`Molecular_BG/`** folder with the `zflows` (or
+`torch`) env active. MD topology/coordinate inputs live in `tests/data/` (relative to `Molecular_BG/`).
 
 ## The driver
 
@@ -63,7 +64,7 @@ methods) used by the figure scripts below.
 
 ## Figures
 
-The figure scripts read the saved `data_<TAG>.pth` — no retraining. Run from the repository root. The
+The figure scripts read the saved `data_<TAG>.pth` — no retraining. Run from the `Molecular_BG/` folder. The
 per-molecule figure scripts default to glycerol, so pass `--name`/`--d` explicitly for diethanolamine and
 alanine dipeptide.
 
@@ -177,7 +178,7 @@ Molecular_BG/
     ├── dihedrals.png                         # figure: torsion marginals vs annealed SMC
     ├── ess_history.png                       # figure: per-stage ESS training history (3×4 grid)
     ├── ramachandran.png                      # figure: Ramachandran φ–ψ landscape (BG vs SMC reference)
-    ├── multimodal_figure.log                 # log for the most recent multimodal_figure.py run
+    ├── multimodal_figure.stdout              # log for the most recent multimodal_figure.py run
     └── ramachandran.log                      # log for the most recent ramachandran.py run
 ```
 
@@ -186,4 +187,4 @@ Molecular_BG/
 Each molecule folder collects: `config.json` (read-only input), `data_<TAG>.pth`, `results_table.{md,csv}`
 (the `F` table), `status.log`, and the figures (`ladder.png` / `conformers.png` / `dihedrals.png`, plus
 `ess_history.png` / `ramachandran.png` for ADP). The combined paper section that gathers all three molecules
-(tables + figures) is in **`summary/`** (`summary.tex` → `summary.pdf`).
+(tables + figures) is in **`Paper/main.tex`** Section 6 (compiled in `Paper/main.pdf`).

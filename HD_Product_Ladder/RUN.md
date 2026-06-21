@@ -3,6 +3,8 @@
 AIS-ladder sweep on the product multi-well target at d = 256 (K = 8). A single
 flow is trained with the KL + X_mu + X_mix loss for each ladder length
 M ∈ {1, 2, 4, 8, 16, 32}; the only thing that varies across runs is M.
+Figure 6 (§5.3) of the paper uses M ∈ {1, 2, 4, 8}; the M = 16 and M = 32
+runs are produced by `run_sweep.sh` / `M_LIST` but are not shown in the paper.
 The M = 1 case is identical to the one-step IS surrogate in HD_Product; larger M
 adds geometric AIS rungs that reuse the single inverse per step.
 
@@ -17,11 +19,13 @@ cd /mnt/projects/Log-Likelihood-Ratio-Discrepancy/HD_Product_Ladder
 
 ### Full sweep (all six M values, then plot)
 
-`run_sweep.sh` drives the complete sweep: it iterates over M ∈ {1, 2, 4, 8, 16, 32},
-calls `python train.py --M $M` for each, and then calls `plot_ess.py` with no
-arguments (so the plot covers the default M ∈ {1, 2, 4, 8}; pass the full list
-explicitly to include M=16 and M=32 — see Plot section below). The script changes
-into its own directory before launching, so it can be invoked from anywhere.
+`run_sweep.sh` drives the complete sweep: it iterates over M ∈ {1, 2, 4, 8, 16, 32}
+(`M_LIST` in the script), calls `python train.py --M $M` for each, and then calls
+`plot_ess.py` with no arguments. The default plot covers M ∈ {1, 2, 4, 8}, which is the
+subset shown in Figure 6 (§5.3) of the paper; M = 16 and M = 32 are run by the sweep
+but are not included in the paper figure (pass the full list explicitly to plot them —
+see Plot section below). The script changes into its own directory before launching, so
+it can be invoked from anywhere.
 
 ```bash
 # Run the full AIS-ladder sweep (foreground); or use nohup for overnight

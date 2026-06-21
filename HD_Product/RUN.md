@@ -1,8 +1,8 @@
-# Reproducing the results — HD Product multi-well (d = 2, 4, …, 128)
+# Reproducing the results — HD Product multi-well (d = 2, 4, …, 256)
 
 High-dimensional companion to the 2D benchmarks. The target is a separable
-product multi-well in dimension d = 2^k (k = 1…7), with exactly 2^k modes; the
-headline deliverable is the **4 losses × 7 dimensions ESS table** written to
+product multi-well in dimension d = 2^k (k = 1…8), with exactly 2^k modes; the
+headline deliverable is the **4 losses × 8 dimensions ESS table** written to
 `ess_table.csv` and `tables.md`. The ESS gap between bare forward KL and the
 X-augmented losses widens monotonically with dimension — this is the
 **ESS-discriminator regime**. Run everything from inside the `HD_Product/`
@@ -20,6 +20,8 @@ cd /mnt/projects/Log-Likelihood-Ratio-Discrepancy/HD_Product
 ```bash
 # Train all 4 losses for k=7…1 (d=128…2); writes data_k{1..7}.pth
 python train.py
+# Train k=8 (d=256) explicitly (not in K_LIST default); writes data_k8.pth
+python train.py --klist 8
 ```
 
 Optional flags (all from `argparse` in `train.py`):
@@ -58,8 +60,9 @@ in the folder and produces three CSV tables plus a Markdown summary.
 ## Figures
 
 No figure script is currently present in this folder. The ESS-over-step
-trajectory figure (paper Figure 4, `ESS_k7.png`) is produced by
-`plot_ess.py` when that script is added; it reads `data_k7.pth`.
+trajectory figure for the M-ladder sweep (`ESS_ladder.png`) is produced by
+`HD_Product_Ladder/plot_ess.py`; it is paper Figure 6 (§5.3) and is not
+written by any script in this folder.
 
 ## Folder tree
 
@@ -77,8 +80,9 @@ HD_Product/
 ├── data_k5.pth              # saved run: k=5 (d=32)
 ├── data_k6.pth              # saved run: k=6 (d=64)
 ├── data_k7.pth              # saved run: k=7 (d=128)
+├── data_k8.pth              # saved run: k=8 (d=256)
 │
-├── ess_table.csv            # headline: final ESS (4 losses × 7 d)
+├── ess_table.csv            # headline: final ESS (4 losses × 8 d)
 ├── mode_coverage_table.csv  # strict mode coverage (≥50% of uniform share)
 ├── mode_balance_table.csv   # mode imbalance TV(occupancy, uniform)
 ├── tables.md                # Markdown rendering of the three tables above
@@ -103,4 +107,4 @@ A complete run writes:
   `tables.md` — produced by `build_table.py` after training.
 
 Quantitative results (the ESS table and mode-coverage commentary) are reported
-in **`Paper/main.tex`** §4.2, Table 3 and Figure 4.
+in **`Paper/main.tex`** §5.3, Table 5.

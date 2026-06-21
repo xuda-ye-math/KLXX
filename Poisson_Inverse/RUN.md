@@ -192,9 +192,9 @@ Poisson_Inverse/
 ├── figures/                     # all PNG outputs land here
 │   ├── poisson_ladders.png      # paper figure: arc-ladder per sigma_obs
 │   ├── fig_setup.png            # paper figure: source, PDE solution, referee wells
-│   ├── diagnostic.png           # truncation-ceiling gate plot
-│   ├── wells_m4.png             # well census, 4×4 smoke geometry
-│   ├── wells_m6.png             # well census, 6×6 production geometry
+│   ├── diagnostic.png           # truncation-ceiling gate plot (generated on demand by diagnostic.py; not committed)
+│   ├── wells_m4.png             # well census, 4×4 smoke geometry (generated on demand by inspect_wells.py; not committed)
+│   ├── wells_m6.png             # well census, 6×6 production geometry (generated on demand by inspect_wells.py; not committed)
 │   └── ladder_*.png             # per-run ESS curve + well-occupancy bar (from train.py)
 ├── parameters.py                # all hyperparameters (read-only truth; M_LOW=6, M_FULL=8)
 ├── potential.py                 # screened-Poisson PDE + posterior potential + whitening
@@ -232,8 +232,7 @@ Poisson_Inverse/
 ├── diagnostic_sweeps.md         # notes on diagnostic parameter sweeps
 ├── MATH.md                      # derivation notes: whitening, PDE forward map, well lattice
 ├── PLAN.md                      # development plan and stage-by-stage milestones
-├── comparison_referee.md        # notes comparing staged-census to PT-MALA referee
-└── results_table.md / .csv      # (see above)
+└── comparison_referee.md        # notes comparing staged-census to PT-MALA referee
 ```
 
 ---

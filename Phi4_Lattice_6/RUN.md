@@ -75,7 +75,7 @@ tail either file to monitor a run in real time.
 |---|---|---|
 | `figures/pilot_scan.png` | `pilot.py` | κ scan (magnetisation histograms) and frozen tilted reference |
 | `figures/fig_background.png` | `plot_results.py` | per-site double-well potential, PT reference p(m), and the two vacua |
-| `figures/fig_methods.png` | `plot_results.py` | per-method reweighted p(m) vs PT reference — **the paper figure** |
+| `figures/fig_methods.png` | `plot_results.py` | per-method reweighted p(m) vs PT reference — diagnostic/reference figure (NOT in the paper; the paper uses `../Phi4_Lattice_8/figures/fig_methods.png`) |
 | `figures/fig_ess.png` | `plot_results.py` | training-ESS history for all four methods |
 
 ## Folder tree
@@ -102,7 +102,7 @@ Phi4_Lattice_6/
 └── figures/
     ├── pilot_scan.png     # κ scan and frozen tilted reference (pilot.py)
     ├── fig_background.png # potential + PT reference (plot_results.py)
-    ├── fig_methods.png    # reweighted p(m) per method — paper figure (plot_results.py)
+    ├── fig_methods.png    # reweighted p(m) per method — diagnostic/reference, NOT in paper (plot_results.py)
     └── fig_ess.png        # training ESS history (plot_results.py)
 ```
 
