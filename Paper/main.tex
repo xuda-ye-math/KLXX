@@ -81,19 +81,19 @@ A separate tradition drops the bijection and trains a stochastic process directl
 
 \begin{table}[t]
 \centering
-\caption{Where the X-regularized forward KL flow sits among Boltzmann-generator training lines. Entries are qualitative; \checkmark marks a property the line has by construction, and -- its absence.}
-\label{tab: methods}
-\begin{tabular}{@{}lcccccc@{}}
+\begin{tabular}{@{}llccccc@{}}
 \toprule
- & \shortstack{energy\\alone} & \shortstack{exact $\nu$,\\$\ESS$} & \shortstack{ladder on\\target} & \shortstack{mode\\source} & \shortstack{replay\\buffer} & \shortstack{score-free\\flow} \\
+ & \begin{tabular}[c]{@{}c@{}}objective\end{tabular} & \begin{tabular}[c]{@{}c@{}}AIS\\required\end{tabular} & \begin{tabular}[c]{@{}c@{}}importance\\weights\end{tabular} & \begin{tabular}[c]{@{}c@{}}mode\\source\end{tabular} & \begin{tabular}[c]{@{}c@{}}replay\\buffer\end{tabular} & \begin{tabular}[c]{@{}c@{}}score-free\\flow\end{tabular} \\
 \midrule
-reverse KL          & \checkmark & \checkmark & --        & none           & --         & \checkmark \\
-forward KL          & --         & \checkmark & --        & reference data & --         & \checkmark \\
-FAB         & \checkmark & \checkmark & surrogate & AIS chain      & \checkmark & --         \\
-iDEM  & \checkmark & --         & target    & sampling loop  & \checkmark & --         \\
-ours                          & \checkmark & \checkmark & target    & $\hat\mu$, no chain & --   & \checkmark \\
+reverse KL & $\KL(\nu\|\mu)$                           & --         & \checkmark & none                & --         & \checkmark \\
+forward KL & $\KL(\mu\|\nu)$                           & \checkmark & \checkmark & AIS chain           & --         & \checkmark \\
+FAB        & $\alpha{=}2$, $\mu^2/\nu$                 & \checkmark & \checkmark & AIS chain           & \checkmark & --         \\
+iDEM       & energy matching                          & --         & --         & sampling loop       & \checkmark & --         \\
+ours       & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & \checkmark & \checkmark & $\hat\mu$, no chain & --         & \checkmark \\
 \bottomrule
 \end{tabular}
+\caption{Where the X-regularized forward KL flow sits among Boltzmann-generator training lines. Entries are qualitative; \checkmark marks a property the line has by construction, and -- its absence.}
+\label{tab: methods}
 \end{table}
 
 \paragraph{What is new.}
