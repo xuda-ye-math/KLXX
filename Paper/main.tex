@@ -87,7 +87,7 @@ A separate tradition drops the bijection and trains a stochastic process directl
 \midrule
 reverse KL & $\KL(\nu\|\mu)$                           & --         & \checkmark & none                & --         & \checkmark \\
 forward KL & $\KL(\mu\|\nu)$                           & \checkmark & \checkmark & AIS chain           & --         & \checkmark \\
-FAB        & $\alpha{=}2$, $\mu^2/\nu$                 & \checkmark & \checkmark & AIS chain           & \checkmark & --         \\
+FAB        & $\alpha{=}2$ divergence, $\mu^2/\nu$                 & \checkmark & \checkmark & AIS chain           & \checkmark & --         \\
 iDEM       & energy matching                          & --         & --         & sampling loop       & \checkmark & --         \\
 ours       & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & \checkmark & \checkmark & $\hat\mu$, no chain & --         & \checkmark \\
 \bottomrule
