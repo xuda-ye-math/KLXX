@@ -1,4 +1,4 @@
-# phi^4 6x6 results (kappa=0.4, lambda=0.5, h=0.0144)
+# phi^4 8x8 results (kappa=0.4, lambda=0.5, h=0.0144)
 
 PT reference: p(m>0) = 0.139, Delta F = -1.82 kT, barrier = 9.07 kT, roundtrips = 3687
 

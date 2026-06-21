@@ -22,7 +22,8 @@ import parmed as pmd
 import openmm as mm
 from openmm import app, unit
 
-REPO = "/mnt/projects/zflows-md"
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
 from zflows_md.flow import NCSF
 from zflows_md.boltzmann import build, compose_pushforward, bridge, validation_update
 from zflows_md.utils import compute_ESS_log, resample, langevin, set_ess_metric
@@ -196,7 +197,7 @@ def two_line_plot(folder, name, d, bg, md, labels, kl_bg=None, symmetrize=True):
     if has_kl:
         handles.append(Line2D([0], [0], color=BLUE, lw=1.6, ls=(0, (5, 3)), label="BG: forward KL"))
     handles.append(Line2D([0], [0], color=RED, lw=1.6,
-                          label=r"BG: forward KL$+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)"))
+                          label=r"BG: forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)"))
     fig.legend(handles=handles, loc="lower center", ncol=len(handles), frameon=False,
                bbox_to_anchor=(0.5, -0.03), fontsize=9)
     fig.suptitle(rf"{FULLNAME.get(name, name)} ($d={d}$) — torsion marginals: BG vs annealed SMC reference", y=0.99)
@@ -229,10 +230,14 @@ def main():
     if a.smoke:
         a.n_gen, a.ref_frames, a.ref_stride = 200, 200, 100
     dev = torch.device(a.device)
-    folder = os.path.join(REPO, f"{a.name}_{a.d}d")
+    folder = HERE                                            # run in-place: the script's own dir is the molecule folder
     global LOG
     LOG = os.path.join(folder, "multimodal_figure.log"); open(LOG, "w").close()
-    import shutil; shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
+    import shutil
+    try:
+        shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
+    except shutil.SameFileError:
+        pass                                                # already in the molecule folder -> no snapshot needed
     cfg = json.load(open(os.path.join(folder, "config.json")))
     prm = os.path.join(REPO, "tests", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # config-driven (name may != prmtop basename, e.g. adp)
     crd = prm[: -len(".prmtop")] + ".rst7"          # rst7 shares the prmtop basename

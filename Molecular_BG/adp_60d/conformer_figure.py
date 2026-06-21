@@ -32,7 +32,8 @@ from ase.data.colors import jmol_colors
 
 plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "serif"})   # match dihedrals.png
 
-REPO = "/mnt/projects/zflows-md"
+HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
+REPO = os.path.dirname(HERE)                                      # parent dir holds tests/data with the prmtop/rst7
 GOLD = "#E8990C"
 
 
@@ -173,7 +174,7 @@ def main():
     ap.add_argument("--azim_d", type=float, default=330.0)
     a = ap.parse_args()
 
-    folder = os.path.join(REPO, f"{a.name}_{a.d}d")
+    folder = HERE                                      # run in-place: the script's own dir is the molecule folder
     import shutil
     try:                                               # snapshot the generator into the molecule folder (like run.py)
         shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))

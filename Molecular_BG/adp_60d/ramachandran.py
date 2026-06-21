@@ -22,7 +22,8 @@ from scipy.ndimage import gaussian_filter
 import matplotlib.patheffects as pe
 from matplotlib.lines import Line2D
 
-REPO = "/mnt/projects/zflows-md"
+HERE = os.path.dirname(os.path.abspath(__file__))
+REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
 from zflows_md.bg.multimodal_scan import dihedral
 
 plt.rcParams.update({"font.size": 11, "mathtext.fontset": "cm", "font.family": "serif"})
@@ -34,7 +35,7 @@ ap.add_argument("--sigma", type=float, default=1.1)         # periodic Gaussian 
 ap.add_argument("--device", default="cuda")
 ap.add_argument("--replot", action="store_true")           # re-plot from ramachandran_data.npz (no build, no replay)
 a = ap.parse_args()
-folder = os.path.join(REPO, "adp_60d")
+folder = HERE                                               # run in-place: the script's own dir is the molecule folder
 cache = os.path.join(folder, "ramachandran_data.npz")
 LOG = os.path.join(folder, "ramachandran.log"); open(LOG, "w").close()
 def log(m): line = f"[{datetime.now():%H:%M:%S}] {m}"; print(line, flush=True); open(LOG, "a").write(line + "\n")
@@ -145,7 +146,7 @@ mle_handle = Line2D([0], [0], marker="o", color="red", linestyle="none", markere
                     label="maximum-probability (MLE) conformer of the L / D enantiomers")
 fig.legend(handles=[mle_handle], loc="lower center", bbox_to_anchor=(0.5, -0.03), frameon=False,
            fontsize=10, handletextpad=0.4)                      # actual red-dot marker in the legend (not the words)
-fig.text(0.5, -0.10, r"BG: forward KL$+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)",
+fig.text(0.5, -0.10, r"BG: forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)",
          ha="center", fontsize=10)                              # method key, below the legend
 out = os.path.join(folder, "ramachandran.png")
 fig.savefig(out, dpi=400, bbox_inches="tight"); plt.close(fig)

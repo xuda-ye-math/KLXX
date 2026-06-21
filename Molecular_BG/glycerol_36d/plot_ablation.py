@@ -20,7 +20,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
 
 C_KL, C_X, C_XD = "#1F77B4", "#9467BD", "#D62728"          # forward KL (blue) ; KL+X unweighted (purple) ; KL+X delta = best (red)
-XNAME = r"KL$+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$"
+XNAME = r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$"
 # per panel (schedule): (forward-KL tag, X tag, X-delta tag)
 PANELS = [
     ("raw pushforward", ("kl_raw",     "klxx_raw",     "klxx_delta_raw")),
@@ -60,11 +60,14 @@ def draw(ax, dd, color, sign, hboost=0.0):
 
 
 def main():
-    arg = sys.argv[1] if len(sys.argv) > 1 else "glycerol_36d"
-    folder = arg if os.path.isabs(arg) else os.path.join(REPO, arg)
+    folder = HERE                                         # run in-place: the script's own dir is the molecule folder
     base = os.path.basename(folder.rstrip("/")); name, dim = base.rsplit("_", 1)
     dim = dim[:-1] if dim.endswith("d") else dim
-    import shutil; shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
+    import shutil
+    try:
+        shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
+    except shutil.SameFileError:
+        pass                                              # already in the molecule folder -> no snapshot needed
 
     cache = {}                                            # load each method once
     def L(t):

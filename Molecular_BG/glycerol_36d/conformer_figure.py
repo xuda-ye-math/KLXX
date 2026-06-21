@@ -29,7 +29,8 @@ from ase.data.colors import jmol_colors
 
 plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "serif"})   # match dihedrals.png
 
-REPO = "/mnt/projects/zflows-md"
+HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
+REPO = os.path.dirname(HERE)                                      # parent dir holds tests/data with the prmtop/rst7
 from zflows_md.bg.multimodal_scan import proper_torsions          # named proper torsions from the prmtop
 
 STATES = [(-60.0, r"gauche$^-$"), (180.0, "trans"), (60.0, r"gauche$^+$")]
@@ -185,8 +186,12 @@ def main():
     ap.add_argument("--azim", type=float, default=72.0)   # near-Newman: opens the dihedral arcs
     a = ap.parse_args()
 
-    folder = os.path.join(REPO, f"{a.name}_{a.d}d")
-    import shutil; shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
+    folder = HERE                                                 # run in-place: the script's own dir is the molecule folder
+    import shutil
+    try:                                                          # snapshot the generator into the molecule folder (like run.py)
+        shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))
+    except shutil.SameFileError:
+        pass
     prm = os.path.join(REPO, "tests", "data", f"{a.name}.prmtop")
     crd = os.path.join(REPO, "tests", "data", f"{a.name}.rst7")
     P0, Z, bonds, struct = minimized_positions(prm, crd)

@@ -17,14 +17,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 plt.rcParams.update({"font.size": 11, "mathtext.fontset": "cm", "font.family": "serif"})
-REPO = "/mnt/projects/zflows-md"; folder = os.path.join(REPO, "adp_60d")
+folder = os.path.dirname(os.path.abspath(__file__))          # run in-place: the script's own dir is the molecule folder
 d = torch.load(os.path.join(folder, "data_klxx_delta_sharpen.pth"), weights_only=False)
 st = d["stages"]; K = len(st)
 print(f"klxx stages: {K}")
 
 from matplotlib.lines import Line2D
 BLUE, RED = "#1F77B4", "#D62728"                              # ESS curve (red) ; identity map (blue dashed)
-METHOD = r"BG: forward KL$+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)"
+METHOD = r"BG: forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ ($\delta$-reweighted)"
 fig, axes = plt.subplots(3, 4, figsize=(12.5, 9.5)); axes = axes.ravel()   # 3x4 for paper: larger panels, bigger fonts
 imps = []
 for k, s in enumerate(st):

@@ -78,7 +78,7 @@ for ax, sig in zip(axes.ravel(), SIGMAS):
 # shared colour key as a clean figure legend (no axis-tick collision)
 from matplotlib.lines import Line2D
 handles = [Line2D([0], [0], color=C_KL, lw=2, label='forward KL'),
-           Line2D([0], [0], color=C_X, lw=2, label=r'KL$+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$')]
+           Line2D([0], [0], color=C_X, lw=2, label=r'KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$')]
 fig.legend(handles=handles, loc='lower center', ncol=2, frameon=False,
            fontsize=9, bbox_to_anchor=(0.5, -0.01))
 fig.tight_layout(rect=(0, 0.03, 1, 1))
