@@ -93,20 +93,22 @@ compute capability depend on your card), a Triton version, and a finite
 ## Step 5 — Install the scientific stack
 
 ```bash
-conda install matplotlib scikit-learn ase
+conda install matplotlib scikit-learn scikit-image pillow ase
 ```
 
 `numpy`, `scipy`, `pandas`, and `networkx` are already pulled in by PyTorch/OpenMM.
 `matplotlib` drives every figure script; `ase` supplies covalent radii and CPK
-colors for the conformer renders; `scikit-learn` is used by the upstream `zflows`
-code this project builds on.
+colors for the conformer renders; `scikit-learn`, `scikit-image`, and `Pillow`
+build the Python-logo potential (`2D_Benchmark/2D_Python/core.py`).
 
 Smoke test — paste into an interactive Python session:
 
 ```python
-import matplotlib, sklearn, ase
+import matplotlib, sklearn, skimage, PIL, ase
 print("matplotlib:", matplotlib.__version__)
 print("scikit-learn:", sklearn.__version__)
+print("scikit-image:", skimage.__version__)
+print("Pillow:", PIL.__version__)
 print("ase:", ase.__version__)
 ```
 
