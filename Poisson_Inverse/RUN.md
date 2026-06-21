@@ -195,7 +195,7 @@ Poisson_Inverse/
 │   ├── diagnostic.png           # truncation-ceiling gate plot (generated on demand by diagnostic.py; not committed)
 │   ├── wells_m4.png             # well census, 4×4 smoke geometry (generated on demand by inspect_wells.py; not committed)
 │   ├── wells_m6.png             # well census, 6×6 production geometry (generated on demand by inspect_wells.py; not committed)
-│   └── ladder_*.png             # per-run ESS curve + well-occupancy bar (from train.py)
+│   └── ladder_*.png             # per-run ESS curve + well-occupancy bar (generated on demand by train.py; not committed)
 ├── parameters.py                # all hyperparameters (read-only truth; M_LOW=6, M_FULL=8)
 ├── potential.py                 # screened-Poisson PDE + posterior potential + whitening
 ├── pilot.py                     # PT-MALA referee: certifies true well weights (step 1)

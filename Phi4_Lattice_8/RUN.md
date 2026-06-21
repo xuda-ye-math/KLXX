@@ -90,7 +90,7 @@ Phi4_Lattice_8/
 ├── data.pth               # flow state dicts, weights, ESS histories, seed 0 (written by train.py)
 ├── data_seed1.pth         # same, seed 1 (written by train.py --seed 1)
 ├── data_seed2.pth         # same, seed 2 (written by train.py --seed 2)
-├── pilot_status.log       # timestamped pilot log (written by pilot.py)
+├── pilot_status.log       # timestamped pilot log (regenerated on demand by pilot.py; not committed)
 ├── train_status.log       # timestamped training log (written by train.py)
 │
 ├── results_table.md       # per-method final ESS / p(m>0) / Delta F table (written by plot_results.py)
@@ -98,9 +98,9 @@ Phi4_Lattice_8/
 │
 └── figures/
     ├── fig_methods.png    # paper figure (load-bearing — included by Paper/main.tex; written by plot_results.py)
-    ├── fig_background.png # per-site double well, PT reference p(m), lattice snapshots (written by plot_results.py)
-    ├── fig_ess.png        # training ESS history for all four methods (written by plot_results.py)
-    └── pilot_scan.png     # kappa scan and frozen-tilt histogram (written by pilot.py)
+    ├── fig_background.png # per-site double well, PT reference p(m), lattice snapshots (regenerated on demand by plot_results.py; not committed)
+    ├── fig_ess.png        # training ESS history for all four methods (regenerated on demand by plot_results.py; not committed)
+    └── pilot_scan.png     # kappa scan and frozen-tilt histogram (regenerated on demand by pilot.py; not committed)
 ```
 
 ## Outputs

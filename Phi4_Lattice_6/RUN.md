@@ -97,13 +97,13 @@ Phi4_Lattice_6/
 ├── results_table.md       # per-method ESS / p(m>0) / ΔF table (written by plot_results.py)
 ├── results_table.csv      # same table in CSV format
 ├── train_status.log       # timestamped training log (appended by train.py)
-├── pilot_status.log       # timestamped pilot log (written by pilot.py; absent until pilot runs)
+├── pilot_status.log       # timestamped pilot log (regenerated on demand by pilot.py; not committed)
 ├── BACKGROUND.md          # extended background notes
 └── figures/
-    ├── pilot_scan.png     # κ scan and frozen tilted reference (pilot.py)
-    ├── fig_background.png # potential + PT reference (plot_results.py)
-    ├── fig_methods.png    # reweighted p(m) per method — diagnostic/reference, NOT in paper (plot_results.py)
-    └── fig_ess.png        # training ESS history (plot_results.py)
+    ├── pilot_scan.png     # κ scan and frozen tilted reference (regenerated on demand by pilot.py; not committed)
+    ├── fig_background.png # potential + PT reference (regenerated on demand by plot_results.py; not committed)
+    ├── fig_methods.png    # reweighted p(m) per method — diagnostic/reference, NOT in paper (regenerated on demand by plot_results.py; not committed)
+    └── fig_ess.png        # training ESS history (regenerated on demand by plot_results.py; not committed)
 ```
 
 ## Outputs

@@ -130,12 +130,15 @@ Clock_Lattice/
 ├── occupancy_bias_B10k.md          # occupancy-bias scaling table
 ├── occupancy_bias_B10k.csv         # same, CSV format
 ├── occ_bias_B10k_status.log        # live log for occupancy_bias_B10k.py
-├── train_status.log                # live log written by train.py at runtime
-├── summary.md                      # auto-written after each train.py run (preserved for reference)
+├── train_status.log                # live log written by train.py at runtime (regenerated on demand by train.py; not committed)
+├── summary.md                      # auto-written after each train.py run (auto-written by train.py; not committed)
 └── figures/
     ├── fig_clock_target.png        # publication figure (plot_paper.py)
     ├── fig_clock_esscurves.png     # publication figure (plot_paper.py)
-    └── occupancy_bias_B10k.png     # scaling figure (occupancy_bias_B10k.py)
+    ├── occupancy_bias_B10k.png     # scaling figure (occupancy_bias_B10k.py)
+    ├── ladder_<tag>.png            # per-run ESS training curve (regenerated on demand by train.py; not committed)
+    ├── sectors_<tag>.png           # per-run sector-occupancy figure (regenerated on demand by train.py; not committed)
+    └── magnetization_<tag>.png     # per-run magnetization figure (regenerated on demand by train.py; not committed)
 ```
 
 ## Outputs
