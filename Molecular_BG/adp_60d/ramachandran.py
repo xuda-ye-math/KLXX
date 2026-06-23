@@ -50,7 +50,7 @@ else:
     from zflows_md.utils import resample, langevin
     from zflows_md.bg.multimodal_figure import short_md
     cfg = json.load(open(os.path.join(folder, "config.json")))
-    prm = os.path.join(REPO, "tests", "data", cfg["prmtop"]); crd = prm[:-len(".prmtop")] + ".rst7"
+    prm = os.path.join(os.path.dirname(os.path.dirname(folder)), "zflows_md", "data", cfg["prmtop"]); crd = prm[:-len(".prmtop")] + ".rst7"
     dev = torch.device(a.device if torch.cuda.is_available() else "cpu")
     log(f"START ramachandran (FAB-style): device={dev} nv={a.nv} bins={a.bins} sigma={a.sigma}")
     log("  short whitening MD (IC means) ...")

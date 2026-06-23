@@ -30,7 +30,7 @@ from ase.data.colors import jmol_colors
 plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "serif"})   # match dihedrals.png
 
 HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
-REPO = os.path.dirname(HERE)                                      # parent dir holds tests/data with the prmtop/rst7
+REPO = os.path.dirname(HERE)                                      # Molecular_BG/ (prmtop/rst7 live in zflows_md/data)
 from zflows_md.bg.multimodal_scan import proper_torsions          # named proper torsions from the prmtop
 
 STATES = [(-60.0, r"gauche$^-$"), (180.0, "trans"), (60.0, r"gauche$^+$")]
@@ -192,8 +192,8 @@ def main():
         shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))
     except shutil.SameFileError:
         pass
-    prm = os.path.join(REPO, "tests", "data", f"{a.name}.prmtop")
-    crd = os.path.join(REPO, "tests", "data", f"{a.name}.rst7")
+    prm = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.prmtop")
+    crd = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.rst7")
     P0, Z, bonds, struct = minimized_positions(prm, crd)
 
     proper = proper_torsions(prm)

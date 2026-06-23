@@ -33,7 +33,7 @@ from ase.data.colors import jmol_colors
 plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "serif"})   # match dihedrals.png
 
 HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
-REPO = os.path.dirname(HERE)                                      # parent dir holds tests/data with the prmtop/rst7
+REPO = os.path.dirname(HERE)                                      # Molecular_BG/ (prmtop/rst7 live in zflows_md/data)
 GOLD = "#E8990C"
 
 
@@ -180,8 +180,8 @@ def main():
         shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))
     except shutil.SameFileError:
         pass
-    prm = os.path.join(REPO, "tests", "data", f"{a.prmtop}.prmtop")
-    crd = os.path.join(REPO, "tests", "data", f"{a.prmtop}.rst7")
+    prm = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.prmtop}.prmtop")
+    crd = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.prmtop}.rst7")
     log(f"START adp L/D conformer figure  L(elev={a.elev_l},azim={a.azim_l}) D(elev={a.elev_d},azim={a.azim_d})")
     P0, Z, bonds, struct = minimized_positions(prm, crd)
     ca = find_calpha(Z, bonds)

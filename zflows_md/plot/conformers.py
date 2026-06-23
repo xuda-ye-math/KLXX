@@ -187,8 +187,8 @@ def main():
 
     folder = os.path.join(REPO, f"{a.name}_{a.d}d")
     import shutil; shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
-    prm = os.path.join(REPO, "tests", "data", f"{a.name}.prmtop")
-    crd = os.path.join(REPO, "tests", "data", f"{a.name}.rst7")
+    prm = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.prmtop")
+    crd = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.rst7")
     P0, Z, bonds, struct = minimized_positions(prm, crd)
 
     proper = proper_torsions(prm)

@@ -234,7 +234,7 @@ def main():
     LOG = os.path.join(folder, "marginals.log"); open(LOG, "w").close()
     import shutil; shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))  # snapshot into the molecule folder (like run.py)
     cfg = json.load(open(os.path.join(folder, "config.json")))
-    prm = os.path.join(REPO, "tests", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # config-driven (name may != prmtop basename, e.g. adp)
+    prm = os.path.join(os.path.dirname(REPO), "zflows_md", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # prmtop from the package data folder
     crd = prm[: -len(".prmtop")] + ".rst7"          # rst7 shares the prmtop basename
     bins, transforms, hidden = cfg["bins"], cfg["transforms"], list(cfg["hidden"])
     log(f"START [{a.name}] device={dev} n_gen={a.n_gen} ref={a.ref_frames}x{a.ref_stride} "

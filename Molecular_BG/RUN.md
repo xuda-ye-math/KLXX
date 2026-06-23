@@ -2,65 +2,81 @@
 
 Reproduction guide for the three molecular Boltzmann-generator targets: **glycerol** (`d = 36`),
 **diethanolamine** (`d = 48`), and **alanine dipeptide** (`d = 60`, vacuum). Environment setup is in
-[PYTHON.md](../PYTHON.md); run everything from the **`Molecular_BG/`** folder with the `zflows` (or
-`torch`) env active. MD topology/coordinate inputs live in `tests/data/` (relative to `Molecular_BG/`).
+[PYTHON.md](../PYTHON.md). Activate the env first (`conda activate zflows` — required for `torch.compile`),
+then run each molecule's `train.py` from inside its own folder. MD topology/coordinate inputs
+(`prmtop`/`rst7`) are loaded from the shared **`zflows_md/data`** package folder.
 
 ## The driver
 
-Every run is driven by the **`zflows_md.bg.hetero_bg`** module with a per-molecule, **read-only** `config.json` as the
-single source of truth for every hyperparameter. `zflows_md.bg.bgconfig.load_config(d, name)` reads the
-authoritative `<name>_<d>d/config.json` (e.g. `glycerol_36d/config.json`); the central
-`zflows_md/bg/config.json` is a bootstrap-only template, never read at runtime. Each run writes
-`data_<TAG>.pth`, appends to `results_table.{md,csv}`, and logs to `status.log` in the molecule folder, with
-`TAG = {kl|klxx}{_delta}{_sharpen|_raw}` (or `asmc{_raw}` for the reference).
+Every run is driven by a self-contained per-molecule **`train.py`** that reads the molecule's **read-only**
+`config.json` directly — no central driver, no `bgconfig` template indirection. Each run writes `data_<TAG>.pth`
+and a live, timestamped `status_<TAG>.log` next to `train.py`. `TAG` matches the original `hetero_bg`
+ablation: `asmc`, `asmc_raw`, `kl_sharpen`, `kl_raw`, `klxx_sharpen`, `klxx_raw`, `klxx_delta_sharpen`, `klxx_delta_raw`.
+
+```bash
+cd glycerol_36d            # or diethanolamine_48d / adp_60d
+python train.py --method klxx          # {klxx | kl | asmc};  add --smoke for a fast end-to-end check
+```
 
 Flags:
-- **`--method {klxx|kl|asmc}`** — `klxx` = X-regularized forward KL (KL + X_mu + X_(mu_hat+nu_bar)/2);
+- **`--method {klxx|kl|asmc}`** — `klxx` = X-regularized forward KL (KL + X_mu + X_(mu_hat+nu_bar)/2), the
+  deliverable; by default it uses the δ-reweighted quench-and-temper pool with **δ taken from `config.json`**.
   `kl` = bare forward KL; `asmc` = no-flow identity-flow annealed-SMC reference.
-- **`--delta`** — klxx only: the δ-reweighted quench-and-temper pool (δ from config).
-- **`--raw`** — fixed cap, no anneal / no per-stage sharpening (the default is the *sharpening* schedule).
+- **`--raw`** — fixed cap = `e_max`, no cap/floor anneal, no per-stage sharpening (TAG `_raw`); the default is
+  the *sharpening* schedule (TAG `_sharpen`).
+- **`--no-delta`** — klxx only: drop the δ-QT pool → plain `klxx_sharpen`/`klxx_raw` instead of `klxx_delta_*`.
+- **`--smoke`** — tiny end-to-end run for a fast sanity check; writes **no** `data_<TAG>.pth` (logs to
+  `status_<TAG>.smoke.log`), so it never touches the committed paper files. `--n_valid/--n_pool/--n_batch/--steps`
+  override the per-run sizes.
 
-The cap-anneal range (`e_min`/`e_max` = 100/200), `delta` (0.1), `r_floor`, `ess_metric`, and the
-adaptive-ladder knobs all come from each molecule's `config.json`. The headline metric is
-`F = ∏_k (1/ESS_val_k)(1/ESS_sharp_k)` — the Monte-Carlo error-propagation factor through both per-stage
-importance reweights (smaller is better; `F = 1` ideal).
+All hyperparameters (cap-anneal `e_min`/`e_max` = 100/200, `delta` = 0.1, `r_floor`, `ess_metric`, and the
+adaptive-ladder knobs) come from each molecule's `config.json`. The 60d config uses the new flat schema; the
+36d/48d configs use the legacy schema (`d`/`lam`/`e_cap`, omitting `max_stages`/`max_retry`/`release_cache`),
+which `train.py` reads back with the same defaults the old `bgconfig` applied (max_stages=25, max_retry=8,
+release_cache=True). The headline metric is `F = ∏_k (1/ESS_val_k)(1/ESS_sharp_k)` — the Monte-Carlo
+error-propagation factor through both per-stage importance reweights (smaller is better; `F = 1` ideal).
+
+> With `--raw` and `--no-delta`, `train.py` reproduces **all eight** original `hetero_bg` ablation rows
+> (asmc/kl/klxx × sharpen/raw, and klxx with/without δ) — the full glycerol table below — so nothing the paper
+> reports is left unreproducible.
 
 ## Boltzmann-generator runs (the result tables)
 
-Each command reproduces one row of a result table (achieved `F` in the comment). Run one at a time; confirm
-the GPU is free (`nvidia-smi`) before launching the next.
+Run from inside each molecule folder, **one at a time** (confirm the GPU is free with `nvidia-smi` before the
+next). The deliverable's achieved `F` is in the comment.
 
 ### Glycerol (`d = 36`) — full raw + sharpening ablation (8 rows)
 ```bash
-G="--prmtop tests/data/glycerol.prmtop --crd tests/data/glycerol.rst7 --name glycerol"
-python -m zflows_md.bg.hetero_bg $G --method asmc                 # F = 463    (no-flow reference, sharpen)
-python -m zflows_md.bg.hetero_bg $G --method kl                   # F = 44.0   (forward KL)
-python -m zflows_md.bg.hetero_bg $G --method klxx                 # F = 22.5
-python -m zflows_md.bg.hetero_bg $G --method klxx --delta         # F = 14.2   (deliverable)
-python -m zflows_md.bg.hetero_bg $G --method asmc --raw           # F = 636
-python -m zflows_md.bg.hetero_bg $G --method kl   --raw           # F = 40.9
-python -m zflows_md.bg.hetero_bg $G --method klxx --raw           # F = 22.0
-python -m zflows_md.bg.hetero_bg $G --method klxx --delta --raw   # F = 16.6
+cd glycerol_36d
+python train.py --method asmc                   # asmc                F = 463   (no-flow reference)
+python train.py --method kl                     # kl_sharpen          F = 44.0  (forward KL)
+python train.py --method klxx --no-delta         # klxx_sharpen        F = 22.5
+python train.py --method klxx                   # klxx_delta_sharpen  F = 14.2  (deliverable)
+python train.py --method asmc --raw             # asmc_raw            F = 636
+python train.py --method kl   --raw             # kl_raw              F = 40.9
+python train.py --method klxx --no-delta --raw   # klxx_raw            F = 22.0
+python train.py --method klxx --raw             # klxx_delta_raw      F = 16.6
 ```
 
 ### Diethanolamine (`d = 48`)
 ```bash
-D="--prmtop tests/data/diethanolamine.prmtop --crd tests/data/diethanolamine.rst7 --name diethanolamine"
-python -m zflows_md.bg.hetero_bg $D --method asmc                 # F = 1455   (no-flow reference)
-python -m zflows_md.bg.hetero_bg $D --method kl                   # F = 92.6   (forward KL)
-python -m zflows_md.bg.hetero_bg $D --method klxx --delta         # F = 35.9   (deliverable)
+cd diethanolamine_48d
+python train.py --method asmc            # F = 1455  (no-flow reference)
+python train.py --method kl              # F = 92.6  (forward KL)
+python train.py --method klxx            # deliverable (F = 35.9)
 ```
 
 ### Alanine dipeptide (`d = 60`)
 ```bash
-A="--prmtop tests/data/alanine_dipeptide.prmtop --crd tests/data/alanine_dipeptide.rst7 --name adp"
-python -m zflows_md.bg.hetero_bg $A --method asmc                 # F = 129.7  (no-flow reference)
-python -m zflows_md.bg.hetero_bg $A --method klxx --delta         # F = 67.95  (deliverable)
+cd adp_60d
+python train.py --method asmc            # F = 129.7 (no-flow reference)
+python train.py --method klxx            # deliverable (F = 67.95)
 ```
 
-After each run, `results_table.md` in the molecule folder holds the per-stage ESS table and the headline `F`
-for that `TAG`; `data_<TAG>.pth` holds the per-stage records (and the flow state-dicts for the non-`asmc`
-methods) used by the figure scripts below.
+Each run writes `data_<TAG>.pth` (the per-stage records — `val_ess` / `sharpen_ess` arrays from which
+`F = ∏_k (1/ESS_val_k)(1/ESS_sharp_k)` is computed, plus the flow state-dicts for the non-`asmc` methods,
+used by the figure scripts below) and a live `status_<TAG>.log`. The `results_table.{md,csv}` already in each
+folder are the summary tables from the original runs (the simplified `train.py` does not regenerate them).
 
 ## Figures
 

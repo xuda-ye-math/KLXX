@@ -239,7 +239,7 @@ def main():
     except shutil.SameFileError:
         pass                                                # already in the molecule folder -> no snapshot needed
     cfg = json.load(open(os.path.join(folder, "config.json")))
-    prm = os.path.join(REPO, "tests", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # config-driven (name may != prmtop basename, e.g. adp)
+    prm = os.path.join(os.path.dirname(os.path.dirname(folder)), "zflows_md", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # prmtop from the package data folder
     crd = prm[: -len(".prmtop")] + ".rst7"          # rst7 shares the prmtop basename
     bins, transforms, hidden = cfg["bins"], cfg["transforms"], list(cfg["hidden"])
     log(f"START [{a.name}] device={dev} n_gen={a.n_gen} ref={a.ref_frames}x{a.ref_stride} "

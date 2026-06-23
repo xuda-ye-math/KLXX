@@ -20,7 +20,6 @@
   "lr_warmup": 25,
   "max_stages": 40,
   "max_retry": 8,
-  "max_refresh": 3,
   "r_min": 0.1,
   "r_max": 0.2,
   "drop": 0.02,
