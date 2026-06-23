@@ -24,11 +24,14 @@ from openmm import app, unit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
+_ROOT = os.path.dirname(os.path.dirname(HERE))               # X-regularization root: prefer the LOCAL zflows_md package
+if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
+    sys.path.insert(0, _ROOT)
 from zflows_md.flow import NCSF
 from zflows_md.boltzmann import build, compose_pushforward, bridge, validation_update
 from zflows_md.utils import compute_ESS_log, resample, langevin, set_ess_metric
-from zflows_md.bg.multimodal_scan import proper_torsions, dihedral, multimodality
-from zflows_md.bg.plot_dihedrals import fab_marginals
+from zflows_md.dihedral import proper_torsions, dihedral, multimodality
+from zflows_md.plot.dihedrals import fab_marginals
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt

@@ -15,11 +15,11 @@ import parmed
 import openmm as mm
 from openmm import app, unit
 
-ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "Molecular_BG")
-CANDIDATES = {
-    "phenol":     ("tests/data/phenol.prmtop",     "tests/data/phenol.rst7"),
-    "glycerol":   ("tests/data/glycerol.prmtop",   "tests/data/glycerol.rst7"),
-    "morpholine": ("tests/data/morpholine.prmtop", "tests/data/morpholine.rst7"),
+DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")   # zflows_md/data (prmtop/rst7 live here)
+CANDIDATES = {                                               # the molecules shipped in zflows_md/data
+    "glycerol":          ("glycerol.prmtop",          "glycerol.rst7"),
+    "diethanolamine":    ("diethanolamine.prmtop",    "diethanolamine.rst7"),
+    "alanine_dipeptide": ("alanine_dipeptide.prmtop", "alanine_dipeptide.rst7"),
 }
 
 
@@ -91,10 +91,10 @@ def main():
     best = []
     for name, (prm, rst) in CANDIDATES.items():
         print(f"\n=== {name} ===", flush=True)
-        fr = run_md(os.path.join(ROOT, prm), os.path.join(ROOT, rst), a.n_frames, a.stride, a.platform)
+        fr = run_md(os.path.join(DATA, prm), os.path.join(DATA, rst), a.n_frames, a.stride, a.platform)
         print(f"  MD done: {fr.shape[0]} frames", flush=True)
         ranked = []
-        for quad, names, elems in proper_torsions(os.path.join(ROOT, prm)):
+        for quad, names, elems in proper_torsions(os.path.join(DATA, prm)):
             phi = dihedral(fr, quad)
             bal, nmode = multimodality(phi)
             ranked.append((bal, nmode, names, elems, phi))
@@ -109,7 +109,7 @@ def main():
         print(f"  {name:<12} {'-'.join(r[3])}  balance={bal:.2f}  modes={r[1]}", flush=True)
     if best:
         bal, name, r = best[0]
-        np.save(os.path.join(ROOT, f"multimodal_winner_{name}.npy"), r[4])
+        np.save(os.path.join(DATA, f"multimodal_winner_{name}.npy"), r[4])
         print(f"\n  WINNER: {name}  torsion {'-'.join(r[3])}  (balance={bal:.2f})  -> saved phi", flush=True)
 
 

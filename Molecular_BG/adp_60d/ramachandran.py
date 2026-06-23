@@ -24,7 +24,10 @@ from matplotlib.lines import Line2D
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
-from zflows_md.bg.multimodal_scan import dihedral
+_ROOT = os.path.dirname(os.path.dirname(HERE))               # X-regularization root: prefer the LOCAL zflows_md package
+if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
+    sys.path.insert(0, _ROOT)
+from zflows_md.dihedral import dihedral
 
 plt.rcParams.update({"font.size": 11, "mathtext.fontset": "cm", "font.family": "serif"})
 PHI, PSI = (4, 6, 8, 14), (6, 8, 14, 16)
@@ -48,7 +51,7 @@ else:
     from zflows_md.boltzmann import build, bridge, validation_update
     from zflows_md.flow import NCSF
     from zflows_md.utils import resample, langevin
-    from zflows_md.bg.multimodal_figure import short_md
+    from zflows_md.plot.marginals import short_md
     cfg = json.load(open(os.path.join(folder, "config.json")))
     prm = os.path.join(os.path.dirname(os.path.dirname(folder)), "zflows_md", "data", cfg["prmtop"]); crd = prm[:-len(".prmtop")] + ".rst7"
     dev = torch.device(a.device if torch.cuda.is_available() else "cpu")

@@ -1,10 +1,10 @@
 """Generate prmtop + rst7 for diverse HETERO-ATOM molecules via GAFF, for the
 non-alkane BG examples (10d-60d). Run in the isolated `molparam` env:
 
-    ~/miniconda3/envs/molparam/bin/python zflows_md/bg/gen_molecules.py
+    python zflows_md/data/gen_molecules.py
 
-Writes <name>.prmtop / <name>.rst7 into tests/data/. The torch env then runs them
-with hetero_bg.py (--prmtop/--crd). PREPARATION ONLY — does not run any BG.
+Writes <name>.prmtop / <name>.rst7 into this `zflows_md/data/` folder; a per-molecule
+train.py then trains the BG on them. PREPARATION ONLY — does not run any BG.
 """
 import os
 
@@ -21,10 +21,9 @@ MOLS = {
     "pentylamine":    ("CCCCCN",        "N",    51),   # amine chain
     "hexylamine":     ("CCCCCCN",       "N",    60),   # high-d amine
     "triethanolamine":("OCCN(CCO)CCO",  "N,O",  69),   # high-d, N + 3 OH
-    # (nma — N+O amide, d=30 — already exists as tests/data/nma.prmtop)
+    # (nma — N+O amide, d=30 — already exists as nma.prmtop)
 }
-OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-    os.path.abspath(__file__)))), "tests", "data")
+OUT = os.path.dirname(os.path.abspath(__file__))             # write into this zflows_md/data/ folder (where the BG data lives)
 
 
 def main():

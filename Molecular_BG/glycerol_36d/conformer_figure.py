@@ -31,7 +31,10 @@ plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "
 
 HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
 REPO = os.path.dirname(HERE)                                      # Molecular_BG/ (prmtop/rst7 live in zflows_md/data)
-from zflows_md.bg.multimodal_scan import proper_torsions          # named proper torsions from the prmtop
+_ROOT = os.path.dirname(REPO)                                     # X-regularization root: prefer the LOCAL zflows_md package
+if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
+    sys.path.insert(0, _ROOT)
+from zflows_md.dihedral import proper_torsions                    # named proper torsions from the prmtop
 
 STATES = [(-60.0, r"gauche$^-$"), (180.0, "trans"), (60.0, r"gauche$^+$")]
 
