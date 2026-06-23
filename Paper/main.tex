@@ -1280,7 +1280,7 @@ must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/glycerol_36d/conformers.png}
+    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/glycerol_36d/conformers.png}
     \caption{Typical glycerol configurations at the three states of the backbone O-C-C-O torsion:
     gauche$^-$ ($-60^\circ$), trans ($180^\circ$), gauche$^+$ ($+60^\circ$). The gold arc marks the dihedral
     $\phi$; ball-and-stick (C grey, O red, H white).}
@@ -1355,7 +1355,7 @@ wide-coverage pool must cover.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/diethanolamine_48d/conformers.png}
+    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/diethanolamine_48d/conformers.png}
     \caption{Typical diethanolamine configurations at the three states of a backbone O-C-C-N torsion:
     gauche$^-$ ($-60^\circ$), trans ($180^\circ$), gauche$^+$ ($+60^\circ$). The gold arc marks the dihedral
     $\phi$; ball-and-stick (C grey, N blue, O red, H white).}
@@ -1388,14 +1388,14 @@ a justification for training a flow.
 \subsubsection{Alanine dipeptide ($d = 60$)}
 \label{sec: adp}
 
-We push the generator to alanine dipeptide (ADP, Ac-Ala-NHMe), the canonical Boltzmann generator benchmark,
+We push the generator to alanine dipeptide (Ac-Ala-NHMe), the canonical Boltzmann generator benchmark,
 in full internal coordinates ($d = 60$). The qualitative step up from glycerol and diethanolamine is the
-target's character: those are dominated by smooth rotatable-bond multimodality, whereas ADP folds the backbone
+target's character: those are dominated by smooth rotatable-bond multimodality, whereas alanine dipeptide folds the backbone
 tightly enough that the Lennard-Jones clash core, not the torsion profile, sets the hardest part of the
 anneal. We report the X-regularized loss only ($\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$,
 $\delta$-reweighted, $\delta = 0.1$), with a per-stage Monte Carlo sharpening in which \emph{both} the cap
 $e_{\mathrm{cap}}\!:\!100\!\to\!200$ kJ/mol and the clash floor $r_{\mathrm{floor}}\!:\!0.2\!\to\!0.1$ nm are annealed arithmetically, unlike the geometric
-$e_{\mathrm{cap}}$ schedule of glycerol and diethanolamine; ADP is also the only target that anneals $r_{\mathrm{floor}}$, which glycerol and diethanolamine hold fixed at $0.1$ nm. The run reaches $t = 1$ in $K = 11$ stages at $F^{*} = 67.95$,
+$e_{\mathrm{cap}}$ schedule of glycerol and diethanolamine; alanine dipeptide is also the only target that anneals $r_{\mathrm{floor}}$, which glycerol and diethanolamine hold fixed at $0.1$ nm. The run reaches $t = 1$ in $K = 11$ stages at $F^{*} = 67.95$,
 with every stage holding validation $\ESS \Ge 0.51$ and sharpening $\ESS \Ge 0.95$
 (Table~\ref{tab: adp}, Figure~\ref{fig: adp-ess}). The bare composed flow's end-to-end $\ESS$ against the sharp
 target, from a single importance reweight of source samples pushed through the fully composed $K$-stage map and
@@ -1423,8 +1423,8 @@ is the deliverable.
 \end{table}
 
 For comparison, the lighter targets close at $F = 14.2$ (glycerol) and $F = 35.9$ (diethanolamine) with the
-same loss; ADP's larger $F^{*}$ is the price of its singular nonbonded core, not of its multimodality. Three
-ADP-only factors nonetheless make this $F^{*}$ read smaller than a strict like-for-like extension of that trend:
+same loss; alanine dipeptide's larger $F^{*}$ is the price of its singular nonbonded core, not of its multimodality. Three
+alanine-dipeptide-only factors nonetheless make this $F^{*}$ read smaller than a strict like-for-like extension of that trend:
 the per-stage $\ESS$ is the smooth estimator $\ESS^{\mathrm{val}*}_k$ \eqref{eq: smooth-ess} rather than the raw weighted
 $\ESS$; $r_{\mathrm{floor}}$ is annealed alongside the cap; and the ladder is much longer ($K = 11$
 versus $4$ and $5$), its smaller per-step jumps keeping each per-stage $\ESS$ high. All three raise the
@@ -1447,7 +1447,7 @@ minimum validation $\ESS$ ($0.51$ at $t = 0.39$) sits here, and these are the \e
 the step (shrunk once at stages $3,4,5$) or retry heavily (3 attempts at stages $5,6$). Below
 $t \approx 0.3$ the torsions still dominate and the flow trains in a single attempt; above $t \approx 0.5$ the
 cap is sharp enough that the basins separate cleanly and $\ESS$ recovers to ${\approx}0.8$. The binding
-constraint for ADP is the clash singularity, not the multimodality: the qualitative difference from the
+constraint for alanine dipeptide is the clash singularity, not the multimodality: the qualitative difference from the
 $d \Le 48$ molecules, and the reason the three devices of Section~\ref{sec: mol-engineering} (particle drop,
 best $\ESS$ gate snapshots, $r$-floor anneal), inert on glycerol and diethanolamine, were necessary here.
 
@@ -1477,7 +1477,7 @@ to the repulsive wall) are left to future work.
     \label{fig: adp-dihedrals}
 \end{figure}
 
-ADP's backbone $\phi,\psi$ are multi-basin (Figure~\ref{fig: adp-dihedrals}), and a second, ADP-specific feature
+alanine dipeptide's backbone $\phi,\psi$ are multi-basin (Figure~\ref{fig: adp-dihedrals}), and a second, alanine-dipeptide-specific feature
 is chirality: the classical force field is mirror-symmetric (every term in \eqref{eq: amber} is invariant
 under reflection), so the L- and D-forms are isoenergetic. A physical MD trajectory stays in one form, as
 inverting the $\mathrm{C}_\alpha$ needs bond breaking, but the internal-coordinate flow carries no chirality
@@ -1488,7 +1488,7 @@ would show only one.
 
 \begin{figure}[htbp]
     \centering
-    \includegraphics[width=0.74\linewidth]{figures/Molecular_BG/adp_60d/conformers.png}
+    \includegraphics[width=0.6\linewidth]{figures/Molecular_BG/adp_60d/conformers.png}
     \caption{The two enantiomers of alanine dipeptide: the energy-minimized L-form and the D-form, a 3D
     reflection of it, shown from different viewpoints (ball-and-stick; C grey, N blue, O red, H white). The
     chiral $\mathrm{C}_\alpha$ is ringed in gold with stereo bonds, a solid wedge toward the viewer and hashed
@@ -1498,7 +1498,7 @@ would show only one.
     \label{fig: adp-conformers}
 \end{figure}
 
-\begin{figure}[htbp]
+\begin{figure}[htb]
     \centering
     \includegraphics[width=0.92\linewidth]{figures/Molecular_BG/adp_60d/ramachandran.png}
     \caption{Alanine dipeptide Ramachandran ($\phi,\psi$), shared log-density scale: the BG deliverable
@@ -1510,10 +1510,10 @@ would show only one.
     \label{fig: adp-rama}
 \end{figure}
 
-The X-regularized BG closes the full internal-coordinate ADP target to $t = 1$ in $11$ stages at
+The X-regularized BG closes the full internal-coordinate alanine dipeptide target to $t = 1$ in $11$ stages at
 $F^{*} = 67.95$, recovering the multimodal backbone torsions against a converged annealed SMC reference and emitting both
 chiral forms of the mirror-symmetric target. The lesson carried over from the lighter $d \Le 48$ molecules is
-inverted: ADP's difficulty is not its combinatorial torsion multimodality but its nonbonded clash core,
+inverted: alanine dipeptide's difficulty is not its combinatorial torsion multimodality but its nonbonded clash core,
 concentrated in the $t \approx 0.3$--$0.43$ stages, which the particle drop,
 best $\ESS$ gate snapshots, and $r$-floor anneal together make tractable. Across all three molecules the
 pattern is consistent: the sharpening split makes the singular target trainable at all, and the
