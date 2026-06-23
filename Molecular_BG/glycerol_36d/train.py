@@ -37,12 +37,8 @@ import parmed as pmd
 from openmm import app, unit, LangevinMiddleIntegrator, Platform
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-# Prefer the LOCAL, in-development zflows_md/ (X-regularization/zflows_md) over any
-# installed copy, so edits to the package take effect here.
-REPO = os.path.dirname(os.path.dirname(HERE))                 # .../X-regularization
-if os.path.isdir(os.path.join(REPO, "zflows_md")):
-    sys.path.insert(0, REPO)
 
+import zflows_md
 from zflows_md.flow import NCSF
 from zflows_md.utils import (compute_ESS_log, resample, suppress_warnings, lbfgs, langevin,
                              set_cache_size_limit, set_ess_metric)
@@ -92,7 +88,7 @@ def main():
     # the 36d/48d configs use d/lam/e_cap and omit max_stages/max_retry/release_cache. The reads below
     # fall back exactly as the old bgconfig.load_config(d, name) did (struct defaults max_stages=25, etc.).
     D = int(P.get("dim", P.get("d")))                        # 'dim' (60d) or legacy 'd' (36d/48d)
-    DATA = os.path.join(REPO, "zflows_md", "data")           # shared prmtop/rst7 assets (all molecules)
+    DATA = os.path.join(os.path.dirname(zflows_md.__file__), "data")           # shared prmtop/rst7 assets (all molecules)
     prmtop = os.path.join(DATA, P["prmtop"])
     crd = prmtop[:-len(".prmtop")] + ".rst7"
 

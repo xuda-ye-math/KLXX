@@ -23,10 +23,7 @@ import matplotlib.patheffects as pe
 from matplotlib.lines import Line2D
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
-_ROOT = os.path.dirname(os.path.dirname(HERE))               # X-regularization root: prefer the LOCAL zflows_md package
-if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
-    sys.path.insert(0, _ROOT)
+import zflows_md
 from zflows_md.dihedral import dihedral
 
 plt.rcParams.update({"font.size": 11, "mathtext.fontset": "cm", "font.family": "serif"})
@@ -53,7 +50,7 @@ else:
     from zflows_md.utils import resample, langevin
     from zflows_md.plot.marginals import short_md
     cfg = json.load(open(os.path.join(folder, "config.json")))
-    prm = os.path.join(os.path.dirname(os.path.dirname(folder)), "zflows_md", "data", cfg["prmtop"]); crd = prm[:-len(".prmtop")] + ".rst7"
+    prm = os.path.join(os.path.dirname(zflows_md.__file__), "data", cfg["prmtop"]); crd = prm[:-len(".prmtop")] + ".rst7"
     dev = torch.device(a.device if torch.cuda.is_available() else "cpu")
     log(f"START ramachandran (FAB-style): device={dev} nv={a.nv} bins={a.bins} sigma={a.sigma}")
     log("  short whitening MD (IC means) ...")

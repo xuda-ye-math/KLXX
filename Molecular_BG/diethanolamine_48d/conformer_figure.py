@@ -30,10 +30,7 @@ from ase.data.colors import jmol_colors
 plt.rcParams.update({"font.size": 10, "mathtext.fontset": "cm", "font.family": "serif"})   # match dihedrals.png
 
 HERE = os.path.dirname(os.path.abspath(__file__))                 # this script's own dir == the molecule folder
-REPO = os.path.dirname(HERE)                                      # Molecular_BG/ (prmtop/rst7 live in zflows_md/data)
-_ROOT = os.path.dirname(REPO)                                     # X-regularization root: prefer the LOCAL zflows_md package
-if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
-    sys.path.insert(0, _ROOT)
+import zflows_md
 from zflows_md.dihedral import proper_torsions                    # named proper torsions from the prmtop
 
 STATES = [(-60.0, r"gauche$^-$"), (180.0, "trans"), (60.0, r"gauche$^+$")]
@@ -195,8 +192,8 @@ def main():
         shutil.copy(os.path.abspath(__file__), os.path.join(folder, os.path.basename(__file__)))
     except shutil.SameFileError:
         pass
-    prm = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.prmtop")
-    crd = os.path.join(os.path.dirname(REPO), "zflows_md", "data", f"{a.name}.rst7")
+    prm = os.path.join(os.path.dirname(zflows_md.__file__), "data", f"{a.name}.prmtop")
+    crd = os.path.join(os.path.dirname(zflows_md.__file__), "data", f"{a.name}.rst7")
     P0, Z, bonds, struct = minimized_positions(prm, crd)
 
     proper = proper_torsions(prm)

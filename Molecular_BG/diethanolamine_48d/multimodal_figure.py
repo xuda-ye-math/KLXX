@@ -23,10 +23,7 @@ import openmm as mm
 from openmm import app, unit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-REPO = HERE                                                  # run in-place: the script's own dir is the molecule folder
-_ROOT = os.path.dirname(os.path.dirname(HERE))               # X-regularization root: prefer the LOCAL zflows_md package
-if os.path.isdir(os.path.join(_ROOT, "zflows_md")):
-    sys.path.insert(0, _ROOT)
+import zflows_md
 from zflows_md.flow import NCSF
 from zflows_md.boltzmann import build, compose_pushforward, bridge, validation_update
 from zflows_md.utils import compute_ESS_log, resample, langevin, set_ess_metric
@@ -242,7 +239,7 @@ def main():
     except shutil.SameFileError:
         pass                                                # already in the molecule folder -> no snapshot needed
     cfg = json.load(open(os.path.join(folder, "config.json")))
-    prm = os.path.join(os.path.dirname(os.path.dirname(folder)), "zflows_md", "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # prmtop from the package data folder
+    prm = os.path.join(os.path.dirname(zflows_md.__file__), "data", cfg.get("prmtop", f"{a.name}.prmtop"))  # prmtop from the package data folder
     crd = prm[: -len(".prmtop")] + ".rst7"          # rst7 shares the prmtop basename
     bins, transforms, hidden = cfg["bins"], cfg["transforms"], list(cfg["hidden"])
     log(f"START [{a.name}] device={dev} n_gen={a.n_gen} ref={a.ref_frames}x{a.ref_stride} "
