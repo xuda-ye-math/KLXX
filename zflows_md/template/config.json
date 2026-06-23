@@ -1,0 +1,38 @@
+{
+  "_comment": "TEMPLATE for BOOTSTRAPPING a NEW molecule's per-molecule config.json only (bgconfig.make_config interpolates this by d). This central file is NEVER read during training: at runtime bgconfig.load_config(d, name) reads the authoritative, read-only <name>_<d>d/config.json. 'global' = template params identical for every new molecule. 'resource_anchors' = pool/batch/valid/hidden_width specified at two dimensions; any other d is linearly INTERPOLATED between them (clamped outside the range) when a new molecule's config is generated.",
+  "global": {
+    "bins": 32,
+    "transforms": 6,
+    "steps": 1000,
+    "lr": 0.001,
+    "lambda": 1.0,
+    "opt_step": 0.01,
+    "opt_iters": 200,
+    "mc_step": 0.0005,
+    "mc_iters": 200,
+    "smc_rungs": 6,
+    "smc_rung_iters": 20,
+    "qt_chunk": 8,
+    "adaptive_tau": 0.75,
+    "validation_tau": 0.4,
+    "t_safe": 0.1,
+    "shrink_factor": 0.7,
+    "enlarge_factor": 2,
+    "grad_clip": 10,
+    "grad_clip_high_d": 10,
+    "lr_warmup": 25,
+    "max_stages": 25,
+    "max_retry": 8,
+    "r_floor": 0.1,
+    "e_min": 100.0,
+    "e_max": 200.0,
+    "delta": 0.1,
+    "high_d_threshold": 30,
+    "ess_gate": {"250": 0.05, "500": 0.10, "750": 0.25, "1000": 0.40}
+  },
+  "resource_anchors": {
+    "9":  {"n_pool": 20000,  "n_batch": 5000,  "n_valid": 100000, "hidden_width": 128},
+    "24": {"n_pool": 80000,  "n_batch": 8000,  "n_valid": 400000, "hidden_width": 256},
+    "30": {"n_pool": 120000, "n_batch": 12000, "n_valid": 600000, "hidden_width": 256}
+  }
+}
