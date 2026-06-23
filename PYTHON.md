@@ -7,6 +7,16 @@ A step-by-step, interactive guide to building the conda environment for the
 zflows-md Boltzmann-generator tasks. Run each step yourself in a terminal and let
 it finish before moving on to the next.
 
+> **Important — always `conda activate zflows` first; never run the interpreter
+> path directly.** The `torch.compile` / Triton fast paths only work from inside
+> the *activated* environment: activation puts the env's bundled, Blackwell-capable
+> `ptxas` (CUDA 13.x, at `.../envs/zflows/bin/ptxas`) first on `PATH`. Launching the
+> interpreter by its full path instead (e.g.
+> `~/miniconda3/envs/zflows/bin/python script.py`) leaves the *system* `ptxas` on
+> `PATH`, so TorchInductor fails with `Cannot find ptxas-blackwell` on Blackwell
+> GPUs (sm_120). This is not a broken environment and does **not** call for
+> `TORCHDYNAMO_DISABLE=1` — just activate the env, then run `python`.
+
 ## Step 1 — Create the `zflows` environment
 
 ```bash
