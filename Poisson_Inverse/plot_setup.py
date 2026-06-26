@@ -1,5 +1,5 @@
 # pyright: reportArgumentType=false
-"""Setup figure for the paper's Poisson subsection: (a) true source field,
+"""Setup figure for the paper's Poisson subsection: (a) the field v(x;theta^dagger),
 (b) PDE solution with the sensor ring, (c) posterior well lattice from the
 PT referee cold samples at sigma_obs = 0.01. -> figures/fig_setup.png"""
 import math
@@ -37,8 +37,8 @@ n_lab = torch.round(th1 * p.ALPHA / (2.0 * math.pi)).long()
 plt.rcParams['axes.titlepad'] = 10          # extra gap between subplot titles and axes
 fig, axes = plt.subplots(1, 3, figsize=(11.5, 3.4))
 ax = axes[0]
-im = ax.imshow(g.T, origin='lower', extent=[0, 1, 0, 1], cmap='viridis')
-ax.set_title(r'(a) source $G_0(1+\delta\cos(\alpha v(x;\theta^\dagger)))$')
+im = ax.imshow(v.T, origin='lower', extent=[0, 1, 0, 1], cmap='viridis')
+ax.set_title(r'(a) field $v(x;\theta^\dagger)$')
 ax.set_xlabel(r'$x_1$'); ax.set_ylabel(r'$x_2$')
 plt.colorbar(im, ax=ax, fraction=0.046)
 ax = axes[1]
