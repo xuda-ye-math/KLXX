@@ -834,7 +834,7 @@ ${\approx}0.5$. Glycerol and diethanolamine, free of such dominators, keep the r
 
 We close three molecules of increasing difficulty in full internal coordinates on a single consumer GPU
 (RTX~5070\,Ti): glycerol ($d = 36$), diethanolamine ($d = 48$), and alanine dipeptide ($d = 60$, the canonical
-Boltzmann generator benchmark). Table~\ref{tab: overview} summarizes the comparison that runs through all
+Boltzmann generator benchmark). A single comparison runs through all
 three: the X-regularized $\delta$-reweighted loss against an annealed SMC reference, the same adaptive
 sharpening scheme with the flow set to the identity at every stage, which selects its own, longer ladder.
 Because the factor is a product over stages, the \emph{ratio} of trained-flow to annealed SMC $F$, not the
@@ -843,30 +843,6 @@ clash-mild, combinatorially multimodal targets, but only ${\sim}2\times$ on alan
 singular clash core rather than the multimodality dominates --- the core that the Monte Carlo sharpening already resolves. The per-molecule subsections below give the full ablation, ladder, and reference figures for each.
 The baselines here, the bare forward KL and the identity-flow annealed SMC, are the natural same-cost
 comparisons for a forward KL-trained generator.
-
-\begin{table}[h]
-    \centering
-    \small
-    \begin{tabular}{@{}lcccc@{}}
-        \toprule
-        \multirow{2}{*}{target} & \multirow{2}{*}{$d$} & \multirow{2}{*}{$K$} & \multicolumn{2}{c}{$F/F^{*}$} \\
-        \cmidrule(l){4-5}
-        & & & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ flow & annealed SMC \\
-        \midrule
-        glycerol            & 36 & 4  & \textbf{14.16} & 463.02 \\
-        diethanolamine      & 48 & 5  & \textbf{35.90} & 1455.44 \\
-        alanine dipeptide   & 60 & 11 & \textbf{67.95}$^{*}$ & 129.70$^{*}$ \\
-        \bottomrule
-    \end{tabular}
-    \caption{Molecular Boltzmann generators in full internal coordinates. $K$ is the trained-flow ladder
-    length; the annealed SMC reference adaptively chooses its own, longer ladder, $K = 10, 10, 12$
-    respectively. Both columns run the same adaptive sharpening scheme, annealing the regularization from the
-    soft source to the sharp target, and differ in whether each stage trains a flow or sets it to the
-    identity. Entries are the error-propagation factor $F$ \eqref{eq: F}, or the smooth $\ESS$ variant
-    $F^{*}$ \eqref{eq: Fstar} where starred, used on alanine dipeptide; both include the Monte Carlo
-    sharpening reweight, smaller is better, best in bold.}
-    \label{tab: overview}
-\end{table}
 
 \subsubsection{Glycerol ($d = 36$)}
 \label{sec: glycerol}
@@ -1032,7 +1008,7 @@ $\delta$-reweighted, $\delta = 0.1$), with a per-stage Monte Carlo sharpening in
 $e_{\mathrm{cap}}\!:\!100\!\to\!200$ kJ/mol and the clash floor $r_{\mathrm{floor}}\!:\!0.2\!\to\!0.1$ nm are annealed arithmetically, unlike the geometric
 $e_{\mathrm{cap}}$ schedule of glycerol and diethanolamine; alanine dipeptide is also the only target that anneals $r_{\mathrm{floor}}$, which glycerol and diethanolamine hold fixed at $0.1$ nm. The run reaches $t = 1$ in $K = 11$ stages,
 with every stage holding a high validation and sharpening $\ESS$
-(Table~\ref{tab: adp}, Figure~\ref{fig: adp-ess}). The bare composed flow's end-to-end $\ESS$ against the sharp
+(Table~\ref{tab: adp}). The bare composed flow's end-to-end $\ESS$ against the sharp
 target, from a single importance reweight of source samples pushed through the fully composed $K$-stage map and
 scored against $U_{1,1}$, is only ${\sim}5\times10^{-6}$, so the per-stage sharpening, not a raw pushforward,
 is the deliverable.
@@ -1064,17 +1040,6 @@ $\ESS$; $r_{\mathrm{floor}}$ is annealed alongside the cap; and the ladder is mu
 versus $4$ and $5$), its smaller per-step jumps keeping each per-stage $\ESS$ high. All three raise the
 per-stage $\ESS$ entering $F^{*}$, and none applied to the lighter targets.
 
-\begin{figure}[htbp]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/adp_60d/ess_history.png}
-    \caption{Alanine dipeptide per-stage $\ESS$ history: each panel is the per-step effective sample size
-    during that stage's X-regularized $\delta$-reweighted flow training (red), against the identity-map
-    baseline at $t = 0$ (blue dashed). Below each panel is that stage's accepted validation $\ESS$ with the
-    sharpening $\ESS$ in parentheses. The dip across $t \approx 0.29$--$0.43$ is the clash bottleneck, with
-    $\ESS$ recovering to $\approx 0.8$ once the cap is sharp enough to separate the basins.}
-    \label{fig: adp-ess}
-\end{figure}
-
 The instability is sharply localized to a clash bottleneck near $t \approx 0.3$--$0.43$. The stages spanning
 $t \approx 0.29$--$0.43$ (soft cap $e_{\mathrm{cap}} \approx 129$--$143$ kJ/mol) are where the nonbonded core first bites: the run
 minimum validation $\ESS$ sits here, and these are the \emph{only} stages that shrink
@@ -1085,7 +1050,7 @@ constraint for alanine dipeptide is the clash singularity, not the multimodality
 $d \Le 48$ molecules, and the reason the three devices of Section~\ref{sec: mol-engineering} (particle drop,
 best $\ESS$ gate snapshots, $r$-floor anneal), inert on glycerol and diethanolamine, were necessary here.
 
-The per-stage $\ESS$ history (Figure~\ref{fig: adp-ess}) exposes two coupled instabilities that the best $\ESS$
+The per-stage $\ESS$ history exposes two coupled instabilities that the best $\ESS$
 gate works around but does not cure. First, the within-stage $\ESS$ is \emph{non-monotone and unstable}: it
 can rise, plateau, then drop abruptly (the sharp collapse late in the $t = 0.65$ stage and the volatility at
 $t = 1$ are the clearest cases), so the last training step is frequently far below the best. Second, near the clash bottleneck ($t \approx 0.3$--$0.5$) several flows \emph{degenerate
@@ -1111,8 +1076,18 @@ to the repulsive wall) are left to future work.
 alanine dipeptide's backbone $\phi,\psi$ are multi-basin (Figure~\ref{fig: adp-dihedrals}), and a second, alanine-dipeptide-specific feature
 is chirality: the classical force field is mirror-symmetric (every term in \eqref{eq: amber} is invariant
 under reflection), so the L- and D-forms are isoenergetic, and the internal-coordinate flow, carrying no
-chirality constraint, emits \emph{both} where a physical trajectory would stay in one.
+chirality constraint, emits \emph{both} where a physical trajectory would stay in one. In the Ramachandran (Figure~\ref{fig: adp-rama}) this appears as the $(\phi,\psi)\!\to\!(-\phi,-\psi)$ point symmetry, the D-basins mirroring the L-basins, each populated.
 
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.92\linewidth]{figures/Molecular_BG/adp_60d/ramachandran.png}
+    \caption{Alanine dipeptide Ramachandran ($\phi,\psi$), shared log-density scale: the BG deliverable
+    (right) against the annealed SMC reference (left). Red dots mark the maximum-probability conformer of
+    each enantiomer (L at $\phi<0,\psi>0$; D at $\phi>0,\psi<0$). Both panels populate the same backbone basins
+    with the $(\phi,\psi)\!\to\!(-\phi,-\psi)$ point symmetry: the achiral vacuum force field makes the L- and
+    D-enantiomers isoenergetic, and the generator, carrying no chirality constraint, samples both.}
+    \label{fig: adp-rama}
+\end{figure}
 
 The X-regularized BG closes the full internal-coordinate alanine dipeptide target to $t = 1$ in $11$ stages,
 recovering the multimodal backbone torsions against a converged annealed SMC reference and emitting both
