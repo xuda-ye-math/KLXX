@@ -1,0 +1,37 @@
+% Shared preamble for main.tex and supp.tex (X-regularization, arXiv split).
+% \input by both documents after their own \documentclass.
+\usepackage[letterpaper, margin=1in]{geometry}
+\usepackage{setspace}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage[amsmath,thmmarks,framed]{ntheorem}
+\usepackage{authblk}
+\usepackage{tcolorbox}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{placeins}
+\usepackage{enumerate}
+\usepackage{xcolor}
+\definecolor{darkgreen}{rgb}{0.0,0.5,0.0}
+\usepackage[colorlinks,linkcolor=red,citecolor=darkgreen,urlcolor=blue]{hyperref}
+\usepackage{xr-hyper}   % cross-document references between main.tex and supp.tex (must follow hyperref)
+\usepackage[round,authoryear]{natbib}
+
+\usepackage[ruled,linesnumbered]{algorithm2e}
+\SetKwInput{KwInput}{Input}
+\SetKwInput{KwOutput}{Output}
+
+\newtheorem*{remark}{Remark}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newenvironment{proof}{\par\medskip\noindent\textit{Proof.}\ }{\hfill$\square$\par\medskip}
+
+\newcommand{\Le}{\leqslant}
+\newcommand{\Ge}{\geqslant}
+\newcommand{\D}{\mathrm{d}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\X}{\mathrm{X}}
+\newcommand{\ESS}{\mathrm{ESS}}
+
+\theoremstyle{plain}
