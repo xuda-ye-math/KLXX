@@ -10,7 +10,7 @@
 \renewcommand{\thetheorem}{S\arabic{theorem}}
 \renewcommand{\thelemma}{S\arabic{lemma}}
 
-\title{Supplementary Material\\[2pt] Forward KL Can Be Better: Normalizing Flow Boltzmann Sampling with X-Regularization}
+\title{Supplementary Material\\[2pt] Forward KL Can Be Better: Normalizing Flow Boltzmann Sampling with Log-Ratio Variation}
 \author[1]{Qi Feng}
 \author[2]{Rongjie Lai}
 \author[2]{Di Qi}
@@ -30,7 +30,7 @@
 
 Before turning to the training algorithm, we study the gradient-flow properties of the loss on the space of densities; the convergence rate of this continuous-time idealization is a proxy for how trainable the corresponding discrete loss is in practice. We view $\nu$ as a generic probability density evolving along the gradient flow of the loss under an appropriate Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ converges to the target $\mu$ in $\KL(\mu\|\nu_t)$.
 
-In this section we restrict to the loss with only the forward KL and the shape regularizer $\X_\mu$,
+In this section we restrict to the loss with only the forward KL and the shape regularizer $\X_\mu$, the log-ratio variation at weight $\omega = \mu$,
 \begin{equation}
     \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda  \X_\mu(\mu\|\nu) = \int_{\mathbb R^d} \mu(x) \log \frac{\mu(x)}{\nu(x)} \D x +
     \lambda\iint_{\mathbb R^d\times\mathbb R^d}
