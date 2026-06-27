@@ -106,7 +106,25 @@ Section~\ref{sec: FR} studies the Fisher--Rao gradient flow of the regularized l
 \label{subsec: FR-convergence}
 \label{subsec: accuracy}
 
-To see how the regularizer shapes training we view $\nu$ as a density evolving along the Fisher--Rao (FR) gradient flow of the loss $\mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu)$. This continuous-time idealization has a convergence rate that proxies trainability. Write $w = \mu/\nu$ for the importance weight and $z = \log w$ for the log-ratio. In the FR geometry, unlike the Wasserstein-2 one, the forward KL decays exponentially without conditions. The regularizer adds a nonlocal birth--death modulation driven by where $w$ ranks against the population of weights under $\mu$. Differentiating $\KL(\mu\|\nu_t)$ along the flow and reducing the $\X_\mu$ term by a rank-correlation identity gives the dissipation
+Section~\ref{sec: intro} introduced the X-regularized forward KL. Before turning it into a training algorithm in Section~\ref{sec: training}, we study the gradient-flow properties of the loss on the space of densities. The convergence rate of this continuous-time idealization is a proxy for how trainable the discrete loss is in practice: we view $\nu$ as a probability density evolving along the gradient flow of the loss, and ask how fast $\KL(\mu\|\nu_t)$ decays to zero.
+
+For a tractable analysis we keep only the forward KL and the shape term $\X_\mu$, the log-ratio variation at weight $\omega = \mu$. The mode-discovery and leakage terms $\X_{\hat\mu}$ and $\X_{\bar\nu}$ are left out: their wide-coverage and stop-gradient weights are training devices that do not enter this density-space idealization. The loss is then
+\begin{equation}
+    \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu),
+    \label{eq: loss KL X}
+\end{equation}
+with $\lambda > 0$ fixed. Write $w = \mu/\nu$ for the importance weight and $z = \log w$ for the log-ratio.
+
+The choice of Riemannian metric matters. In the Wasserstein-2 geometry the forward KL is not displacement convex, so the Otto--Villani / Bakry--{\'E}mery machinery that yields exponential convergence for the reverse KL does not apply. We therefore work in the Fisher--Rao (FR) geometry, in which the forward KL admits an unconditional exponential decay and $\X_\mu$ adds a nonlocal birth--death modulation: the update at a point is driven by how its importance weight ranks against the population of weights under $\mu$. Writing the $\nu$-mean as $\langle\,\cdot\,\rangle_\nu := \int (\cdot)\,\nu\,\D x$, the FR gradient of a functional $\mathcal F$ and the flow it generates are
+\begin{equation}
+    \mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu) = \nu\Bigl(\frac{\delta\mathcal F}{\delta\nu} - \Bigl\langle\frac{\delta\mathcal F}{\delta\nu}\Bigr\rangle_\nu\Bigr),
+    \qquad
+    \partial_t\nu_t = -\,\mathrm{grad}^{\mathrm{FR}}\mathcal L(\nu_t),
+    \label{eq: FR-gradient}
+\end{equation}
+and the mean-subtraction makes $\int \mathrm{grad}^{\mathrm{FR}}\mathcal F = 0$, so the flow conserves probability mass.
+
+Differentiating $\KL(\mu\|\nu_t)$ along this flow, and reducing the $\X_\mu$ term by a rank-correlation identity, gives the dissipation
 \begin{equation}
     \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\chi^2(\mu\|\nu_t) - \lambda\, \mathbb E_{x,y\sim\mu}\!\left[ \left|\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\right| \right],
     \label{eq: combined-rate}
@@ -116,7 +134,7 @@ with $\chi^2$ the chi-squared divergence. Both terms are non-negative, so the re
     \KL(\mu\|\nu_t) \Le e^{-t}\,\KL(\mu\|\nu_0), \qquad t \Ge 0,
     \label{eq: KL-exponential}
 \end{equation}
-under no structural assumption on $\mu$ --- no log-concavity, spectral gap, or growth condition. This contrasts with the Wasserstein-2 geometry, where the forward KL is not displacement convex and no such rate is available. The rate does not claim forward KL is intrinsically faster. It is a population statement on the space of densities, agnostic to the cost of producing the target samples that AIS must supply. The contribution of $\X_\mu$ to \eqref{eq: combined-rate} is structural --- it amplifies mass where $\nu_t$ undercovers $\mu$ --- rather than a faster transient.
+under no structural assumption on $\mu$ --- no log-concavity, spectral gap, or growth condition. The rate does not claim forward KL is intrinsically faster. It is a population statement on the space of densities, agnostic to the cost of producing the target samples that AIS must supply. The contribution of $\X_\mu$ to \eqref{eq: combined-rate} is structural --- it amplifies mass where $\nu_t$ undercovers $\mu$ --- rather than a faster transient.
 
 The convergence above assumes the outer expectation is taken under the exact target. In practice AIS supplies only an approximation $\tilde\mu$, and the realized loss replaces $\mu$ by $\tilde\mu$ in its outer integrands. At $\lambda = 0$ a stationary point is $\nu^\star = \tilde\mu$: pure forward KL inherits the AIS bias verbatim, leaving the residual error $\KL(\mu\|\tilde\mu)$ as a hard floor. The shape term lowers this floor.
 \begin{theorem}
@@ -127,7 +145,7 @@ Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \
     \label{eq: accuracy-bound}
 \end{equation}
 \end{theorem}
-\noindent The rank-based feedback inflates $\nu^\star$ where it undercovers $\mu$ and deflates it elsewhere, pulling the stationary density off $\tilde\mu$ back toward $\mu$ by an amount set by the spread of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$. So $\X_\mu$ is not merely a stabilizer for the forward KL flow. It lowers the asymptotic accuracy floor left by biased AIS samples --- the relevant regime, with small batches and early bridges --- and the improvement persists well beyond the worst-case threshold $\lambda \Le \tfrac12$. The full FR-gradient derivation, the rank-correlation lemma, the convergence proof, and the accuracy proof are in Supplement~\ref{S-sec: FR}.
+\noindent The rank-based feedback inflates $\nu^\star$ where it undercovers $\mu$ and deflates it elsewhere, pulling the stationary density off $\tilde\mu$ back toward $\mu$ by an amount set by the spread of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$. So $\X_\mu$ is not merely a stabilizer for the forward KL flow. It lowers the asymptotic accuracy floor left by biased AIS samples --- the relevant regime, with small batches and early bridges --- and the improvement persists well beyond the worst-case threshold $\lambda \Le \tfrac12$. The full FR-gradient derivation, the rank-correlation lemma, the convergence proof, and the accuracy proof are in Supplement~\ref{S-sec: FR}. This analysis lives on the space of densities and assumes access to $\mu$; the next section supplies the samplers for $\mu$ and the wide-coverage measure $\hat\mu$ that make the loss trainable.
 
 % ===================== Sections 3-4: training + generator (VERBATIM, untouched) =====================
 \section{Flow training with X functionals}
