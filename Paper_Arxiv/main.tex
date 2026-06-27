@@ -201,7 +201,7 @@ followed by a resampling step and a short Langevin simulation to diffuse the dup
 so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each stage of the ladder reweights by only $w(y)^{\frac{1}{M}}$, keeping the weight ratio close to $1$ and avoiding the degeneracy of direct importance sampling.
 
 
-\begin{algorithm}[h]
+\begin{algorithm}[htb]
 \setstretch{1.2}
 \caption{AIS from $(G^{-1})_{\#}\mu_0$ to $\mu$}
 \label{alg: AIS}
@@ -245,7 +245,7 @@ The mixture term needs samples from the wide-coverage measure $\hat\mu$. These a
 \end{equation*}
 from the target potential $U$ to a wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ distributed as $\hat\mu$, proceeding in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
 
-\begin{algorithm}[h]
+\begin{algorithm}[htb]
 \setstretch{1.2}
 \caption{Quench and temper (QT): proactive mode discovery}
 \label{alg: QT}
@@ -329,7 +329,7 @@ with $U_1 := U$ an alias for the target potential, so that $\mu_0$ is the source
 
 Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtain by SMC (Algorithm~\ref{alg: AIS} with $G$ the identity). The smallest per-step ESS of that SMC run is a natural criterion for the step $\Delta t_k$. It measures how well the run bridges $\mu_{k-1}$ to $\mu_k$, so we enlarge the step until this ESS drops to a fixed floor.
 
-\begin{algorithm}[h]
+\begin{algorithm}[htb]
     \setstretch{1.2}
 \caption{Adaptive selection of the temperature step $\Delta t_k$}
 \label{alg: step}
@@ -482,37 +482,28 @@ For each target we compare four losses, adding one X functional at a time: the b
 
 \begin{figure}[htb]
     \centering
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/resample.png}
-        \caption{Threewell target.}
-        \label{fig: threewell}
-    \end{subfigure}
-    \\[0.8em]
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/resample.png}
-        \caption{Himmelblau target.}
-        \label{fig: himmelblau}
-    \end{subfigure}
-    \caption{Mode discovery targets. In each panel, Row 1 is the pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$ and Row 2 is $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns, left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward title reports the final ESS and the $\kappa = 5$ coverage against $\hat\mu$.}
-    \label{fig: page-mode}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/resample.png}
+    \caption{Threewell target. Row 1 is the pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$ and Row 2 is $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns, left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward title reports the final ESS and the $\kappa = 5$ coverage against $\hat\mu$.}
+    \label{fig: threewell}
+\end{figure}
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/resample.png}
+    \caption{Himmelblau target. Rows and columns as in Figure~\ref{fig: threewell}.}
+    \label{fig: himmelblau}
 \end{figure}
 
 \paragraph{Annulus.} All four methods reach full coverage, so the discriminator is the flow shape and ESS. Forward KL alone leaves axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts the ESS, and the mixture ties $\KL{+}\X_\mu$ at the best ESS of the four (Figure~\ref{fig: annulus}). This isolates the role of $\X_\mu$ as a shape regularizer, penalizing pointwise log-ratio variation that the global forward KL leaves untouched.
 
 \begin{figure}[htb]
     \centering
-    \begin{subfigure}{\textwidth}
-        \centering
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
-        \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/resample.png}
-        \caption{Annulus target.}
-        \label{fig: annulus}
-    \end{subfigure}
-    \caption{Annulus target. Rows and columns as in Figure~\ref{fig: page-mode}.}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/resample.png}
+    \caption{Annulus target. Rows and columns as in Figure~\ref{fig: threewell}.}
+    \label{fig: annulus}
 \end{figure}
 
 \paragraph{Sparse.} A four-mode Gaussian mixture with a dense central pair and two isolated corner modes the narrow source cannot reach. Forward KL and $\KL{+}\X_\mu$ lock onto the central pair and miss the corners at high, stable ESS, another fake ESS instance. Adding $\X_{\hat\mu}$ restores full coverage but, lacking the $\bar\nu$ half, overfits $\hat\mu$ and leaves artificial bridges of mass between the modes. The mixture also reaches full coverage while removing these bridges, at the best full-coverage ESS (Figure~\ref{fig: sparse}).
@@ -521,7 +512,7 @@ For each target we compare four losses, adding one X functional at a time: the b
     \centering
     \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/samples.png} \\[0.6em]
     \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/resample.png}
-    \caption{Sparse target. Row 1: pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$. Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: page-mode}.}
+    \caption{Sparse target. Row 1: pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$. Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: threewell}.}
     \label{fig: sparse}
 \end{figure}
 
