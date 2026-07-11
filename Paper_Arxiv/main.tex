@@ -14,7 +14,7 @@
 \maketitle
 
 \begin{abstract}
-Forward KL training of a normalizing flow Boltzmann generator is mass-covering and usually trains well. Its weakness lies in the annealing chain that supplies its target samples, which starts at the flow's own pushforward and mixes only among the modes the flow already covers. The objective can then miss the remaining modes while still reporting a high effective sample size, a fake ESS where the importance weights look benign but target mass is absent. The chain's samples are also biased, and the forward KL controls only the mean of the log-ratio, so the bias passes into the trained flow. We address these failures with the log-ratio variation, a family of X functionals. Each penalizes the pairwise variation of the flow's own log-ratio under a chosen weight; the penalty is local, cancels the unknown normalizer, and vanishes at the target. Three weights give complementary roles: shape control under the target, mode discovery against a wide-coverage measure built once by quench and temper, and suppression of leakage outside the target. A single balanced loss combines them and augments the forward KL at the cost of one extra sampling batch. A Fisher--Rao analysis shows that the forward KL still converges under the regularizer and that the regularizer can lower the accuracy floor left by biased samples. We build an adaptive-temperature Boltzmann generator on this loss and study it on model problems and molecular potential energies, including where it struggles: heavy-tailed targets, and a singular interaction core where the difficulty is not multimodality.
+Forward KL training of a normalizing flow Boltzmann generator is mass-covering and usually trains well. Its weakness lies in the annealing chain that supplies its target samples, which starts at the flow's own pushforward and mixes only among the modes the flow already covers. The objective can then miss the remaining modes while still reporting a high effective sample size, a fake ESS where the importance weights look benign but target mass is absent. The chain's samples are also biased, and the forward KL controls only the mean of the log-ratio, so this bias passes into the trained flow. We address these failures with the log-ratio variation, a family of X functionals that penalize pairwise variation of the flow's own log-ratio. Three weights give complementary roles: accuracy under the target, mode discovery against a wide-coverage measure built by quench and temper, and suppression of leakage outside the target. The balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ combines them at the cost of one extra sampling batch. A Fisher--Rao analysis shows that the forward KL still converges under the $\X_\mu$ term and that this term can lower the accuracy floor left by biased samples. The model problems confirm the intended robustness at small batch and show a second regime: on a difficult multimodal annealing path, the balanced loss retains a clear aggregate advantage over forward KL through the largest tested batch, although that advantage need not hold at every stage.
 \end{abstract}
 
 % ===================== Section 1: Introduction (verbatim) =====================
@@ -58,12 +58,12 @@ iDEM       & energy matching                          & --         & --         
 ours       & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & \checkmark & \checkmark & $\hat\mu$, no chain & --         & \checkmark \\
 \bottomrule
 \end{tabular}
-\caption{Where the X-regularized forward KL flow sits among Boltzmann generator training lines. Entries are qualitative; \checkmark marks a property the line has by construction, -- its absence.}
+\caption{Where the balanced $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ flow sits among Boltzmann generator training lines. Entries are qualitative; \checkmark marks a property the line has by construction, -- its absence.}
 \label{tab: methods}
 \end{table}
 
 \paragraph{What is new.}
-The forward KL inherits the classical limit through its sampler: AIS initialized at $\nu$ mixes only among the modes $\nu$ already covers. This leaves the objective with two core weaknesses, which organize the rest of the paper, together with a third, smaller mechanism the same regularizer addresses. The first weakness is silent missed modes, the fake $\ESS$ pitfall. The $\ESS$ is a faithful diagnostic only when $\mu$ and $\nu$ are weighed on the same support. If $\nu$ misses a mode of $\mu$, the chain initialized at $\nu$ rarely escapes the basins $\nu$ already covers, the weights on the reached support can be near-uniform, and the $\ESS$ can sit close to its ceiling while a part of the mass of $\mu$ is absent \citep{noe2019boltzmann,midgley2022flow}. The second weakness is accuracy under imperfect target samples. The AIS samples are noisy or biased, most of all at small batch and on early bridges. Because the objective constrains only the mean of $\log(\mu/\nu)$ under the target and leaves its spread free, it inherits that sample bias with no mechanism to trim it. The smaller mechanism is leakage: where $\mu$ vanishes, the forward KL integrand $\mu\log(\mu/\nu)$ vanishes too, so the gradient carries no signal about mass that $\nu$ places outside the support of $\mu$. The missed-mode weakness is not cured by sampling the modes $\nu$ already reaches more accurately.
+The forward KL inherits the limits of its target surrogate: an annealing procedure initialized at $\nu$ may mix only among modes $\nu$ already covers. This leaves two core weaknesses, together with a third mechanism the same regularizer addresses. The first is silent missed modes, the fake $\ESS$ pitfall. If $\nu$ misses a mode of $\mu$, the sampler initialized at $\nu$ may remain in the reached basins; its observed importance weights can be nearly uniform and the $\ESS$ close to one while target mass is absent \citep{noe2019boltzmann,midgley2022flow}. The second is accuracy under an imperfect target surrogate. Finite batches add noise, and the score-free annealing procedure of Section~\ref{subsec: ais} is biased by construction. Because the forward KL constrains only the mean of $\log(\mu/\nu)$ under that surrogate and leaves its spread free, the approximation error passes directly into the trained flow. The third mechanism is leakage: where $\mu$ vanishes, the forward KL integrand $\mu\log(\mu/\nu)$ vanishes too, so the gradient carries no signal about mass that $\nu$ places outside the support of $\mu$. Better calibration on the modes already reached does not cure a missed mode.
 
 Our remedy is to regularize the forward KL with the \emph{log-ratio variation}, a family of X functionals $\X_\omega$ named for the pairwise variation of the log-ratio $z=\log(\mu/\nu)$ they penalize. For a non-negative weight $\omega$ on $\mathbb R^d$, not necessarily normalized, let
 \begin{equation}
@@ -71,14 +71,14 @@ Our remedy is to regularize the forward KL with the \emph{log-ratio variation}, 
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: X}
 \end{equation}
-against which both arguments are integrated. The idea is direct: matching $\nu$ to $\mu$ is the same as flattening $z$, and the pairwise difference cancels the unknown normalizer of $\mu$. Where the forward KL constrains $\nu\approx\mu$ only in a global, Jensen-averaged sense, $\X_\omega$ penalizes the variation of $z$ wherever $\omega$ places mass and localizes the constraint to the support of $\omega$. It vanishes whenever $z$ is constant on that support, so its minimizer is insensitive to the shape of $\omega$. For $\omega=\mu$ its integrand is built from the same log-ratio field as the forward KL, reusing the same samples and the same autograd graph.
+against which both arguments are integrated. The idea is direct: matching $\nu$ to $\mu$ is the same as flattening $z$, and the pairwise difference cancels the unknown normalizer of $\mu$. Where the forward KL constrains $\nu\approx\mu$ only in a global, Jensen-averaged sense, $\X_\omega$ penalizes the variation of $z$ wherever $\omega$ places mass and localizes the constraint to the support of $\omega$. It vanishes whenever $z$ is constant on that support. In particular, adding this non-negative term to the exact forward KL preserves $\nu=\mu$ as a global minimizer. For $\omega=\mu$ its integrand is built from the same log-ratio field as the forward KL, reusing the same samples and the same autograd graph.
 
 Three choices of $\omega$, with complementary roles, jointly address these failures. With $\omega=\mu$, the functional $\X_\mu$ controls the spread of $z$ under the target where the forward KL controls only its mean, tightening the density match once $\nu$ has reached the modes and trimming the bias inherited from imperfect annealed samples. With $\omega=\hat\mu$, a coarse, over-spread approximation of $\mu$, the functional $\X_{\hat\mu}$ drives mode discovery: by the insensitivity above, the only role of $\hat\mu$ is to place mass on modes and tails the current $\nu$ has not yet covered, and the gradient then pulls the flow toward them. We build $\hat\mu$ once, before training, with a quench and temper construction that bridges basins, collapses onto mode centers, and rejuvenates with a short Langevin chain. It errs toward broad coverage, and inherits a blind spot on heavy outer tails. With $\omega=\bar\nu$, a stop-gradient copy of the current pushforward, the functional $\X_{\bar\nu}$ plays the reverse KL role without its instability, penalizing the mass $\nu$ places outside the support of $\mu$ and so suppressing the leakage the other two terms cannot see. Our preferred loss combines all three with the forward KL,
 \begin{equation}
     \mathcal{L}[\nu] = \KL(\mu\|\nu) + \lambda\, \X_\mu(\mu\|\nu) + \X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu),
     \label{eq: total-loss}
 \end{equation}
-with weights $\lambda,\alpha,\beta\Ge 0$ of order one, the third term being $\X_\omega$ at the mixture weight $\omega=\alpha\hat\mu+\beta\bar\nu$. Putting the mixture inside a single pairwise integral does more than add the two self-terms: expanding the squared base measure also generates a cross term that anchors the in-support and out-of-support log-ratios to each other. Written through the change of variables, every term reads off one scalar field along the flow,
+with $\lambda\Ge 0$ and either $\alpha=\beta=0$ or $\alpha,\beta\Ge0$ with $\alpha+\beta=1$. The third term is $\X_\omega$ at the mixture weight $\omega=\alpha\hat\mu+\beta\bar\nu$. Putting the mixture inside a single pairwise integral does more than add the two self-terms: expanding the product measure also generates a cross term that anchors the in-support and out-of-support log-ratios to each other. Written through the change of variables, every term reads off one scalar field along the flow,
 \begin{equation}
     z(y) = U_0(G(y)) - U(y) - \log|\det J_G(y)|,
     \label{eq: logratio-z}
@@ -91,13 +91,13 @@ up to an additive constant that cancels in each pairwise difference, so the loss
      + \underbrace{\mathbb{E}_{y, y' \sim \alpha\hat\mu + \beta\bar\nu}\bigl[|z(y) - z(y')|\bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)} .
     \label{eq: total-loss-G-intro}
 \end{align}
-The whole loss is computed from one forward pass of $G$ on a batch: the $\X_\mu$ term reuses the forward pass and batch of the forward KL, while the mixture term draws one further sampling batch. None of the X terms moves the minimizer, since each vanishes at $\nu=\mu$.
+The $\X_\mu$ term reuses the target batch and log-ratio evaluations of the forward KL, while the mixture term draws and evaluates one further batch. Adding either term preserves $\nu=\mu$ as a global minimizer of the exact forward KL.
 
 \paragraph{Contributions.}
-This paper makes the following contributions. We introduce the log-ratio variation $\X_\omega$, a family of X functionals that augment the forward KL by penalizing the pairwise variation of the flow's own log-ratio $z=\log(\mu/\nu)$. We study three instances in complementary roles, $\X_\mu$, $\X_{\hat\mu}$, and $\X_{\bar\nu}$, together with the balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, which folds mode discovery and leakage suppression into one pairwise integral and serves as a default; re-tuning the weights away from it did not improve our results. The construction is lightweight in practice, on three counts: the loss reads off a single forward pass of the flow, no replay buffer is kept, and the AIS ladder is score-free in the flow; the mixture adds one sampling batch beyond a plain forward KL step. The payoff is a modest memory footprint that lets the method run on a single consumer GPU, unlike the buffer-based and score-coupled designs. We give a Fisher--Rao analysis. It shows that the forward KL still decays along the $\X_\mu$-regularized flow under no structural assumption on $\mu$, and that, under a bound on the regularization strength, the $\X_\mu$ term can lower the accuracy floor that biased AIS samples leave behind, the regime where the bare forward KL is most fragile and the training batch is small. We pair the $\ESS$ with a coverage diagnostic \citep{naeem2020reliable} that measures how much of the wide-coverage measure the trained $\nu$ reaches. The two together check density calibration on the reached support and that no mode the wide-coverage measure reaches is silently missed, though the diagnostic inherits the quench's blind spot for thin heavy tails. Finally, we build on the loss an adaptive-temperature Boltzmann generator that grows its temperature ladder from the per-stage effective sample size of a classical SMC run. For molecular potentials, a sharpening reweight pulls each stage toward the physical potential. We study the method across smooth multimodal targets, a high-dimensional multi-well family, and lattice field theories before applying it to molecular potential energies. We are explicit about its limits: the quench tends to miss the thin outer mass of heavy-tailed targets, and on a singular interaction core the difficulty is not multimodality.
+This paper makes the following contributions. We introduce the log-ratio variation $\X_\omega$, a family of X functionals that augment the forward KL by penalizing the pairwise variation of the flow's own log-ratio $z=\log(\mu/\nu)$. We study three instances in complementary roles, $\X_\mu$, $\X_{\hat\mu}$, and $\X_{\bar\nu}$, together with the balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, which folds accuracy, mode discovery, and leakage suppression into one objective. The construction keeps the AIS target score free of the flow and requires no replay buffer; the balanced mixture adds one sampling batch beyond a plain forward KL step. We give a Fisher--Rao analysis showing that the forward KL decays along the $\KL{+}\lambda\X_\mu$ flow under no structural assumption on $\mu$ and, under a bound on $\lambda$, that the $\X_\mu$ term lowers the accuracy floor left by biased target samples. We pair the $\ESS$ with a coverage diagnostic \citep{naeem2020reliable}, so density calibration on the reached support is not confused with mode coverage. Finally, we build an adaptive-temperature Boltzmann generator that grows its temperature ladder from per-stage sampling diagnostics. The numerical study isolates the three roles of the X functionals and separates two empirical regimes. Small batches and high dimension expose the intended accuracy robustness; on the multimodal clock ladder, the balanced loss also reduces the aggregate error-propagation factor at every tested batch size, including the largest, while the last stages at the smallest batch delimit the claim.
 
 \paragraph{Organization.}
-Section~\ref{sec: FR} states the main Fisher--Rao gradient-flow results for the regularized loss, with the full derivations, convergence proof, and biased-target accuracy analysis deferred to Appendix~\ref{sec: appendix-FR}. Section~\ref{sec: training} turns the loss into a training algorithm for the flow map $G$, detailing the AIS that targets $\mu$, the quench and temper construction of the wide-coverage measure $\hat\mu$, and the $\ESS$ and coverage diagnostics. Section~\ref{sec: boltzmann} builds the adaptive-temperature Boltzmann generator on top of this loss. Section~\ref{sec: experiments} reports the numerical study on model problems, and Section~\ref{sec: molecular} applies the method to molecular potential energies. Section~\ref{sec: conclusions} concludes.
+Section~\ref{sec: FR} states the main Fisher--Rao gradient-flow results for the regularized loss, with the full derivations, convergence proof, and biased-target accuracy analysis deferred to Appendix~\ref{sec: appendix-FR}. Section~\ref{sec: training} turns the loss into a training algorithm for the flow map $G$, detailing the annealing procedure that approximates $\mu$, the quench and temper construction of the wide-coverage measure $\hat\mu$, and the $\ESS$ and coverage diagnostics. Section~\ref{sec: boltzmann} builds the adaptive-temperature Boltzmann generator on top of this loss. Section~\ref{sec: experiments} reports the numerical study on model problems, and Section~\ref{sec: conclusions} concludes.
 
 
 \section{Fisher--Rao gradient flow analysis}
@@ -105,14 +105,14 @@ Section~\ref{sec: FR} states the main Fisher--Rao gradient-flow results for the 
 \label{subsec: FR-convergence}
 \label{subsec: accuracy}
 
-Section~\ref{sec: intro} introduced the X-regularized forward KL. Before turning it into a training algorithm in Section~\ref{sec: training}, we summarize its gradient-flow properties on the space of densities; Appendix~\ref{sec: appendix-FR} gives the full derivations and proofs. The convergence rate of this continuous-time idealization is a proxy for how trainable the discrete loss is in practice: we view $\nu$ as a probability density evolving along the gradient flow of the loss, and ask how fast $\KL(\mu\|\nu_t)$ decays to zero.
+Section~\ref{sec: intro} introduced the forward KL with log-ratio variation. Before turning it into a training algorithm in Section~\ref{sec: training}, we summarize its gradient-flow properties on the space of densities; Appendix~\ref{sec: appendix-FR} gives the full derivations and proofs. This continuous-time population idealization exposes the mechanism of the loss but does not imply a convergence rate for the discrete optimizer: we view $\nu$ as a probability density evolving along the gradient flow and ask how fast $\KL(\mu\|\nu_t)$ decays to zero.
 
 For a tractable analysis we keep only the forward KL and the shape term $\X_\mu$, the log-ratio variation at weight $\omega = \mu$. The mode-discovery and leakage terms $\X_{\hat\mu}$ and $\X_{\bar\nu}$ are left out: their wide-coverage and stop-gradient weights are training devices that do not enter this density-space idealization. The loss is then
 \begin{equation}
     \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu),
     \label{eq: loss KL X}
 \end{equation}
-with $\lambda > 0$ fixed. Write $w = \mu/\nu$ for the importance weight and $z = \log w$ for the log-ratio.
+with $\lambda > 0$ fixed. Write $w = \mu/\nu$ for the importance weight and $z = \log w$ for the log-ratio. The statements below apply along any positive solution of the Fisher--Rao flow; for $\lambda\Le\tfrac12$, the explicit birth term in Appendix~\ref{sec: appendix-FR} is non-negative and preserves positivity.
 
 The choice of Riemannian metric matters. In the Wasserstein-2 geometry the forward KL is not displacement convex, so the Otto--Villani / Bakry--{\'E}mery machinery that yields exponential convergence for the reverse KL does not apply. We therefore work in the Fisher--Rao (FR) geometry, in which the forward KL admits an unconditional exponential decay and $\X_\mu$ adds a nonlocal birth--death modulation: the update at a point is driven by how its importance weight ranks against the population of weights under $\mu$. Writing the $\nu$-mean as $\langle\,\cdot\,\rangle_\nu := \int (\cdot)\,\nu\,\D x$, the FR gradient of a functional $\mathcal F$ and the flow it generates are
 \begin{equation}
@@ -128,7 +128,7 @@ Differentiating $\KL(\mu\|\nu_t)$ along this flow, and reducing the $\X_\mu$ ter
     \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\chi^2(\mu\|\nu_t) - \lambda\, \mathbb E_{x,y\sim\mu}\!\left[ \left|\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\right| \right],
     \label{eq: combined-rate}
 \end{equation}
-with $\chi^2$ the chi-squared divergence. Both terms are non-negative, so the regularizer only speeds the decay. Since $\chi^2(\mu\|\nu_t) \Ge \KL(\mu\|\nu_t)$, Gr\"onwall's lemma yields the exponential rate
+with $\chi^2$ the chi-squared divergence. The regularizer therefore contributes an additional non-positive term to the instantaneous KL dissipation. Since $\chi^2(\mu\|\nu_t) \Ge \KL(\mu\|\nu_t)$, Gr\"onwall's lemma yields the exponential rate
 \begin{equation}
     \KL(\mu\|\nu_t) \Le e^{-t}\,\KL(\mu\|\nu_0), \qquad t \Ge 0,
     \label{eq: KL-exponential}
@@ -138,19 +138,19 @@ under no structural assumption on $\mu$ --- no log-concavity, spectral gap, or g
 The convergence above assumes the outer expectation is taken under the exact target. In practice AIS supplies only an approximation $\tilde\mu$, and the realized loss replaces $\mu$ by $\tilde\mu$ in its outer integrands. At $\lambda = 0$ a stationary point is $\nu^\star = \tilde\mu$: pure forward KL inherits the AIS bias verbatim, leaving the residual error $\KL(\mu\|\tilde\mu)$ as a hard floor. The shape term lowers this floor.
 \begin{theorem}
 \label{thm: accuracy}
-Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \in [0, \tfrac12]$. Then every stationary density $\nu^\star$ of the X-regularized loss $\widetilde{\mathcal L} = \KL(\mu\|\cdot) + \lambda\,\X_\mu(\mu\|\cdot)$ taken under $\tilde\mu$ satisfies
+Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \in [0, \tfrac12)$. Then every stationary density $\nu^\star$ of the loss $\widetilde{\mathcal L} = \KL(\mu\|\cdot) + \lambda\,\X_\mu(\mu\|\cdot)$ taken under $\tilde\mu$ satisfies
 \begin{equation}
     \KL(\mu\|\nu^\star) \Le \KL(\mu\|\tilde\mu) - \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y) \biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr| \D x \D y.
     \label{eq: accuracy-bound}
 \end{equation}
 \end{theorem}
-\noindent The rank-based feedback inflates $\nu^\star$ where it undercovers $\mu$ and deflates it elsewhere, pulling the stationary density off $\tilde\mu$ back toward $\mu$ by an amount set by the spread of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$. So $\X_\mu$ is not merely a stabilizer for the forward KL flow. It lowers the asymptotic accuracy floor left by biased AIS samples --- the relevant regime, with small batches and early bridges --- and the improvement persists well beyond the worst-case threshold $\lambda \Le \tfrac12$. The full FR-gradient derivation, the rank-correlation lemma, the convergence proof, and the accuracy proof are in Appendix~\ref{sec: appendix-FR}. This analysis lives on the space of densities and assumes access to $\mu$; the next section supplies the samplers for $\mu$ and the wide-coverage measure $\hat\mu$ that make the loss trainable.
+\noindent The rank-based feedback inflates $\nu^\star$ where it undercovers $\mu$ and deflates it elsewhere, pulling the stationary density off $\tilde\mu$ back toward $\mu$ by an amount set by the spread of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$. Thus $\X_\mu$ is not merely a stabilizer for the forward KL flow: within the stated range of $\lambda$, it lowers the asymptotic accuracy floor left by biased target samples, a correction especially relevant at small batches and early stages. Our experiments use $\lambda=1$ and show robust performance there, but the theorem itself guarantees the bound only for $\lambda<\tfrac12$. The full FR-gradient derivation, the rank-correlation lemma, the convergence proof, and the accuracy proof are in Appendix~\ref{sec: appendix-FR}. This analysis lives on the space of densities and assumes access to $\mu$; the next section supplies approximations of $\mu$ and the wide-coverage measure $\hat\mu$ that make the loss trainable.
 
 % ===================== Sections 3-4: training + generator (VERBATIM, untouched) =====================
 \section{Flow training with log-ratio variations}
 \label{sec: training}
 
-This section turns the abstract loss of the introduction into a training algorithm for the flow map $G$. Let $U_0$ and $U$ be the source and target potentials on $\mathbb R^d$, so that $\mu_0 \propto \exp(-U_0)$ is the samplable reference and $\mu \propto \exp(-U)$ is the target. We parameterize $G:\mathbb R^d\to\mathbb R^d$ so that $G_{\#}\mu \approx \mu_0$ --- mapping target to source, so no inversion is required during training --- and write $\nu := (G^{-1})_{\#}\mu_0$ for the induced approximation to $\mu$. We first assemble the training loss and read off the two sampling ingredients it requires (Section~\ref{subsec: total-loss}), then supply them in turn: AIS of $\mu$ (Section~\ref{subsec: ais}), the quench and temper construction of the wide-coverage measure $\hat\mu$ (Section~\ref{subsec: QT}), and the ESS and coverage diagnostics used to evaluate the trained flow (Section~\ref{subsec: eval}).
+This section turns the abstract loss of the introduction into a training algorithm for the flow map $G$. Let $U_0$ and $U$ be the source and target potentials on $\mathbb R^d$, so that $\mu_0 \propto \exp(-U_0)$ is the samplable reference and $\mu \propto \exp(-U)$ is the target. We parameterize $G:\mathbb R^d\to\mathbb R^d$ so that $G_{\#}\mu \approx \mu_0$ --- mapping target to source, so no inversion is required during training --- and write $\nu := (G^{-1})_{\#}\mu_0$ for the induced approximation to $\mu$. We first assemble the training loss and identify its sampling ingredients (Section~\ref{subsec: total-loss}), then supply them in turn: a score-free annealing approximation of $\mu$ (Section~\ref{subsec: ais}), the quench and temper construction of the wide-coverage measure $\hat\mu$ (Section~\ref{subsec: QT}), and the ESS and coverage diagnostics used to evaluate the trained flow (Section~\ref{subsec: eval}).
 
 \subsection{The log-ratio-variation training loss}
 \label{subsec: total-loss}
@@ -163,28 +163,28 @@ By the change-of-variables formula the pullback density of $\mu_0$ under $G$ is 
      + \underbrace{\mathbb{E}_{y, y' \sim \alpha\hat\mu + \beta\bar\nu}\bigl[|z(y) - z(y')|\bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)} .
     \label{eq: total-loss-G}
 \end{align}
-We call the objective \eqref{eq: total-loss-G}, previewed as \eqref{eq: total-loss-G-intro} in the introduction, the \emph{X-regularized forward KL} (regularization by the log-ratio variation of the title). Note the two pushforward measures in \eqref{eq: total-loss-G}. The model distribution $\nu = (G^{-1})_{\#}\mu_0$, with density $\nu(y) = \mu_0(G(y))|\det J_G(y)|$, is the flow's live approximation to the target $\mu$ and depends on the trainable parameters of $G$. The barred measure $\bar\nu$ is the \emph{same} pushforward frozen at the current parameters, a stop-gradient copy of $\nu$, which enters the mixture term only as a sampling weight and is never differentiated through.
+We refer to \eqref{eq: total-loss-G}, previewed as \eqref{eq: total-loss-G-intro}, as forward KL with log-ratio variation. The balanced method used in the staged experiments is named by its loss, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Note the two pushforward measures in \eqref{eq: total-loss-G}. The model distribution $\nu = (G^{-1})_{\#}\mu_0$, with density $\nu(y) = \mu_0(G(y))|\det J_G(y)|$, is the flow's live approximation to the target $\mu$ and depends on the trainable parameters of $G$. The barred measure $\bar\nu$ is the \emph{same} pushforward frozen at the current parameters, a stop-gradient copy of $\nu$, which enters the mixture term only as a sampling weight and is never differentiated through.
 
 The three sampling measures entering \eqref{eq: total-loss-G} address complementary failure modes of the bare forward KL:
 \begin{itemize}
-    \item \emph{$\mu$: accuracy at small batch.} The shape term $\X_\mu$ compares the importance weights pairwise across the batch and lowers the asymptotic accuracy floor under biased AIS samples (Section~\ref{subsec: accuracy}). The gain is largest when the batch size is small and the resulting KL gradient is noisy.
-    \item \emph{$\hat\mu$: mode discovery.} The wide-coverage measure built by quench and temper (Section~\ref{subsec: QT}) places sample pairs across modes that AIS from the current pushforward cannot reach, pulling $\nu$ toward mass the bare loss never sees.
+    \item \emph{$\mu$: shape accuracy and robustness.} The shape term $\X_\mu$ compares log-importance ratios pairwise across the target batch and lowers the asymptotic accuracy floor under biased target samples (Section~\ref{subsec: accuracy}). Small or noisy batches are its primary design regime; difficult high-dimensional or staged targets can retain an aggregate advantage at larger batches.
+    \item \emph{$\hat\mu$: mode discovery.} The wide-coverage measure built by quench and temper (Section~\ref{subsec: QT}) places sample pairs across modes that the score-free annealing surrogate did not reach within its budget, pulling $\nu$ toward mass the bare loss never sees.
     \item \emph{$\bar\nu$: leakage suppression.} The frozen pushforward penalizes the mass the flow places outside the support of $\mu$, preventing the overfit that target samples alone cannot detect: where $\mu$ provides no samples, the bare forward KL provides no signal.
 \end{itemize}
-None of the three changes the minimizer, each X term vanishing at $\nu = \mu$. What they add to the forward KL is numerical robustness, not a new objective.
+Adding these non-negative terms to the exact forward KL preserves $\nu=\mu$ as a global minimizer. Their purpose is to improve numerical robustness without changing the desired population solution.
 
-\begin{remark}[Robustness, not speed]
+\begin{remark}[Robustness across regimes]
 \label{rem: robustness-not-speed}
-As discussed in Section~\ref{subsec: FR-convergence}, the exponential rate \eqref{eq: KL-exponential} is a statement about the idealized FR flow. The discrete Adam dynamics carries no such guarantee and may take many steps to converge. At large batch the margin over the bare forward KL can be minor, since a large batch is already a strong safeguard against mode collapse. The gap is widest in the small-batch regime (Table~\ref{tab: clock-ladder}).
+As discussed in Section~\ref{subsec: FR-convergence}, the exponential rate \eqref{eq: KL-exponential} is a statement about the idealized FR flow. The discrete Adam dynamics carries no corresponding speed guarantee. The loss was designed primarily to stabilize training with small or imperfect target batches. On a difficult staged target, however, the benefit need not be confined to that regime: in the clock experiment, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ reduces the aggregate propagation factor by $2.6$--$3.6$ across every tested batch size, including $B=2000$. This is benchmark-specific evidence, not a universal large-batch guarantee; at $B=125$, the bare forward KL leads on the final four stages where inter-sector mass transport becomes limiting.
 \end{remark}
 
-All three terms are computed in a single forward pass: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$ once on a batch, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$ of the batch for each X term. Backpropagation passes through $\mathbf z$ once, as in a vanilla forward KL step, so the log-ratio variations add negligible extra cost.
+The forward KL and $\X_\mu$ share one target batch: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$. Thus $\X_\mu$ adds only a permutation and pairwise difference to the same autograd graph. The balanced mixture evaluates one additional batch drawn from $(\hat\mu+\bar\nu)/2$ and applies the same randomized pairwise estimator.
 
-The loss draws on three measures, of which only two must be built. The $\bar\nu$ batch is free: it is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$, taken with the gradient through $G$ detached (a stop-gradient). This detached sampler keeps the loss stable on sharp targets, where differentiating through the sampling chain, as a true reverse KL gradient does, would explode. The other two require construction: samples of the target $\mu$ for the forward KL and $\X_\mu$ terms, supplied by AIS (Section~\ref{subsec: ais}), and samples of the wide-coverage measure $\hat\mu$ for the mixture term, supplied by quench and temper (Section~\ref{subsec: QT}). So if the same batch size is used for approximating the measures $\mu$ and $\alpha\hat\mu + \beta\bar\nu$, the raw training cost of the X-regularized loss is about twice that of the forward KL. Inference uses the same flow architecture, and is identical for both methods.
+The loss draws on three measures, of which only two must be built. The $\bar\nu$ batch is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$, taken with the gradient through $G$ detached. This avoids differentiating through the sampled pushforward. The other two require construction: an approximation of the target $\mu$ for the forward KL and $\X_\mu$ terms, supplied by the annealing procedure of Section~\ref{subsec: ais}, and samples of the wide-coverage measure $\hat\mu$ for the mixture term, supplied by quench and temper (Section~\ref{subsec: QT}). With equal target and mixture batch sizes, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ uses about twice the raw per-step sample evaluation of forward KL. Inference uses the same flow architecture for both methods.
 
-Although $(\lambda, \alpha, \beta)$ are three free parameters in principle, the log-ratio variation is by construction on the same scale as the forward KL, so any choice of order $1$ works. Two settings are worth highlighting. The \emph{$\X_\mu$-only hyperparameters} $\lambda = 1$, $\alpha = \beta = 0$ add only $\X_\mu$ on top of the forward KL. This term reuses the AIS samples and autograd graph of the forward KL, costing only an extra permutation and element-wise difference per batch, and it suffices whenever the source $\mu_0$ already overlaps every mode of $\mu$. The \emph{balanced hyperparameters} $\lambda = 1$, $\alpha = \beta = \frac12$ turn on the mixture term, an equal-weight draw from $\hat\mu$ and $\bar\nu$: the $\hat\mu$ half pulls $\nu$ toward modes discovered by quench and temper that AIS alone cannot reach, while the $\bar\nu$ half restrains the mass the flow places outside the support of $\mu$. We recommend the balanced hyperparameters as the default whenever $\mu_0$ may not cover all modes of $\mu$, and use them throughout the experiments. Re-tuning $(\lambda, \alpha, \beta)$ away from these defaults did not improve results on any benchmark.
+We use two fixed settings. The \emph{$\X_\mu$-only setting} $\lambda = 1$, $\alpha = \beta = 0$ adds only $\X_\mu$ to the forward KL and reuses its target batch and autograd graph. The \emph{balanced setting} $\lambda = 1$, $\alpha = \beta = \frac12$ draws the mixture batch equally from $\hat\mu$ and $\bar\nu$: the $\hat\mu$ half pulls $\nu$ toward modes discovered by quench and temper that the annealing procedure did not reach within its budget, while the $\bar\nu$ half restrains mass leaked between or outside target modes. We use this balanced setting whenever the source $\mu_0$ may not cover all modes of $\mu$ and report it as $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$.
 
-\subsection{Sampling $\mu$ by annealed importance sampling}
+\subsection{Approximating $\mu$ by score-free annealing}
 \label{subsec: ais}
 
 Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples from $\mu$, which are not directly available. The natural surrogate draws $y_1,\dots,y_B$ from the pushforward $\nu = (G^{-1})_{\#} \mu_0$ and reweights them by
@@ -192,20 +192,20 @@ Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples f
     w(y) = \frac{\mu(y)}{\nu(y)} = \exp\bigl(z(y)\bigr) = \exp\Big( U_0(G(y)) - U(y) - \log|\det J_G(y)| \Big), \qquad y \in \mathbb R^d,
     \label{eq: weight}
 \end{equation}
-followed by a resampling step and a short Langevin simulation to diffuse the duplicates. In high dimensions, however, $\mu$ and $\nu$ usually differ greatly, so the weights $w(y_i)$ collapse onto a few outliers and the samples are of low quality. AIS bridges this gap by inserting a ladder of $M+1$ distributions
+followed by a resampling step and a short Langevin simulation to diffuse the duplicates. In high dimensions, however, $\mu$ and $\nu$ can differ greatly, so the weights $w(y_i)$ collapse onto a few outliers and the samples are of low quality. We temper the reweighting along the geometric path of $M+1$ distributions
 \begin{equation}
     \pi_m(y) \propto \nu(y)^{1-\frac{m}{M}} \mu(y)^{\frac{m}{M}} = ((G^{-1})_{\#}\mu_0)(y)\, w(y)^{\frac{m}{M}}, \qquad m = 0,1,\dots,M,
     \label{eq: pi-m}
 \end{equation}
-so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each stage of the ladder reweights by only $w(y)^{\frac{1}{M}}$, keeping the weight ratio close to $1$ and avoiding the degeneracy of direct importance sampling.
+so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each step reweights by only $w(y)^{\frac{1}{M}}$, reducing the degeneracy of direct importance sampling.
 
 
 \begin{algorithm}[htb]
 \setstretch{1.2}
-\caption{AIS from $(G^{-1})_{\#}\mu_0$ to $\mu$}
+\caption{Score-free annealing from $(G^{-1})_{\#}\mu_0$ toward $\mu$}
 \label{alg: AIS}
 \KwInput{samples $y_1,\dots,y_B$ from $(G^{-1})_{\#}\mu_0$, ladder length $M$, intermediate distributions $\pi_m$ \eqref{eq: pi-m}}
-\KwOutput{samples $y_1,\dots,y_B$ approximately distributed as $\mu$}
+\KwOutput{a biased sample approximation $y_1,\dots,y_B$ of $\mu$}
 
 \For{$m = 1,\dots,M$}{
     \tcp{reweight along the geometric path}
@@ -217,9 +217,7 @@ so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each stage of the ladder reweights by o
 }
 \end{algorithm}
 \mbox{} \\
-When $G$ is the identity map the proposal collapses to the source, $(G^{-1})_{\#}\mu_0 = \mu_0$, the Jacobian term drops out of $w$, and Algorithm~\ref{alg: AIS} reduces to classical SMC bridging $\mu_0$ to $\mu$.
-
-In the general case, the Langevin step nominally targets the intermediate distribution $\pi_m$, and so requires its score $\nabla_y \log \pi_m(y)$. Through the pushforward density $\nu(y) = \mu_0(G(y))\,|\det J_G(y)|$, this score carries the term $\nabla_y \log|\det J_G(y)|$, whose evaluation needs the Jacobian $J_G(y)$ itself (not merely its determinant, which the flow already provides), and is therefore expensive for a deep map. In practice we instead diffuse the resampled particles directly under the target $\mu$, whose score $\nabla_y \log\mu(y) = -\nabla U(y)$ is cheap. Since the per-stage reweighting already carries the $\pi_m$ correction along the geometric path \eqref{eq: pi-m} and $\mu$ is the ultimate target, the substitution affects only intermediate mixing, not the weighted target: the Langevin kernel serves only to decorrelate the duplicates left by resampling.
+An exact SMC sampler on the path \eqref{eq: pi-m} would rejuvenate at step $m$ with a Markov kernel invariant for $\pi_m$. Its score contains $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$. To keep the training sampler score-free in the flow, Algorithm~\ref{alg: AIS} instead rejuvenates directly under $\mu$, using only $-\nabla U$. This substitution is a deliberate approximation: the target-invariant kernel does not preserve the intermediate $\pi_m$, so the output is a biased target surrogate rather than an exact AIS/SMC sample. The construction trades exact intermediate invariance for a cheap sampler that pulls resampled particles toward the final target. Section~\ref{sec: FR} models precisely this situation through the surrogate measure $\tilde\mu$, and the numerical study evaluates the resulting trained flow by independent importance weights and coverage diagnostics.
 
 \begin{remark}[Choosing the ladder length $M$]
 \label{rem: ladder-length}
@@ -238,37 +236,37 @@ carries the positional gradient of the pushforward density at every MCMC step, t
 \subsection{Constructing $\hat\mu$ by quench and temper}
 \label{subsec: QT}
 
-The mixture term needs samples from the wide-coverage measure $\hat\mu$. These are prepared once, before training, as a fixed pool of $P$ samples $x_1,\dots,x_P$ distributed as $\hat\mu$. At each training step a mini-batch is drawn from this set and refreshed by a short Langevin chain before entering the $\X_\omega$ computation of Section~\ref{subsec: total-loss} with $\mu$ replaced by $\hat\mu$. The set is produced by quench and temper (QT), a map
+The mixture term needs samples from the wide-coverage measure $\hat\mu$. For a single-flow problem these are prepared once before training; in the staged generator of Section~\ref{sec: boltzmann}, one pool is prepared for each stage and then held fixed during that stage's optimization. At each training step a mini-batch is drawn from the pool and refreshed by a short Langevin chain before entering the $\X_\omega$ computation of Section~\ref{subsec: total-loss} with $\mu$ replaced by $\hat\mu$. The set is produced by quench and temper (QT), a map
 \begin{equation*}
     \hat{\mathcal Y} = \mathrm{QT}(U)
 \end{equation*}
-from the target potential $U$ to a wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ distributed as $\hat\mu$, proceeding in three stages: diffusion (melt), optimization (quench), and rejuvenation (temper).
+from the target potential $U$ to a wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ distributed as $\hat\mu$, proceeding in three phases: diffusion (melt), optimization (quench), and rejuvenation (temper).
 
 \begin{algorithm}[htb]
 \setstretch{1.2}
 \caption{Quench and temper (QT): proactive mode discovery}
 \label{alg: QT}
-\KwInput{target potential $U$ (with fixed pool size $P$ and diffusion scale $\sigma_{\mathrm{QT}}$)}
+\KwInput{target potential $U$ (with fixed pool size $P$ and melt scale $m_e$)}
 \KwOutput{wide-coverage set $\hat{\mathcal Y} = \{x_1,\dots,x_P\}$ forming $\hat\mu$, written $\hat{\mathcal Y} = \mathrm{QT}(U)$}
 Draw an initial pool $x_1,\dots,x_P \sim \mu_0$\;
 \tcp{diffusion (melt)}
-Scatter the samples to a wider region of $\mathbb R^d$, $x_i \gets x_i + \sigma_{\mathrm{QT}}\zeta_i$ with $\zeta_i \sim \mathcal N(0, I_d)$ i.i.d. and large $\sigma_{\mathrm{QT}} > 0$\;
+Scatter the samples to a wider region of $\mathbb R^d$, $x_i \gets x_i + m_e\zeta_i$ with $\zeta_i \sim \mathcal N(0, I_d)$ i.i.d. and melt scale $m_e > 0$\;
 \tcp{optimization (quench)}
 Drive each sample toward a mode center of $\mu$ by L-BFGS on $U$, updating $x_1,\dots,x_P$\;
 \tcp{rejuvenation (temper)}
 Spread the samples around each mode, $x_{1:P} \gets \mathrm{langevin}(x_{1:P}, U)$\;
 \end{algorithm}
 \mbox{}\\
-The output samples concentrate near the mode centers of $\mu$, and the initial Brownian diffusion ensures that even modes far from the support of the input are reachable. The $\X_{\hat\mu}$ regularizer therefore penalizes any mode of $\mu$ on which the current pushforward $\nu$ places too little mass, driving the flow to discover modes that AIS alone could never reach.
+The output samples concentrate near mode centers of $\mu$, while the initial Gaussian scatter broadens the set of basins the quench can reach. The $\X_{\hat\mu}$ term therefore supplies training pairs on modes where the current pushforward $\nu$ places too little mass, including modes the score-free annealing procedure did not reach within its allotted budget.
 
-A large diffusion $\sigma_{\mathrm{QT}}$ biases the QT output toward modes far from the bulk of $\mu_0$. This is desirable rather than problematic: the modes the current pushforward fails to cover are those far from $\mu_0$, and the bias is harmless because the minimizer of $\X_{\hat\mu}$ is insensitive to the shape of $\hat\mu$.
+A large melt scale $m_e$ can bias the QT pool toward modes far from the bulk of $\mu_0$. This is intentional: $\hat\mu$ is a discovery measure rather than a calibrated approximation of target mode weights. Adding $\X_{\hat\mu}$ to the exact forward KL still preserves $\nu=\mu$ as a global minimizer, while the empirical mode weights in the finite QT pool can affect the optimization path.
 
 Under typical conditions the wide-coverage set $\hat{\mathcal Y}$ lies within the support of $\mu$, and the temper step samples it directly. On extreme targets --- heavy tails or stiff potentials --- the L-BFGS quench can instead drive particles outside the support, into high-energy regions whose weights then destabilize training (the Langevin temper itself, like the AIS rejuvenation, stays well behaved). A remedy, a regularization we call \emph{$\delta$-reweighted QT}, tempers the rejuvenation: run the temper step on the flattened potential $(1-\delta) U$,
 \begin{equation*}
     x_{1:P} \gets \mathrm{langevin}\bigl(x_{1:P},\, (1-\delta) U\bigr),
     \qquad \delta \in (0, 1),
 \end{equation*}
-whose stationary law $\propto e^{-(1-\delta)U}$ is broader and integrates stably, and attach to each sample the self-normalized importance weight $w_i = e^{-\delta U(x_i)} / \sum_{j} e^{-\delta U(x_j)}$, which keeps $\hat\mu$ a probability distribution. The weighted samples then target $e^{-(1-\delta)U} \cdot e^{-\delta U} = e^{-U}$, so the broadened set keeps its wide coverage while the weights downweight the leaked, high-energy samples in the $\X_{\hat\mu}$ average --- a \emph{statistical} removal of the bad samples rather than a hard cutoff. By sample robustness the minimizer is unchanged. The tempering only improves the conditioning of the wide-coverage construction. We write this $\delta$-reweighted construction as
+whose stationary law $\propto e^{-(1-\delta)U}$ is broader, and attach to each sample the self-normalized importance weight $w_i = e^{-\delta U(x_i)} / \sum_{j} e^{-\delta U(x_j)}$. If the temper chain has equilibrated to the flattened law, this reweighting recovers expectations under $e^{-U}$; at finite chain length it is an importance-weighted approximation. In either case the weights suppress leaked, high-energy samples in the $\X_{\hat\mu}$ estimate without a hard cutoff. We write this $\delta$-reweighted construction as
 \begin{equation*}
     \hat{\mathcal Y} = \mathrm{QT}_\delta(U),
 \end{equation*}
@@ -282,7 +280,7 @@ recovering plain $\mathrm{QT}(U) = \mathrm{QT}_0(U)$ at $\delta = 0$.
 \subsection{Importance sampling at evaluation: ESS and coverage}
 \label{subsec: eval}
 
-At evaluation time the trained flow $G$ supplies the model distribution $\nu = (G^{-1})_{\#}\mu_0$ as an approximation to $\mu$, together with the tractable density $\nu(y) = \mu_0(G(y))|\det J_G(y)|$ that any normalizing flow makes available. Because the density is exact, the importance weight $w(y) = \mu(y)/\nu(y) = \exp(z(y))$ of \eqref{eq: weight} can be evaluated for free on any pushforward sample and used at test time to correct the residual bias of $\nu$ as an approximation to $\mu$. Drawing $\mathbf y = (y_1,\dots,y_N)$ with $y_i = G^{-1}(x_i)$ and $x_i\sim\mu_0$ i.i.d., the weights $w(y_i)$ serve two uses. First, they diagnose how well $\nu$ approximates $\mu$, through the effective sample size defined below. Second, they turn the pushforward into approximate samples of $\mu$: one resamples $\mathbf y$ by the weights and refreshes with a short Langevin chain targeting $\mu$, the surrogate that drove the AIS step in Section~\ref{subsec: ais} but now applied with the trained flow held fixed. The training bias the log-ratio variations were designed to reduce is, at this stage, traded for sampling cost: the better the flow, the more uniform the weights and the less reweighting the resampling does.
+At evaluation time the trained flow $G$ supplies the model distribution $\nu = (G^{-1})_{\#}\mu_0$ as an approximation to $\mu$, together with the tractable density $\nu(y) = \mu_0(G(y))|\det J_G(y)|$ that any normalizing flow makes available. The importance weight $w(y) = \mu(y)/\nu(y) = \exp(z(y))$ of \eqref{eq: weight} can therefore be evaluated on any pushforward sample without fitting an additional density model. Drawing $\mathbf y = (y_1,\dots,y_N)$ with $y_i = G^{-1}(x_i)$ and $x_i\sim\mu_0$ i.i.d., the weights $w(y_i)$ serve two uses. First, they diagnose how well $\nu$ approximates $\mu$, through the effective sample size defined below. Second, they correct residual bias by reweighting or resampling the pushforward, followed when desired by a short Langevin refresh under $\mu$. The better the flow, the more uniform the weights and the less correction the resampling performs.
 
 We assess this pipeline through two metrics: the effective sample size, which measures how uniform the importance weights are on the support reached by the flow, and the coverage, which checks whether every mode of $\mu$ has been reached at all.
 
@@ -290,7 +288,7 @@ The first metric is the effective sample size, normalized to $[0,1]$ by dividing
 \begin{equation}
     \ESS(\mathbf y) = \frac{\big(\sum_{i=1}^N w(y_i)\big)^2}{N \sum_{i=1}^N w(y_i)^2} \in [0,1],
 \end{equation}
-where the upper bound $1$ follows from the Cauchy--Schwarz inequality and is attained when all weights are equal. The factor $N$ in the denominator distinguishes our normalized $\ESS$ from the classical effective sample size $(\sum_i w(y_i))^2 / \sum_i w(y_i)^2 \in [1, N]$ standard in the literature \citep{martino2017rethinking}: that quantity counts an effective number of samples and scales with the batch, whereas dividing by $N$ leaves the per-sample efficiency, a fraction in $[0,1]$ comparable across batch sizes. When $G$ is perfectly trained the weights are constant and the ESS reaches $1$. As noted in the introduction, however, this conclusion is one-way: a high ESS certifies that the weights are uniform \emph{on the support of $\nu$}, but modes of $\mu$ that the pushforward never reaches contribute nothing to the sum and so cannot lower the ESS, which gives rise to the \emph{fake ESS} pitfall.
+where the upper bound $1$ follows from the Cauchy--Schwarz inequality and is attained when all weights are equal. The factor $N$ in the denominator distinguishes our normalized $\ESS$ from the classical effective sample size $(\sum_i w(y_i))^2 / \sum_i w(y_i)^2 \in [1, N]$ standard in the literature \citep{martino2017rethinking}: that quantity counts an effective number of samples and scales with the batch, whereas dividing by $N$ leaves the per-sample efficiency, a fraction in $[0,1]$ comparable across batch sizes. When $G$ is perfectly trained the weights are constant and the ESS reaches $1$. As noted in the introduction, however, this conclusion is one-way: a high ESS indicates that the sampled weights are uniform \emph{on the support reached by $\nu$}, but modes of $\mu$ that the pushforward never reaches contribute nothing to the sum and so cannot lower the ESS, which gives rise to the \emph{fake ESS} pitfall.
 
 To detect such missing modes, we pair the ESS with the coverage metric of \citet{naeem2020reliable}. Let $\mathbf x = (x_1,\dots,x_P) \in \mathbb R^{P\times d}$ be the samples of $\hat\mu$ produced by the quench and temper algorithm (Algorithm~\ref{alg: QT}). For each $1 \Le i \Le P$, the $\kappa$-nearest-neighbor radius of $x_i$ (with $\kappa = 5$) is
 \begin{equation}
@@ -305,12 +303,12 @@ i.e., the distance from $x_i$ to its $\kappa$-th nearest neighbor in $\mathbf x$
         \exists  1\Le j\Le N : |y_j - x_i| \Le \mathrm{NND}_\kappa(x_i;\mathbf x)
     \Bigr\},
 \end{equation}
-i.e., the fraction of points in $\mathbf x$ whose $\kappa$-nearest-neighbor ball contains at least one pushforward sample. A coverage close to $1$ certifies that every region populated by $\hat\mu$ has been reached by the flow, while a coverage well below $1$ exposes the missing modes that the ESS alone cannot see. Because $\hat\mu$ is the same wide-coverage measure that $\X_{\hat\mu}$ trains toward, the coverage metric certifies reach of the QT-discovered modes only, and inherits QT's blind spot for thin heavy tails, mitigated by the tempered rejuvenation of Section~\ref{subsec: QT}.
+i.e., the fraction of points in $\mathbf x$ whose $\kappa$-nearest-neighbor ball contains at least one pushforward sample. A coverage close to $1$ indicates that the finite QT reference set is well covered by the flow, while a coverage well below $1$ exposes missing regions that the ESS alone cannot see. Because $\hat\mu$ is the same wide-coverage measure that $\X_{\hat\mu}$ trains toward, this diagnostic checks only the modes found by QT; it cannot reveal a mode absent from the reference pool.
 
 \section{Adaptive-temperature Boltzmann generator}
 \label{sec: boltzmann}
 
-Section~\ref{sec: training} introduced the X-regularized forward KL \eqref{eq: total-loss-G}, which improves on the bare forward KL. In high dimensions, such as molecular potentials, training a single flow map from the source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propto \exp(-U)$ is infeasible, however good the loss. Boltzmann generators decompose this hard problem into a sequence of easier ones along a temperature ladder. Each flow then learns a single stage, a small change in the potential. This section builds that ladder adaptively from the ESS metric.
+Section~\ref{sec: training} introduced forward KL with log-ratio variation \eqref{eq: total-loss-G}. For a difficult high-dimensional or strongly multimodal target, training one flow map directly from the source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propto \exp(-U)$ can be impractical. We instead decompose the transport into a sequence of easier stages along a temperature ladder. Each flow learns one stage, a controlled change in the potential, and the ladder is built adaptively from sampling diagnostics.
 
 \subsection{Construction of temperature ladder}
 
@@ -326,7 +324,7 @@ defining a sequence of intermediate distributions
 \end{equation*}
 with $U_1 := U$ an alias for the target potential, so that $\mu_0$ is the source and $\mu_K$ the target, together with $K$ flow maps $\{G_k\}_{k=1}^{K}$ trained so that $(G_k^{-1})_{\#} \mu_{k-1} \approx \mu_{k}$. The number of stages $K$ is flexible. The design choice is each increment $\Delta t_k = t_k - t_{k-1}$. Too large an increment degrades the training of stage $k$; too small an increment wastes computation. We want the largest step each flow can still learn well.
 
-Training the flow $G_k$ requires samples from its target $\mu_k$, which we obtain by SMC (Algorithm~\ref{alg: AIS} with $G$ the identity). The smallest per-step ESS of that SMC run is a natural criterion for the step $\Delta t_k$. It measures how well the run bridges $\mu_{k-1}$ to $\mu_k$, so we enlarge the step until this ESS drops to a fixed floor.
+Training the flow $G_k$ requires a target surrogate for $\mu_k$, supplied during optimization by Section~\ref{subsec: ais}. Separately, classical SMC on a linear potential bridge proposes the outer increment $\Delta t_k$. Its smallest per-step ESS is a heuristic measure of how difficult that candidate bridge is for the current particle population, so we shrink the increment until the estimate clears a fixed floor.
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
@@ -340,7 +338,7 @@ $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U_1$\;
 $t_k \gets t_{\mathrm{init}}$\;
 \While{true}{
     \tcp{run classical SMC across the candidate step}
-    Run $M$-step SMC on the pool $\mathcal P$ (Algorithm~\ref{alg: AIS} with $G$ the identity, $M$ as in Remark~\ref{rem: ladder-length}) from the distributions $\mu_{k-1}\propto e^{-U_{t_{k-1}}}$ to $\mu_k\propto e^{-U_{t_k}}$, where the potential $U_{t_k} = (1-t_{k}) U_0 + t_{k} U_1$\;
+    Run $M$-step classical SMC on the pool $\mathcal P$, using the linear potential bridge from $U_{t_{k-1}}$ to $U_{t_k}$ and a Langevin kernel invariant for each intermediate distribution ($M$ as in Remark~\ref{rem: ladder-length})\;
     \tcp{score the step by its worst per-step ESS}
     Record $\ESS_{\min}$, the smallest per-step ESS over the $M$ steps\;
     \eIf{$\ESS_{\min} \Ge \tau$}{
@@ -352,7 +350,7 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 \mbox{}\\
-These SMC runs are classical: they involve only the potentials $U_0$ and $U$, never the flow map, and are cheap. They use no QT samples, so the per-step ESS they report may be a fake ESS that overlooks modes the SMC chain never reaches. This is harmless here. Algorithm~\ref{alg: step} selects only the increment $\Delta t_k$ and produces no training samples, so its ESS gauges the shape deformation $\mu_{k-1}\to\mu_k$ and needs no faithful target. The floor $\tau = 0.7$ and shrink factor $\gamma = 0.7$ are empirical. The initial guess $t_{\mathrm{init}}$ comes from the outer loop (Algorithm~\ref{alg: boltzmann}). The procedure returns the largest admissible step below the initial guess: the coarsest level $t_k$, and hence the most distant intermediate $U_{t_k}$, on which the flow $G_k$ can still be trained reliably from $U_{t_{k-1}}$. It always terminates: as $t_k \to t_{k-1}$ the bridge $\mu_{k-1}\to\mu_k$ collapses and $\ESS_{\min}\to 1 \Ge \tau$, so the shrink loop exits after finitely many steps.
+These SMC runs involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-step ESS can overlook a mode the SMC population never reaches. We therefore use this ESS only to propose an increment; it is a heuristic measure of bridge difficulty, not a coverage certificate. The trained-flow validation in step~(v) supplies a second acceptance gate, while QT supplies the independent discovery pool. The floor $\tau = 0.7$ and shrink factor $\gamma = 0.7$ are empirical. Starting from $t_{\mathrm{init}}$, the procedure returns the first candidate along the shrink sequence whose estimated ESS clears the floor. As $t_k$ approaches $t_{k-1}$, the bridge becomes trivial and its population ESS approaches $1$; in finite samples we also impose the outer loop's retry and stage limits.
 
 \subsection{The full training procedure}
 
@@ -365,7 +363,7 @@ The two ingredients assemble into a single loop (Algorithm~\ref{alg: boltzmann})
 
 \item \emph{Wide-coverage set.} A wide-coverage set $\hat{\mathcal Y}_k$ of $P$ samples, distributed as $\hat\mu_k$, is drawn by quench and temper (Algorithm~\ref{alg: QT}) on the stage target $U_{t_k}$, spreading samples across its modes. It supplies the wide-coverage half of the mixture term in the training loss.
 
-\item \emph{Training loss.} The flow $G_k$ is trained by the X-regularized forward KL of Section~\ref{subsec: total-loss}, specialized to the stage $\mu_{k-1}\to\mu_k$ at the balanced hyperparameters $\lambda = 1$, $\alpha = \beta = \frac12$. With model $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its stop-gradient copy $\bar\nu_k$, the stage log-ratio is
+\item \emph{Training loss.} The flow $G_k$ is trained by $\KL{+}\X_{\mu_k}{+}\X_{(\hat\mu_k+\bar\nu_k)/2}$, the balanced loss of Section~\ref{subsec: total-loss} specialized to the stage $\mu_{k-1}\to\mu_k$. With model $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its stop-gradient copy $\bar\nu_k$, the stage log-ratio is
 \begin{equation*}
     z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)| ,
 \end{equation*}
@@ -377,7 +375,7 @@ and the loss reads
      + \underbrace{\mathbb{E}_{y, y' \sim (\hat\mu_k + \bar\nu_k)/2}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{(\hat\mu_k+\bar\nu_k)/2}(\mu_k\|\nu_k)} ,
     \label{eq: stage-loss}
 \end{align}
-its $\mu_k$-expectations estimated by AIS: the level-$(k-1)$ batch $\mathcal X$ is pushed to $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, distributed as $\nu_k$, and annealed to $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$, sharing the ladder length $M$ and rejuvenation parameters with the SMC of step~(ii). The wide-coverage measure $\hat\mu_k$ is realized by the set $\hat{\mathcal Y}_k$ of step~(iii).
+its $\mu_k$-expectations estimated from the biased score-free annealing surrogate: the level-$(k-1)$ batch $\mathcal X$ is pushed to $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, distributed as $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$. The wide-coverage measure $\hat\mu_k$ is realized by the set $\hat{\mathcal Y}_k$ of step~(iii).
 
 \item \emph{Validation set update.} Once $G_k$ is trained, the validation set advances from $\mathcal Y_{k-1}$ to $\mathcal Y_k \approx \mu_k$ by importance sampling. Each $y \in \mathcal Y_{k-1}$ is pushed through the trained inverse to $\tilde y = G_k^{-1}(y)$, a sample of $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, and carries the importance weight
 \begin{equation*}
@@ -414,13 +412,13 @@ $\mathcal Y_0 \gets$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0
         Initialize $G_k$ to the identity map\;
         \tcp{(iii) wide-coverage set}
         Draw the wide-coverage set of $P$ samples by quench and temper, $\hat{\mathcal Y}_k \gets \mathrm{QT}(U_{t_k})$ (Algorithm~\ref{alg: QT})\;
-        \tcp{(iv) X-regularized training loss}
+        \tcp{(iv) balanced log-ratio-variation loss}
         \For{each gradient step}{
             Draw a training batch of $B$ samples $\mathcal X$ from the validation set $\mathcal Y_{k-1}$\;
             Form the detached model batch, $\bar{\mathcal X}_\nu \gets G_k^{-1}(\mathcal X)$, distributed as $\nu_k = (G_k^{-1})_{\#}\, \mu_{k-1}$\;
-            Anneal from $\bar{\mathcal X}_\nu$ to $\mathcal X_\mu$ via AIS (Algorithm~\ref{alg: AIS}, from $\nu_k$ to $\mu_k$)\;
+            Form the biased target surrogate $\mathcal X_\mu$ by score-free annealing (Algorithm~\ref{alg: AIS}, from $\nu_k$ toward $\mu_k$)\;
             Draw a wide-coverage batch $\hat{\mathcal X}_\mu \subset \hat{\mathcal Y}_k$ and rejuvenate, $\hat{\mathcal X}_\mu \gets \mathrm{langevin}(\hat{\mathcal X}_\mu, U_{t_k})$\;
-            Update $G_k$ by a gradient step on the X-regularized forward KL \eqref{eq: stage-loss}, from $\mathcal X_\mu$ and the balanced mixture of $\hat{\mathcal X}_\mu$ and $\bar{\mathcal X}_\nu$\;
+            Update $G_k$ by a gradient step on $\KL{+}\X_{\mu_k}{+}\X_{(\hat\mu_k+\bar\nu_k)/2}$ in \eqref{eq: stage-loss}, from $\mathcal X_\mu$ and the balanced mixture of $\hat{\mathcal X}_\mu$ and $\bar{\mathcal X}_\nu$\;
         }
         \tcp{(v) validation set update}
         Push the validation set $\tilde{\mathcal Y} \gets G_k^{-1}(\mathcal Y_{k-1})$\;
@@ -440,7 +438,7 @@ $K \gets k$\;
 \mbox{}\\
 The trained ladder is a Boltzmann generator for $\mu$. Starting from $x \sim \mu_0$, each stage applies its map $G_k^{-1}$, then reweights and resamples by the importance weights of Section~\ref{subsec: eval}, as in step (v), carrying the samples from source to target one bridge at a time.
 
-Setting every stage flow $G_k$ to the identity reduces the adaptive-temperature generator to annealed SMC, a Monte Carlo sampler that requires no training and serves as the benchmark against the flow-based methods. With no flow to train, steps~(i), (iii), and~(iv) (the source pool, the wide-coverage set, and the X-regularized loss) fall away, leaving step~(ii), the adaptive temperature selection, and step~(v), the reweight, resample, and rejuvenation. The pushforward is then $\tilde{\mathcal Y} = \mathcal Y_{k-1}$ and the log-Jacobian vanishes, so the stage weight reduces to the classical tempering weight $w_k = \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\mathcal Y_{k-1})\bigr)$, the outer-ladder counterpart of the identity-flow reduction of Algorithm~\ref{alg: AIS}. Run on the same adaptive ladder and acceptance standard, it isolates the value the trained flow adds over annealing alone.
+Setting every stage flow $G_k$ to the identity reduces the adaptive-temperature generator to annealed SMC, a Monte Carlo sampler that requires no training and serves as the benchmark against the flow-based methods. With no flow to train, steps~(iii) and~(iv) (the wide-coverage set and balanced training loss) fall away, leaving the source pool, adaptive temperature selection, and reweight--resample--rejuvenate update. The log-Jacobian then vanishes, so the stage weight reduces to the classical tempering weight $w_k = \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\mathcal Y_{k-1})\bigr)$. Run on the same adaptive ladder and acceptance standard, this baseline isolates the value added by the trained stage maps.
 
 
 % ===================== Section 5: model problems (FULL verbatim) =====================
@@ -1186,7 +1184,7 @@ In this section we restrict to the loss with only the forward KL and the shape r
      \mu(x)\mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: appendix-loss-KL-X}
 \end{equation}
-where $\lambda>0$ is a fixed constant.
+where $\lambda>0$ is a fixed constant. The calculations below hold along any positive solution of the Fisher--Rao flow; when $\lambda\Le\tfrac12$, the birth term in \eqref{eq: appendix-FR-L-flow} is non-negative and hence preserves positivity.
 Throughout this section we abbreviate the importance weight by
 \begin{equation*}
     w(x) := \frac{\mu(x)}{\nu(x)},
@@ -1237,7 +1235,7 @@ where the contribution of $\delta(x-y)$ vanishes because $\operatorname{sgn}(w(x
     S(x) := \mathbb E_{y\sim\mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr].
     \label{eq: appendix-var-X}
 \end{equation}
-We call $S$ the \emph{rank field} of the importance weight under $\mu$: $S(x) > 0$ where $w(x)$ exceeds the $\mu$-median of $w$, i.e.\ where $\nu$ undercovers a mode of $\mu$; $S(x) < 0$ where $\nu$ overcovers; and $S \equiv 0$ at $\nu = \mu$. By antisymmetry,
+We call $S$ the \emph{rank field} of the importance weight under $\mu$: $S(x) > 0$ indicates that $w(x)$ is comparatively large within the population of weights, and hence that $\nu$ pointwise undercovers $\mu$ relative to that population; $S(x) < 0$ has the opposite interpretation, and $S \equiv 0$ at $\nu = \mu$. By antisymmetry,
 \begin{equation*}
     \mathbb E_\mu[S] = \mathbb E_{x,y\sim \mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr] = 0,
 \end{equation*}
@@ -1253,7 +1251,7 @@ Since the FR gradient is linear in the functional, the FR gradient of $\mathcal 
 \end{equation*}
 The regularized Fisher--Rao gradient flow $\partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}[\mathcal L]$ therefore reads
 \begin{equation}
-    \partial_t\nu_t(x) = \mu(x) - \nu(x) + 2\lambda \mu(x) S_t(x), \quad
+    \partial_t\nu_t(x) = \mu(x) - \nu_t(x) + 2\lambda \mu(x) S_t(x), \quad
     \text{where~}
     S_t(x) := \mathbb E_{y\sim\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\biggr)\biggr].
     \label{eq: appendix-FR-L-flow}
@@ -1313,7 +1311,7 @@ The uniform convergence rate \eqref{eq: appendix-KL-exponential} should \emph{no
 
 A naive comparison of dissipation rates between $\KL$-only and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: while the pure KL FR gradient is local in $x$, the rank field $S_t$ is global, so the regularized flow \eqref{eq: appendix-FR-L-flow} couples the update at $x$ to the entire distribution of importance weights under $\mu$. This nonlocal coupling amplifies the birth rate on undercovered regions of $\mu$ and suppresses it on overcovered ones, a global comparison that pure forward KL, which knows only whether $\mu(x)/\nu_t(x)$ exceeds or falls below $1$ pointwise, cannot produce.
 
-Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a population statement, while each gradient step sees an estimate from a batch of $B$ samples. At large batch the estimated forward KL gradient already approximates its population direction well, the idealized rate \eqref{eq: appendix-KL-exponential} is nearly realized by the bare loss, and the headroom left for the X terms narrows; the regularizer earns its keep when the training signal is noisy or biased: small batches, early bridges, imperfect AIS samples. The clock ladder of Table~\ref{tab: clock-ladder} exhibits this finite-batch dependence: the aggregate stage-ESS advantage persists across $B=125$--$2000$, while at the smallest batch the final stages can favor the bare forward KL.
+Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a population statement, while each gradient step sees an estimate from a finite, generally biased target surrogate. Small batches are the primary regime for which the regularizer was designed. On the difficult staged clock target, however, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ retains an aggregate advantage across $B=125$--$2000$, including a $2.8$-fold smaller propagation factor at $B=2000$. This does not imply uniform dominance: at $B=125$, the final four stages favor the bare forward KL.
 
 \begin{remark}[Monotone decay of $\X_\mu$]
 The regularizer $\X_\mu$ also decreases monotonically along the regularized flow: pairing the variation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: appendix-var-X} against the flow \eqref{eq: appendix-FR-L-flow} gives
@@ -1344,7 +1342,7 @@ A stationary point $\nu^\star$ of \eqref{eq: appendix-surrogate-loss} therefore 
     \nu^\star(x) = \tilde\mu(x)\biggl[1 + 2\lambda\!\int_{\mathbb R^d}\tilde\mu(y)\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr)\D y\biggr].
     \label{eq: appendix-surrogate-stationary}
 \end{equation}
-At $\lambda = 0$ the equation collapses to $\nu^\star = \tilde\mu$: pure forward KL training inherits the bias of the AIS surrogate $\tilde\mu$ verbatim, and the residual error is exactly $\KL(\mu\|\tilde\mu)$. For $\lambda > 0$, however, the rank-based correction $1 + 2\lambda\widetilde S^\star$, where $\widetilde S^\star$ denotes $\widetilde S$ evaluated at $\nu = \nu^\star$, inflates $\nu^\star$ above $\tilde\mu$ where the importance weight $\mu/\nu^\star$ is high, that is, where $\nu^\star$ still undercovers $\mu$, and deflates it where the weight is low, providing a global feedback that pulls $\nu^\star$ from $\tilde\mu$ back toward $\mu$. Two facts prepare the statement. For $\lambda \Le \frac12$ the bracket in \eqref{eq: appendix-surrogate-stationary} is non-negative, because $\widetilde S^\star \in [-1, 1]$. Moreover, the antisymmetry of the sign in $x, y$ implies
+At $\lambda = 0$ the equation collapses to $\nu^\star = \tilde\mu$: pure forward KL training inherits the bias of the target surrogate $\tilde\mu$ verbatim, and the residual error is exactly $\KL(\mu\|\tilde\mu)$. For $\lambda > 0$, however, the rank-based correction $1 + 2\lambda\widetilde S^\star$, where $\widetilde S^\star$ denotes $\widetilde S$ evaluated at $\nu = \nu^\star$, inflates $\nu^\star$ above $\tilde\mu$ where the importance weight $\mu/\nu^\star$ is high, that is, where $\nu^\star$ still undercovers $\mu$, and deflates it where the weight is low, providing a global feedback that pulls $\nu^\star$ from $\tilde\mu$ back toward $\mu$. Two facts prepare the statement. For $\lambda < \frac12$ the bracket in \eqref{eq: appendix-surrogate-stationary} is strictly positive, because $\widetilde S^\star \in [-1, 1]$. Moreover, the antisymmetry of the sign in $x, y$ implies
 \begin{equation*}
     \int_{\mathbb R^d} \tilde\mu(x)\, \widetilde S^\star(x)\, \D x
     = \mathbb E_{x, y \sim \tilde\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr)\biggr] = 0,
@@ -1353,7 +1351,7 @@ hence every stationary point $\nu^\star = \tilde\mu(1 + 2\lambda \widetilde S^\s
 
 \begin{theorem}
 \label{thm: appendix-accuracy}
-Assume that $\mu$ is absolutely continuous with respect to $\tilde\mu$ and that $\lambda \in [0, \frac12]$. Then every stationary density $\nu^\star$ of the X-regularized loss $\widetilde{\mathcal L}$ \eqref{eq: appendix-surrogate-loss} satisfies
+Assume that $\mu$ is absolutely continuous with respect to $\tilde\mu$ and that $\lambda \in [0, \frac12)$. Then every stationary density $\nu^\star$ of the loss $\widetilde{\mathcal L}$ \eqref{eq: appendix-surrogate-loss} satisfies
 \begin{equation}
     \KL(\mu\|\nu^\star) \Le \KL(\mu\|\tilde\mu) - \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y) \biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr| \D x \D y.
     \label{eq: appendix-accuracy-bound}
@@ -1367,7 +1365,7 @@ Substituting the stationary identity $\nu^\star = \tilde\mu(1+2\lambda\widetilde
     = \int_{\mathbb R^d}\!\mu(x)\log\bigl(1 + 2\lambda\widetilde S^\star(x)\bigr)\D x
     = \int_{\mathbb R^d}\!\tilde\mu(x) \frac{\mu(x)}{\nu^\star(x)}u(x)\log u(x)\D x,
 \end{equation*}
-where $u(x) := 1 + 2\lambda\widetilde S^\star(x) \Ge 1 - 2\lambda \Ge 0$, since $\widetilde S^\star \in [-1, 1]$ (a $\tilde\mu$-average of signs) and $\lambda \Le \frac12$. The elementary inequality $u\log u \Ge u - 1$ for $u \Ge 0$ then yields
+where $u(x) := 1 + 2\lambda\widetilde S^\star(x) \Ge 1 - 2\lambda > 0$, since $\widetilde S^\star \in [-1, 1]$ (a $\tilde\mu$-average of signs) and $\lambda < \frac12$. The elementary inequality $u\log u \Ge u - 1$ for $u > 0$ then yields
 \begin{equation*}
     \KL(\mu\|\tilde\mu) - \KL(\mu\|\nu^\star)
     \Ge 2\lambda\!\int_{\mathbb R^d}\!\tilde\mu(x) \frac{\mu(x)}{\nu^\star(x)} \widetilde S^\star(x)\D x.
@@ -1379,9 +1377,9 @@ Applying the rank-correlation argument of Lemma~\ref{lem: appendix-rank-correlat
 which gives \eqref{eq: appendix-accuracy-bound}.
 \end{proof}
 
-The right-hand side of \eqref{eq: appendix-accuracy-bound} (Theorem~\ref{thm: appendix-accuracy}) contrasts the two roles of $\X_\mu$ training. At $\lambda = 0$ the bound is tight at $\nu^\star = \tilde\mu$ and the residual KL is fixed at $\KL(\mu\|\tilde\mu)$; the AIS bias is a hard floor. Switching on the regularizer with $\lambda \Le \frac12$ lowers this floor (strictly, unless $\mu/\nu^\star$ is constant on the support of $\tilde\mu$) by an amount controlled by the discrepancy of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$: the larger this discrepancy, the more the rank-based feedback pulls $\nu^\star$ toward $\mu$. The $\X_\mu$ regularizer is therefore not merely a numerical stabilizer for the forward KL flow: it lowers the asymptotic accuracy floor of the trained density when the target samples are biased, which is the practically relevant regime.
+The right-hand side of \eqref{eq: appendix-accuracy-bound} (Theorem~\ref{thm: appendix-accuracy}) contrasts the two roles of $\X_\mu$ training. At $\lambda = 0$ the bound is tight at $\nu^\star = \tilde\mu$ and the residual KL is fixed at $\KL(\mu\|\tilde\mu)$; the surrogate bias is a hard floor. Switching on the regularizer with $\lambda < \frac12$ lowers this floor (strictly, unless $\mu/\nu^\star$ is constant on the support of $\tilde\mu$) by an amount controlled by the discrepancy of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$: the larger this discrepancy, the more the rank-based feedback pulls $\nu^\star$ toward $\mu$. The $\X_\mu$ regularizer is therefore not merely a numerical stabilizer for the forward KL flow: within the theorem's assumptions, it lowers the asymptotic accuracy floor of the trained density when the target surrogate is biased.
 
-The threshold $\lambda \Le \frac12$ is a worst-case condition enforcing positivity of $\nu^\star$ uniformly in $x$; in practice the accuracy improvement persists well beyond it. The practical takeaway is that even without the wide-coverage regularizer $\X_{\hat\mu}$, adding $\X_\mu$ alone to the forward KL loss already reduces the bias floor inherited from inaccurate AIS samples.
+The threshold $\lambda < \frac12$ is a sufficient condition enforcing strict positivity of $\nu^\star$ uniformly in $x$. The experiments use $\lambda=1$ and show robust performance, but they do not extend this accuracy-floor theorem beyond its stated range. Within that range, the result shows that $\X_\mu$ alone can reduce the bias floor inherited from an inaccurate target surrogate.
 
 \bibliographystyle{plainnat}
 \bibliography{references}

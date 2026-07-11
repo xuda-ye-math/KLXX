@@ -1,16 +1,17 @@
 # Project status
 
-Last updated: 2026-07-10T23:19:48-04:00 (America/New_York)
+Last updated: 2026-07-10T23:37:22-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`
 - Branch: `main`
-- Current HEAD: `8607f8677ef6f6e53d37d6f855f975d713339d70` — `Use project relation macros in manuscript`; branch `main` tracks `origin/main`.
-- Worktree before this status update: six tracked paths changed (four modified and two deleted), with no staged or untracked paths. The changes are the unified manuscript source/PDF, preamble and README updates, and retirement of `Paper_Arxiv/supp.tex` and `Paper_Arxiv/supp.pdf`. Ignored research data, checkpoints, logs, and bytecode remain local.
-- Canonical manuscript: `Paper_Arxiv/main.tex`; the compiled `Paper_Arxiv/main.pdf` is 39 pages and 7,895,229 bytes.
+- Current HEAD: `6263a1eabca59c5b8792649af8b5d9f578004216` — `Merge Fisher-Rao supplement into manuscript`; branch `main` tracks `origin/main`.
+- Worktree before this status update: 49 tracked paths changed (2 modified and 47 deleted), with no staged or untracked paths. The modified paths are `Paper_Arxiv/main.tex` and its compiled PDF. The 47 deletions are the user's removal of the obsolete root `2D_Benchmark/`; the canonical replacements remain under `Codes/2D_Benchmark/`. Ignored research data, checkpoints, logs, and bytecode remain local.
+- Canonical manuscript: `Paper_Arxiv/main.tex`; the compiled `Paper_Arxiv/main.pdf` is 39 pages and 7,893,661 bytes.
 - Canonical numerical tests: `Codes/`, copied byte-for-byte from `/mnt/projects/jflows/Codes`; 110 files, approximately 2.4 GiB. Python drivers use public `jflows` APIs and contain no `zflows` imports. Equinox `*.eqx` checkpoints and `*.npz` arrays remain on disk but are ignored by Git.
-- Section 5 of `Paper_Arxiv/main.tex` is synchronized with `Codes/**/results.md` and `Codes/style.md`. The former Fisher–Rao supplement is now Appendix A, “Fisher–Rao gradient flow with log-ratio variation,” in the same file; Section 2 and the organization paragraph direct readers to the appendix. The molecular section remains outside the numerical-results rewrite.
+- Sections 1--4 have received a first consistency and evidence pass against `Codes/style.md` and the current results. The paper now distinguishes the intended small/noisy-batch robustness from the benchmark-specific large-batch clock advantage, names the balanced method as `KL + X_μ + X_(μ̂ + ν̄)/2`, uses stage/step terminology consistently, and defines the QT melt scale as `m_e`. Molecular results are excluded from the abstract and Sections 1--4 framing for now.
+- The score-free training annealing is now described as a biased target surrogate rather than exact AIS/SMC because its rejuvenation kernel targets the final distribution instead of each intermediate geometric bridge. Outer ladder selection remains a separate classical SMC procedure.
 - The latest PDF build completed successfully with `latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex`; it has no unresolved references or reported overfull/underfull boxes.
 - Recovery snapshot: `/mnt/backup/X-regularization_100726`, verified at HEAD `55b4ce98324beca51f2862663628d0990260c79a`. It predates the later cleanup, `Codes/` copy, and Section 5 rewrite.
 - Major tracked deletions are the user's cleanup of legacy numerical trees and the old `Paper/` tree: `Clock_Lattice/`, `HD_Product/`, `HD_Product_Ladder/`, `Phi4_Lattice_6/`, `Phi4_Lattice_8/`, `Poisson_Inverse/`, `Sensor_Array/`, and `Paper/` content.
@@ -19,7 +20,7 @@ Last updated: 2026-07-10T23:19:48-04:00 (America/New_York)
 ## Pending
 
 - **Pending:** Decide whether ignored `Codes/` arrays, Equinox checkpoints, and run logs need a tagged release or other external archival location beyond the mirror backup.
-- **Pending:** Update Sections 1--4, conclusions, README, and environment/install instructions where they still describe the former `zflows` backend; the completed rewrite was deliberately limited to Section 5.
+- **Pending:** Continue the Sections 1--4 polish, then update the conclusion, README, and environment/install instructions where they still describe the former `zflows` backend. The molecular section and its conclusions are intentionally treated as not yet part of the current paper narrative.
 - **Pending:** Audit the detailed contents and long-term organization of `Molecular_BG_2/`; this checkpoint intentionally included its non-ignored files without a content review. Decide whether `adp.jpeg` and the tracked stdout files should remain in their current locations.
 - **Pending:** Perform a final full-paper consistency audit after the non-Section-5 backend text is updated.
 
@@ -59,3 +60,11 @@ Last updated: 2026-07-10T23:19:48-04:00 (America/New_York)
 - Appended the Fisher–Rao gradient-flow derivations, convergence proof, and biased-target accuracy analysis to `Paper_Arxiv/main.tex` as Appendix A, titled “Fisher–Rao gradient flow with log-ratio variation.”
 - Updated Section 2 and the organization paragraph to distinguish the main-text result summary from the appendix proofs; removed the obsolete cross-document reference setup and retired `Paper_Arxiv/supp.tex` and `Paper_Arxiv/supp.pdf`.
 - Rebuilt `Paper_Arxiv/main.pdf`: 39 pages and 7,895,229 bytes, with resolved references and no reported overfull or underfull boxes.
+
+### 2026-07-10T23:37:22-04:00 — Sections 1--4 evidence and consistency pass
+
+- Reframed the headline result into two evidence-bounded regimes: the intended robustness for small or imperfect batches, and a clock-specific aggregate advantage through the largest tested batch, with the late-stage reversal at `B=125` stated explicitly.
+- Independent terminology, mathematical, and editorial audits checked method names, stage/step language, map directions, theorem assumptions, empirical claims, and consistency with `Codes/style.md` and the result files.
+- Corrected the training-sampler description: the implemented score-free annealing produces a biased target surrogate and is not exact AIS/SMC because rejuvenation targets the final distribution. Tightened the Fisher–Rao positivity statement and accuracy theorem to `λ < 1/2`.
+- Replaced QT diffusion scale `σ_QT` by melt scale `m_e`; removed molecular-result framing from the abstract, organization, and Sections 1--4; rebuilt and visually inspected the 39-page PDF with no unresolved references or reported layout warnings.
+- Preserved the user's deletion of all 47 tracked files under the obsolete root `2D_Benchmark/`; `Codes/2D_Benchmark/` remains the canonical numerical-test location.
