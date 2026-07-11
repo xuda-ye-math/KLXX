@@ -1,54 +1,93 @@
-# Alanine-dipeptide molecular benchmark
+# Molecular Boltzmann-generator benchmark
 
-The single figure at the workspace root is the frozen reference target:
-
-- `adp_fab.png`: a fresh 100 x 100, unsmoothed histogram of exactly 1,000,000
-  configurations from the FAB authors' ground-truth REMD training split. It
-  uses a logarithmic color range from `1e-4` to `1`.
-
-Those configurations were generated for FAB's 22-atom ACE--ALA--NME target:
-Amber ff96 with OBC1 implicit solvent (`igb=2`, `mbondi2` radii), ACE nonpolar
-solvation, `NoCutoff`, no constraints, and 300 K. This is the model frozen for
-the planned `jflows_md` benchmark.
-
-The completed local OpenMM chains used `amber96_obc.xml`, which is OBC2. They
-are retained as useful comparison data, but are not relabeled as samples from
-the exact FAB Hamiltonian and no root-level OBC2 plot is retained.
+This directory contains the local `jflows_md` molecular potential milestone
+and three frozen molecular targets. A user evaluating or training against a
+target needs only `jflows/`, `jflows_md/`, and the selected directory under
+`bundles/`. The `reference/` directory is evaluation data and is never read
+by `Molecular_Potential`.
 
 ## Layout
 
 ```text
 Molecular_BG/
-├── adp_fab.png
-├── JFLOWS_MD_PLAN.md   # approved FAB-aligned BG design
-├── src/                 # OpenMM REMD, analysis, and plotting programs
-├── assets/system/       # ADP topology and L-minimum coordinates
-├── data/
-│   ├── reference/       # downloaded FAB data and derived phi/psi
-│   ├── runs/            # restartable local OBC2 comparison chains
-│   ├── analysis/        # OBC2 pooled angles and diagnostics
-│   └── legacy/          # initial short calibration artifact
-└── docs/                # provenance and benchmark summary
+├── README.md
+├── JFLOWS_MD_PLAN.md
+├── bundles/
+│   ├── build_molecular_bundles.py
+│   ├── fab_adp_ff96_obc1_v1/
+│   ├── glycerol_gaff2_am1bcc_obc1_v1/
+│   └── diethanolamine_neutral_gaff2_am1bcc_obc1_v1/
+├── reference/
+│   ├── adp_truth.png
+│   ├── fab_train.h5
+│   └── fab_train_phi_psi.npz
+├── jflows/
+├── jflows_md/
+└── smoke/
 ```
 
-## Reproduce the reference figure without rerunning dynamics
+The copied `jflows/` source is unmodified from
+`/mnt/projects/jflows/jflows/` at commit
+`fcee81c432d95cb4d841a14605e133b54d08c84d`. The molecular additions live
+only in the parallel `jflows_md/` package.
+
+## Runtime use
+
+```python
+import jax
+jax.config.update("jax_enable_x64", True)
+
+from jflows_md import Molecular_Potential
+
+target = Molecular_Potential.from_bundle("fab_adp_ff96_obc1_v1")
+q = target.source().samples(jax.random.key(0), 32)
+energy = target(q)       # [32]
+gradient = target.grad(q)  # [32, 60]
+```
+
+Run user programs with `Molecular_BG` on `PYTHONPATH`. The complete selected
+bundle is the runtime model: it freezes the force field, implicit solvent,
+coordinate chart, chirality support, validation frame, metadata, and integrity
+hashes. No PDB, trajectory, asset directory, or FAB sample file is consulted
+at runtime.
+
+See `jflows_md/README.md` for the public API and the three model definitions.
+
+## Bundle maintenance and validation
+
+Bundles rebuild in place from canonical seed artifacts already stored inside
+each bundle:
 
 ```bash
-conda run -n jflows python Molecular_BG/src/plot_ramachandran.py \
-  Molecular_BG/data/reference/fab_train_phi_psi.npz \
-  --bins 100 --smooth-sigma 0 --vmin 1e-4 --vmax 1 \
-  --mask-below-vmin --title "Ground-truth REMD (N=1,000,000)" \
-  --output Molecular_BG/adp_fab.png
+conda run -n jflows python Molecular_BG/bundles/build_molecular_bundles.py
 ```
 
-See `docs/summary.md` for the benchmark result and `docs/PROVENANCE.md` for
-the distinction between the authors' source raster, the 1M-sample replot, and
-the local OBC2 comparison.
+The builder is a maintenance tool requiring OpenMM, ParmEd, and AmberTools. It
+is not imported during JAX potential evaluation.
 
-The approved package and experiment design for the next phase is
-`JFLOWS_MD_PLAN.md`. It defines a self-contained `Molecular_Potential` bundle
-API and three targets: exact FAB L-ADP (60D, ff96/OBC1), glycerol (36D,
-GAFF2/AM1-BCC/OBC1), and explicitly neutral diethanolamine (48D,
-GAFF2/AM1-BCC/OBC1). The plan freezes coordinate support together with each
-Hamiltonian and specifies mixed spline flow, mixed-domain MALA,
-no-sharpening training, and per-target validation gates.
+Run the complete accelerator-backed smoke suite with:
+
+```bash
+XLA_PYTHON_CLIENT_PREALLOCATE=false \
+  ~/.envs/jax/bin/python Molecular_BG/smoke/run_all.py
+```
+
+## FAB ground-truth reference
+
+`reference/fab_train.h5` is the FAB authors' one-million-configuration REMD
+training split. `fab_train_phi_psi.npz` is its cached Ramachandran projection,
+and `adp_truth.png` is the corresponding 100 x 100 unsmoothed histogram with
+logarithmic color range `[1e-4, 1]`. These files support evaluation and
+plotting comparisons but do not define the potential.
+
+SHA-256:
+
+```text
+c0c9da5d4e5f9d7ed04385ef9fe8612d4754fcbdabd5f1867fbd503e3673d0fe  fab_train.h5
+84635035228c7bcd90935a53923f140b91668344983141d9af18c6030baf827a  fab_train_phi_psi.npz
+0d59591a3188da5a2069f4f7ae54c12c58d66d16510f954053c6f21f49a11a04  adp_truth.png
+```
+
+The bundle-driven potential, mixed-domain MALA, and potential-space SMC are
+implemented. Full mixed-spline flow and Boltzmann-generator training remain the
+next milestone.

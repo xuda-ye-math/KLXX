@@ -341,10 +341,11 @@ must show that `tau_chi in (-pi,0)` always has the selected signed-volume sign,
 the other half has the opposite sign, and the forward/inverse placement is
 unique away from the planar boundary.
 
-The current `Molecular_BG/assets/system/alanine_dipeptide.pdb` coordinates are
-D (`c=-0.00262 nm^3`), whereas `l_minimum_positions_nm.npy` is L. Before
-implementation, generate a canonical L PDB with the same topology and atom
-ordering; never use the current PDB coordinates as the chirality oracle.
+The obsolete D-valued exploratory PDB has been removed. The canonical
+`bundles/fab_adp_ff96_obc1_v1/reference.pdb` and first stored validation frame
+are L and share the frozen topology and atom ordering. Bundle construction and
+smoke tests verify the accepted determinant sign; an arbitrary PDB must never
+be used as the chirality oracle.
 
 Glycerol and neutral diethanolamine have no chemical stereocenter constraint.
 Their `CoordinateSpec`s retain all torsions on the torus and bundle construction
