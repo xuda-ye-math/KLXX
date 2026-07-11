@@ -1,0 +1,8 @@
+[00:09:50] START snapshot_watcher: watching md_implicit.npz
+[00:09:51] snapshot t=22ns N=44000 -> snap_22ns.png
+[00:10:23] snapshot t=24ns N=48000 -> snap_24ns.png
+[00:11:19] snapshot t=26ns N=52000 -> snap_26ns.png
+[00:12:07] snapshot t=28ns N=56000 -> snap_28ns.png
+[00:12:55] snapshot t=30ns N=60000 -> snap_30ns.png
+[00:13:43] snapshot t=32ns N=64000 -> snap_32ns.png
+[00:14:31] snapshot t=34ns N=68000 -> snap_34ns.png

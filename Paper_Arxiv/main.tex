@@ -448,73 +448,61 @@ Setting every stage flow $G_k$ to the identity reduces the adaptive-temperature 
 \section{Numerical experiments on model problems}
 \label{sec: experiments}
 
-We validate the X-regularized losses on model targets; Section~\ref{sec: molecular} treats a real molecular system. The suite spans two families. The first is multimodal distributions: the four 2D benchmarks (Section~\ref{subsec: 2d-benchmark}) and the high-dimensional product multi-well (Section~\ref{subsec: highd}). The second is lattice field theories: the tilted $\phi^4$ theory (Section~\ref{subsec: phi4}) and the $p$-state clock model (Section~\ref{subsec: clock}). Vectors are set in bold ($\mathbf{x}$, $\mathbf{y}$, $\boldsymbol{\theta}$, $\boldsymbol{\phi}$); their scalar components and scalar quantities are upright.
+We test the three roles of the log-ratio-variation terms before applying the full objective to an annealed lattice model. The 2D targets isolate accuracy, mode discovery, and leakage control; the product multi-well measures how the accuracy gain scales with dimension; and the tilted $\phi^4$ theory exposes a collective-barrier failure that ESS alone cannot detect. The $p$-state clock model then tests $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ along a shared annealing ladder. Throughout, ESS is paired with a diagnostic that detects missing modes: coverage on the multimodal benchmarks, the minority-phase weight on $\phi^4$, and sector occupancy on the clock model.
 
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-We test the training scheme on four 2D targets: Threewell, Himmelblau, Annulus, and Sparse. Each isolates a different failure mode of the forward KL rather than matching the Gaussian mixture and double-well community suite \citep{akhound2024iterated,woo2024iefm}. Table~\ref{tab: 2d-benchmark} lists the potentials and mode structures; each target's construction is described with its results below.
+We consider four 2D targets: Two-Moon, Three-Well, Himmelblau, and Sparse. Two-Moon has two distorted crescent components and isolates finite-batch accuracy because both components lie within reach of the source. The remaining targets isolate mode collapse: Three-Well contains a low-probability basin, Himmelblau has four separated wells, and Sparse places two tight modes far into the source tails.
 
-\begin{table}[htb]
-    \centering
-    \renewcommand{\arraystretch}{1.3}
-    \begin{tabular}{@{}lll@{}}
-        \toprule
-        name & potential $U(x_1, x_2)$ & minima \\
-        \midrule
-        Threewell  & $6\bigl[(x_1^2 - 1)^2 + (x_2^2 - 1)^2 + \sin(x_1 + 2 x_2)\bigr]$ & three asymmetric wells \\
-        Himmelblau & $\bigl(x_1^2 + x_2 - 11\bigr)^2 + \bigl(x_1 + x_2^2 - 7\bigr)^2$ & four isolated points \\
-        Annulus    & $20 \bigl(r^6 - 8 r^4 + 16 r^2 + 1\bigr)^{\frac{1}{3}}$, $r^2 = x_1^2 + x_2^2$ & $r = 0$ and ring at $r = 2$ \\
-        Sparse     & Sparse Gaussian mixture & $2$ dense $+\, 2$ isolated centers \\
-        \bottomrule
-    \end{tabular}
-    \caption{Four 2D benchmark targets.}
-    \label{tab: 2d-benchmark}
-\end{table}
-
-For all four targets the source $\mu_0$ is an isotropic Gaussian $\mathcal{N}(0, \sigma^2 I)$ with $\sigma$ between $0.25$ and $2.0$. On Threewell it is narrow and centered at the origin, far from all three wells, so the initial pushforward covers none of them. The flow is a neural spline flow \citep{durkan2019neural} with $6$ coupling transforms, $32$ bins, and hidden widths $(128, 128)$, on a square box matched to each target. Training uses Adam at learning rates $10^{-3}$ to $5\times 10^{-3}$ for $1000$ steps, with batch size $500$, enlarged on the multimodal Threewell and Sparse so a single batch covers all modes. At each step the AIS surrogate is one importance-weighted resampling pass against the current pushforward followed by $50$ Langevin steps. The loss coefficients are the balanced hyperparameters of Section~\ref{subsec: total-loss}, $\lambda = 1$ and $\alpha = \beta = \frac12$. The wide-coverage measure $\hat\mu$ is built once before training by QT (Algorithm~\ref{alg: QT}) and recycled with one Langevin rejuvenation per step.
-
-For each target we compare four losses, adding one log-ratio variation at a time: the bare forward KL \eqref{eq: forward KL}; $\KL{+}\X_\mu$ with $\lambda = 1$; $\KL{+}\X_\mu{+}\X_{\hat\mu}$ with $\alpha = 1$, $\beta = 0$; and the balanced mixture $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ with $\alpha = \beta = \frac12$.
-
-\paragraph{Threewell.} The quartic-plus-sinusoid potential has three asymmetric wells. Forward KL and $\KL{+}\X_\mu$ lock onto only two and never discover the third, yet their ESS stays close to one. This is a fake ESS instance: the flow omits a mode while reporting near-uniform weights on the support it reaches. Adding $\X_{\hat\mu}$ places mass on the QT-discovered third well, and the mixture attains the same full coverage at the highest full-coverage ESS (Figure~\ref{fig: threewell}).
-
-\paragraph{Himmelblau.} Forward KL and $\KL{+}\X_\mu$ both cover only two of the four modes, yet the ESS gives no warning. $\KL{+}\X_\mu$ posts the highest nominal ESS of the four while missing half the modes, a fake ESS instance. Adding $\X_{\hat\mu}$ or the mixture recovers full coverage and ties at the best full-coverage ESS (Figure~\ref{fig: himmelblau}).
+For every target, we initialize the same neural spline flow at the identity and compare four objectives:
+\[
+\KL,\qquad
+\KL{+}\X_\mu,\qquad
+\KL{+}\X_\mu{+}\X_{\hat\mu},\qquad
+\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}.
+\]
+The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$. Each training step constructs a target surrogate by a single-rung AIS update through the current flow followed by $50$ MALA steps of size $2\times 10^{-3}$. Quench and temper uses melt scale $2$, an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations, and a separate reference pool for coverage. The final ESS is computed from the flow importance weights on the full fixed source set. Coverage, with $\kappa=5$ against the quench-and-temper reference pool, measures the fraction of target mass represented by the pushforward. Hence a collapsed flow can have ESS near one but cannot have full coverage.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/samples.png} \\[0.3em]
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Threewell/resample.png}
-    \caption{Threewell target. Row 1 is the pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$ and Row 2 is $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns, left to right: forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each pushforward title reports the final ESS and the $\kappa = 5$ coverage against $\hat\mu$.}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Two-Moon/samples.png}
+    \caption{Two-Moon target. Columns, from left to right, are forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, and $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each panel overlays the learned pushforward on the target energy and reports its final ESS and coverage. Gray points show the source.}
+    \label{fig: two-moon}
+\end{figure}
+
+\paragraph{Two-Moon.}
+The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$. With batch size $200$, $500$ Adam steps, and learning rate $2\times10^{-3}$, the bare forward KL reaches ESS $0.8021$. Adding $\X_\mu$ raises it to $0.9157$ without additional flow evaluations, while the equal-weight mixture reaches $0.9446$ (Figure~\ref{fig: two-moon}). This benchmark isolates the accuracy role of $\X_\mu$: the pairwise term constrains the spread of the log-ratio left uncontrolled by the mean-only forward KL objective.
+
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Three-Well/samples.png}
+    \caption{Three-Well target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: threewell}
 \end{figure}
 
+\paragraph{Three-Well.}
+The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and initially covering no basin. Training uses batch size $1000$, $500$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ fill the two favored wells and report ESS $0.9830$ and $0.9933$, respectively, while their coverage remains $0.7525$. Quench and temper discovers the suppressed third well. The $\hat\mu$ and equal-weight mixtures raise coverage to $0.9763$ and $0.9660$ while retaining ESS $0.9771$ and $0.9858$ (Figure~\ref{fig: threewell}).
+
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/samples.png} \\[0.3em]
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Himmelblau/resample.png}
-    \caption{Himmelblau target. Rows and columns as in Figure~\ref{fig: threewell}.}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Himmelblau/samples.png}
+    \caption{Himmelblau target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: himmelblau}
 \end{figure}
 
-\paragraph{Annulus.} All four methods reach full coverage, so the discriminator is the flow shape and ESS. Forward KL alone leaves axis-aligned filaments across the central barrier. Adding $\X_\mu$ tightens the pushforward to a clean ring-plus-point geometry and lifts the ESS, and the mixture ties $\KL{+}\X_\mu$ at the best ESS of the four (Figure~\ref{fig: annulus}). This isolates the role of $\X_\mu$ as a shape regularizer, penalizing pointwise log-ratio variation that the global forward KL leaves untouched.
+\paragraph{Himmelblau.}
+The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approximately $3$--$4$. Training uses batch size $1000$, $1000$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ capture only two wells, giving coverage $0.5140$ despite ESS $0.9722$ and $0.9818$. Both discovery mixtures attain coverage $1$. However, the $\hat\mu$-only flow leaks thin trails of mass between wells and has ESS $0.9516$, whereas adding the $\bar\nu$ half suppresses this leakage and raises the ESS to $0.9757$ (Figure~\ref{fig: himmelblau}).
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/samples.png} \\[0.3em]
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Annulus/resample.png}
-    \caption{Annulus target. Rows and columns as in Figure~\ref{fig: threewell}.}
-    \label{fig: annulus}
-\end{figure}
-
-\paragraph{Sparse.} A four-mode Gaussian mixture with a dense central pair and two isolated corner modes the narrow source cannot reach. Forward KL and $\KL{+}\X_\mu$ lock onto the central pair and miss the corners at high, stable ESS, another fake ESS instance. Adding $\X_{\hat\mu}$ restores full coverage but, lacking the $\bar\nu$ half, overfits $\hat\mu$ and leaves artificial bridges of mass between the modes. The mixture also reaches full coverage while removing these bridges, at the best full-coverage ESS (Figure~\ref{fig: sparse}).
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/samples.png} \\[0.6em]
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/2D_Sparse/resample.png}
-    \caption{Sparse target. Row 1: pushforward $\mathbf{y} = G^{-1}(\mathbf{x})$. Row 2: $\mathrm{resample}(\mathbf{y}, w)$ with Langevin rejuvenation. Columns as in Figure~\ref{fig: threewell}.}
+    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Sparse/samples.png}
+    \caption{Sparse target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: sparse}
 \end{figure}
+
+\paragraph{Sparse.}
+The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL{+}\X_\mu$ cover only the central pair. Their coverage is $0.5038$, while their ESS remains $0.9590$ and $0.9572$. The $\hat\mu$-only mixture restores coverage but pays a large leakage cost, with ESS $0.8112$. The equal-weight mixture also attains coverage $1$ and recovers most of the calibration, reaching ESS $0.9417$.
 
 \begin{table}[htb]
     \centering
@@ -522,35 +510,30 @@ For each target we compare four losses, adding one log-ratio variation at a time
         \toprule
         target & KL & $\KL{+}\X_\mu$ & $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ \\
         \midrule
-        Threewell  & $0.99\,(0.75)$ & $1.00\,(0.75)$ & $0.98\,(1.00)$ & $\mathbf{0.99}\,(1.00)$ \\
-        Himmelblau & $0.92\,(0.53)$ & $0.97\,(0.48)$ & $\mathbf{0.95}\,(1.00)$ & $\mathbf{0.95}\,(1.00)$ \\
-        Annulus    & $0.66\,(1.00)$ & $\mathbf{0.97}\,(1.00)$ & $0.94\,(1.00)$ & $\mathbf{0.97}\,(1.00)$ \\
-        Sparse     & $0.88\,(0.50)$ & $0.94\,(0.50)$ & $0.87\,(1.00)$ & $\mathbf{0.93}\,(1.00)$ \\
+        Two-Moon   & $0.802\,(1.000)$ & $0.916\,(1.000)$ & $0.887\,(1.000)$ & $\mathbf{0.945}\,(1.000)$ \\
+        Three-Well & $0.983\,(0.753)$ & $0.993\,(0.753)$ & $0.977\,(0.976)$ & $\mathbf{0.986}\,(0.966)$ \\
+        Himmelblau & $0.972\,(0.514)$ & $0.982\,(0.514)$ & $0.952\,(1.000)$ & $\mathbf{0.976}\,(1.000)$ \\
+        Sparse     & $0.959\,(0.504)$ & $0.957\,(0.504)$ & $0.811\,(1.000)$ & $\mathbf{0.942}\,(1.000)$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS, with $\kappa=5$ coverage against $\hat\mu$ in parentheses, for each loss on each 2D target; the best full-coverage ESS per row is in bold.}
+    \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the equal-weight mixture, which is the strongest overall setting: it attains essentially full coverage and lies within $0.02$ of the best ESS on every target.}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
-Across the four targets two regimes emerge (Table~\ref{tab: 2d-benchmark-summary}). On the mode discovery targets Threewell, Himmelblau, and Sparse, the ESS stays high for every loss and is useless on its own: forward KL and $\KL{+}\X_\mu$ post a high ESS while missing modes, and only the $\X_{\hat\mu}$ and mixture variants restore full coverage. On the shape and manifold target Annulus, coverage is already complete and ESS becomes the discriminator; there $\X_\mu$ helps and the mixture attains the best ESS. The mixture is the only loss of the four that reaches full mode coverage and the best or tied-best full-coverage ESS on every target, and its ESS curves are smoother than those of bare forward KL.
-
-The mixture loss $\mathcal L = \KL(\mu \| \nu) + \X_\mu(\mu\|\nu) + \X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)$ with $\lambda = 1$ and $\alpha = \beta = \frac12$ is the recommended default. It absorbs the mode discovery role of $\X_{\hat\mu}$ while suppressing the leakage $\X_{\hat\mu}$ alone can introduce when the target has holes interleaved with its modes.
+The four targets separate the objective's three mechanisms. The $\X_\mu$ term improves finite-batch accuracy when discovery is not limiting. The $\X_{\hat\mu}$ term reveals modes absent from the live AIS surrogate. The $\bar\nu$ half then penalizes the low-probability bridges introduced by aggressive discovery. The equal-weight mixture combines all three effects and is the only setting that gives essentially full coverage with near-best calibration throughout Table~\ref{tab: 2d-benchmark-summary}.
 
 \subsection{High-dimensional product multi-well}
 \label{subsec: highd}
 
-To test the framework beyond two dimensions we construct product multi-well targets in dimension $d = 2^k$. These play the role that double-well systems play in the diffusion-sampler literature \citep{akhound2024iterated,woo2024iefm}, but with an analytically known mode structure and a diagonal optimal transport map, so training failures are training failures and not capacity failures of the flow,
+We next isolate accuracy scaling in dimension $d=2^k$, $k=1,\ldots,8$, using
 \begin{equation}
-    U(\mathbf{x}) = \frac12 \sum_{i=1}^{2^k} x_i^2 + 12 \sum_{i=1}^{k} \exp(-x_i^2),
+    U(\mathbf{x})=\frac12\lVert\mathbf{x}\rVert^2
+    +12\sum_{i=1}^{k}\exp(-x_i^2).
     \label{eq: highd-potential}
 \end{equation}
-a double well in each of the first $k$ coordinates, with minima at $\pm\sqrt{\ln 24} \approx \pm 1.78$ separated by a barrier of height $\approx 9.9$, and a standard Gaussian in the remaining $2^k - k$. The source is the standard Gaussian $\mu_0 = \mathcal N(0, I_d)$, whose potential is the quadratic part of $U$. Since $U$ is separable, the target factorizes into $k$ identical double wells and $2^k - k$ Gaussians, so it has $2^k = d$ modes and the optimal transport map is diagonal. The source sits on the barrier of every double well, so the untrained pushforward covers none of the $2^k$ mode combinations. We sweep $k = 1, \dots, 8$, i.e.\ $d = 2, 4, 8, 16, 32, 64, 128, 256$.
+The first $k$ coordinates are symmetric double wells with minima at $\pm\sqrt{\ln 24}$ and barrier approximately $9.9$, while the remaining $d-k$ coordinates are standard Gaussian. The target therefore has exactly $2^k=d$ equal-weight modes. Multimodality occupies only a $k$-dimensional subspace, but the log-weight error accumulates across all $d$ coordinates.
 
-The flow is a neural spline flow on $[-4, 4]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$. Training uses Adam at learning rate $10^{-3}$ with batch size $200$, drawn from a source set of $10^4 \cdot 2^k$ samples; forward KL is sensitive to the batch size, so the small batch sharpens the contrast between the losses. The number of steps decreases with $d$ from $3000$ at $d \Le 4$ to $1200$ at $d \Ge 64$. The $\mu$-surrogate is the same one importance-weighted resampling pass followed by $50$ Langevin steps used in the 2D experiments; $\hat\mu$ is built once by QT from $100 \cdot 2^k$ samples. The four losses are those of Section~\ref{subsec: 2d-benchmark}, with $\lambda = 1$ and $\alpha = \beta = \frac12$.
-
-Table~\ref{tab: highd-ess} reports the final ESS of each loss across the eight dimensions. Unlike the 2D mode discovery targets, the flow reaches all $2^k$ modes for every loss: each mode is filled to within a few percent of its uniform $2^{-k}$ share and the $\kappa = 5$ coverage against $\hat\mu$ is at least $0.94$ throughout. This is the calibration regime of Annulus rather than the fake ESS regime, and ESS is the sole discriminator. Three trends emerge. First, the bare forward KL degrades monotonically with dimension, as the log-weight variance accumulates one double well at a time. Second, the log-ratio variations counteract this. The gap is negligible at $d = 2$ and widens with dimension; at $d = 256$ the wide-coverage $\X_{\hat\mu}$ becomes the best loss. Third, the QT-driven losses, $\X_{\hat\mu}$ and the mixture, overtake $\X_\mu$ alone at high dimension. $\X_\mu$ tracks the mixture through $d = 64$ but falls below the bare KL by $d = 256$, because it reweights the live one-step IS surrogate whose pushforward is poorly formed early in training. $\X_{\hat\mu}$ and the mixture hold their lead because the fixed QT set keeps the flow anchored on the wells even as the log-weight variance grows.
-
-At $d = 256$, i.e.\ $k = 8$, the nominal dimension is $256$ but the \emph{essential} dimension of the target is only $k = 8$: the potential \eqref{eq: highd-potential} is a double well in the first $8$ coordinates and a standard Gaussian in the remaining $248$, so the multimodality lives in an $8$-dimensional subspace, while the log-weight variance, and hence the ESS, still loads on all $256$. Here we train a single flow and sweep the AIS surrogate ladder length $M \in \{1, 2, 4, 8\}$ that builds the $\mu$-surrogate for the mixture loss, the inner ladder of Algorithm~\ref{alg: AIS}, distinct from the temperature ladder of Section~\ref{sec: boltzmann}. Increasing $M$ accelerates convergence in the first training stage, leaving the low ESS plateau sooner, but does not affect the long-time limit: the ESS curves differ only in the first stage and settle at a comparable value (Figure~\ref{fig: highd-ladder}). The ladder length is thus a first-stage accelerator rather than a determinant of the final flow quality.
+All four objectives use the same identity-initialized neural spline flow on $[-4,4]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. At every dimension, training uses batch size $250$, $2000$ Adam steps at learning rate $10^{-3}$, gradient clipping at $10^2$, and a source pool of size $10^4\,2^k$. The live target surrogate uses a single AIS hop followed by $50$ MALA steps of size $2\times10^{-3}$. Quench and temper uses a pool of size $100\,2^k$, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations. Final ESS is evaluated on $20000$ fresh source samples. Strict sign-pattern coverage counts a mode only if its empirical share exceeds half of the uniform share.
 
 \begin{table}[htb]
     \centering
@@ -558,139 +541,163 @@ At $d = 256$, i.e.\ $k = 8$, the nominal dimension is $256$ but the \emph{essent
         \toprule
         loss $\backslash$ $d$ & 2 & 4 & 8 & 16 & 32 & 64 & 128 & 256 \\
         \midrule
-        forward KL                                & 0.958 & 0.937 & 0.935 & 0.871 & 0.790 & 0.669 & 0.547 & 0.384 \\
-        $\KL{+}\X_\mu$                             & $\mathbf{0.998}$ & 0.983 & 0.972 & 0.961 & 0.893 & 0.845 & 0.657 & 0.333 \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$              & 0.987 & 0.990 & 0.973 & 0.955 & 0.948 & 0.835 & 0.750 & $\mathbf{0.565}$ \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$  & 0.986 & $\mathbf{0.992}$ & $\mathbf{0.975}$ & $\mathbf{0.969}$ & $\mathbf{0.953}$ & $\mathbf{0.878}$ & $\mathbf{0.767}$ & 0.543 \\
+        forward KL & 0.974 & 0.942 & 0.906 & 0.878 & 0.796 & 0.704 & 0.615 & 0.420 \\
+        $\KL{+}\X_\mu$ & 0.997 & 0.983 & 0.958 & 0.957 & 0.909 & 0.850 & 0.744 & 0.562 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & 0.996 & 0.983 & 0.959 & 0.952 & 0.923 & 0.875 & 0.744 & 0.585 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.998}$ & $\mathbf{0.985}$ & $\mathbf{0.963}$ & $\mathbf{0.960}$ & $\mathbf{0.941}$ & $\mathbf{0.887}$ & $\mathbf{0.791}$ & $\mathbf{0.596}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS of each loss on the product multi-well target \eqref{eq: highd-potential} across dimension $d = 2^k$, $k = 1,\dots,8$; the best per column is in bold.}
+    \caption{Final ESS on the product multi-well target \eqref{eq: highd-potential}. Every loss finds all $2^k$ modes under the strict coverage threshold; bold marks the best ESS in each dimension.}
     \label{tab: highd-ess}
 \end{table}
 
+Every loss finds every mode, so ESS is meaningful here. The forward KL degrades from $0.974$ at $d=2$ to $0.420$ at $d=256$ as coordinatewise fitting errors accumulate in the log weights. Adding $\X_\mu$ improves every dimension and reaches $0.562$ at $d=256$. The equal-weight mixture is best in every column, retaining ESS $0.941$ at $d=32$ and $0.596$ at $d=256$, a factor $1.42$ above the bare forward KL.
+
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.45\textwidth]{figures/HD_Product_Ladder/ESS_ladder.png}
-    \caption{ESS trajectory across training steps for the mixture loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ on the product multi-well at $d = 256$, as the AIS ladder length $M$ that builds the $\mu$-surrogate is varied over $\{1, 2, 4, 8\}$. Faint lines are the raw per-step ESS; bold lines are a moving average.}
-    \label{fig: highd-ladder}
+    \includegraphics[width=0.4\textwidth]{figures/HD_Product/ess_k8.png}
+    \caption{Per-step training ESS at $d=256$. Faint curves show raw histories and bold curves their moving averages. Forward KL rises quickly but plateaus near $0.44$; the objectives containing log-ratio variations continue improving, and the quench-and-temper mixtures finish in the highest band.}
+    \label{fig: highd-ess-history}
 \end{figure}
+
+Figure~\ref{fig: highd-ess-history} separates transient speed from final accuracy. Forward KL climbs fastest during roughly the first $500$ steps but saturates early. The $\X_\mu$ objective initially trails it and then overtakes it, while the two quench-and-temper mixtures combine the fast initial climb with the highest final ESS. Thus the gain in Table~\ref{tab: highd-ess} is not obtained by sacrificing the early training regime.
 
 \subsection{Lattice \texorpdfstring{$\phi^4$}{phi4} field theory: fake ESS at a collective barrier}
 \label{subsec: phi4}
 
-The scalar $\phi^4$ lattice theory is a standard testbed on which flow-based samplers collapse. We use its \emph{tilted} broken phase as a fake ESS instance. The target is the scalar $\phi^4$ field on a periodic $L \times L$ lattice, one real value $\phi_j$ per site, $\boldsymbol{\phi} \in \mathbb R^{d}$ with $d = L^2$, distributed as $\mu \propto e^{-U}$ with action
+The tilted scalar $\phi^4$ theory provides a sharp fake-ESS test. On a periodic $L\times L$ lattice, with $d=L^2$ and magnetization $m(\boldsymbol\phi)=d^{-1}\sum_j\phi_j$, the action is
 \begin{equation*}
-    U(\boldsymbol{\phi}) = -2\kappa_{\mathrm{lat}} \sum_{\langle j l \rangle} \phi_j \phi_l + \sum_{j=1}^{d} \Big[ \phi_j^2 + \lambda_4\big(\phi_j^2 - 1\big)^2 \Big] + h \sum_{j=1}^{d} \phi_j ,
+U(\boldsymbol\phi)
+=-2\kappa_{\mathrm{lat}}\sum_{\langle jl\rangle}\phi_j\phi_l
++\sum_{j=1}^{d}\left[\phi_j^2+\lambda_4(\phi_j^2-1)^2\right]
++h\sum_{j=1}^{d}\phi_j .
 \end{equation*}
-with $\langle j l \rangle$ running over nearest-neighbor pairs. In the broken phase the lattice orders into two aligned states near $\pm v\,\mathbf 1$, the uniform configurations of field value $\pm v$ ($\mathbf 1$ the all-ones vector), separated by a \emph{collective} barrier: the free energy of the domain wall any continuous path between them must build. The order parameter is the magnetization $m(\boldsymbol{\phi}) = \frac{1}{d}\sum_{j=1}^{d} \phi_j$, whose distribution is bimodal. The tilt $h$ breaks the symmetry and carries the design. At $h = 0$ the two vacua hold weight $\frac12$ each \emph{by symmetry}, so a collapsed flow loses nothing that symmetrization cannot restore, and equivariant architectures bypass the failure. With $h \ne 0$ the relative weight $p_+/p_- = e^{-\Delta F}$, with $p_+ = \mathbb P(m > 0)$ the weight of the minority phase, is a nontrivial number that the sampler must reproduce. We report $L = 6$ and $L = 8$. A classical pilot scan freezes the parameters: $\lambda_4 = \frac12$ throughout; $\kappa_{\mathrm{lat}} = 0.40$, $h = 0.0257$ at $L = 6$ and $\kappa_{\mathrm{lat}} = 0.40$, $h = 0.0144$ at $L = 8$, placing the measured barrier at $8.0$ and $10.2\,k_B T$ and the minority-phase weight at $p_+ = 0.128$ and $0.139$. The reference is parallel tempering with the Metropolis-adjusted Langevin algorithm (MALA) over an action-scaling ladder, completing $3.7\times 10^3$--$4.9\times 10^4$ ladder round trips per run.
+In the broken phase the field orders near two vacua $\pm v\mathbf 1$, separated by a collective domain-wall barrier. The tilt $h>0$ gives the two phases unequal probability, so the minority weight $p_+=\mathbb P(m>0)$ is not fixed by symmetry and must be learned.
 
-The protocol is the single-flow pipeline of Section~\ref{subsec: 2d-benchmark}, unchanged: a neural spline flow on $[-3,3]^d$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$; source $\mathcal N(0, 0.25\, I_d)$ centered on the barrier top; batch size $500$, $2000$ Adam steps at learning rate $10^{-3}$; the $\mu$-surrogate is the one importance-weighted resampling pass followed by $50$ Langevin steps; $\hat\mu$ is built once by QT on $U$, which lands in both vacua from $45$--$51\%$ of melted starts. Training carries a stability guard: a non-finite loss or gradient skips the gradient step under gradient clipping. Single-flow training is by design. A large lattice calls for the adaptive-temperature generator of Section~\ref{sec: boltzmann}, whose hot rungs mix the vacua by construction and would dissolve the failure under study. This benchmark isolates the regime in which the ESS diagnostic itself is misleading.
+We use $\lambda_4=\frac12$ and $\kappa_{\mathrm{lat}}=0.40$ at both sizes, with $h=0.0257$ for $L=6$ and $h=0.0144$ for $L=8$. Parallel tempering gives the references $p_+=0.125$ and $0.128$, consistent with an independent symmetry-confined MALA reweighting. Each loss is run at seeds $0,1,2$ using an identity-initialized neural spline flow on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.25I_d)$, centered on the barrier. Training uses a fixed set of $10^5$ source samples, batch size $500$, $2000$ Adam steps at learning rate $10^{-3}$, and gradient clipping at $10^3$. The live surrogate uses one AIS hop and $50$ MALA steps of size $2\times10^{-3}$. Quench and temper uses $2000$ particles, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.1$ and $200$ iterations.
 
 \begin{table}[htb]
     \centering
     \begin{tabular}{@{}l cc cc@{}}
         \toprule
-        & \multicolumn{2}{c}{$L = 6$ ($d = 36$)} & \multicolumn{2}{c}{$L = 8$ ($d = 64$)} \\
-        \cmidrule(lr){2-3} \cmidrule(lr){4-5}
+        & \multicolumn{2}{c}{$L=6$ ($d=36$)} & \multicolumn{2}{c}{$L=8$ ($d=64$)} \\
+        \cmidrule(lr){2-3}\cmidrule(lr){4-5}
         & ESS & $p_+$ & ESS & $p_+$ \\
         \midrule
-        forward KL & $0.77 \pm 0.04$ & $0,\,0,\,0$ & $0.57 \pm 0.09$ & $0,\,0,\,1$ \\
-        $\KL{+}\X_\mu$ & $0.93 \pm 0.01$ & $0,\,0,\,1$ & $0.81 \pm 0.01$ & $0,\,0,\,1$ \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & $0.88 \pm 0.01$ & $\mathbf{0.126 \pm 0.001}$ & $0.66 \pm 0.02$ & $\mathbf{0.127 \pm 0.001}$ \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $0.89 \pm 0.01$ & $\mathbf{0.124 \pm 0.002}$ & $0.68 \pm 0.02$ & $\mathbf{0.127 \pm 0.001}$ \\
+        forward KL
+        & $0.78/0.82/0.82$ & $1/1/0$
+        & $0.67/0.68/0.67$ & $1/0/1$ \\
+        $\KL{+}\X_\mu$
+        & $0.93/0.93/0.94$ & $1/1/0$
+        & $0.81/0.82/0.82$ & $1/0/0$ \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$
+        & $0.88/0.87/0.87$ & $0.127/0.128/0.126$
+        & $0.62/0.61/0.63$ & $0.127/0.126/0.124$ \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$
+        & $\mathbf{0.90/0.89/0.88}$ & $0.128/0.129/0.128$
+        & $\mathbf{0.67/0.68/0.71}$ & $0.130/0.129/0.130$ \\
         \midrule
-        PT reference & --- & $0.128$ & --- & $0.139$ \\
+        PT reference & --- & $0.125$ & --- & $0.128$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS and reweighted minority-phase weight $p_+$ on the tilted $\phi^4$ lattice, three seeds per size; for the collapsed losses the $p_+$ column lists the per-seed outcomes, $1$ denoting collapse onto the \emph{minority} vacuum. Bold marks the recovered phase weights.}
+    \caption{Final ESS and reweighted minority-phase weight $p_+$ for three seeds on the tilted $\phi^4$ lattice. Integer values $0$ and $1$ indicate collapse onto one vacuum. Bold marks the highest ESS among the objectives that recover both phases.}
     \label{tab: phi4}
 \end{table}
 
+Forward KL and $\KL{+}\X_\mu$ collapse at every size and seed. Because the AIS chain starts from the flow pushforward and cannot cross the collective barrier, the second vacuum remains absent and reweighting gives $p_+=0$ or $1$. Nevertheless, $\KL{+}\X_\mu$ has the highest ESS at both sizes: sharpening the captured vacuum improves calibration on the reached support while making the global failure no less severe.
+
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/Phi4_Lattice_8/fig_methods.png}
-    \caption{Magnetization density $p(m)$ on the $L = 8$ lattice, one panel per training loss. Each panel shows the pushforward density (gray), the reweighted density (color), and the PT reference (dotted); the title reports the final ESS and the reweighted $p_+$.}
+    \includegraphics[width=\textwidth]{figures/Lattice_Phi4/L8/fig_methods.png}
+    \caption{Magnetization density on the $L=8$ lattice at seed $0$. Each panel shows the pushforward density (gray), the reweighted density (color), and the parallel-tempering reference (dotted); the title reports ESS and the reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
 
-Table~\ref{tab: phi4} and Figure~\ref{fig: phi4-methods} report the outcome. Bare forward KL and $\KL{+}\X_\mu$ collapse at every size and every seed. The AIS chain initialized at the pushforward cannot cross an $8.0$--$10.2\,k_B T$ collective barrier, so the loss never sees the second vacuum, the reweighted $p_+$ is zero or one, and the estimated $\Delta F$ is infinite where the truth is finite. The collapse direction is unpredictable across seeds: at $L = 6$ one seed of $\KL{+}\X_\mu$ lands on the \emph{minority} vacuum at a high fake ESS, and at $L = 8$ both non-QT-driven losses do so, so $\Delta F$ comes out wrong in \emph{sign}. The fake ESS is high and reproducible for $\KL{+}\X_\mu$ at $L = 8$. It arises as follows: $\X_\mu$ penalizes the spread of $z$ over the batch, and with every batch confined to one well it sharpens the in-well fit, reducing the weight variance on the captured support. A variance-reducing term on a truncated support raises the restricted ESS while doing nothing for coverage. The ESS is thus highest where the collapse is most severe. The QT-driven losses repair both sizes at every seed: $p_+$ matches the reference with small seed spread, the minority well is well sampled rather than rescued by reweighting, and the cost over the collapsed runs is modest. This ESS gap has a topological reading. A diffeomorphism maps the connected Gaussian source to a connected pushforward, visible as the positive gray line across the barrier in Figure~\ref{fig: phi4-methods}, so any flow covering both vacua must thread mass through the inter-phase region where the target is exponentially small. That bridge carries near-zero weights, so a flow covering both vacua has a lower ESS than a collapsed one. A training signal driven by ESS alone would not favor covering both vacua; $\X_{\hat\mu}$ forces the discovery regardless. The repaired weight tracks the action, not the QT set: retraining at $L = 6$ with QT sets skewed to $5\%$ and $25\%$ minority composition returns the same $p_+$ throughout, the sample-robustness property of $\X_\omega$ in action. Stability-guard skips are confined to the QT-driven losses, the early-training cost of confronting cross-well log-ratio spreads.
-
-The same pattern persists at larger lattices but weakens: at $L = 12$ the collapsed losses still discard the minority phase while their ESS falls, and the QT-driven losses still cover both phases, correct in kind but expensive and drifting in weight. The fake ESS is thus most pronounced at moderate size, where it is high enough to mislead. Beyond it, single-flow training of either loss family is no longer appropriate and the annealed generator of Section~\ref{sec: boltzmann} takes over.
+Both quench-and-temper objectives populate both vacua at every seed. Their recovered $p_+$ lies between $0.124$ and $0.130$, within $0.004$ of the corresponding reference. This recovery has an unavoidable ESS cost: a diffeomorphism maps the connected Gaussian source to a connected pushforward, so covering both vacua forces a low-weight bridge across the suppressed inter-phase region. At $L=8$, the equal-weight mixture recovers part of this cost, with ESS $0.67$--$0.71$ rather than $0.61$--$0.63$ for the $\hat\mu$-only objective. The $\bar\nu$ component penalizes precisely the leaked bridge mass while preserving discovery.
 
 \subsection{Boltzmann generator on \texorpdfstring{$p$}{p}-state clock model}
 \label{subsec: clock}
 
-The preceding experiments train a single flow map. This experiment exercises the full adaptive-temperature procedure of Algorithm~\ref{alg: boltzmann}, contrasting the X-regularized stage loss \eqref{eq: stage-loss} against the bare forward KL through an otherwise identical pipeline. The target is the $p$-state clock model on a periodic $8 \times 8$ square lattice, one angle per site,
+The preceding benchmarks use a single flow. We now test the full annealed construction on the $p=6$ clock model on a periodic $8\times8$ lattice,
 \begin{equation}
-    U(\boldsymbol{\theta}) = -J \sum_{\langle j l \rangle} \cos(\theta_j - \theta_l) \;-\; h \sum_{j=1}^{d} \cos(p\, \theta_j),
-    \qquad \boldsymbol{\theta} \in [-\pi, \pi)^{d}, \quad d = 64,
-    \label{eq: clock-potential}
+U(\boldsymbol\theta)
+=-\sum_x\left[
+J\cos(\theta_x-\theta_{x+e_1})
++J\cos(\theta_x-\theta_{x+e_2})
++H\cos(p\theta_x)
+\right],
+\quad \boldsymbol\theta\in[-\pi,\pi)^{64},
+\label{eq: clock-potential}
 \end{equation}
-with nearest-neighbor coupling $J = 1$, $\mathbb{Z}_p$ anisotropy $h = \frac12$, and $p = 6$ clock states. For $p \Ge 5$ the model hosts two Berezinskii--Kosterlitz--Thouless (BKT) transitions enclosing a critical quasi-long-range-ordered phase \citep{jose1977renormalization}. The cold measure $\propto e^{-U}$ splits into $p = 6$ equivalent sectors labeled by the phase of the global magnetization
-\begin{equation*}
-    m(\boldsymbol{\theta}) = \frac{1}{d} \sum_{j=1}^{d} e^{i \theta_j},
-    \qquad
-    s(\boldsymbol{\theta}) = \Bigl\lfloor \frac{p \arg m(\boldsymbol{\theta})}{2\pi} \Bigr\rceil \bmod p \;\in\; \{0, \dots, 5\},
-\end{equation*}
-where $\lfloor \cdot \rceil$ denotes rounding to the nearest integer. The annealing path from the uniform measure to $\mu$ traverses the BKT window, where the correlation length grows rapidly and the six sectors deepen together. Figure~\ref{fig: clock-target} displays this structure on the trained validation set.
+with $J=1$ and $H=\frac12$. The source is uniform on the torus and the bridge is $U_t=tU$. At low temperature, the target separates into six symmetry-related clock sectors.
 
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Clock_Lattice/fig_clock_target.png}
-    \caption{Structure of the cold clock measure \eqref{eq: clock-potential} at $d = 64$, displayed on $10^6$ reweighted samples: fresh source draws advanced through the trained ladder by the map--reweight--resample step (v), X-regularized loss at $B = 10^4$. (a) Global magnetization $m(\boldsymbol{\theta})$, colored by sector index $s(\boldsymbol{\theta})$, $1500$ points per sector: the measure splits into $p = 6$ equivalent sectors with mean $|m| = 0.73$. (b) Site-angle marginal: the anisotropy locks each site to the six clock angles $2\pi s/6$, $s = 0, \dots, 5$; dashed lines bound the six wells, colored as in (c), and the black line marks the uniform density $\frac1{2\pi}$. The pushforward marginal is from the maps alone, without reweighting. (c) Sector occupancy of reweighted and pushforward samples, the black line marking the uniform occupancy $\frac16$.}
-    \label{fig: clock-target}
-\end{figure}
+Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ particles and the SMC and quench-and-temper pools each contain $10^5$ particles. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$, a four-rung training AIS surrogate with $100$ MALA steps of size $10^{-3}$, energy clipping at $10^3$, and gradient clipping at $10^2$. We test batch sizes $B=2000,1000,500,250,125$.
 
-The source is the uniform measure on the torus, $U_0 = 0$, so $U_t = t\, U$. Each stage map $G_k$ is a circular neural spline flow on $[-\pi, \pi)^{64}$ with $6$ coupling transforms, $16$ bins, and hidden widths $(256, 256)$. The protocol is large-sample: a validation set of $10^6$ samples, pool size $P = 2 \times 10^5$, safe start $t_{\mathrm{safe}} = 0.2$, shared ladder length $M = 4$, and SMC floor $\tau = 0.7$, which trims over-aggressive guesses before any training is spent. We report three batch sizes $B = 10^3$, $10^4$, $10^5$, with $2000$, $500$, $200$ Adam steps per stage; the remaining constants are those of Algorithm~\ref{alg: boltzmann}. Training carries a stability guard: a non-finite loss skips the gradient step under gradient clipping and a fresh batch is drawn, with a stage abort only after repeated skips. The two losses compared are the full stage loss \eqref{eq: stage-loss} at the balanced hyperparameters $\lambda = 1$, $\alpha = \beta = \frac12$, and the bare forward KL, its first term alone; everything else is shared.
+The comparison is schedule-matched. Forward KL first constructs an adaptive ladder using SMC preselection and an ESS acceptance gate. The loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ is then trained on the identical accepted values of $t$, without a second gate. Hence the two methods see the same bridge increments within each batch-size pair. Every configuration is a single run, so individual rung values carry single-run fluctuation.
 
-Table~\ref{tab: clock-ladder} reports the core metric, the validation ESS of step (v) on every accepted rung. Both losses complete the ladder at every batch size, along \emph{identical} ladders with \emph{identical} rejected rungs: the adaptive machinery converts loss quality into schedule, not into success or failure. Figure~\ref{fig: clock-curves} shows the per-step training ESS on the first three stages. The discrimination lives in the per-rung quality. On accepted rungs the X-regularized loss posts a higher validation ESS on stages 1--3 at all three batch sizes; the gap closes to zero in the transition window and reverses on a few late rungs. Wall time per pair is equal. A generalization check pushes $10^6$ independent source samples through the trained $B = 10^4$ ladders, stage by stage with the resampling of step (v): the fresh-sample per-stage ESS tracks the accepted-rung validation ESS of Table~\ref{tab: clock-ladder} for both losses, and the final sector occupancy is uniform per sector, so the gates measure generalization rather than memorization of the carried set.
+The principal metric is the validation ESS of each accepted increment. We define
+\[
+\text{propagation factor}\quad F:=\prod_k \mathrm{ESS}_k^{-1}
+\]
+estimates the factor by which staged reweighting enlarges Monte Carlo error across the full ladder. Smaller $F$ is better. Table~\ref{tab: clock-summary} reports every accepted rung and the resulting $F$.
 
 \begin{table}[htb]
     \centering
-    \begin{tabular}{@{}c cccccccc@{}}
+    \setlength{\tabcolsep}{2.2pt}
+    \begin{tabular}{@{}lccccccccccc@{}}
         \toprule
-        stage $k$ & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 \\
+        stage $k$ & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & $F$ \\
         \midrule
-        $t_k$ \;($B = 10^3$) & $0.200$ & $0.396$ & $0.530$ & $0.662$ & $0.753$ & $0.841$ & $0.952$ & $1.000$ \\
+        $t_k$ ($B=2000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ &  \\
+        forward KL & 0.752 & 0.572 & 0.499 & 0.506 & 0.527 & 0.630 & --- & --- & --- & --- & 27.7 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.919}$ & $\mathbf{0.767}$ & $\mathbf{0.643}$ & $\mathbf{0.587}$ & $\mathbf{0.578}$ & $\mathbf{0.664}$ & --- & --- & --- & --- & $\mathbf{9.8}$ \\
         \midrule
-        \multicolumn{1}{@{}l}{forward KL} & $0.391$ & $0.398$ & $0.463$ & $0.366$ & $0.467$ & $\mathbf{0.465}$ & $\mathbf{0.400}$ & $0.708$ \\
-        \multicolumn{1}{@{}l}{$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$} & $\mathbf{0.602}$ & $\mathbf{0.524}$ & $\mathbf{0.559}$ & $\mathbf{0.401}$ & $\mathbf{0.500}$ & $0.453$ & $0.369$ & $\mathbf{0.778}$ \\
+        $t_k$ ($B=1000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ &  \\
+        forward KL & 0.678 & 0.492 & 0.419 & 0.450 & 0.487 & 0.585 & --- & --- & --- & --- & 55.7 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.863}$ & $\mathbf{0.659}$ & $\mathbf{0.539}$ & $\mathbf{0.507}$ & $\mathbf{0.522}$ & $\mathbf{0.610}$ & --- & --- & --- & --- & $\mathbf{20.2}$ \\
         \midrule
-        $t_k$ \;($B = 10^4$) & $0.200$ & $0.396$ & $0.588$ & $0.720$ & $0.849$ & $1.000$ & --- & --- \\
+        $t_k$ ($B=500$) & 0.250 & 0.421 & 0.590 & 0.705 & 0.818 & 0.945 & 1.000 & $\times$ & $\times$ & $\times$ & \\
+        forward KL & 0.580 & 0.556 & 0.428 & 0.464 & 0.401 & 0.412 & 0.784 & --- & --- & --- & 120.9 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.778}$ & $\mathbf{0.705}$ & $\mathbf{0.530}$ & $\mathbf{0.535}$ & $\mathbf{0.430}$ & $\mathbf{0.416}$ & 0.784 & --- & --- & --- & $\mathbf{45.7}$ \\
         \midrule
-        \multicolumn{1}{@{}l}{forward KL} & $0.531$ & $0.523$ & $0.347$ & $0.396$ & $\mathbf{0.349}$ & $\mathbf{0.341}$ & --- & --- \\
-        \multicolumn{1}{@{}l}{$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$} & $\mathbf{0.703}$ & $\mathbf{0.628}$ & $\mathbf{0.381}$ & $\mathbf{0.412}$ & $0.336$ & $0.303$ & --- & --- \\
+        $t_k$ ($B=250$) & 0.250 & 0.421 & 0.539 & 0.654 & 0.734 & 0.811 & 0.887 & 1.000 & $\times$ & $\times$ & \\
+        forward KL & 0.470 & 0.464 & 0.512 & 0.428 & 0.522 & 0.493 & 0.534 & 0.476 & --- & --- & 319.6 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.662}$ & $\mathbf{0.603}$ & $\mathbf{0.625}$ & $\mathbf{0.503}$ & $\mathbf{0.584}$ & $\mathbf{0.540}$ & $\mathbf{0.564}$ & 0.476 & --- & --- & $\mathbf{94.1}$ \\
         \midrule
-        $t_k$ \;($B = 10^5$) & $0.200$ & $0.396$ & $0.588$ & $0.720$ & $0.849$ & $1.000$ & --- & --- \\
-        \midrule
-        \multicolumn{1}{@{}l}{forward KL} & $0.611$ & $0.602$ & $0.416$ & $0.461$ & $0.400$ & $\mathbf{0.387}$ & --- & --- \\
-        \multicolumn{1}{@{}l}{$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$} & $\mathbf{0.745}$ & $\mathbf{0.688}$ & $\mathbf{0.451}$ & $\mathbf{0.489}$ & $\mathbf{0.405}$ & $0.383$ & --- & --- \\
+        $t_k$ ($B=125$) & 0.175 & 0.295 & 0.413 & 0.528 & 0.607 & 0.685 & 0.761 & 0.835 & 0.908 & 1.000 & \\
+        forward KL & 0.455 & 0.506 & 0.472 & 0.434 & 0.533 & 0.514 & $\mathbf{0.514}$ & $\mathbf{0.547}$ & $\mathbf{0.601}$ & $\mathbf{0.515}$ & 891.1 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.656}$ & $\mathbf{0.698}$ & $\mathbf{0.637}$ & $\mathbf{0.553}$ & $\mathbf{0.634}$ & $\mathbf{0.559}$ & 0.509 & 0.501 & 0.559 & 0.496 & $\mathbf{246.3}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Validation ESS on every accepted rung, the acceptance gate of Algorithm~\ref{alg: boltzmann} with floor $\tau_{\mathrm v} = 0.3$, on the $p = 6$ clock model at $d = 64$; bold marks the better loss on each rung. Within each pair the two losses traverse the same accepted ladder and reject the same rungs, seven rejections per run at $B = 10^3$ and two at $B = 10^4$ and $10^5$.}
+    \caption{Validation ESS on every accepted rung of the schedule-matched clock-model comparison between forward KL and $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Within each batch-size block, both losses traverse the same ladder. The final column is $F=\prod_k\mathrm{ESS}_k^{-1}$; bold marks the better loss on each rung and the smaller $F$.}
+    \label{tab: clock-summary}
     \label{tab: clock-ladder}
 \end{table}
 
+The loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ raises the geometric mean rung ESS by $0.07$--$0.11$ at every batch size and reduces $F$ by a factor between $2.6$ and $3.6$. The advantage therefore persists at the largest batch $B=2000$, where $F$ decreases from $27.7$ to $9.8$. As the batch shrinks, both ladders lengthen, from $6$ rungs at $B=2000$ to $10$ at $B=125$, and error propagation grows sharply.
+
+The improvement is concentrated on early and middle rungs. There the bridge deformation is large but smooth, so fitting accuracy is the binding constraint. Near $t=1$, the six sectors separate and the problem shifts from fitting within sectors to transporting their relative mass. Reweighting, common to both losses, performs that redistribution. At $B=125$, forward KL is slightly better on the final four rungs, where quench-and-temper discovers sectors but does not assign their exact weights. This is the main limitation observed in the ladder experiment. By $B\geq1000$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ again leads on every rung.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/Clock_Lattice/fig_clock_esscurves.png}
-    \caption{Per-step ESS of the training surrogate on the first three stages, bare forward KL (blue) versus the X-regularized loss (red); rows $B = 10^3$, $10^4$, $10^5$, one panel per stage.}
-    \label{fig: clock-curves}
+    \includegraphics[width=0.7\textwidth]{figures/Lattice_Clock/clock_marginals.png}
+    \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ ladder by map, reweighting, resampling, and MALA. The single-site marginal peaks at the six clock angles. Pair-difference densities at increasing lattice separation retain an alignment peak at zero while transferring mass toward neighboring clock wells and the tails.}
+    \label{fig: clock-marginals}
 \end{figure}
 
-The pattern is consistent with the theory: the X terms lower the asymptotic accuracy floor of each stage (Section~\ref{subsec: accuracy}), a larger training \emph{limit}, but promise no faster transient, and the rejected-rung values confirm that the bare forward KL trains no slower. The anatomy of the ladder shows where the gain lives. The early bridges, $t \Le 0.66$, are far but smooth: a large, structurally simple deformation with a clean AIS signal, so the training loss is the binding constraint and the X terms win by up to $+0.21$. In the transition window, $t \approx 0.66$--$0.95$, the selector halves the accepted increment, a readout of the annealing bottleneck at the BKT crossing; there the ceiling is set by the critically slow Langevin rejuvenation and the shared network capacity, constraints common to both losses, so the gap collapses to zero. The final hop to $t = 1$ is the easiest rung for both. On this target the six sectors are never isolated (Figure~\ref{fig: clock-target}(a)), so the mode discovery channel of $\X_{\hat\mu}$ is not load-bearing; the separations of Sections~\ref{subsec: 2d-benchmark}--\ref{subsec: highd}, where modes are isolated by construction, do not transfer to soft multimodality. What transfers is a net per-rung quality improvement, concentrated on the early bridges, at zero extra cost: the X-regularized loss was never worse than the bare forward KL where it mattered and never failed where the bare loss passed.
-
-The trained ladder is used as a staged sampler: each stage applies its map $G_k^{-1}$ and then reweights and resamples as in step (v), and Figure~\ref{fig: clock-target}(c) shows the resulting occupancy. The weights of step (v) are pointwise density ratios, exchangeable within a sector and hence sector-blind: they neither detect the imbalance, seeded by the slight flow bias that the i.i.d. pushforward exposes, nor correct it; the cold Langevin rejuvenation transports no mass between sectors; and the final validation set is resampled, carrying no weights at all. The occupancy is thus unbiased in expectation over runs but unrestored within any single one, and the per-stage fluctuations accumulate along the ladder. A scaling test quantifies the accumulation. Rebuilding fresh sample sets of size $N = 10^4 \cdot 2^k$, $k = 0, \dots, 7$, through the trained $B = 10^4$ ladder, with $2^{7-k}$ independent rebuilds per size, the mean occupancy bias $\frac{1}{6}\sum_{s}|p_s - \frac16|$ contracts at the fitted rate $N^{-0.34}$, shown in Figure~\ref{fig: clock-occbias}. This is slower than the Monte Carlo rate $N^{-1/2}$ of a single multinomial draw: the staged sampler composes six map--reweight--resample steps, and each resampling correlates the surviving lineages, so the effective number of independent sector draws grows sublinearly in $N$. Coverage, ESS, and occupancy evenness are three distinct axes of sample quality; the failure that no post-processing could repair, a \emph{missing} sector, does not occur for either loss.
+All six sectors are found at every batch size. To test whether staged resampling preserves their symmetry, we rebuild fresh samples through the trained $B=2000$ ladders at sizes $N=10^4\,2^k$, $k=0,\ldots,8$, using equal total work of $2.56\times10^6$ particles per row. We define
+\[
+\operatorname{occupancy\ bias}:=\frac16\sum_{s=0}^{5}\left|p_s-\frac16\right|.
+\]
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.5\textwidth]{figures/Clock_Lattice/occupancy_bias_B10k.png}
-    \caption{Occupancy bias of fresh staged rebuilds through the trained $B = 10^4$ ladder of the X-regularized loss, versus rebuild size $N = 10^4 \cdot 2^k$, $k = 0, \dots, 7$, averaged over $2^{7-k}$ independent rebuilds per size at equal total work; error bars are $\pm 2$ standard errors. The dashed line is the Monte Carlo reference $N^{-1/2}$.}
-    \label{fig: clock-occbias}
+    \includegraphics[width=0.55\textwidth]{figures/Lattice_Clock/occupancy_bias_B2000.png}
+    \caption{Clock-sector occupancy bias versus fresh rebuild size. Error bars are $\pm2$ standard errors, and the dashed line is an $N^{-1/2}$ reference anchored at the smallest $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ point. Each curve replays one trained ladder, so the cross-loss comparison retains the single-run qualification.}
+    \label{fig: clock-occupancy}
 \end{figure}
 
-
+Both losses approach the Monte Carlo scaling rate: fitted log--log slopes are $-0.474$ for forward KL and $-0.584$ for $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. The $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ ladder has lower occupancy bias at every tested size and reaches $6.4\times10^{-4}$ at $N=2.56\times10^6$. The largest-$N$ point of each curve is a single rebuild and therefore influences the fitted slopes. Together with Table~\ref{tab: clock-summary}, this shows that the per-rung ESS improvement survives composition without hiding a sector imbalance, while the late-rung reversal remains confined to the smallest-batch corner.
 % ===================== Section 6: molecular (FULL verbatim) =====================
 \section{Boltzmann generators on molecular potential energies}
 \label{sec: molecular}

@@ -1,0 +1,57 @@
+[08:41:24] ##### ADP IMPLICIT (amber96+OBC) BG  d=60  method=asmc  pool=64000 batch=12000 valid=200000 steps=500 delta=0.0 drop=0.02 device=cuda #####
+[08:41:24]   force field=amber96+amber96_obc (L-alanine start)  e_anneal=100.0->200.0 (arithmetic)  r_anneal=0.2->0.1  grad_clip=10  gate_snapshot=True
+[08:41:24]   build implicit system + short implicit MD for whitening stats ...
+[08:41:35]   torch force field has_gb=True  (implicit-solvent target active)
+[08:43:02]     [select] t_k=0.1000  SMC ESS_min=0.971 rungs<0.75: 0/6 (accept)
+[08:43:02] [stage 1] t_{k-1}=0.0000 -> t_k=0.1000 (SMC ESS_min=0.971, 0 shrinks)
+[08:43:03] [stage 1] attempt 1: ACCEPT direct ESS=0.555 (floor 0.5)
+[08:44:33] [stage 1] sharpen e 100.0->110.0  r 0.200->0.190  sharpen ESS=0.977
+[08:44:36]     [select] t_k=0.2400  SMC ESS_min=0.916 rungs<0.75: 0/6 (accept)
+[08:44:36] [stage 2] t_{k-1}=0.1000 -> t_k=0.2400 (SMC ESS_min=0.916, 0 shrinks)
+[08:44:36] [stage 2] attempt 1: direct ESS=0.377 < 0.5 -> shrink t_k
+[08:44:36] [stage 2] attempt 2: ACCEPT direct ESS=0.552 (floor 0.5)
+[08:44:51] [stage 2] sharpen e 110.0->119.8  r 0.190->0.180  sharpen ESS=0.965
+[08:44:54]     [select] t_k=0.3352  SMC ESS_min=0.534 rungs<0.75: 1/6 (shrink)
+[08:44:55]     [select] t_k=0.2940  SMC ESS_min=0.733 rungs<0.75: 1/6 (shrink)
+[08:44:56]     [select] t_k=0.2652  SMC ESS_min=0.921 rungs<0.75: 0/6 (accept)
+[08:44:56] [stage 3] t_{k-1}=0.1980 -> t_k=0.2652 (SMC ESS_min=0.921, 2 shrinks)
+[08:44:56] [stage 3] attempt 1: ACCEPT direct ESS=0.730 (floor 0.5)
+[08:45:10] [stage 3] sharpen e 119.8->126.5  r 0.180->0.173  sharpen ESS=0.991
+[08:45:13]     [select] t_k=0.3593  SMC ESS_min=0.702 rungs<0.75: 1/6 (shrink)
+[08:45:14]     [select] t_k=0.3311  SMC ESS_min=0.783 rungs<0.75: 0/6 (accept)
+[08:45:14] [stage 4] t_{k-1}=0.2652 -> t_k=0.3311 (SMC ESS_min=0.783, 1 shrinks)
+[08:45:14] [stage 4] attempt 1: ACCEPT direct ESS=0.671 (floor 0.5)
+[08:45:29] [stage 4] sharpen e 126.5->133.1  r 0.173->0.167  sharpen ESS=0.990
+[08:45:32]     [select] t_k=0.4233  SMC ESS_min=0.679 rungs<0.75: 1/6 (shrink)
+[08:45:33]     [select] t_k=0.3957  SMC ESS_min=0.813 rungs<0.75: 0/6 (accept)
+[08:45:33] [stage 5] t_{k-1}=0.3311 -> t_k=0.3957 (SMC ESS_min=0.813, 1 shrinks)
+[08:45:33] [stage 5] attempt 1: direct ESS=0.176 < 0.5 -> shrink t_k
+[08:45:33] [stage 5] attempt 2: direct ESS=0.333 < 0.5 -> shrink t_k
+[08:45:33] [stage 5] attempt 3: ACCEPT direct ESS=0.562 (floor 0.5)
+[08:45:48] [stage 5] sharpen e 133.1->136.3  r 0.167->0.164  sharpen ESS=1.000
+[08:45:51]     [select] t_k=0.4070  SMC ESS_min=0.957 rungs<0.75: 0/6 (accept)
+[08:45:51] [stage 6] t_{k-1}=0.3627 -> t_k=0.4070 (SMC ESS_min=0.957, 0 shrinks)
+[08:45:51] [stage 6] attempt 1: ACCEPT direct ESS=0.591 (floor 0.5)
+[08:46:06] [stage 6] sharpen e 136.3->140.7  r 0.164->0.159  sharpen ESS=1.000
+[08:46:09]     [select] t_k=0.4690  SMC ESS_min=0.990 rungs<0.75: 0/6 (accept)
+[08:46:09] [stage 7] t_{k-1}=0.4070 -> t_k=0.4690 (SMC ESS_min=0.990, 0 shrinks)
+[08:46:09] [stage 7] attempt 1: ACCEPT direct ESS=0.766 (floor 0.5)
+[08:46:24] [stage 7] sharpen e 140.7->146.9  r 0.159->0.153  sharpen ESS=1.000
+[08:46:27]     [select] t_k=0.5559  SMC ESS_min=0.987 rungs<0.75: 0/6 (accept)
+[08:46:27] [stage 8] t_{k-1}=0.4690 -> t_k=0.5559 (SMC ESS_min=0.987, 0 shrinks)
+[08:46:27] [stage 8] attempt 1: ACCEPT direct ESS=0.735 (floor 0.5)
+[08:46:41] [stage 8] sharpen e 146.9->155.6  r 0.153->0.144  sharpen ESS=1.000
+[08:46:44]     [select] t_k=0.6774  SMC ESS_min=0.984 rungs<0.75: 0/6 (accept)
+[08:46:44] [stage 9] t_{k-1}=0.5559 -> t_k=0.6774 (SMC ESS_min=0.984, 0 shrinks)
+[08:46:44] [stage 9] attempt 1: ACCEPT direct ESS=0.691 (floor 0.5)
+[08:46:59] [stage 9] sharpen e 155.6->167.7  r 0.144->0.132  sharpen ESS=1.000
+[08:47:02]     [select] t_k=0.8476  SMC ESS_min=0.980 rungs<0.75: 0/6 (accept)
+[08:47:02] [stage 10] t_{k-1}=0.6774 -> t_k=0.8476 (SMC ESS_min=0.980, 0 shrinks)
+[08:47:02] [stage 10] attempt 1: ACCEPT direct ESS=0.653 (floor 0.5)
+[08:47:17] [stage 10] sharpen e 167.7->184.8  r 0.132->0.115  sharpen ESS=1.000
+[08:47:20]     [select] t_k=1.0000  SMC ESS_min=0.990 rungs<0.75: 0/6 (accept)
+[08:47:20] [stage 11] t_{k-1}=0.8476 -> t_k=1.0000 (SMC ESS_min=0.990, 0 shrinks)
+[08:47:20] [stage 11] attempt 1: ACCEPT direct ESS=0.786 (floor 0.5)
+[08:47:35] [stage 11] sharpen e 184.8->200.0  r 0.115->0.100  sharpen ESS=1.000
+[08:47:35] ##### DONE complete=True  K=11  val_ess=[0.5552, 0.5522, 0.7302, 0.6705, 0.5621, 0.5912, 0.7663, 0.7353, 0.6912, 0.6534, 0.7856]  sharpen_ess=[0.977, 0.9654, 0.9913, 0.9901, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]  wall=360s #####
+[08:47:35] saved -> data_asmc.pth

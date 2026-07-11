@@ -1,0 +1,13 @@
+seed,method,final_ess,p_plus
+0,KL,0.7842,1.0
+0,KL+X_mu,0.9331,1.0
+0,KL+X_mu+X_hat_mu,0.8758,0.1268
+0,KL+X_mu+X_mix,0.8962,0.1278
+1,KL,0.8243,1.0
+1,KL+X_mu,0.9275,1.0
+1,KL+X_mu+X_hat_mu,0.8659,0.1276
+1,KL+X_mu+X_mix,0.8921,0.1285
+2,KL,0.8183,0.0
+2,KL+X_mu,0.9386,0.0
+2,KL+X_mu+X_hat_mu,0.8695,0.1261
+2,KL+X_mu+X_mix,0.8819,0.1284

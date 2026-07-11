@@ -8,6 +8,7 @@
 *.pth
 *.pt
 *.npz
+*.eqx
 
 # Python bytecode caches
 __pycache__/
@@ -42,4 +43,3 @@ Molecular_BG/*/run.py
 
 # Working lit-review notes (not part of the manuscript)
 Paper/references.md
-

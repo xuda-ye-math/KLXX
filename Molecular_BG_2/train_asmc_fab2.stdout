@@ -1,0 +1,104 @@
+[09:59:07] ##### ADP IMPLICIT (amber96+OBC) BG  d=60  method=asmc  pool=64000 batch=12000 valid=200000 steps=500 delta=0.0 drop=0.02 device=cuda #####
+[09:59:07]   force field=amber96+amber96_obc (L-alanine start)  FAB linlog singular potential, fixed (no anneal/sharpen)  grad_clip=10  gate_snapshot=True
+[09:59:07]   build implicit system + short implicit MD for whitening stats ...
+[09:59:17]   torch force field has_gb=True  reg_mode=linlog (energy_cut=1e+08 energy_max=1e+20, r_floor=0.001)  (implicit-solvent target active)
+[09:59:17]   ASMC on singular potential: taming=0.01  screen_window=300.0 kT
+[09:59:41]     [screen] kept 0.25% clash-free (reduced Emin=456.6, window=300.0)
+[09:59:44]     [select] t_k=0.1000  SMC ESS_min=0.361 rungs<0.75: 5/6 (shrink)
+[09:59:45]     [select] t_k=0.0700  SMC ESS_min=0.475 rungs<0.75: 3/6 (shrink)
+[09:59:46]     [select] t_k=0.0490  SMC ESS_min=0.626 rungs<0.75: 2/6 (shrink)
+[09:59:47]     [select] t_k=0.0343  SMC ESS_min=0.775 rungs<0.75: 0/6 (accept)
+[09:59:47] [stage 1] t_{k-1}=0.0000 -> t_k=0.0343 (SMC ESS_min=0.775, 3 shrinks)
+[09:59:48] [stage 1] attempt 1: direct ESS=0.117 < 0.5 -> shrink t_k
+[09:59:48] [stage 1] attempt 2: direct ESS=0.237 < 0.5 -> shrink t_k
+[09:59:48] [stage 1] attempt 3: direct ESS=0.432 < 0.5 -> shrink t_k
+[09:59:48] [stage 1] attempt 4: ACCEPT direct ESS=0.646 (floor 0.5)
+[09:59:58] [stage 1] accept t_k=0.0118  val_ess=0.646
+[09:59:58]     [screen] kept 35.23% clash-free (reduced Emin=318.2, window=300.0)
+[10:00:01]     [select] t_k=0.0282  SMC ESS_min=0.915 rungs<0.75: 0/6 (accept)
+[10:00:01] [stage 2] t_{k-1}=0.0118 -> t_k=0.0282 (SMC ESS_min=0.915, 0 shrinks)
+[10:00:01] [stage 2] attempt 1: direct ESS=0.272 < 0.5 -> shrink t_k
+[10:00:01] [stage 2] attempt 2: direct ESS=0.415 < 0.5 -> shrink t_k
+[10:00:01] [stage 2] attempt 3: ACCEPT direct ESS=0.575 (floor 0.5)
+[10:00:09] [stage 2] accept t_k=0.0198  val_ess=0.575
+[10:00:09]     [screen] kept 54.40% clash-free (reduced Emin=288.1, window=300.0)
+[10:00:12]     [select] t_k=0.0311  SMC ESS_min=0.971 rungs<0.75: 0/6 (accept)
+[10:00:12] [stage 3] t_{k-1}=0.0198 -> t_k=0.0311 (SMC ESS_min=0.971, 0 shrinks)
+[10:00:12] [stage 3] attempt 1: ACCEPT direct ESS=0.521 (floor 0.5)
+[10:00:20] [stage 3] accept t_k=0.0311  val_ess=0.521
+[10:00:20]     [screen] kept 80.46% clash-free (reduced Emin=268.3, window=300.0)
+[10:00:23]     [select] t_k=0.0470  SMC ESS_min=0.964 rungs<0.75: 0/6 (accept)
+[10:00:23] [stage 4] t_{k-1}=0.0311 -> t_k=0.0470 (SMC ESS_min=0.964, 0 shrinks)
+[10:00:23] [stage 4] attempt 1: direct ESS=0.491 < 0.5 -> shrink t_k
+[10:00:23] [stage 4] attempt 2: ACCEPT direct ESS=0.647 (floor 0.5)
+[10:00:31] [stage 4] accept t_k=0.0422  val_ess=0.647
+[10:00:31]     [screen] kept 93.68% clash-free (reduced Emin=259.8, window=300.0)
+[10:00:34]     [select] t_k=0.0577  SMC ESS_min=0.976 rungs<0.75: 0/6 (accept)
+[10:00:34] [stage 5] t_{k-1}=0.0422 -> t_k=0.0577 (SMC ESS_min=0.976, 0 shrinks)
+[10:00:34] [stage 5] attempt 1: ACCEPT direct ESS=0.594 (floor 0.5)
+[10:00:42] [stage 5] accept t_k=0.0577  val_ess=0.594
+[10:00:42]     [screen] kept 98.97% clash-free (reduced Emin=251.4, window=300.0)
+[10:00:45]     [select] t_k=0.0794  SMC ESS_min=0.969 rungs<0.75: 0/6 (accept)
+[10:00:45] [stage 6] t_{k-1}=0.0577 -> t_k=0.0794 (SMC ESS_min=0.969, 0 shrinks)
+[10:00:45] [stage 6] attempt 1: ACCEPT direct ESS=0.556 (floor 0.5)
+[10:00:53] [stage 6] accept t_k=0.0794  val_ess=0.556
+[10:00:53]     [screen] kept 99.82% clash-free (reduced Emin=239.9, window=300.0)
+[10:00:56]     [select] t_k=0.1098  SMC ESS_min=0.964 rungs<0.75: 0/6 (accept)
+[10:00:56] [stage 7] t_{k-1}=0.0794 -> t_k=0.1098 (SMC ESS_min=0.964, 0 shrinks)
+[10:00:56] [stage 7] attempt 1: ACCEPT direct ESS=0.519 (floor 0.5)
+[10:01:04] [stage 7] accept t_k=0.1098  val_ess=0.519
+[10:01:04]     [screen] kept 99.96% clash-free (reduced Emin=235.9, window=300.0)
+[10:01:07]     [select] t_k=0.1523  SMC ESS_min=0.957 rungs<0.75: 0/6 (accept)
+[10:01:07] [stage 8] t_{k-1}=0.1098 -> t_k=0.1523 (SMC ESS_min=0.957, 0 shrinks)
+[10:01:07] [stage 8] attempt 1: direct ESS=0.476 < 0.5 -> shrink t_k
+[10:01:07] [stage 8] attempt 2: ACCEPT direct ESS=0.635 (floor 0.5)
+[10:01:15] [stage 8] accept t_k=0.1396  val_ess=0.635
+[10:01:15]     [screen] kept 99.96% clash-free (reduced Emin=229.5, window=300.0)
+[10:01:18]     [select] t_k=0.1813  SMC ESS_min=0.971 rungs<0.75: 0/6 (accept)
+[10:01:18] [stage 9] t_{k-1}=0.1396 -> t_k=0.1813 (SMC ESS_min=0.971, 0 shrinks)
+[10:01:19] [stage 9] attempt 1: ACCEPT direct ESS=0.565 (floor 0.5)
+[10:01:26] [stage 9] accept t_k=0.1813  val_ess=0.565
+[10:01:26]     [screen] kept 99.99% clash-free (reduced Emin=223.6, window=300.0)
+[10:01:30]     [select] t_k=0.2396  SMC ESS_min=0.963 rungs<0.75: 0/6 (accept)
+[10:01:30] [stage 10] t_{k-1}=0.1813 -> t_k=0.2396 (SMC ESS_min=0.963, 0 shrinks)
+[10:01:30] [stage 10] attempt 1: ACCEPT direct ESS=0.506 (floor 0.5)
+[10:01:37] [stage 10] accept t_k=0.2396  val_ess=0.506
+[10:01:37]     [screen] kept 99.99% clash-free (reduced Emin=226.2, window=300.0)
+[10:01:41]     [select] t_k=0.3213  SMC ESS_min=0.956 rungs<0.75: 0/6 (accept)
+[10:01:41] [stage 11] t_{k-1}=0.2396 -> t_k=0.3213 (SMC ESS_min=0.956, 0 shrinks)
+[10:01:41] [stage 11] attempt 1: direct ESS=0.472 < 0.5 -> shrink t_k
+[10:01:41] [stage 11] attempt 2: ACCEPT direct ESS=0.627 (floor 0.5)
+[10:01:48] [stage 11] accept t_k=0.2968  val_ess=0.627
+[10:01:48]     [screen] kept 99.99% clash-free (reduced Emin=223.3, window=300.0)
+[10:01:52]     [select] t_k=0.3769  SMC ESS_min=0.970 rungs<0.75: 0/6 (accept)
+[10:01:52] [stage 12] t_{k-1}=0.2968 -> t_k=0.3769 (SMC ESS_min=0.970, 0 shrinks)
+[10:01:52] [stage 12] attempt 1: ACCEPT direct ESS=0.570 (floor 0.5)
+[10:01:59] [stage 12] accept t_k=0.3769  val_ess=0.570
+[10:01:59]     [screen] kept 100.00% clash-free (reduced Emin=219.2, window=300.0)
+[10:02:03]     [select] t_k=0.4890  SMC ESS_min=0.962 rungs<0.75: 0/6 (accept)
+[10:02:03] [stage 13] t_{k-1}=0.3769 -> t_k=0.4890 (SMC ESS_min=0.962, 0 shrinks)
+[10:02:03] [stage 13] attempt 1: ACCEPT direct ESS=0.513 (floor 0.5)
+[10:02:10] [stage 13] accept t_k=0.4890  val_ess=0.513
+[10:02:11]     [screen] kept 100.00% clash-free (reduced Emin=218.8, window=300.0)
+[10:02:14]     [select] t_k=0.6459  SMC ESS_min=0.953 rungs<0.75: 0/6 (accept)
+[10:02:14] [stage 14] t_{k-1}=0.4890 -> t_k=0.6459 (SMC ESS_min=0.953, 0 shrinks)
+[10:02:14] [stage 14] attempt 1: direct ESS=0.459 < 0.5 -> shrink t_k
+[10:02:14] [stage 14] attempt 2: ACCEPT direct ESS=0.616 (floor 0.5)
+[10:02:22] [stage 14] accept t_k=0.5989  val_ess=0.616
+[10:02:22]     [screen] kept 100.00% clash-free (reduced Emin=216.1, window=300.0)
+[10:02:25]     [select] t_k=0.7527  SMC ESS_min=0.967 rungs<0.75: 0/6 (accept)
+[10:02:25] [stage 15] t_{k-1}=0.5989 -> t_k=0.7527 (SMC ESS_min=0.967, 0 shrinks)
+[10:02:25] [stage 15] attempt 1: ACCEPT direct ESS=0.539 (floor 0.5)
+[10:02:33] [stage 15] accept t_k=0.7527  val_ess=0.539
+[10:02:36]     [select] t_k=0.9680  SMC ESS_min=0.954 rungs<0.75: 0/6 (accept)
+[10:02:36] [stage 16] t_{k-1}=0.7527 -> t_k=1.0000 (SMC ESS_min=0.954, 0 shrinks)
+[10:02:36] [stage 16] attempt 1: direct ESS=0.402 < 0.5 -> shrink t_k
+[10:02:36] [stage 16] attempt 2: ACCEPT direct ESS=0.559 (floor 0.5)
+[10:02:44] [stage 16] accept t_k=0.9258  val_ess=0.559
+[10:02:47]     [select] t_k=1.0000  SMC ESS_min=0.995 rungs<0.75: 0/6 (accept)
+[10:02:47] [stage 17] t_{k-1}=0.9258 -> t_k=1.0000 (SMC ESS_min=0.995, 0 shrinks)
+[10:02:47] [stage 17] attempt 1: ACCEPT direct ESS=0.884 (floor 0.5)
+[10:02:55] [stage 17] accept t_k=1.0000  val_ess=0.884
+[10:02:55] ##### DONE complete=True  K=17  val_ess=[0.646, 0.5745, 0.5209, 0.647, 0.5943, 0.5558, 0.5188, 0.635, 0.5653, 0.5064, 0.6272, 0.5704, 0.5131, 0.6161, 0.5388, 0.5593, 0.8841]  wall=217s #####
+[10:02:55]   Ramachandran: 200000 samples  frac(phi>0)=0.577
+[10:02:55] saved -> data_asmc_fab_nosharpen.pth  and  ramachandran_asmc.npz

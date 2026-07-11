@@ -1,0 +1,180 @@
+[09:41:12] ##### ADP IMPLICIT (amber96+OBC) BG  d=60  method=asmc  pool=64000 batch=12000 valid=200000 steps=500 delta=0.0 drop=0.02 device=cuda #####
+[09:41:12]   force field=amber96+amber96_obc (L-alanine start)  FAB linlog singular potential, fixed (no anneal/sharpen)  grad_clip=10  gate_snapshot=True
+[09:41:12]   build implicit system + short implicit MD for whitening stats ...
+[09:41:22]   torch force field has_gb=True  reg_mode=linlog (energy_cut=1e+08 energy_max=1e+20, r_floor=0.001)  (implicit-solvent target active)
+[09:42:20]     [select] t_k=0.1000  SMC ESS_min=0.001 rungs<0.75: 6/6 (shrink)
+[09:42:21]     [select] t_k=0.0700  SMC ESS_min=0.000 rungs<0.75: 6/6 (shrink)
+[09:42:22]     [select] t_k=0.0490  SMC ESS_min=0.000 rungs<0.75: 6/6 (shrink)
+[09:42:23]     [select] t_k=0.0343  SMC ESS_min=0.000 rungs<0.75: 6/6 (shrink)
+[09:42:24]     [select] t_k=0.0240  SMC ESS_min=0.019 rungs<0.75: 3/6 (shrink)
+[09:42:25]     [select] t_k=0.0168  SMC ESS_min=0.056 rungs<0.75: 6/6 (shrink)
+[09:42:26]     [select] t_k=0.0118  SMC ESS_min=0.061 rungs<0.75: 6/6 (shrink)
+[09:42:27]     [select] t_k=0.0082  SMC ESS_min=0.112 rungs<0.75: 3/6 (shrink)
+[09:42:28]     [select] t_k=0.0058  SMC ESS_min=0.143 rungs<0.75: 2/6 (shrink)
+[09:42:29]     [select] t_k=0.0040  SMC ESS_min=0.175 rungs<0.75: 1/6 (shrink)
+[09:42:30]     [select] t_k=0.0028  SMC ESS_min=0.208 rungs<0.75: 2/6 (shrink)
+[09:42:31]     [select] t_k=0.0020  SMC ESS_min=0.240 rungs<0.75: 3/6 (shrink)
+[09:42:32]     [select] t_k=0.0014  SMC ESS_min=0.273 rungs<0.75: 2/6 (shrink)
+[09:42:33]     [select] t_k=0.0010  SMC ESS_min=0.306 rungs<0.75: 1/6 (shrink)
+[09:42:34]     [select] t_k=0.0007  SMC ESS_min=0.337 rungs<0.75: 1/6 (shrink)
+[09:42:35]     [select] t_k=0.0005  SMC ESS_min=0.368 rungs<0.75: 1/6 (shrink)
+[09:42:36]     [select] t_k=0.0003  SMC ESS_min=0.397 rungs<0.75: 1/6 (shrink)
+[09:42:37]     [select] t_k=0.0002  SMC ESS_min=0.424 rungs<0.75: 1/6 (shrink)
+[09:42:38]     [select] t_k=0.0002  SMC ESS_min=0.450 rungs<0.75: 1/6 (shrink)
+[09:42:39]     [select] t_k=0.0001  SMC ESS_min=0.474 rungs<0.75: 1/6 (shrink)
+[09:42:40]     [select] t_k=0.0001  SMC ESS_min=0.496 rungs<0.75: 1/6 (shrink)
+[09:42:41]     [select] t_k=0.0001  SMC ESS_min=0.520 rungs<0.75: 1/6 (shrink)
+[09:42:42]     [select] t_k=0.0000  SMC ESS_min=0.551 rungs<0.75: 1/6 (shrink)
+[09:42:43]     [select] t_k=0.0000  SMC ESS_min=0.601 rungs<0.75: 1/6 (shrink)
+[09:42:44]     [select] t_k=0.0000  SMC ESS_min=0.676 rungs<0.75: 1/6 (shrink)
+[09:42:45]     [select] t_k=0.0000  SMC ESS_min=0.766 rungs<0.75: 0/6 (accept)
+[09:42:45] [stage 1] t_{k-1}=0.0000 -> t_k=0.0000 (SMC ESS_min=0.766, 25 shrinks)
+[09:42:46] [stage 1] attempt 1: direct ESS=0.490 < 0.5 -> shrink t_k
+[09:42:46] [stage 1] attempt 2: ACCEPT direct ESS=0.513 (floor 0.5)
+[09:43:50] [stage 1] accept t_k=0.0000  val_ess=0.513
+[09:43:54]     [select] t_k=0.0001  SMC ESS_min=0.981 rungs<0.75: 0/6 (accept)
+[09:43:54] [stage 2] t_{k-1}=0.0000 -> t_k=0.0001 (SMC ESS_min=0.981, 0 shrinks)
+[09:43:54] [stage 2] attempt 1: ACCEPT direct ESS=0.742 (floor 0.5)
+[09:44:01] [stage 2] accept t_k=0.0001  val_ess=0.742
+[09:44:05]     [select] t_k=0.0002  SMC ESS_min=0.997 rungs<0.75: 0/6 (accept)
+[09:44:05] [stage 3] t_{k-1}=0.0001 -> t_k=0.0002 (SMC ESS_min=0.997, 0 shrinks)
+[09:44:05] [stage 3] attempt 1: ACCEPT direct ESS=0.920 (floor 0.5)
+[09:44:12] [stage 3] accept t_k=0.0002  val_ess=0.920
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [32,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [33,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [34,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [35,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [36,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [37,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [38,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [39,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [40,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [41,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [42,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [43,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [44,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [45,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [46,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [47,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [48,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [49,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [50,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [51,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [52,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [53,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [54,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [55,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [56,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [57,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [58,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [59,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [60,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [61,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [62,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [429,0,0], thread: [63,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [64,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [65,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [66,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [67,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [68,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [69,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [70,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [71,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [72,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [73,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [74,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [75,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [76,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [77,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [78,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [79,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [80,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [81,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [82,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [83,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [84,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [85,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [86,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [87,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [88,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [89,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [90,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [91,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [92,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [93,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [94,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+/home/conda/feedstock_root/build_artifacts/libtorch_1781830576769/work/aten/src/ATen/native/cuda/MultinomialKernel.cu:112: binarySearchForMultinomial: block: [89,0,0], thread: [95,0,0] Assertion `cumdist[size - 1] > static_cast<scalar_t>(0)` failed.
+Traceback (most recent call last):
+  File "/mnt/projects/X-regularization/Molecular_BG_2/train.py", line 256, in <module>
+    main()
+  File "/mnt/projects/X-regularization/Molecular_BG_2/train.py", line 206, in main
+    if args.method == "asmc":
+                             
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/boltzmann.py", line 571, in run_asmc
+    t_k, smc_ess, n_shrink = adaptive_step(                   # adaptive ladder (pure SMC, no flow)
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/boltzmann.py", line 120, in adaptive_step
+    _, ess = sequential_monte_carlo(wrap(pool.clone()), u_prev, u_next,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/utils.py", line 737, in sequential_monte_carlo
+    x = langevin(x, u_curr, step=step, iters=iters, chunk=chunk)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/utils.py", line 617, in langevin
+    fx = beta * potential.grad(x) # effective force beta * grad U(x)
+                ^^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/potential.py", line 90, in grad
+    return self._grad_fn(x)
+           ^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/potential.py", line 297, in _grad_combined
+    g = g + c * U.grad(x)
+                ^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/potential.py", line 90, in grad
+    return self._grad_fn(x)
+           ^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/potential.py", line 295, in _grad_combined
+    g = self.coeffs[0] * self.potentials[0].grad(x)
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/projects/X-regularization/Molecular_BG_2/zflows_md/potential.py", line 90, in grad
+    return self._grad_fn(x)
+           ^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1047, in compile_wrapper
+    result = fn(*args, **kwargs)
+             ^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/apis.py", line 218, in wrapped
+    def wrapped(*args: _P.args, **kwargs: _P.kwargs) -> _R:
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_dynamo/eval_frame.py", line 1298, in _fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/aot_autograd.py", line 1273, in forward
+    return compiled_fn(full_args)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 777, in runtime_wrapper
+    all_outs = compiled_invoker.run(args, on_before_call=exit_prologue)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 523, in run
+    return call_func_at_runtime_with_args(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/utils.py", line 126, in call_func_at_runtime_with_args
+    out = normalize_as_list(f(args))
+                            ^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 2384, in __call__
+    return self.compiled_fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 850, in wrapper
+    return compiled_fn(runtime_args)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_functorch/_aot_autograd/runtime_wrappers.py", line 1055, in inner_fn
+    outs = compiled_fn(args)
+           ^^^^^^^^^^^^^^^^^
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_inductor/output_code.py", line 725, in __call__
+    return self.current_callable(inputs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/torchinductor_xuda/kl/cklroiwtxiveaf4qfymahlpqgfrhbf4j4oadt74qg4j6o27pflqn.py", line 27174, in call
+    triton_poi_fused_clamp_min_div_index_linalg_cross_select_stack_sub_37.run(arg11_1, buf118, buf129, buf127, buf128, buf130, 6144000, stream=raw_stream0)
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_inductor/runtime/triton_heuristics.py", line 1760, in run
+    result = launcher(
+             ^^^^^^^^^
+  File "<string>", line 5, in launcher
+  File "/home/xuda/miniconda3/envs/zflows/lib/python3.12/site-packages/torch/_inductor/runtime/static_triton_launcher.py", line 291, in run
+    self.C_impl._launch_kernel(
+RuntimeError: CUDA driver error: device-side assert triggered
