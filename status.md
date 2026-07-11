@@ -1,16 +1,16 @@
 # Project status
 
-Last updated: 2026-07-10T22:56:28-04:00 (America/New_York)
+Last updated: 2026-07-10T23:19:48-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`
 - Branch: `main`
-- Migration checkpoint: `e6e8094e4290bbbf13609d4c8fb24b3475d10dd1` — `Migrate numerical experiments to jflows`; pushed to `origin/main` and verified through the GitHub API.
-- Worktree: tracked and untracked state was clean immediately after the migration checkpoint. Ignored research data, checkpoints, logs, and bytecode remain local.
-- Canonical manuscript: `Paper_Arxiv/main.tex`; the compiled `Paper_Arxiv/main.pdf` is 34 pages and 7,853,628 bytes.
+- Current HEAD: `8607f8677ef6f6e53d37d6f855f975d713339d70` — `Use project relation macros in manuscript`; branch `main` tracks `origin/main`.
+- Worktree before this status update: six tracked paths changed (four modified and two deleted), with no staged or untracked paths. The changes are the unified manuscript source/PDF, preamble and README updates, and retirement of `Paper_Arxiv/supp.tex` and `Paper_Arxiv/supp.pdf`. Ignored research data, checkpoints, logs, and bytecode remain local.
+- Canonical manuscript: `Paper_Arxiv/main.tex`; the compiled `Paper_Arxiv/main.pdf` is 39 pages and 7,895,229 bytes.
 - Canonical numerical tests: `Codes/`, copied byte-for-byte from `/mnt/projects/jflows/Codes`; 110 files, approximately 2.4 GiB. Python drivers use public `jflows` APIs and contain no `zflows` imports. Equinox `*.eqx` checkpoints and `*.npz` arrays remain on disk but are ignored by Git.
-- Section 5 of `Paper_Arxiv/main.tex` is synchronized with `Codes/**/results.md` and `Codes/style.md`. Sections 1--4 and the molecular section were intentionally left outside that numerical-results rewrite.
+- Section 5 of `Paper_Arxiv/main.tex` is synchronized with `Codes/**/results.md` and `Codes/style.md`. The former Fisher–Rao supplement is now Appendix A, “Fisher–Rao gradient flow with log-ratio variation,” in the same file; Section 2 and the organization paragraph direct readers to the appendix. The molecular section remains outside the numerical-results rewrite.
 - The latest PDF build completed successfully with `latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex`; it has no unresolved references or reported overfull/underfull boxes.
 - Recovery snapshot: `/mnt/backup/X-regularization_100726`, verified at HEAD `55b4ce98324beca51f2862663628d0990260c79a`. It predates the later cleanup, `Codes/` copy, and Section 5 rewrite.
 - Major tracked deletions are the user's cleanup of legacy numerical trees and the old `Paper/` tree: `Clock_Lattice/`, `HD_Product/`, `HD_Product_Ladder/`, `Phi4_Lattice_6/`, `Phi4_Lattice_8/`, `Poisson_Inverse/`, `Sensor_Array/`, and `Paper/` content.
@@ -53,3 +53,9 @@ Last updated: 2026-07-10T22:56:28-04:00 (America/New_York)
 - Committed 257 changed paths as `e6e8094e4290bbbf13609d4c8fb24b3475d10dd1` (`Migrate numerical experiments to jflows`): 125 additions, 129 deletions, 3 modifications, and one exact rename.
 - Pushed `main` to `xuda-ye-math/X-regularization` using GitHub CLI authentication and verified the remote branch hash through the GitHub API.
 - Left ignored `*.eqx`, `*.npz`, checkpoint, log, and bytecode artifacts out of Git; the pre-commit mirror at `/mnt/backup/projects/X-regularization` contains the local project state.
+
+### 2026-07-10T23:19:48-04:00 — Fisher–Rao supplement merged into the manuscript
+
+- Appended the Fisher–Rao gradient-flow derivations, convergence proof, and biased-target accuracy analysis to `Paper_Arxiv/main.tex` as Appendix A, titled “Fisher–Rao gradient flow with log-ratio variation.”
+- Updated Section 2 and the organization paragraph to distinguish the main-text result summary from the appendix proofs; removed the obsolete cross-document reference setup and retired `Paper_Arxiv/supp.tex` and `Paper_Arxiv/supp.pdf`.
+- Rebuilt `Paper_Arxiv/main.pdf`: 39 pages and 7,895,229 bytes, with resolved references and no reported overfull or underfull boxes.

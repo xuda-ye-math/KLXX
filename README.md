@@ -1,6 +1,6 @@
 # X-regularized forward KL
 
-**Read the paper: [`Paper_Arxiv/main.pdf`](Paper_Arxiv/main.pdf)** (LaTeX source: [`Paper_Arxiv/main.tex`](Paper_Arxiv/main.tex); supplement [`Paper_Arxiv/supp.pdf`](Paper_Arxiv/supp.pdf), source [`Paper_Arxiv/supp.tex`](Paper_Arxiv/supp.tex)).
+**Read the paper: [`Paper_Arxiv/main.pdf`](Paper_Arxiv/main.pdf)** (LaTeX source: [`Paper_Arxiv/main.tex`](Paper_Arxiv/main.tex), including the Fisher--Rao appendix).
 
 Numerical test suite for the paper in `Paper_Arxiv/main.tex` (X-functional regularization of
 forward KL training for normalizing-flow Boltzmann generators). Each benchmark folder is
@@ -25,7 +25,7 @@ conda install xudaye::zflows xudaye::zflows_md
 
 ```
 Log-Likelihood-Ratio-Discrepancy/
-├── Paper_Arxiv/           # the manuscript: main.tex + supp.tex (paper + supplement), main.pdf, supp.pdf, references.bib
+├── Paper_Arxiv/           # the manuscript: main.tex, main.pdf, references.bib
 ├── PYTHON.md              # conda environment setup
 ├── 2D_Benchmark/          # six 2D mode-discovery targets (one sub-folder per target)
 ├── Sensor_Array/          # Bayesian source localization
@@ -50,7 +50,7 @@ Log-Likelihood-Ratio-Discrepancy/
 | `Clock_Lattice/` | Sections 4 + 5.5, Table `tab: clock-ladder`, Figures 8-10 | `figures/*.png` |
 | `Poisson_Inverse/` | Section 5.6 | `figures/fig_setup.png`, `figures/poisson_ladders.png` |
 | `Molecular_BG/` | Section 6 | `glycerol_36d/ladder.png`, `glycerol_36d/conformers.png`, `glycerol_36d/dihedrals.png`, `diethanolamine_48d/ladder.png`, `diethanolamine_48d/conformers.png`, `diethanolamine_48d/dihedrals.png`, `adp_60d/ess_history.png`, `adp_60d/dihedrals.png`, `adp_60d/conformers.png`, `adp_60d/ramachandran.png` |
-| `Paper_Arxiv/` | the manuscript | `main.tex`, `supp.tex`, `main.pdf`, `supp.pdf`, `references.bib` |
+| `Paper_Arxiv/` | the manuscript | `main.tex`, `main.pdf`, `references.bib` |
 
 ---
 
