@@ -8,6 +8,7 @@
 *.pth
 *.pt
 *.npz
+*.h5
 *.eqx
 
 # Python bytecode caches
@@ -40,6 +41,12 @@ git_overleaf.sh
 
 # Auto-written per-run driver snapshot (provenance; regenerated each run)
 Molecular_BG/*/run.py
+
+# Local molecular-dynamics run streams and intermediate reports. Immutable
+# manifests and final aggregate analysis remain eligible for version control.
+Molecular_BG/data/runs/*/*.stdout
+Molecular_BG/data/runs/*/interim_*/
+Molecular_BG/data/runs/*/final_*/
 
 # Working lit-review notes (not part of the manuscript)
 Paper/references.md
