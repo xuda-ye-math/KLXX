@@ -1,29 +1,27 @@
 # Project status
 
-Last updated: 2026-07-10T22:53:06-04:00 (America/New_York)
+Last updated: 2026-07-10T22:56:28-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`
 - Branch: `main`
-- HEAD: `55b4ce98324beca51f2862663628d0990260c79a` — `README: point paper references to Paper_Arxiv (main + supp)`
-- Worktree: dirty. After adding this file, the expected summary is 3 modified tracked files, 130 deleted tracked files, and 11 untracked path groups; nothing is staged.
+- Migration checkpoint: `e6e8094e4290bbbf13609d4c8fb24b3475d10dd1` — `Migrate numerical experiments to jflows`; pushed to `origin/main` and verified through the GitHub API.
+- Worktree: tracked and untracked state was clean immediately after the migration checkpoint. Ignored research data, checkpoints, logs, and bytecode remain local.
 - Canonical manuscript: `Paper_Arxiv/main.tex`; the compiled `Paper_Arxiv/main.pdf` is 34 pages and 7,853,628 bytes.
 - Canonical numerical tests: `Codes/`, copied byte-for-byte from `/mnt/projects/jflows/Codes`; 110 files, approximately 2.4 GiB. Python drivers use public `jflows` APIs and contain no `zflows` imports. Equinox `*.eqx` checkpoints and `*.npz` arrays remain on disk but are ignored by Git.
 - Section 5 of `Paper_Arxiv/main.tex` is synchronized with `Codes/**/results.md` and `Codes/style.md`. Sections 1--4 and the molecular section were intentionally left outside that numerical-results rewrite.
 - The latest PDF build completed successfully with `latexmk -pdf -interaction=nonstopmode -halt-on-error main.tex`; it has no unresolved references or reported overfull/underfull boxes.
 - Recovery snapshot: `/mnt/backup/X-regularization_100726`, verified at HEAD `55b4ce98324beca51f2862663628d0990260c79a`. It predates the later cleanup, `Codes/` copy, and Section 5 rewrite.
 - Major tracked deletions are the user's cleanup of legacy numerical trees and the old `Paper/` tree: `Clock_Lattice/`, `HD_Product/`, `HD_Product_Ladder/`, `Phi4_Lattice_6/`, `Phi4_Lattice_8/`, `Poisson_Inverse/`, `Sensor_Array/`, and `Paper/` content.
-- Important untracked paths are `Codes/`, `Molecular_BG_2/`, `adp.jpeg`, `status.md`, and new Section 5 figure directories under `Paper_Arxiv/figures/`.
+- The canonical `Codes/`, non-ignored `Molecular_BG_2/` content, `adp.jpeg`, `status.md`, and new Section 5 figure directories are now tracked. Ignored Molecular checkpoint/data artifacts remain protected by the mirror backup.
 
 ## Pending
 
-- **Pending:** Review and stage the 130 legacy deletions together with the replacement `Codes/` tree and new `Paper_Arxiv` figures.
-- **Pending:** Decide which non-ignored `Codes/` results, logs, CSV/Markdown files, and figures belong in Git versus external release storage.
+- **Pending:** Decide whether ignored `Codes/` arrays, Equinox checkpoints, and run logs need a tagged release or other external archival location beyond the mirror backup.
 - **Pending:** Update Sections 1--4, conclusions, README, and environment/install instructions where they still describe the former `zflows` backend; the completed rewrite was deliberately limited to Section 5.
-- **Decision needed:** Decide whether `Molecular_BG_2/` and `adp.jpeg` are permanent project inputs/outputs and should be tracked, moved, or ignored.
+- **Pending:** Audit the detailed contents and long-term organization of `Molecular_BG_2/`; this checkpoint intentionally included its non-ignored files without a content review. Decide whether `adp.jpeg` and the tracked stdout files should remain in their current locations.
 - **Pending:** Perform a final full-paper consistency audit after the non-Section-5 backend text is updated.
-- **Pending:** Commit and push only after the deletion set and all new untracked content have been reviewed.
 
 ## Timeline
 
@@ -49,3 +47,9 @@ Last updated: 2026-07-10T22:53:06-04:00 (America/New_York)
 - Refined headings, method names, table bolding, the complete clock per-rung table, propagation-factor and occupancy-bias definitions, figure sizing, and unavailable-rung notation.
 - Method rows in the clock comparison use the explicit loss `KL + X_μ + X_(μ̂ + ν̄)/2` rather than “X-regularized.”
 - Rebuilt `Paper_Arxiv/main.pdf`: 34 pages with resolved references and no reported layout warnings.
+
+### 2026-07-10T22:56:28-04:00 — Migration checkpoint committed and pushed
+
+- Committed 257 changed paths as `e6e8094e4290bbbf13609d4c8fb24b3475d10dd1` (`Migrate numerical experiments to jflows`): 125 additions, 129 deletions, 3 modifications, and one exact rename.
+- Pushed `main` to `xuda-ye-math/X-regularization` using GitHub CLI authentication and verified the remote branch hash through the GitHub API.
+- Left ignored `*.eqx`, `*.npz`, checkpoint, log, and bytecode artifacts out of Git; the pre-commit mirror at `/mnt/backup/projects/X-regularization` contains the local project state.
