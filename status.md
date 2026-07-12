@@ -1,17 +1,17 @@
 # Project status
 
-Last updated: 2026-07-12T06:56:00-04:00 (America/New_York)
+Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`, branch `main`, HEAD
-  `c7c47b1c18b73e138621c745fbf8c22f212f6923` (`Adopt pip workflow and canonical
-  molecular bundles`), tracking `origin/main` at 0 ahead / 0 behind. The
-  worktree has three modified tracked files
-  (`Molecular_BG/glycerol_36d/{parameters.py,train.py}` and `status.md`) plus
-  the untracked diagnostic directory
-  `Molecular_BG/glycerol_36d/debug_loss_ess/`. Its ignored NPZ/EQX/log payload
-  is recovery-critical and occupies about 290 MB.
+- Repository: `/mnt/projects/X-regularization`, branch `main`, baseline HEAD
+  `23dd95e658c9631f9ed648d839f4eb001c894b35` (`Record molecular ESS diagnostics
+  and safeguards`), tracking `origin/main` at 0 ahead / 0 behind before this
+  diary update. `status.md` is the only tracked change being prepared here.
+  The pre-existing untracked diagnostic directory
+  `Molecular_BG/glycerol_36d/debug_loss_ess/` remains deliberately excluded
+  from Git; its ignored NPZ/EQX/log payload is recovery-critical and occupies
+  about 290 MB, so it remains part of the ext4 mirror backup.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -22,17 +22,19 @@ Last updated: 2026-07-12T06:56:00-04:00 (America/New_York)
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
 - Public `jflows` is clean at pushed HEAD
-  `616255f5d6212fcb0b03ccb3b08db0c339c9d0f2` (`Fix circular RQS seam
-  selection`). The narrow change restores the learned circular-RQS derivative
-  and log-Jacobian at the exact left seam while preserving all other knot
-  selection, NSF boundary/tail behavior, public APIs, and Equinox
-  serialization. Public `jflows_md` is clean at pushed HEAD
+  `f9e98ed43b203e114078f76615823e7508cb908d` (`Harden jflows correctness and
+  edge contracts`). The 24-file correctness and compatibility audit patch is
+  committed, including the new
+  `smoke/{test_checkpoint.py,test_edge_cases.py}`. The audited source-manifest
+  checksum is
+  `a07866d7a00b5d4274ebbbccdd9798aa1c05d7b1a686383ae56108b019d2f693`.
+  Public `jflows_md` is clean at pushed HEAD
   `b8ed572ee8ad38e5452972eb3ca7255e0db3d739` (`Add molecular KLXX checkpoint
   selection`). It adds molecular KLXX, quench-and-temper support, accurate
   target-ratio monitoring, sparse flow snapshots and full-validation
   checkpoint selection, metadata, documentation, and regression coverage.
-  Generic `jflows` behavior is unchanged, so existing `Codes/` numerical
-  results require no rerun.
+  Established finite NSF/NCSF behavior remains compatible, so existing
+  `Codes/` numerical results require no rerun.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -116,6 +118,19 @@ Last updated: 2026-07-12T06:56:00-04:00 (America/New_York)
   tests uniquely select a warm start and an intermediate checkpoint, rescue a
   nonfinite final flow, preserve multi-stage warm starts and trained-on-tie
   behavior, and enforce the 32-snapshot safety limit.
+- **Done — independent `jflows` correctness audit:** three blind reviewers
+  returned clean clearance for core scientific logic, public APIs,
+  serialization, examples, and smoke coverage. All 16 smoke modules passed on
+  `cuda:0`; full 2D, 3D-periodic, and scaling examples passed; reduced
+  CNF/OTFlow and 4D Boltzmann examples passed; and a forced incomplete 4D
+  ladder correctly raised before producing a target-labelled figure. Normal
+  finite NSF/NCSF reverse-KL, forward-KL, and KL+X probes remained bit-identical
+  to baseline HEAD, so established `Codes/` results require no rerun. The only
+  deliberately changed stochastic training semantics are for
+  `CNF(exact=False)`, whose Hutchinson probe is now refreshed each optimizer
+  step. X regularization retains its established empirical permutation
+  V-statistic, with consistent `O(1/N)` finite-batch bias, for backward
+  compatibility.
 
 ## Pending
 
@@ -384,3 +399,20 @@ Last updated: 2026-07-12T06:56:00-04:00 (America/New_York)
   Existing scientific results therefore require no rerun; only a strict demand
   for bit-identical current-HEAD training provenance would justify rerunning
   `Codes/Lattice_Clock`. No training run was launched.
+
+### 2026-07-12T09:10:04-04:00 — `jflows` correctness and compatibility audit completed
+
+- Hardened approximate-CNF trace-key refresh and non-default PRNG
+  serialization; finite-safe energy masking, Adam updates, and gradient
+  clipping; one-dimensional NSF/NCSF conditioning; LU map/log-determinant
+  consistency; degenerate ESS/resampling and ladder handling; constructor
+  validation; checkpoint contracts; and example completion semantics.
+- Added standalone checkpoint and edge-case regression modules and expanded
+  adaptive/fixed Boltzmann interface coverage. The frozen reviewed source
+  manifest has SHA-256
+  `a07866d7a00b5d4274ebbbccdd9798aa1c05d7b1a686383ae56108b019d2f693`.
+- Three independent final audits reported no remaining main correctness issue.
+  The immutable-copy verification passed all 16 smoke modules, the full 2D,
+  3D-periodic, and flow-scaling examples, reduced CNF/OTFlow and 4D Boltzmann
+  runs, visual artifact checks, and the forced-incomplete-ladder failure path.
+  No molecular production run or old `Codes/` rerun was launched.
