@@ -29,7 +29,8 @@ The phi^4 action is written out here directly (not imported) so this is a true
 independent cross-check of reference.py's energy and of the trained flow.
 
 Run from the repo root (GPU):
-    conda activate jflows && python Codes/Lattice_Phi4/pt_reference.py
+    source ~/.envs/jflows/bin/activate
+    python Codes/Lattice_Phi4/pt_reference.py
 Writes pt_reference_status.log next to this file and prints p_+ for L = 6, 8.
 """
 

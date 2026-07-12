@@ -9,7 +9,7 @@ energy-cap anneal, distance-floor anneal, or delta-QT surrogate.
 
 Run from the repository root:
 
-    conda activate jflows
+    source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md \
         python Molecular_BG/glycerol_36d/train.py
 

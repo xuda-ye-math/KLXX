@@ -1,166 +1,189 @@
-# Python environment setup
+# Python environment
 
-> You must be using a Linux system with an NVIDIA graphical card (or WSL, native
-> Windows and Apple not supported, AMD cards not tested).
+The active local environment is the pip-only virtual environment
+`~/.envs/jflows`. It is used for every current JAX and molecular workflow in
+`Codes/` and `Molecular_BG/`. The former Conda `jflows` environment and the old
+`~/.envs/jax` environment are retired.
 
-A step-by-step, interactive guide to building the conda environment for the
-zflows-md Boltzmann-generator tasks. Run each step yourself in a terminal and let
-it finish before moving on to the next.
+The two live source packages remain outside the environment:
 
-> **Important — always `conda activate zflows` first; never run the interpreter
-> path directly.** The `torch.compile` / Triton fast paths only work from inside
-> the *activated* environment: activation puts the env's bundled, Blackwell-capable
-> `ptxas` (CUDA 13.x, at `.../envs/zflows/bin/ptxas`) first on `PATH`. Launching the
-> interpreter by its full path instead (e.g.
-> `~/miniconda3/envs/zflows/bin/python script.py`) leaves the *system* `ptxas` on
-> `PATH`, so TorchInductor fails with `Cannot find ptxas-blackwell` on Blackwell
-> GPUs (sm_120). This is not a broken environment and does **not** call for
-> `TORCHDYNAMO_DISABLE=1` — just activate the env, then run `python`.
+- `/mnt/projects/jflows`
+- `/mnt/projects/jflows_md`
 
-## Step 1 — Create the `zflows` environment
+Local runs select them explicitly with `PYTHONPATH`. Do not install either
+package into `~/.envs/jflows`, create a persistent `.pth` file, or use an
+editable install for local experiments. This guarantees that every run uses
+the current checked-out source.
 
-```bash
-conda create -n zflows python=3.12 -y
-```
+## Clean construction
 
-Creates a fresh environment named `zflows` on Python 3.12.
-
-## Step 2 — Add the conda-forge channel
+The environment uses the system Python and latest compatible pip releases; it
+is not a bit-for-bit lockfile. On this workstation the system interpreter is
+Python 3.14.
 
 ```bash
-conda config --add channels conda-forge
+rm -rf "$HOME/.envs/jflows"
+mkdir -p "$HOME/.envs"
+/usr/bin/python3.14 -m venv "$HOME/.envs/jflows"
+source "$HOME/.envs/jflows/bin/activate"
+
+pip install --upgrade pip
+pip install --upgrade \
+  "jax[cuda13]" equinox "openmm[cuda13]" parmed mdtraj \
+  scipy matplotlib h5py scikit-learn pyyaml ambertools-unofficial
 ```
 
-Registers conda-forge globally (written to `~/.condarc`) so later installs pick it
-up automatically — no `-c conda-forge` each time.
+The brackets are pip extras and should be quoted in shells such as zsh:
 
-## Step 3 — Install OpenMM (CUDA build) and ParmEd
+- `jax[cuda13]` installs JAX plus its CUDA-13 PJRT/plugin and NVIDIA runtime
+  dependencies.
+- `openmm[cuda13]` installs the OpenMM Python API plus the matching
+  `OpenMM-CUDA-13` platform package. There is no generic `cuda` extra.
+- `ambertools-unofficial` supplies the optional AmberTools command-line
+  programs used to construct newly versioned small-molecule bundles. It is an
+  unofficial repackaging and is not required for training from frozen bundles.
+
+Use the corresponding CUDA 12 extras on a CUDA 12 machine. Plain `jax` and
+plain `openmm` are sufficient only when GPU support is not required.
+
+## Required validation
+
+Check dependency closure and the preferred accelerator:
 
 ```bash
-conda activate zflows
-conda install openmm cuda-version=13
-conda install parmed
+pip check
+XLA_PYTHON_CLIENT_PREALLOCATE=false python
 ```
 
-The MD-reference helper (`short_md` in `zflows_md.bg.hetero_bg`) requests OpenMM's
-`CUDA` platform (with a CPU
-fallback), so pin the CUDA 13 build — matching the cu130 / Blackwell toolchain —
-then install ParmEd.
-
-### Smoke test — is the GPU visible to OpenMM?
-
-Start an interactive Python session and paste the source directly:
+Then enter:
 
 ```python
-from openmm import Platform
-ps = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
-print("platforms:", ps)
-print("CUDA available:", "CUDA" in ps)
+>>> import jax
+>>> import jax.numpy as jnp
+>>> print("backend:", jax.default_backend())
+>>> print("devices:", jax.devices())
+>>> x = jnp.arange(4096, dtype=jnp.float32)
+>>> y = jax.jit(lambda value: jnp.sin(value).sum())(x)
+>>> jax.block_until_ready(y)
+>>> print("compiled device:", y.device)
 ```
 
-Expect `CUDA` in the list and `CUDA available: True`. For a fuller check that the
-CUDA platform actually computes forces, run `python -m openmm.testInstallation` —
-every platform, including `CUDA`, should report "Successfully computed forces".
-
-## Step 4 — Install PyTorch (GPU)
+The expected backend is `gpu` and the compiled value should live on `cuda:0`.
+Validate the molecular simulator separately:
 
 ```bash
-conda install pytorch-gpu
+python -m openmm.testInstallation
 ```
 
-Pulls the GPU PyTorch build from conda-forge; the env's existing `cuda-version=13`
-constraint keeps it on the CUDA 13 toolchain. The latest PyTorch ships its own
-local `nvcc`/`ptxas` (not the system CUDA), which is what `torch.compile` uses to
-build Triton kernels.
-
-### Smoke test — PyTorch GPU + Triton / `torch.compile`
-
-Start an interactive Python session and paste the source directly:
-
-```python
-import torch
-print("torch:", torch.__version__)
-print("CUDA available:", torch.cuda.is_available())
-print("device:", torch.cuda.get_device_name(0))
-print("capability:", torch.cuda.get_device_capability(0))
-
-import triton
-print("triton:", triton.__version__)
-
-@torch.compile
-def f(x):
-    return (x * x).sin().sum()
-
-x = torch.randn(4096, device="cuda")
-print("torch.compile ok:", float(f(x)))
-```
-
-Expect `CUDA available: True`, your NVIDIA GPU as the device (the exact name and
-compute capability depend on your card), a Triton version, and a finite
-`torch.compile ok:` value — the last line confirms Triton plus the bundled
-`nvcc`/`ptxas` actually compile and run a GPU kernel.
-
-## Step 5 — Install the scientific stack
+Reference, CPU, CUDA, and OpenCL should all compute forces within tolerance.
+Finally, confirm that local packages are not installed:
 
 ```bash
-conda install matplotlib scikit-learn scikit-image pillow ase
+cd /tmp
+env -u PYTHONPATH python
 ```
 
-`numpy`, `scipy`, `pandas`, and `networkx` are already pulled in by PyTorch/OpenMM.
-`matplotlib` drives every figure script; `ase` supplies covalent radii and CPK
-colors for the conformer renders; `scikit-learn`, `scikit-image`, and `Pillow`
-build the Python-logo potential (`2D_Benchmark/2D_Python/core.py`).
-
-Smoke test — paste into an interactive Python session:
+Then enter:
 
 ```python
-import matplotlib, sklearn, skimage, PIL, ase
-print("matplotlib:", matplotlib.__version__)
-print("scikit-learn:", sklearn.__version__)
-print("scikit-image:", skimage.__version__)
-print("Pillow:", PIL.__version__)
-print("ase:", ase.__version__)
+>>> import importlib.metadata as metadata
+>>> import importlib.util
+>>> print("jflows module:", importlib.util.find_spec("jflows"))
+>>> print("jflows_md module:", importlib.util.find_spec("jflows_md"))
+>>> names = {distribution.metadata["Name"].lower() for distribution in metadata.distributions()}
+>>> "jflows" in names
+False
+>>> "jflows-md" in names
+False
 ```
 
-> **Optional** — only needed for specific auxiliary scripts; install if you use them:
-> - `pymol-open-source` — molecule renders in `zflows_md/bg/pymol_render.py`
+Both modules and distributions should be absent without `PYTHONPATH`.
 
-## Step 6 — Install the `zflows` and `zflows_md` packages
+## Running local experiments
 
-With `zflows` active:
+Activate the environment once in each new terminal. Commands then use ordinary
+`python` and `pip` names:
 
 ```bash
-conda install xudaye::zflows xudaye::zflows_md
+source "$HOME/.envs/jflows/bin/activate"
 ```
 
-Installs both packages directly from the `xudaye` anaconda.org channel. They are
-**independent**: `zflows_md` vendors its own copy of the zflows flow / loss /
-potential / utils machinery, so neither imports the other and either can be
-installed on its own — installing both simply makes `import zflows` and
-`import zflows_md` available together.
+For `jflows` experiments:
 
-Smoke test — paste into an interactive Python session (run from any directory):
-
-```python
-import zflows, zflows_md            # both channel packages import independently
-from zflows.utils import check_compile_available   # both ship compile support; check via zflows
-check_compile_available()
+```bash
+cd /mnt/projects/X-regularization
+PYTHONPATH=/mnt/projects/jflows \
+  python Codes/Lattice_Clock/train.py
 ```
 
-This both confirms `zflows_md` is importable and runs its `torch.compile`
-diagnostic. Example output:
+For molecular experiments:
 
-```text
-[OK ]   OS = Linux
-[OK ]   nvcc = .../envs/zflows/bin/nvcc
-[OK ]   sanity test passed (device=cuda, mode=reduce-overhead)
-
-Note: please run check_compile_available() interactively or in a standalone python
-script. Do not call it from your main training code — the sanity test really
-invokes torch.compile, which costs compile time on every call and consumes a
-Dynamo cache slot.
-True
+```bash
+cd /mnt/projects/X-regularization
+PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md \
+  python Molecular_BG/glycerol_36d/train.py --smoke
 ```
 
-The environment is now complete: OpenMM (GPU), PyTorch + Triton, the scientific
-stack, and the `zflows` + `zflows_md` packages (from the `xudaye` channel).
+Do not launch the production glycerol run until it is explicitly authorized.
+The smoke flag uses the same pipeline at bounded sizes.
+
+## Isolated package smoke tests
+
+Verification should not write caches or generated artifacts into public source
+trees. Copy the required trees to a temporary directory:
+
+```bash
+tmp=$(mktemp -d /tmp/jflows-smoke.XXXXXX)
+mkdir -p "$tmp/jflows" "$tmp/jflows_md"
+rsync -a --exclude='.git/' --exclude='__pycache__/' \
+  /mnt/projects/jflows/jflows /mnt/projects/jflows/smoke \
+  /mnt/projects/jflows/pyproject.toml "$tmp/jflows/"
+rsync -a --exclude='.git/' --exclude='__pycache__/' \
+  /mnt/projects/jflows_md/jflows_md /mnt/projects/jflows_md/smoke \
+  /mnt/projects/jflows_md/bundles /mnt/projects/jflows_md/pyproject.toml \
+  "$tmp/jflows_md/"
+
+XLA_PYTHON_CLIENT_PREALLOCATE=false \
+PYTHONPATH="$tmp/jflows:$tmp/jflows_md" \
+  python "$tmp/jflows_md/smoke/run_all.py"
+
+rm -rf "$tmp"
+```
+
+The suite does not launch production molecular training.
+
+## Current verification snapshot
+
+The environment rebuilt on 2026-07-11 resolved the following releases. These
+are evidence, not installation pins:
+
+- Python 3.14.6
+- JAX/JAXlib/CUDA plugin 0.10.2 and Equinox 0.13.8
+- OpenMM and OpenMM-CUDA-13 8.5.2
+- ParmEd 4.3.1 and MDTraj 1.11.1.post2
+- NumPy 2.4.6 and SciPy 1.18.0
+- Matplotlib 3.11.0, h5py 3.16.0, and scikit-learn 1.9.0
+- PyYAML 6.0.3 for local skill/frontmatter validation
+- `ambertools-unofficial` 26.0.0, providing working `antechamber`,
+  `parmchk2`, `tleap`, and `sqm` commands
+
+The complete isolated `jflows_md` smoke suite passed on `cuda:0`, including all
+three molecular potentials, Mixed_NSF, MALA, SMC/AIS, artifact reconstruction,
+one tiny Boltzmann-generator stage, and the real float32 glycerol compile path.
+
+## Optional bundle reconstruction
+
+Checked-in bundles are complete runtime inputs. Training and evaluation do not
+need AmberTools, and the pure-JAX molecular potential does not invoke OpenMM at
+runtime.
+
+The installed `ambertools-unofficial` 26.0.0 toolchain can construct newly
+versioned glycerol, diethanolamine, and other GAFF2/AM1-BCC targets. Because it
+is an unofficial repackaging, use it only with explicit provenance and hashes.
+The existing small-molecule bundles are frozen to AmberTools 24.8, so their
+exact historical rebuild gate intentionally rejects version 26 output. ADP is
+independent of AmberTools; its regenerated Hamiltonian and molecular potential
+match the frozen FAB target.
+
+The archived `Molecular_BG_1/` and `Molecular_BG_2/` trees retain historical
+PyTorch/zflows instructions. They are not active environment documentation.

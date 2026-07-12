@@ -3,7 +3,8 @@ sweep — one curve per objective, in the 2D-benchmark ess.png style. Reads the
 data_k{k}.npz written by train.py; no retraining, no GPU.
 
 Run from the repo root:
-    conda activate jflows && python Codes/HD_Product/plot_ess_k8.py [k]
+    source ~/.envs/jflows/bin/activate
+    python Codes/HD_Product/plot_ess_k8.py [k]
 Writes ess_k{k}.png next to this file (default k = 8, d = 256).
 """
 

@@ -5,7 +5,8 @@ occupancy-bias figure: log-log, +-2 standard-error bars, dashed N^{-1/2}
 Monte Carlo reference anchored at the first rung.
 
 Run from the repo root:
-    conda activate jflows && python Codes/Lattice_Clock/plot_occupancy_bias_B2000.py
+    source ~/.envs/jflows/bin/activate
+    python Codes/Lattice_Clock/plot_occupancy_bias_B2000.py
 Writes occupancy_bias_B2000.png next to this file.
 """
 

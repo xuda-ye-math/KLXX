@@ -14,7 +14,8 @@ mirror pair), a resampled set of configurations for the vacuum heatmaps, and
 the barrier height read off the weighted magnetization histogram.
 
 Run from the repo root:
-    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
+    source ~/.envs/jflows/bin/activate
+    PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Phi4/L8/reference.py
 Writes phi4_reference.npz and reference_status.log next to this file.
 """
