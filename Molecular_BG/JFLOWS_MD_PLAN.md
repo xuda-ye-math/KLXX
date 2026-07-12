@@ -358,8 +358,9 @@ beta = 1/(k_B T).
 ```
 
 No soft-cap, finite replacement-energy sentinel, or physical-energy
-deformation appears in this definition. Stable float64 evaluation is primary;
-consumers handle failures without changing the target: a nonfinite MALA
+deformation appears in this definition. Training and molecular evaluation use
+JAX's default float32 dtype; neither the package nor the active driver enables
+x64. Consumers handle failures without changing the target: a nonfinite MALA
 proposal is rejected, a nonfinite SMC/final target weight becomes `-inf`, and
 a nonfinite optimizer sample is screened from that optimizer reduction only.
 

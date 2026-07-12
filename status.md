@@ -1,13 +1,14 @@
 # Project status
 
-Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
+Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`, branch `main`, baseline HEAD
-  `23dd95e658c9631f9ed648d839f4eb001c894b35` (`Record molecular ESS diagnostics
-  and safeguards`), tracking `origin/main` at 0 ahead / 0 behind before this
-  diary update. `status.md` is the only tracked change being prepared here.
+  `0b78abed8ea91663988ec1d630089a1498396d44` (`Record completed jflows
+  correctness audit`), tracking `origin/main` at 0 ahead / 0 behind before this
+  diary update. The tracked changes being prepared here are `status.md` and the
+  default-float32 correction in `Molecular_BG/JFLOWS_MD_PLAN.md`.
   The pre-existing untracked diagnostic directory
   `Molecular_BG/glycerol_36d/debug_loss_ess/` remains deliberately excluded
   from Git; its ignored NPZ/EQX/log payload is recovery-critical and occupies
@@ -29,10 +30,11 @@ Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
   checksum is
   `a07866d7a00b5d4274ebbbccdd9798aa1c05d7b1a686383ae56108b019d2f693`.
   Public `jflows_md` is clean at pushed HEAD
-  `b8ed572ee8ad38e5452972eb3ca7255e0db3d739` (`Add molecular KLXX checkpoint
-  selection`). It adds molecular KLXX, quench-and-temper support, accurate
-  target-ratio monitoring, sparse flow snapshots and full-validation
-  checkpoint selection, metadata, documentation, and regression coverage.
+  `622047817ba78d96e5a9d2f62b59a1f04e4d6c0e` (`Harden molecular numerical
+  edge handling`). Its 13-file correctness patch adds molecular optimizer
+  finite-safety, raw nonfinite stage-weight handling, pre-compilation
+  validation, exact inherited-seam coverage, documentation, and the new
+  `smoke/test_edge_cases.py` regression module.
   Established finite NSF/NCSF behavior remains compatible, so existing
   `Codes/` numerical results require no rerun.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
@@ -67,7 +69,7 @@ Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
   externally stored bundle with the active toolchain. Real AmberTools 26 runs
   successfully produced and verified both glycerol and diethanolamine
   candidates with clean provenance; disposable candidates were removed.
-- **Verification passed:** `jflows/smoke/test_flow.py` and the complete live
+- **Verification passed:** `jflows/smoke/test_flow.py` and the complete
   `jflows_md/smoke/run_all.py` suite passed on `cuda:0`; after strengthening
   the controller coverage, `smoke/test_boltzmann_checkpoints.py` passed again.
   Coverage includes all three OpenMM/JAX parity tests (maximum energy
@@ -75,9 +77,10 @@ Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
   quotient Jacobians, ADP chirality, float32 execution, Mixed_NSF, MALA, SMC,
   score-free AIS, a tiny BG training stage, chunking, strict bundle closure,
   legacy artifact migration, wheel/external-data behavior, and the glycerol
-  compile path (`2.46 s` energy+gradient, `5.14 s` one-step MALA in the latest
-  smoke). Two independent final checkpoint/API reviewers returned PASS with no
-  remaining high- or medium-severity issue; a separate gradient audit found no
+  compile path (`2.53 s` energy+gradient, `5.07 s` one-step MALA in the latest
+  isolated 13-module smoke). Two independent final checkpoint/API reviewers
+  returned PASS with no remaining high- or medium-severity issue; a separate
+  gradient audit found no
   deterministic potential, ESS, clipping, or spline-gradient cause for the
   observed ESS decline. The complete 14-module `jflows` smoke suite and focused
   `jflows_md` compatibility/artifact tests also pass with the circular-RQS
@@ -131,6 +134,21 @@ Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
   step. X regularization retains its established empirical permutation
   V-statistic, with consistent `O(1/N)` finite-batch bias, for backward
   compatibility.
+- **Done — `jflows_md` inherited-fix and dtype audit:** molecular code now
+  atomically rejects any Adam update whose loss, gradients, moments, or
+  resulting parameters are nonfinite; global clipping remains stable when a
+  float32 sum of squares overflows; any NaN validation log weight forces stage
+  ESS to zero; positive-infinite weights share mass; invalid mixed-domain,
+  sampler, and ladder controls fail before compilation; and adaptive ladders
+  stop on floating-point no-progress. The package inherits the corrected
+  circular RQS seam and generic ESS/resampling behavior directly from current
+  `jflows`; CNF, LU-mixing, one-dimensional NSF, and hard-box issues are not
+  duplicated in the molecular companion. Neither package nor the active
+  glycerol driver enables JAX x64 or constructs float64 JAX training arrays.
+  Float64 remains only as explicit legacy-artifact compatibility and a
+  host-side NumPy Boolean-mask calculation; offline diagnostic recomputation
+  is separate from training. The stale design-plan sentence naming float64 as
+  primary was corrected to the implemented default-float32 policy.
 
 ## Pending
 
@@ -416,3 +434,22 @@ Last updated: 2026-07-12T09:14:15-04:00 (America/New_York)
   3D-periodic, and flow-scaling examples, reduced CNF/OTFlow and 4D Boltzmann
   runs, visual artifact checks, and the forced-incomplete-ladder failure path.
   No molecular production run or old `Codes/` rerun was launched.
+
+### 2026-07-12T09:46:20-04:00 — `jflows_md` numerical hardening completed
+
+- Audited every recent `jflows` correction against the molecular companion.
+  Confirmed that circular splines and generic ESS/resampling are inherited,
+  while approximate CNF, LU mixing, one-dimensional NSF, and uniform hard-box
+  behavior are outside `jflows_md`'s mixed-coupling design.
+- Corrected the duplicated molecular failure modes: overflow-prone global
+  clipping, non-atomic derived Adam overflow, NaN stage weights being silently
+  converted to `-inf`, permissive integer/step/source/flow controls, and
+  adaptive-ladder floating-point stalls. Added exact torus-seam and focused
+  molecular edge regressions.
+- From isolated source copies in `/home/xuda/.envs/jflows`, all 13 molecular
+  smoke modules passed on `cuda:0`, including KLX/KLXX training, checkpoint
+  selection, SMC/AIS/MALA, all three stored OpenMM energy/force comparisons,
+  ADP chirality, and the real float32 glycerol compile path. The dtype smokes
+  explicitly verified x64 disabled and float32 samples, flow leaves, ESS,
+  energies, gradients, and MALA outputs. No production training run was
+  launched.
