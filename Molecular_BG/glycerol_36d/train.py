@@ -42,6 +42,7 @@ from jflows_md import (  # noqa: E402
     Mixed_NSF,
     Molecular_Potential,
     molecular_boltzmann_forward_KLX_G,
+    mixed_flow_metadata,
     package_source_sha256,
 )
 from jflows_md.system import sha256_file  # noqa: E402
@@ -206,6 +207,7 @@ def main() -> None:
         hidden_features=P.HIDDEN_FEATURES,
         slope=P.SLOPE,
     ).zeros()
+    flow_metadata = mixed_flow_metadata(flow0)
 
     monitor = Monitor(P.MONITOR_EVERY, f"[{P.RUN_NAME}] ", log)
     started = time.time()
@@ -256,6 +258,7 @@ def main() -> None:
     cartesian_nm = chunked_cartesian(target, y_push, sizes["chunk"])
     np.savez_compressed(
         data_path,
+        schema_version=2,
         run_name=P.RUN_NAME,
         bundle=P.BUNDLE,
         manifest_sha256=target.manifest_sha256,
@@ -265,6 +268,9 @@ def main() -> None:
         equinox_version=eqx.__version__,
         seed=P.SEED,
         flow_key_data=np.asarray(jax.random.key_data(flow_key)),
+        activation_id=flow_metadata["activation_id"],
+        parameter_dtype=flow_metadata["parameter_dtype"],
+        condition_mask=flow_metadata["condition_mask"],
         bins=P.BINS,
         transforms=P.TRANSFORMS,
         hidden_features=np.asarray(P.HIDDEN_FEATURES),
@@ -346,7 +352,7 @@ def main() -> None:
         f"saved {data_path.name}, {flow_path.name}"
     )
     marker = {
-        "schema_version": 1,
+        "schema_version": 2,
         "run_name": P.RUN_NAME,
         "bridge_complete": complete,
         "stage_count": len(stages),

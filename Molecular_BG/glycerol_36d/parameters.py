@@ -6,7 +6,7 @@ workflow and should not need parameter edits.
 
 # target: neutral glycerol, GAFF2/AM1-BCC/OBC1 at 300 K
 RUN_NAME = "glycerol_36d_klx"
-BUNDLE = "glycerol_gaff2_am1bcc_obc1_v1"
+BUNDLE = "glycerol_gaff2_am1bcc_obc1_v2"
 DIMENSION: int = 36
 SEED: int = 0
 

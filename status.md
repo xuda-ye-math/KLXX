@@ -1,26 +1,90 @@
 # Project status
 
-Last updated: 2026-07-11T14:13:38-04:00 (America/New_York)
+Last updated: 2026-07-11T22:09:55-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`
-- Branch: `main`, tracking `origin/main`. HEAD before the requested BCP is `0e08b01af19071a1787a28aac534f21cf80bd512` — `Rebuild molecular benchmark and freeze jflows_md plan`.
-- Worktree before this status edit: no staged paths, 2 modified tracked paths, 14 tracked deletions, and 88 individual untracked files. This status edit adds `status.md` as a third modified tracked path. All current changes are in `Molecular_BG/` plus this status record; no unrelated user work is mixed into the milestone.
-- **Done — `jflows_md` core:** the public facade, verified bundle loader, pure-JAX Amber bonded/nonbonded/OBC1/ACE force field, mixed BAT coordinate chart, exact coordinate Jacobian, ADP L-only half-chart, Gaussian × torus source, torus-correct MALA, and potential-space SMC are implemented under `Molecular_BG/jflows_md/`. Low-level implementation remains confined to `jflows_md/core/`.
-- The copied `Molecular_BG/jflows/` source remains byte-identical to `/mnt/projects/jflows/jflows/` at commit `fcee81c432d95cb4d841a14605e133b54d08c84d`; no compatibility edit was made to the base package.
-- Three immutable runtime bundles are complete: FAB L-ADP uses Amber ff96/OBC1 on `R^42 × T^18` (60D); glycerol uses GAFF2/AM1-BCC/OBC1 on `R^25 × T^11` (36D); explicitly neutral diethanolamine uses GAFF2/AM1-BCC/OBC1 on `R^33 × T^15` (48D). All use 300 K, mbondi2 radii, ACE, dielectric 1.0/78.5, zero salt, `NoCutoff`, and no constraints.
-- Runtime input is now only the selected complete directory under `Molecular_BG/bundles/`; no asset, trajectory, reference-sample, PDB-only, or legacy-data lookup occurs. `bundles/build_molecular_bundles.py` stages canonical seeds already frozen inside each bundle and rebuilt all three bundles in place with all 25 scientific payload files byte-identical.
-- Verification: `XLA_PYTHON_CLIENT_PREALLOCATE=false ~/.envs/jax/bin/python Molecular_BG/smoke/run_all.py` passed on the GPU. Maximum stored-OpenMM/JAX energy discrepancy was `5.04e-8 kJ/mol`; maximum force RMSE was `4.48e-8 kJ/mol/nm`. Coordinate/Jacobian round trips, finite JIT gradients, ADP chirality, small-molecule parity support, mixed MALA, and a two-rung SMC bridge all passed.
-- `Molecular_BG/` has the intentionally minimal top-level layout: `bundles/`, `jflows/`, `jflows_md/`, `reference/`, `smoke/`, `README.md`, and `JFLOWS_MD_PLAN.md`. The former `assets/`, `data/`, `docs/`, `src/`, and `tools/` trees were deliberately removed after a verified mirror backup.
-- The FAB reference is evaluation-only: `reference/adp_truth.png` is the one-million-frame 100 × 100 ground-truth histogram. Recovery-critical `reference/fab_train.h5` and derived `reference/fab_train_phi_psi.npz` remain local and are intentionally ignored by Git through the global `*.h5` and `*.npz` rules; the mirror backup includes ignored files.
-- The prior paper and `Codes/` evidence state is unchanged by this molecular milestone. `Molecular_BG_1/` remains the historical paper-era PyTorch tree, and `Molecular_BG_2/zflows_md/` remains a read-only repair/design reference.
+- Repository: `/mnt/projects/X-regularization`, branch `main`, base HEAD before
+  this debugging checkpoint
+  `9b7553cb627f5b4f88f0c5f2545c685555842ceb` (`Extract molecular packages
+  and add glycerol driver`), tracking `origin/main` at 0 ahead / 0 behind.
+  The reviewed worktree has 5 modified tracked paths, 46 tracked deletions,
+  and 3 untracked v2 bundle directories. Every change is under
+  `Molecular_BG/` or in this status record: the v1 bundle trees are being
+  replaced by v2 quotient-measure targets, the glycerol driver is upgraded to
+  artifact schema 2, and no unrelated user work is mixed into the checkpoint.
+- **Public/private boundary:** `/mnt/projects/jflows` and
+  `/mnt/projects/jflows_md` are the public package repositories. Their public
+  GitHub interface uses ordinary editable installation and ordinary Python
+  imports, with no workstation-specific `/mnt/projects` command in README,
+  example, smoke, or bundle-builder instructions. `X-regularization` remains
+  the private/local experiment tree: commands under `Codes/` and
+  `Molecular_BG/` deliberately use `conda activate jflows` plus absolute
+  `PYTHONPATH=/mnt/projects/jflows` or the two-root molecular path. This is now
+  the sole project `status.md`; the retired package-root status file was
+  removed from `jflows`, and `jflows_md` has none.
+- Public `jflows` is clean and pushed at
+  `6910c3cedfd8fc74314e74a1b475c3caec0861d9`. Its behavior remains the one used
+  by the existing `Codes/` runs, so those results do not require a rerun.
+  Public `jflows_md` is clean and pushed at
+  `deac775d09cbb8fa686c59e3c3696c769c999e49` (`Correct molecular quotient
+  targets and persistence`), containing the reviewed scientific/debugging
+  checkpoint described below.
+- The Conda `jflows` environment is dependency-only for local work. Distribution
+  metadata and imports for both local packages are absent without
+  `PYTHONPATH`; explicit roots resolve imports to
+  `/mnt/projects/jflows/jflows` and `/mnt/projects/jflows_md/jflows_md`.
+- **Done — corrected standalone `jflows_md` core:** schema-2 coordinates now
+  use the standard Cartesian configurational measure after quotienting global
+  translation and rotation. The missing nonconstant anchor factor in the old
+  gauge-slice Jacobian is restored; legacy schema-1 bundles remain explicitly
+  readable but all built-in targets are v2. The pure-JAX Amber/OBC1 potential,
+  L-ADP half-chart, mixed NSF, torus-correct MALA, potential-space SMC,
+  score-free target-rejuvenated AIS, molecular training, and public facade
+  remain self-contained in `/mnt/projects/jflows_md`, with low-level code under
+  `jflows_md/core/`.
+- `Molecular_BG/` now contains only local experiment inputs and outputs:
+  `bundles/`, `glycerol_36d/`, `reference/`, and `JFLOWS_MD_PLAN.md`. It no
+  longer carries copied `jflows`, `jflows_md`, smoke, or package documentation
+  trees. The standalone public `jflows_md` repository retains its own matching
+  outer `bundles/` tree; bundle data is not hidden inside the Python package.
+- Three immutable v2 targets remain complete: FAB L-ADP uses Amber ff96/OBC1
+  on `R^42 × T^18` (60D); glycerol uses GAFF2/AM1-BCC/OBC1 on
+  `R^25 × T^11` (36D); explicitly neutral diethanolamine uses
+  GAFF2/AM1-BCC/OBC1 on `R^33 × T^15` (48D). Their physical and provenance
+  payloads are byte-identical to the retired v1 sources; the only coordinate
+  change is schema/chart/measure metadata plus a hash-bound upgrade record.
+  Built-in names are pinned to exact manifest hashes, and the builder rejects
+  changed seeds, AmberTools data/version, or candidate output unless a new
+  bundle version is created. The public and local `Molecular_BG/bundles/`
+  trees are checksum-synchronized.
+- **Verification passed:** with `conda activate jflows` and explicit
+  `PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md`, the complete public
+  smoke suite passed. This includes all three OpenMM energy/force parity tests
+  (maximum energy discrepancy `5.04e-8 kJ/mol`, maximum force RMSE
+  `4.48e-8 kJ/mol/nm`), independent quotient-Jacobian checks, ADP chirality,
+  float32 execution, Mixed_NSF, MALA, SMC, score-free AIS, one tiny BG training
+  stage, chunking, artifact reconstruction, strict bundle closure, manifest
+  immutability, and an exact ADP rebuild. Three independent final reviewers
+  returned PASS with no high- or medium-severity issue. No production molecule
+  training was launched.
 
 ## Pending
 
-- **Pending — next major task:** implement identity-initialized mixed spline couplings with ordinary RQS on Euclidean coordinates and circular C1 RQS on torsions, without changing the completed potential/coordinate core or treating the full box as periodic.
-- **Pending:** train the first Boltzmann generator against the exact ADP bundle using MALA and optimizer-only finite-safe `e_clip`; retain honest unclipped target values for MCMC, SMC, ESS, and evaluation, and do not restore sharpening.
-- **Pending:** establish training/evaluation ladders and matched reference diagnostics for glycerol and neutral diethanolamine after the ADP pipeline passes.
+- **Decision needed — environment split:** determine whether bundle preparation
+  should use a dedicated Conda OpenMM/ParmEd/AmberTools scientific environment
+  while training uses a pure JAX/math environment with no OpenMM runtime
+  dependency and loads `Molecular_Potential` directly from frozen bundles.
+  Preserve this as a later packaging/runtime-boundary question; no decision was
+  requested in this update.
+- **Pending — next authorized molecular run:** launch the local
+  `Molecular_BG/glycerol_36d` Boltzmann-generator training only after explicit
+  user instruction. No production molecule training has been launched.
+- **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
+  MALA and optimizer-only finite-safe `e_clip`; retain honest unclipped target
+  values for MCMC, SMC, ESS, and evaluation, and do not restore sharpening.
+- **Pending:** establish matched reference diagnostics for glycerol and neutral
+  diethanolamine after the first production pipeline passes.
 - **Pending:** decide whether the ignored FAB HDF5/NPZ reference data and ignored `Codes/` arrays/checkpoints need an external release artifact in addition to the mirror backup.
 - **Pending:** integrate the completed JAX molecular backend into the paper only after BG sampling results pass the planned physical and distributional gates; then perform the final full-paper consistency audit.
 
@@ -101,3 +165,45 @@ Last updated: 2026-07-11T14:13:38-04:00 (America/New_York)
 - Built and hash-bound three runtime targets: 60D ff96/OBC1 ADP, 36D GAFF2/AM1-BCC/OBC1 glycerol, and 48D GAFF2/AM1-BCC/OBC1 neutral diethanolamine. The relocated bundle builder reproduced all 25 scientific payload files byte-for-byte using only bundle-contained seeds.
 - Added mixed-domain source sampling, torus-correct MALA, potential-space SMC, an identity flow baseline, and smoke tests. The full GPU suite passed with maximum OpenMM/JAX energy discrepancy `5.04e-8 kJ/mol` and maximum force RMSE `4.48e-8 kJ/mol/nm`.
 - Minimized `Molecular_BG/` to packages, bundles, smoke tests, root documentation, and the standalone FAB reference folder. Renamed the reference figure to `reference/adp_truth.png`; the original HDF5 and derived NPZ remain local, ignored, and mirror-backed.
+
+### 2026-07-11T20:58:39-04:00 — Public packages separated from private experiment runs
+
+- Kept `jflows` and `jflows_md` as standalone public repositories and removed
+  workstation-specific `PYTHONPATH=/mnt/projects/...` instructions from their
+  public README, example, smoke, and bundle-builder interfaces. GitHub readers
+  receive the conventional `pip install -e .` workflow.
+- Kept `X-regularization` as the private/local experiment layer. Its Codes and
+  molecular drivers continue to activate the `jflows` Conda environment and
+  resolve the current public source trees through absolute `PYTHONPATH` values.
+- Verified that the local Conda environment contains neither package
+  distribution, that imports are absent without `PYTHONPATH`, and that the
+  explicit one-root/two-root paths resolve the intended repositories. Bundle
+  integrity and public API/float32 checks passed.
+- Published public heads `6910c3cedfd8fc74314e74a1b475c3caec0861d9`
+  (`jflows`) and `bab0f7edcc7e14855b848ef1b440f7323a18ae8d`
+  (`jflows_md`).
+- Retired the ignored package-root status record. Operational handoff state is
+  maintained only in `/mnt/projects/X-regularization/status.md`.
+
+### 2026-07-11T22:09:55-04:00 — Quotient target and persistence contracts corrected
+
+- Replaced the built-in gauge-slice v1 coordinate targets by versioned v2
+  targets using the rigid-motion-quotiented Cartesian configurational measure.
+  An independent square Jacobian found and verified the restored anchor factor;
+  full-molecule Jacobian probes for all three systems agreed to about `3e-14`.
+- Hardened bundle verification to enforce hash-bound runtime specifications,
+  safe relative paths, complete file-tree closure, no symlinks or special
+  nodes, consistent measure metadata, exact built-in manifest pins, and exact
+  v1-to-v2 lineage. Rebuilds now use non-destructive candidates and reject a
+  changed seed, AmberTools version/data, or output under an existing name.
+- Upgraded molecular flow artifacts to schema 2 with activation, dtype,
+  coupling mask, dependency version, source hashes, positive stage count, and
+  exact serialized-payload reconstruction. Retained the intentionally narrow
+  explicit-target path for forensic schema-1 artifacts.
+- Ran the complete `jflows_md` smoke suite in the Conda `jflows` environment
+  using explicit live-source `PYTHONPATH`; all tests passed. Iterative
+  independent scientific, persistence, sampling, and API reviews ended with
+  three PASS reports and no remaining high- or medium-severity issue.
+- Synchronized the public v2 bundle tree and schema-2 glycerol artifact driver
+  into `Molecular_BG/`. No production molecular training was launched, and the
+  environment-split decision remains pending.

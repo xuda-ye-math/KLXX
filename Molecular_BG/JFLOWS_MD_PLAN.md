@@ -210,7 +210,7 @@ The primary public facade loads a self-contained, versioned molecular bundle:
 
 ```python
 target = Molecular_Potential.from_bundle(
-    "fab_adp_ff96_obc1_v1/manifest.json",
+    "fab_adp_ff96_obc1_v2/manifest.json",
 )
 ```
 
@@ -232,8 +232,8 @@ training-time target loaders:
 ```python
 build_bundle_from_pdb(
     "alanine_dipeptide_L.pdb",
-    preset="fab_adp_ff96_obc1_v1",
-    output="fab_adp_ff96_obc1_v1/",
+    preset="fab_adp_ff96_obc1_v2",
+    output="fab_adp_ff96_obc1_v2/",
 )
 
 build_bundle_from_amber(
@@ -252,7 +252,7 @@ does not reliably encode small-molecule bond order, formal charge,
 protonation, or parameterization graph; those come from mapped SDF/MOL2 and
 Amber artifacts.
 
-`fab_adp_ff96_obc1_v1` is a proposed code-owned registry entry in
+`fab_adp_ff96_obc1_v2` is a code-owned registry entry in
 `jflows_md`; it does not come from fitting or reading the FAB trajectory. It is
 constructed once from the audited FAB/OpenMMTools code path and canonical
 ff96/OBC1 Amber system, then checked into the package as immutable parameters
@@ -294,8 +294,8 @@ parameters are not a validated OBC1 specification, so OBC1 must not simply be
 inferred from the ADP preset.
 
 For the new implicit-solvent benchmarks, define separate bundles
-`glycerol_gaff2_am1bcc_obc1_v1` and
-`diethanolamine_neutral_gaff2_am1bcc_obc1_v1`. Their pinned AmberTools build is
+`glycerol_gaff2_am1bcc_obc1_v2` and
+`diethanolamine_neutral_gaff2_am1bcc_obc1_v2`. Their pinned AmberTools build is
 
 ```text
 explicit-H, atom-mapped 3D SDF/MOL2
@@ -435,7 +435,7 @@ the other half has the opposite sign, and the forward/inverse placement is
 unique away from the planar boundary.
 
 The obsolete D-valued exploratory PDB has been removed. The canonical
-`bundles/fab_adp_ff96_obc1_v1/reference.pdb` and first stored validation frame
+`bundles/fab_adp_ff96_obc1_v2/reference.pdb` and first stored validation frame
 are L and share the frozen topology and atom ordering. Bundle construction and
 smoke tests verify the accepted determinant sign; an arbitrary PDB must never
 be used as the chirality oracle.
