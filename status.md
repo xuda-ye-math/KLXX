@@ -1,18 +1,17 @@
 # Project status
 
-Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
+Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`, branch `main`, baseline HEAD
-  `0b78abed8ea91663988ec1d630089a1498396d44` (`Record completed jflows
-  correctness audit`), tracking `origin/main` at 0 ahead / 0 behind before this
-  diary update. The tracked changes being prepared here are `status.md` and the
-  default-float32 correction in `Molecular_BG/JFLOWS_MD_PLAN.md`.
-  The pre-existing untracked diagnostic directory
-  `Molecular_BG/glycerol_36d/debug_loss_ess/` remains deliberately excluded
-  from Git; its ignored NPZ/EQX/log payload is recovery-critical and occupies
-  about 290 MB, so it remains part of the ext4 mirror backup.
+  `19b9b095e63b356fcf743761ef9859ddbb673368` (`Record jflows_md numerical
+  hardening`), tracking `origin/main`. Four tracked paths are modified:
+  `status.md`, `Molecular_BG/JFLOWS_MD_PLAN.md`, and the glycerol
+  `parameters.py`/`train.py`; three paths are untracked: the preserved
+  `debug_loss_ess/` diagnostic, `dihedrals.py`, and `dihedrals.png`. The
+  diagnostic's NPZ/EQX/log payload is recovery-critical and occupies about
+  290 MB, so it remains part of the ext4 mirror backup.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -22,21 +21,29 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   live-source `PYTHONPATH=/mnt/projects/jflows` or
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
-- Public `jflows` is clean at pushed HEAD
-  `f9e98ed43b203e114078f76615823e7508cb908d` (`Harden jflows correctness and
-  edge contracts`). The 24-file correctness and compatibility audit patch is
-  committed, including the new
-  `smoke/{test_checkpoint.py,test_edge_cases.py}`. The audited source-manifest
-  checksum is
-  `a07866d7a00b5d4274ebbbccdd9798aa1c05d7b1a686383ae56108b019d2f693`.
-  Public `jflows_md` is clean at pushed HEAD
-  `622047817ba78d96e5a9d2f62b59a1f04e4d6c0e` (`Harden molecular numerical
-  edge handling`). Its 13-file correctness patch adds molecular optimizer
-  finite-safety, raw nonfinite stage-weight handling, pre-compilation
-  validation, exact inherited-seam coverage, documentation, and the new
-  `smoke/test_edge_cases.py` regression module.
-  Established finite NSF/NCSF behavior remains compatible, so existing
-  `Codes/` numerical results require no rerun.
+- Public `jflows` is clean and pushed at
+  `0302829fe440b6241172b652ff914db1ebecc273` (`Repair forward AIS and quench
+  correctness`), version 0.2.0. The repair uses the actual source-particle/image
+  pair and matching Jacobian for the first forward-AIS correction, preserves a
+  per-particle Armijo trial scale after repeated line-search failures, and gives
+  OTFlow the same exact-selected-map/near-identity-warm-start contract as the
+  other trainable flows. All 16 public smoke modules and the affected 2D,
+  periodic-3D, 4D-Boltzmann, CNF, and OTFlow examples pass; three independent
+  reviewers found no remaining material correctness or API issue. The local,
+  GitHub, and ext4-mirror commit hashes are identical.
+  Public `jflows_md` is clean and pushed at
+  `da2251fcc2a322f80e4a7725ce7872c4eefd0302` (`Synchronize molecular training
+  with jflows 0.2`), version 0.2.0. It now mirrors the direct-first forward-AIS
+  semantics, uses the standard per-step ESS monitor, compares only the final
+  trained flow with exact identity on the full validation set, and lets that
+  selected ESS alone control post-training acceptance. The retired intermediate
+  checkpoint/`selection_steps` API and target-ratio monitor are absent. A
+  differentiable lin-log excess-energy regularizer is explicit and leaves the
+  physical target immutable. Its complete 13-module GPU smoke suite passes from
+  an isolated source copy, and three independent molecular reviews returned
+  PASS. Private forward-AIS consumers in `Codes/` still require a controlled
+  current-HEAD rerun; reverse-only results and reference ensembles are not
+  invalidated by this AIS correction.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -77,8 +84,8 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   quotient Jacobians, ADP chirality, float32 execution, Mixed_NSF, MALA, SMC,
   score-free AIS, a tiny BG training stage, chunking, strict bundle closure,
   legacy artifact migration, wheel/external-data behavior, and the glycerol
-  compile path (`2.53 s` energy+gradient, `5.07 s` one-step MALA in the latest
-  isolated 13-module smoke). Two independent final checkpoint/API reviewers
+  compile path (`2.45 s` energy+gradient, `5.06 s` one-step MALA in the latest
+  13-module smoke). Two independent final checkpoint/API reviewers
   returned PASS with no remaining high- or medium-severity issue; a separate
   gradient audit found no
   deterministic potential, ESS, clipping, or spline-gradient cause for the
@@ -102,6 +109,92 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   their mean over steps 1--10 was `0.281636`, versus `0.090935` over steps
   91--100, with many batches reaching the one-dominant-weight floor
   `1/120 = 0.008333`.
+- **Decision — smoke runs are forbidden for ESS testing:** molecular `--smoke`
+  runs may be used only to verify compilation, execution, finite outputs, and
+  controller wiring. Their reduced validation set, particle pool, optimizer
+  batch, ladder, and step count do not provide a precise or scientifically
+  comparable ESS curve and must not be used to tune or judge ESS. The current
+  comparison already shows the scale dependence: stage-1 selection at
+  `t=0.02` gave minimum SMC ESS `0.352` with the smoke pool and `0.512` with
+  the full 200000-particle pool. All future ESS tests must use the full run
+  configuration.
+- **🚨 DANGER — severe unauthorized ESS monitor replacement stopped:** the
+  AI-created `target-ratio C` label and history were not requested by the user
+  and violated the paper's monitoring contract. The full-size glycerol KLXX
+  run was killed after step 80, before any stage result was accepted or
+  promoted; `.run_klxx.inprogress-1042567` is only an interrupted diagnostic.
+  Per-step batch ESS is the only optimizer-loop monitoring quantity. The
+  separate full-validation proposal ESS remains the stage checkpoint and
+  acceptance metric. The AI-added monitor class, ratio-history alias, and
+  private artifact field have been removed from source. Focused regressions and
+  the complete molecular smoke suite pass, including an exact compiled check
+  that each printed per-step ESS matches its returned `ess_history` value.
+- **🚨 DANGER — second severe accident: unauthorized pre-ESS shrink/retry
+  contained and fixed:** the full-size regularized glycerol KLXX run passed its stage-1
+  SMC candidate check at `t=0.02` (minimum SMC ESS `0.993`) and completed all
+  100 optimizer steps, but `jflows_md` then executed
+  `zero optimizer updates -> shrink` before computing the final
+  full-validation proposal ESS. It automatically began a smaller-bridge retry;
+  that process was killed during retry step 50. No stage was accepted, no
+  output was promoted, and no training process remains. The complete evidence
+  is preserved in
+  `Molecular_BG/glycerol_36d/.run_klxx_c50.inprogress-1153227/train_status.log`.
+  Per-step ESS and update/finite/kept histories are diagnostics only. For a
+  trained stage attempt, the better of exact identity and the final trained
+  proposal on the full validation set is the sole acceptance or retry
+  criterion; zero optimizer updates must still reach that final ESS comparison.
+  The two early molecular shrink branches have now been replaced by diagnostic
+  messages only. Focused tests prove that a zero-update attempt with final ESS
+  `1.0` is accepted without retry and that a nonfinite trained final flow is
+  safely excluded while identity is accepted. The complete isolated 13-module
+  `jflows_md` GPU smoke suite passes. No experiment was relaunched.
+- **Verified — original `jflows` never has this shrink error:** the live
+  `jflows/boltzmann.py` is unmodified relative to Git HEAD and `origin/main`,
+  and its SHA-256
+  `9a83b9eb68143d09d9e1103b07163cd1e021bbb2452e82d643a7527290d8c2c8`
+  exactly matches the dated `/mnt/games/jflows_071226` snapshot. All four
+  adaptive drivers (`reverse_KL_F`, `forward_KL_G`, `forward_KLX_G`, and
+  `forward_KLXX_G`) compute trained and identity full-set ESS, select the
+  higher-ESS proposal, and enter post-training shrink/retry only when that
+  selected final ESS is below `tau_ess`. They contain no update-history,
+  kept-fraction, optimizer-count, or finiteness acceptance gate. A focused
+  live-source controller audit forced every trainer to return its unchanged
+  flow; all four drivers accepted attempt 1 at final ESS `1.0` and emitted no
+  rejection/shrink line. Therefore this accident is confined to the molecular
+  companion, so that specific molecular shrink accident did not invalidate any
+  established `jflows`/`Codes/` run. The later direct-first forward-AIS repair
+  is separate and does require the pending affected-private-run refresh. The
+  optional pre-training `tau_smc` candidate-selection gate remains the
+  original, separate ESS-based ladder mechanism; it is not a trained-stage
+  acceptance substitute.
+- **Prevention rule:** the paper algorithm and generic `jflows` controller are
+  normative. `jflows_md` changes must be minimal and limited to molecular
+  potential, mixed Euclidean/periodic domain, and necessary molecular execution
+  details. Before changing adaptive control, compare it line by line with
+  `jflows`, document every unavoidable deviation, and add a regression that
+  forces the relevant edge case. No molecular diagnostic may become a new
+  accept/reject signal. In particular, a zero-update or nonfinite trained flow
+  must leave the identity/warm-start fallback available and proceed to the
+  final full-validation ESS gate.
+- **Stopped diagnostic — repaired c50 controller exercised at full size:** the
+  user-configured glycerol KLXX rerun used `t_safe=0.1`, SMC ladder 8,
+  `tau_smc=0.6`, `tau_ess=0.4`, and the full
+  1000000/200000/50000 validation/pool/batch sizes. The repaired controller
+  correctly continued past `zero optimizer updates` and evaluated every
+  million-sample checkpoint. Attempt 1 selected identity at ESS `0.154004`,
+  legitimately failed the `0.4` final gate, and shrank to `t=0.07`; the retry
+  SMC ESS `0.893` was diagnostic only. The user killed the run at retry step 60
+  because loss and batch ESS remained flat. No stage was accepted or promoted;
+  evidence is preserved under
+  `Molecular_BG/glycerol_36d/.run_klxx_c50.inprogress-1178333/` and no Python
+  compute process remains.
+- **Active autonomous diagnostic program:** the primary goal is an ordered,
+  soft-c50 explicit-H alkane series (CH4, ethane, propane, n-butane; dimensions
+  9, 18, 27, 36) with fixed-batch gradient/update audits and independently
+  recomputed full-validation ESS. The explicit secondary goal is a 36D vacuum
+  glycerol reconstruction close to the original `zflows_md` setup. The
+  persistent contract and draft plan live under the ignored recovery-critical
+  `.aris/experiments/molecular_training_diagnostics/` tree.
 - **Done — production-scale stage-1 KL/ESS diagnosis:** the interrupted
   one-million-validation-particle run saved the initial flow and steps 10, 25,
   50, 100, 250, 500, 750, and 1000. Honest proposal ESS rose from `0.009114`
@@ -112,15 +205,13 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   float64 ESS recomputation, finite/infinite `e_clip` equivalence, kept fraction
   1.0, collision-tail checks, flow/Jacobian direction checks, and gradient
   replay exclude the proposed hidden ESS/sign/singularity explanations.
-- **Done — opt-in overtraining guard:** `jflows_md` now distinguishes the live
-  target-pool ratio concentration from honest proposal ESS. A sparse
-  `selection_steps` schedule compares exact identity (step -1), the accepted
-  warm start (step 0), requested post-update flows, and the final flow on all
-  validation particles before applying the unchanged `tau_ess` gate. The empty
-  schedule preserves the original final-versus-identity behavior. Focused
-  tests uniquely select a warm start and an intermediate checkpoint, rescue a
-  nonfinite final flow, preserve multi-stage warm starts and trained-on-tie
-  behavior, and enforce the 32-snapshot safety limit.
+- **Done — original final-only stage selection restored:** per-step batch ESS
+  remains the sole optimizer-loop monitor. After training, the controller
+  evaluates exactly two proposals on every validation particle: exact identity
+  and the final trained flow. The higher full-validation ESS is selected, and
+  that selected ESS alone determines acceptance against `tau_ess`. The
+  experimental intermediate checkpoint/`selection_steps` mechanism has been
+  removed from code, tests, public API, and documentation.
 - **Done — independent `jflows` correctness audit:** three blind reviewers
   returned clean clearance for core scientific logic, public APIs,
   serialization, examples, and smoke coverage. All 16 smoke modules passed on
@@ -128,12 +219,13 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   CNF/OTFlow and 4D Boltzmann examples passed; and a forced incomplete 4D
   ladder correctly raised before producing a target-labelled figure. Normal
   finite NSF/NCSF reverse-KL, forward-KL, and KL+X probes remained bit-identical
-  to baseline HEAD, so established `Codes/` results require no rerun. The only
-  deliberately changed stochastic training semantics are for
-  `CNF(exact=False)`, whose Hutchinson probe is now refreshed each optimizer
-  step. X regularization retains its established empirical permutation
-  V-statistic, with consistent `O(1/N)` finite-batch bias, for backward
-  compatibility.
+  across the earlier compatibility patch. The subsequent forward-AIS initial
+  correction is a deliberate scientific repair, so private `Codes/` runs that
+  consume forward AIS must be rerun before their current-head provenance is
+  claimed. `CNF(exact=False)` also deliberately refreshes its Hutchinson probe
+  each optimizer step. X regularization retains its established empirical
+  permutation V-statistic, with consistent `O(1/N)` finite-batch bias, for
+  backward compatibility.
 - **Done — `jflows_md` inherited-fix and dtype audit:** molecular code now
   atomically rejects any Adam update whose loss, gradients, moments, or
   resulting parameters are nonfinite; global clipping remains stable when a
@@ -160,18 +252,30 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
 - **Pending — new molecular targets:** every AmberTools-26 or otherwise changed
   small-molecule model must use a new descriptive bundle name and receive an
   explicit scientific/provenance review before promotion to the frozen registry.
-- **Pending — next authorized molecular run:** launch the local
-  `Molecular_BG/glycerol_36d` Boltzmann-generator training only after explicit
-  user instruction. The completed smoke and interrupted diagnostic attempt are
-  not production results; no GPU process is currently running.
+- **Pending — alkane training diagnosis (primary):** independently review the
+  predeclared plan, build and validate only CH4 first, audit a single KL/KLXX
+  loss and gradient outside the packed scan, and require finite committed
+  updates plus saved held-out ESS before advancing to ethane, propane, or
+  n-butane. Do not infer scientific ESS from smoke-sized populations.
+- **Pending — original-style vacuum glycerol (secondary):** extract the exact
+  archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
+  and hyperparameters; build a discrepancy ledger and run the same minimal
+  diagnostic only after the CH4 gate is understood.
+- **Pending — private forward-AIS reruns:** the public replanting/correctness
+  audit is complete, but the direct-first AIS correction changes the stochastic
+  path of downstream forward-AIS experiments. Rerun the affected private
+  `Codes/` studies (2D benchmark, high-dimensional product, Lattice Clock, and
+  Phi4 L6/L8) under current `jflows` before updating their scientific artifacts.
+  Treat differences beyond floating noise as an algorithm-correction effect;
+  reverse-only runs and stored reference ensembles need no rerun.
 - **Pending — ESS degeneration and identity selection:** the
   standard-compiler smoke proved that the complete 36D pipeline runs quickly
   enough, but identity won every accepted level and the production-size bare-KL
   diagnostic peaked early before overfitting its fixed 200000-particle pool.
   This remains the primary unresolved molecular-training problem. The next
-  authorized experiment should retain sparse full-validation checkpoint
-  selection, report independent holdout ESS, and compare KL+X or KLXX against
-  bare KL before increasing step count. A run must select trained stages and
+  authorized experiment should compare only final flow and identity on the full
+  validation set, report independent holdout ESS, and compare KL+X or KLXX
+  against bare KL before increasing step count. A run must select trained stages and
   achieve materially nonzero direct proposal ESS before it can be treated as a
   successful Boltzmann generator.
 - **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
@@ -380,12 +484,12 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   forward-KL/chi-square objective mismatch: proposal ESS peaks near step 100
   even as the empirical training loss continues decreasing. Molecular
   singularities and a hidden ESS implementation error are excluded.
-- Replaced the molecular trainer's misleading live `ESS` label by
-  `target-ratio C`. Added opt-in sparse post-update flow snapshots and a
-  full-validation stage selector that also tests identity and the accepted
-  warm start, while preserving the original empty-schedule behavior and
-  unchanged `tau_ess` gate. The private glycerol driver saves all checkpoint
-  labels, steps, and ESS values.
+- Added opt-in sparse post-update flow snapshots and a full-validation stage
+  selector that tests identity and the accepted warm start while preserving
+  the original empty-schedule behavior and unchanged `tau_ess` gate. The same
+  change also introduced an unauthorized AI-created replacement for the
+  per-step ESS monitor; that regression was later classified as severe and
+  reverted.
 - Ran the complete live `jflows_md` smoke suite successfully on `cuda:0`, then
   reran the strengthened checkpoint-controller smoke. It proves multi-stage
   warm starts, exact tie behavior, unique warm-start and intermediate-flow
@@ -453,3 +557,115 @@ Last updated: 2026-07-12T09:48:15-04:00 (America/New_York)
   explicitly verified x64 disabled and float32 samples, flow leaves, ESS,
   energies, gradients, and MALA outputs. No production training run was
   launched.
+
+### 2026-07-12T10:01:15-04:00 — Full-size ESS testing rule adopted
+
+- Established that reduced molecular smoke runs are compile and execution
+  checks only and must never be used as ESS tests or scientific quality
+  evidence. ESS comparisons and tuning decisions require the full configured
+  validation, pool, batch, ladder, and training sizes.
+- Stopped the reduced KLXX experiment and launched the authorized full-size
+  glycerol KLXX run with `LR=1e-3`. At stage 1, the full 200000-particle SMC
+  selection passed `t=0.02` with minimum ESS `0.512`. The run was subsequently
+  stopped at optimizer step 80 when the missing per-step ESS interface was
+  identified; it produced no accepted or promoted result.
+
+### 2026-07-12T10:07:41-04:00 — 🚨 Severe per-step ESS regression contained
+
+- Recorded the AI-created `target-ratio C` monitor as an unauthorized severe
+  regression against the paper and user-established interface. Per-step batch
+  ESS is the only permitted optimizer-loop monitoring quantity; full-validation
+  proposal ESS remains a separate stage checkpoint and acceptance statistic.
+- Killed the full-size glycerol KLXX process before accepting a stage. Removed
+  the replacement monitor class and ratio-history naming from `jflows_md`, and
+  restored the private driver to `jflows.train.Monitor` plus
+  `stage_ess_history`. The required focused and complete smoke verification
+  subsequently passed; no production run was automatically relaunched.
+
+### 2026-07-12T10:25:06-04:00 — ESS interface restored and companion simplified
+
+- Verified that the standard compiled monitor prints the same per-step ESS
+  values returned in `ess_history` for molecular training. KL, KL+X, and KLXX
+  controller paths expose only the ESS history name; the private glycerol NPZ
+  field is `stage_ess_history`.
+- Simplified `jflows_md` by directly reusing public `jflows.train.Monitor`,
+  `importance_weights_log(..., "G")`, `linear_weights_from_log`, ESS,
+  resampling, potential algebra, L-BFGS, and flow/spline bases. Kept mixed
+  MALA, SMC/AIS, molecular sources, and checkpoint-aware training local because
+  their mixed Euclidean/torus contracts differ from generic `jflows`.
+- Passed the full 13-module `jflows_md` GPU suite after simplification, plus the
+  focused `jflows` metrics suite and private glycerol `--help` import check.
+  Searches across all three source trees found none of the removed monitor,
+  history, or artifact identifiers outside this explicit danger record.
+
+### 2026-07-12T13:54:47-04:00 — 🚨 Second severe accident contained, fixed, and original controller cleared
+
+- Killed the full-size regularized glycerol KLXX process after the molecular
+  controller used `zero optimizer updates` to shrink before final validation
+  ESS and automatically started a retry. The preserved staging log shows the
+  complete first 100-step attempt and retry through step 50; no stage or final
+  artifact was accepted or promoted.
+- Audited every adaptive acceptance path in the clean public `jflows` source,
+  its Git history, and the dated ext4 snapshot. Generic `jflows` has no
+  zero-update-like acceptance branch: after the optional SMC candidate gate,
+  its only post-training reject/shrink condition is selected full-set proposal
+  ESS below `tau_ess`.
+- Ran an isolated controller regression against live `jflows` that replaced
+  each of the four trainers by an unchanged-flow stub. Reverse KL, forward KL,
+  KL+X, and KLXX all accepted attempt 1 on final ESS and emitted no shrink or
+  rejection. Existing `jflows` and private `Codes/` results therefore need no
+  rerun.
+- Adopted the prevention rule that the paper and generic `jflows` algorithm are
+  normative, molecular changes stay minimal, and new diagnostics can never
+  control acceptance without explicit authorization and dedicated regression
+  evidence.
+- Removed only the two molecular pre-validation shrink branches. Zero-update
+  and nonfinite-final conditions are now diagnostics; candidate selection still
+  reaches the identity/warm-start/checkpoint/final full-validation ESS
+  comparison. The only post-training shrink assignment remaining is below the
+  final `tau_ess` gate; the two other assignments belong to the original SMC
+  candidate-selection gate.
+- Passed the focused controller module and the complete isolated 13-module
+  `jflows_md` GPU smoke suite, including all three OpenMM/JAX potential parity
+  checks and the float32 glycerol compile path. No glycerol training process is
+  running and no experiment was relaunched.
+
+### 2026-07-12T14:15:42-04:00 — Full-size repaired path stopped; controlled diagnostic goals opened
+
+- Relaunched full glycerol KLXX with the user's updated stage/SMC parameters and
+  verified the repaired behavior on real data: zero updates led to full
+  checkpoint ESS evaluation, not an unauthorized shrink. The selected final
+  ESS `0.154004` alone caused the first retry. The user stopped the retry at
+  optimizer step 60 because neither stochastic loss nor batch ESS improved;
+  no stage or output was accepted.
+- Opened a bounded primary investigation over CH4, ethane, propane, and
+  n-butane soft-c50 targets, with analytic gradient/update gates before any size
+  scaling. Added the archived 36D vacuum glycerol reconstruction as the
+  secondary goal.
+- Started independent read-only reviews of alkane target design, archived
+  vacuum-glycerol provenance, and the detailed `zflows` to `jflows` scientific
+  replanting. The replant audit must distinguish genuine bug fixes from semantic
+  changes and account for any new per-step, per-stage, compilation, or memory
+  cost before it is accepted.
+
+### 2026-07-12T17:16:45-04:00 — jflows 0.2 and jflows_md 0.2 synchronized and published
+
+- Completed the public `jflows` repair at commit
+  `0302829fe440b6241172b652ff914db1ebecc273`: forward AIS now initializes from
+  the actual source/image/Jacobian pair, repeated Armijo failures retain a
+  smaller per-particle trial scale, and OTFlow preserves the exact selected map
+  while constructing a separate near-identity trainable continuation. All 16
+  smoke modules and the affected public examples passed; three independent
+  reviews returned PASS.
+- Synchronized the molecular companion at commit
+  `da2251fcc2a322f80e4a7725ce7872c4eefd0302`. Molecular AIS is direct-first,
+  the stage controller compares only final flow and identity using full-set ESS,
+  the intermediate checkpoint-selection API is retired, and the explicit
+  differentiable molecular regularizer has endpoint-safe tests. The complete
+  isolated 13-module GPU smoke suite and three independent reviews passed. No
+  molecule training was launched during this package verification.
+- Pushed both repositories to `origin/main` and verified their local, remote,
+  and `/mnt/games/projects/` mirror commits. The controlled CH4-to-n-butane c50
+  diagnosis remains the active molecular goal. A current-head rerun of private
+  forward-AIS `Codes/` experiments is explicitly pending before their numerical
+  artifacts are refreshed.

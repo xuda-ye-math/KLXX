@@ -6,9 +6,10 @@ The first `jflows_md` suite contains three molecular Boltzmann-generator
 targets: FAB alanine dipeptide (ADP, 60D), glycerol (36D), and neutral
 diethanolamine (48D). ADP reproduces a published target; glycerol and
 diethanolamine extend the same package to explicitly defined small-molecule
-benchmarks. The package core and validation gates are now implemented. Scaled
-molecular training remains deliberately unlaunched until the bounded compile,
-sampler, and full-path checks are accepted.
+benchmarks. The package core and validation gates are now implemented. A full
+glycerol training attempt compiled and ran normally, but its per-step ESS stayed
+near the identity value instead of improving. Molecular flow training is now
+paused while the target singularity is isolated with sampler-only diagnostics.
 
 Fixed decisions:
 
@@ -21,8 +22,11 @@ Fixed decisions:
    the immutable parameter specification and as the independent reference.
 4. The ADP state is an exact L-only internal-coordinate chart on
    `R^42 x T^18`, not an all-periodic 60-dimensional box.
-5. There is no energy soft-cap, distance-floor anneal, post-stage sharpening,
-   or soft chirality penalty. Annealing stops at the physical target `t=1`.
+5. The canonical `Molecular_Potential` is always the exact physical target and
+   has no energy cap, distance floor, or soft chirality penalty. Explicitly
+   named regularized surrogate potentials may be used for diagnostics and
+   training initialization, but every accepted sharpening path must terminate
+   at the unchanged physical target.
 6. MALA is the rejuvenation kernel. `e_clip` is only a training-loss screen;
    it never changes MALA, SMC weights, final importance weights, or the target.
 7. The million-frame FAB trajectory is evaluation data, not a likelihood
@@ -30,16 +34,189 @@ Fixed decisions:
 8. A target bundle freezes both the Cartesian Hamiltonian and the complete
    internal-coordinate support. Caller-supplied, unversioned coordinate
    transforms are not allowed in benchmark training.
+9. The paper algorithm and generic `jflows` adaptive controller are normative.
+   `jflows_md` changes are limited to the molecular potential, mixed
+   Euclidean/periodic domain, and the minimum execution changes those require.
+
+### Controller safety rule and incident history
+
+Two severe controller/interface regressions occurred on 2026-07-12. First, an
+AI-created `target-ratio C` replaced the user-required per-step ESS monitor.
+Second, an AI-created `zero optimizer updates` branch shrank the bridge and
+automatically retried before computing full-validation proposal ESS. Both runs
+were killed before any stage or final result was promoted, and both behaviors
+are removed.
+
+The prevention rule is now explicit:
+
+1. Per-step batch ESS is the optimizer-loop monitor. Update-applied and kept
+   histories are diagnostics only.
+2. The original potential-space SMC ESS gate may pre-select a bridge candidate.
+   After a training attempt, compare only exact identity and the final trained
+   flow on all validation particles. The better proposal's ESS is the sole
+   stage accept/reject criterion. No diagnostic may shrink or retry a stage.
+3. Zero optimizer updates still proceed to full-validation ESS. A nonfinite
+   trained flow is assigned zero proposal ESS and excluded, while finite
+   identity remains eligible.
+4. Before any molecular controller edit, compare the path line by line with
+   generic `jflows`, document each unavoidable molecular deviation, and add a
+   focused regression for it. A new scientific control signal requires explicit
+   user authorization; it cannot be introduced as defensive engineering.
+
+The live generic `jflows` source, Git HEAD/origin, and dated ext4 snapshot were
+audited after the second incident. All four adaptive drivers use the same
+trained-versus-identity full-set ESS comparison and contain no zero-update-like
+stage gate. An unchanged-flow controller probe accepted attempt 1 in all four
+drivers, so the molecular shrink incident itself did not invalidate established
+generic runs. The later direct-first forward-AIS correction is separate; its
+affected private `Codes/` consumers have a controlled rerun pending.
+
+## 2026-07-12 priority: diagnose the singular target before more BG training
+
+This section supersedes the earlier instruction to avoid all sharpening. The
+failed experiment did not show a compilation problem: the ordinary JAX policy
+compiled and trained quickly. It showed a scientific problem: at the full
+glycerol workload (`N_BATCH=50000`) the learned proposal did not improve the
+only standard training monitor, per-step ESS. No further BG run is launched
+until the following sampler-only diagnostic is complete.
+
+For a physical Cartesian energy `E`, bundle reference energy `E_ref`, cutoff
+`c`, scale `s`, and optional linear-tail fraction `rho`, define
+
+```text
+d = E - E_ref
+E_(c,s,rho) = E                                      if d <= c,
+E_(c,s,rho) = E_ref + c
+                + (1-rho) s log(1 + (d-c)/s)
+                + rho (d-c)                         if d > c,
+U_(c,s,rho)(q) = beta E_(c,s,rho)(x(q)) - log J(q).
+```
+
+The shift by `E_ref` makes the cutoff portable across Hamiltonians. Only the
+Cartesian energy is deformed; the coordinate Jacobian remains exact. The
+physical `Molecular_Potential` is never mutated. `e_clip` remains an
+optimizer-only sample screen and is unrelated to this surrogate family.
+
+The first partial goal is a three-panel `glycerol_36d/dihedrals.png` for the
+current **implicit-solvent** GAFF2/AM1-BCC/OBC1 target. It compares saved
+sampler populations at several energy cutoffs for O-C-C-O `(0,1,2,3)`,
+C-C-C-O `(1,2,4,5)`, and C-C-O-H `(1,2,3,10)`. Use `s=50 kJ/mol` and initially
+probe `c = 50, 100, 200, 400, 800 kJ/mol`, followed by the exact target if an
+honest adaptive bridge reaches it. The plotted subset may be smaller to keep
+the modes readable, but all sampled levels are saved.
+
+Sampling requirements:
+
+1. Start from the bundle source and use potential-space SMC with mixed-domain
+   MALA. Select each bridge increment from honest full-particle incremental
+   ESS; resample and rejuvenate at the actual intermediate potential.
+2. Run two independent seeds. A small pilot checks compilation and file paths
+   only; it is never distributional or ESS evidence.
+3. Save after every requested cutoff: raw internal coordinates, the three raw
+   unsymmetrized torsions, exact physical and deformed energies, cap-active
+   fraction, per-level ESS, MALA acceptance, seed/configuration, bundle hash,
+   and source hashes. Sampling is restartable at endpoint boundaries.
+4. Replot from the saved HDF5 file only. Estimate periodic marginals by a fixed
+   circular histogram and wrapped Gaussian smoothing; do not rerun dynamics to
+   tune the figure.
+5. Require both seeds to retain the same named torsional modes before treating
+   a curve as evidence. Record cross-seed histogram divergence and adjacent-cap
+   reweighting ESS. The exact endpoint is mandatory before any physical claim.
+
+The old `Molecular_BG_1/glycerol_36d/dihedrals.png` is context only. It used a
+vacuum Hamiltonian plus the jointly deformed `e_cap=200`, `r_floor=0.1 nm`
+target; it neither isolates the effect of `e_cap` nor validates the current
+implicit-solvent distribution. Accordingly, differences in the new curves are
+expected and must not be cosmetically forced to match the archive.
+
+The archived lin-log form motivates the first cutoff scan, especially the
+observed 100--200 kJ/mol transition, but not its final choice. A cutoff is
+acceptable for training initialization only if it retains all stable modes,
+has adequate adjacent-level ESS, and admits a reliable adaptive path to the
+exact target. A separate collision-distance regularizer may be studied later,
+but it is not mixed into this first experiment. The `rho=0` logarithmic tail
+also needs a normalizability/coercivity audit before production use; a positive
+linear tail is the fallback.
+
+Two alternatives remain pending rather than combined with this scan: train a
+separate generator at 600 K or 1200 K and cool it to 300 K, or regularize
+individual collision terms. A temperature bridge must use
+`beta_T E(x(q)) - log J(q)`; scaling the complete reduced potential would
+incorrectly scale the Jacobian.
+
+### First diagnostic outcome
+
+The 2026-07-12 **exploratory** run completed under `~/.envs/jflows` with two
+independent 100000-particle seeds and ordinary JAX compilation. It reached
+every requested cutoff and the exact potential in about 82 seconds. The saved
+artifact is `glycerol_36d/dihedrals_samples.h5`; the figure is reconstructed
+from it by `glycerol_36d/dihedrals.py replot`. This run establishes the visible
+mode structure and the location of the useful cutoff transition. It is below
+the full `N_VALID=1000000` standard and is not equilibrium or production ESS
+evidence.
+
+The source-to-`c=50` transition required 13 adaptive levels in both seeds; its
+direct ESS was only `1.77e-5` and `1.12e-5`. At the sampled `c=50` endpoint,
+70.8% and 83.9% of frames were still above the cutoff, and the worst torsion
+cross-seed JS divergence was `0.1065` bits. Thus `c=50` is visibly deformed and
+not yet an accepted equilibrium reference, although both seeds retain the
+same three named modes.
+
+The `c=50 -> 100` transition required two levels. At `c=100`, only 0.020% and
+0.018% of frames activated the cap. The direct `c=100 -> 200` ESS was
+`0.999992` and `0.999998`; all later `200 -> 400 -> 800 -> exact` transitions
+had ESS `1.000000`, with no sampled frame above 200 kJ/mol excess energy.
+Exact-potential mixed-MALA acceptance was about 0.857. Exact cross-seed JS values
+for O-C-C-O, C-C-C-O, and C-C-O-H were `0.0228`, `0.0102`, and `0.0341` bits,
+and all three exact marginals retain clear three-mode structure. Aggregate
+`c=100` versus exact marginal JS values are at most `0.0003` bits.
+
+The marginals hide incomplete joint mixing. At the exact-potential endpoint,
+the two seeds have 12-by-12-by-12 selected-torsion joint JS `0.2246` bits,
+coarse 3-by-3-by-3 rotamer JS `0.0460` bits, maximum single-coordinate JS over
+all 11 internal torsions `0.1150` bits, central determinant-positive fractions
+`0.5320` versus `0.3160`, and a median excess-energy difference of about
+`1.63 kJ/mol`. At `c=100`, the corresponding joint JS is `0.2650` bits and the
+determinant-positive fractions are `0.5341` versus `0.3163`. Thus the gray
+curve is an exact-**potential** population, not an accepted exact-equilibrium
+reference. High acceptance with persistent population differences points to
+insufficient intermode movement rather than MALA rejection.
+
+Consequently `c=100 kJ/mol` above `E_ref` is only the leading
+**next-diagnostic candidate**. Conditional on each already discovered basin
+mixture, `c=100 -> exact` has ESS `0.999992` and `0.999998` and negligible
+marginal change; this does not prove the basin weights. Before BG training,
+run a fresh direct source-to-`c=100`-to-exact diagnostic with all 11 torsions,
+joint rotamers, determinant signs, longer/tuned rejuvenation, and the full
+`N_VALID=1000000` population. Do not simply reuse the exploratory MALA setting
+(`step=1e-3`, 20 transition iterations, 50 endpoint iterations): its high
+acceptance together with persistent joint disagreement indicates insufficient
+movement. Tune the step and/or increase rejuvenation in a bounded pilot first.
+
+There is also little coercivity margin in the pure logarithmic tail. For a
+collective dilation of glycerol's 13 bonds, normalizability requires
+`s > (39/2) k_B T = 48.64 kJ/mol` at 300 K; `s=50` clears this by only
+`1.36 kJ/mol`. Prefer a positive `rho` or a materially larger `s` in the next
+run and repeat the cutoff comparison. The driver therefore defaults future,
+new-path diagnostics to `N=1000000` and `rho=0.01`; these settings have not yet
+been run or validated. The HDF5 now records `E_ref`, geometry,
+deformation-spec hashes, all-torsion/joint diagnostics, and both the original
+sampling-script hash and later audit-script hash. Sampling resume refuses a
+script-hash mismatch; this exploratory artifact itself predates that strict
+guard and must not be extended with a changed sampler.
 
 ## Implementation update: molecular compilation and test tiers
 
-Current status: the controller redesign below is implemented in the single
-authoritative `jflows` checkout and in `jflows_md`. The complete bounded smoke suite passes, and
+Current status: generic scientific controller semantics remain authoritative in
+the single `jflows` checkout, while the mixed-domain execution boundary below
+is implemented in `jflows_md`. The complete bounded smoke suite passes, and
 an isolated 18-cell RTX 5090 benchmark covers flow maps, both public one-step
 trainers, the real glycerol potential/gradient, and a fixed-shape molecular
 MALA chunk. All benchmark cells pass; the largest observed peak is below
-1.64 GB host RSS and 340 MB backend-reported GPU use. No scaled molecular ESS
-run was started.
+1.64 GB host RSS and 340 MB backend-reported GPU use. A later full glycerol
+KLXX run also compiled promptly under the ordinary JAX policy, but its
+per-step ESS stayed near the identity baseline; that scientific failure is the
+reason for the regularization diagnostic above.
 
 The molecular controller must not put chunk or ladder-level Python loops
 inside one JIT. Two scaled glycerol attempts demonstrated that this boundary
@@ -94,8 +271,8 @@ Testing proceeds in two tiers and never jumps directly to production:
 | Tier | N_VALID | N_POOL | N_BATCH | STEPS | LADDER | MC_ITERS | CHUNK |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | compile/path smoke | 2048 | 1024 | 32 | 2 | 2 | 1 | 8 |
-| scaled ESS smoke | 60000 | 12000 | 120 | 100 | 6 | 20 | 128 |
-| production | 600000 | 120000 | 12000 | 1000 | 6 | 200 | 32 |
+| scaled compile smoke | 60000 | 12000 | 120 | 100 | 6 | 20 | 128 |
+| current glycerol run | 1000000 | 200000 | 50000 | 100 | 12 | 100 | 8 |
 
 The bounded component/full-path suite now exercises SMC, score-free AIS, mixed
 MALA, both trainers, full-set weights, resampling, one adaptive BG stage, all
@@ -103,15 +280,16 @@ three molecular potentials, and default-float32 checkpointing. Its real
 glycerol energy/gradient and one-step MALA compiles finish in about 3 and 5
 seconds, respectively. A side-by-side backup comparison gives bitwise-identical
 G-AIS, SMC, two-step KLX parameters, and ESS; F-AIS differs only by
-`1.67e-6` from compiled arithmetic reassociation. The scaled ESS smoke remains
-the requested one-order workload test; its larger chunk count means fewer
-samples per physical chunk after the eager refactor. No individual run may
-exceed two hours.
+`1.67e-6` from compiled arithmetic reassociation. The scaled smoke is only a
+compile/path test: its ESS is too noisy to assess a training method. Scientific
+ESS evidence uses the full workload. No individual run may exceed two hours.
 
-ESS evaluation uses all `N_VALID` particles at every accepted stage. Save
-separately the optimizer `ess_history`, trained validation ESS, identity
-validation ESS, selected map, kept fraction, and update-applied history. ESS
-is stochastic and need not rise at every optimizer step. Report, per stage,
+ESS evaluation uses all `N_VALID` particles at every stage decision. The
+selected full-validation proposal ESS is the sole post-training acceptance
+quantity. Save separately the optimizer `ess_history`, trained validation ESS,
+identity validation ESS, selected map, kept fraction, and update-applied
+history; the latter two never control acceptance. ESS is stochastic and need
+not rise at every optimizer step. Report, per stage,
 the first/last value, first-20 versus last-20 median, linear trend, fraction of
 positive adjacent changes, and whether the trained or identity map won. The
 aggregate evidence for improvement is a positive robust trend and higher
@@ -489,37 +667,51 @@ a fixed unverified three-image sum is not accepted as exact MALA.
 a fixed reduced-energy origin `U_ref`; a kept optimizer sample satisfies
 `isfinite(U) & (U-U_ref <= delta_e_clip)`. Masked reductions must use
 `where(keep, value, 0)`, not `keep*value`, because `0*inf` is NaN. All-screened
-batches trigger a skipped/retried step. Report the optimizer kept fraction and
+batches skip that optimizer update. They do not trigger a stage shrink or
+retry. Report the optimizer kept fraction and
 optional clipped-batch training ESS separately. Stage selection and acceptance
 use honest full-target ESS; only genuinely invalid/nonfinite log weights become
 `-inf`. A clipped ESS can never accept a stage. The clipped fraction is logged
 and must fall during training.
 
-## 6. Training without sharpening
+## 6. Regularized initialization and exact sharpening
 
-Use a potential-space bridge
+After the sampler-only cutoff scan passes, use a two-axis potential-space
+construction. The first axis trains at a declared regularized endpoint; the
+second sharpens that endpoint to the exact physical target. Within either
+fixed pair of endpoint potentials use
 
 ```text
 U_t = (1-t) U_0 + t U_1,  0=t_0 < ... < t_K=1.
 ```
 
-At each stage:
+At each bridge level:
 
 1. Select the next `t_k` from incremental-weight ESS on held-out particles.
-2. Generate target-stage particles with potential-space SMC and mixed MALA at
+2. Generate target-level particles with potential-space SMC and mixed MALA at
    the actual intermediate `U_t`.
-3. Train an incremental mixed flow with forward KL + X regularization
-   (`KLX`) using those energy-generated particles.
+3. Once the sampler diagnostic is accepted, train an incremental mixed flow
+   with forward KL + X regularization using those energy-generated particles.
 4. Compare trained-increment ESS with the identity/SMC fallback.
-5. Accept only if the held-out ESS and mode gates pass; otherwise shrink the
-   step and retry.
+5. Accept only if the selected proposal's full-validation ESS clears
+   `tau_ess`; otherwise shrink the step and retry. Mode diagnostics may stop a
+   scientific experiment outside the controller, but cannot trigger a
+   controller shrink or acceptance.
 6. Advance the particle population by exact reweight/resample + mixed MALA.
 
-Do not initially use KLXX, L-BFGS/quench pools, aggressive energy caps, or any
-post-stage sharpening. They can obscure whether the potential, geometry, and
-basic BG are correct. The current flow-proposal AIS routine rejuvenates at the
-final target on nominal intermediate ladder levels; it is not used as the molecular
-bridge. `e_clip` screens only optimizer losses.
+Cutoff increases are adaptive and determined by full-particle reweighting ESS,
+not by an arbitrary geometric schedule. Each transition reweights with the
+complete difference between the two declared potentials, resamples, and uses
+mixed MALA invariant for the new intermediate target. Save the adjacent-cutoff
+ESS and reject a transition that destroys a named torsional mode. The final
+endpoint is the exact `Molecular_Potential`, never a largest finite cap.
+
+Do not initially combine the energy cutoff with a distance floor, temperature
+change, delta-QT surrogate, or another hidden deformation. KLXX and the
+wide-coverage pool can be reconsidered only after the target ladder itself is
+validated. The current flow-proposal AIS routine rejuvenates at the final
+target on nominal intermediate ladder levels; it is not used as the molecular
+potential bridge. `e_clip` screens only optimizer losses.
 
 ## 7. Implementation sequence and hard gates
 
@@ -654,6 +846,75 @@ the training target reproducible without invoking OpenMM at runtime. The
 checked-in bundles are sufficient for ordinary training and evaluation.
 AmberTools is an optional provenance dependency only for rebuilding the two
 GAFF2 small-molecule bundles and is discovered through `AMBERHOME` or `PATH`.
+
+## 10. Immediate molecular-training diagnostic pivot
+
+The unsuccessful glycerol c50 KLXX attempts are halted.  Before another
+glycerol optimization, the current trainer must pass a deliberately ordered
+small-molecule diagnosis.  This diagnostic phase does not silently change the
+public `jflows` or `jflows_md` packages: a proven package defect produces a
+minimal patch specification and a separate authorization gate.
+
+### Primary goal: soft methane-to-butane series
+
+Use explicit-H labeled methane, ethane, propane, and n-butane, with internal
+dimensions 9, 18, 27, and 36.  Freeze one small `Mixed_NSF` architecture and
+one set of sample counts, key roles, and diagnostics for the complete series.
+For each molecule compare the exact physical target with declared c50
+regularizations.  The primary soft target is coercive (`cut=50 kJ/mol`,
+`scale=50 kJ/mol`, positive residual slope `rho=0.01`); the old pure-log
+`rho=0` form is a separately named diagnostic and stops at n-butane because
+its tail-normalizability margin fails for the next homologue.
+
+No CH4 optimization starts before all of the following pass:
+
+1. an independently specified shifted-Gaussian/von-Mises mixed-domain oracle;
+2. CH4 topology, charge, chart round trip, support, and permutation audits;
+3. OpenMM/JAX energy-and-force parity plus finite float32 energy gradients;
+4. direct formula checks for the KL/KLXX loss, masking, parameter update, and
+   both target-side and proposal-side importance-weight conventions; and
+5. disjoint selection and never-selected audit populations.
+
+Per-step loss and batch ESS are diagnostics.  A trained result is judged on a
+frozen, never-selected audit population, using saved exact log weights and a
+paired comparison with identity.  Scientific finite-sample improvement
+requires `Delta ESS >= 0.02`, a paired block-bootstrap 95% lower bound above
+zero, and improvement in at least three of four independent blocks.  The
+Gaussian Euclidean source and identity tails of `Mixed_NSF` do not match the
+exponential chart-boundary tails of the molecular target, so finite-N ESS must
+not be presented as a positive asymptotic chi-square-overlap claim.
+
+Proceed CH4 -> ethane -> propane -> n-butane and stop at the first unreconciled
+failure.  Replicate the first failing molecule and its adjacent passing member.
+Save bundles, pools, keys, per-step raw arrays, parameter deltas, masks, exact
+log weights, nested-N ESS, block estimates, environment, and code hashes so
+every plot can be regenerated without rerunning molecular sampling.
+
+### Secondary goal: 36D vacuum glycerol controls
+
+After the CH4 gate is understood, run two clearly separated vacuum controls:
+
+1. **Causal solvent ablation:** keep the current GAFF2 glycerol topology,
+   chart, source, flow, particles, and regularization fixed, but construct the
+   Cartesian vacuum energy before regularization by removing the complete
+   GB/ACE contribution.  Validate it against an OpenMM `NoCutoff`,
+   unconstrained, no-implicit-solvent System.
+2. **Archived original-style Hamiltonian:** use the preserved OpenFF Sage 2.1
+   / AM1-BCC vacuum PRMTOP and RST7 from `Molecular_BG_2/zflows_md/data` with a
+   newly frozen current coordinate specification.  Record that this is not an
+   exact rerun: the old stochastic whitening arrays, gauge-slice measure,
+   clamped source revision, and PRNG state are unavailable.  The historical
+   all-circular NCSF, `r_floor=0.1 nm`, 100-to-200 energy cap, and ULA settings
+   are optional labeled ablations, not solvent evidence.
+
+The causal pair must differ only by the solvent energy.  Results from the
+archived OpenFF Hamiltonian must never be pooled with that comparison.
+
+The recovery-critical preregistration, exact thresholds, and outcome table
+live in `.aris/experiments/molecular_training_diagnostics/EXPERIMENT_PLAN.md`.
+The detailed read-only `zflows`/`jflows` replanting audit is complete; its
+direct-first forward-AIS repair is frozen in the package commits recorded by
+the experiment environment snapshot.
 
 ## Primary evidence
 

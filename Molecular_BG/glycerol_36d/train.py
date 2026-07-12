@@ -4,8 +4,9 @@
 The workflow follows the experiment-driver style under ``Codes/``: literal
 configuration is isolated in ``parameters.py``; this file owns deterministic
 keys, timestamped logging, training, evaluation, and saved artifacts. The
-target is the unmodified GAFF2/AM1-BCC/OBC1 bundle. There is no sharpening,
-energy-cap anneal, distance-floor anneal, or delta-QT surrogate.
+physical Hamiltonian is the GAFF2/AM1-BCC/OBC1 bundle. The active experiment
+uses the explicitly configured energy-regularized surrogate and evaluates the
+finished generator against both that surrogate and the exact physical target.
 
 Run from the repository root:
 
@@ -20,6 +21,7 @@ are not overwritten unless ``--overwrite`` is supplied.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -36,10 +38,10 @@ import equinox as eqx  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 import numpy as np  # noqa: E402
 
+from jflows.train import Monitor  # noqa: E402
 from jflows.utils import compute_ESS_log  # noqa: E402
 from jflows_md import (  # noqa: E402
     Mixed_NSF,
-    Molecular_Monitor,
     Molecular_Potential,
     molecular_boltzmann_forward_KLX_G,
     molecular_boltzmann_forward_KLXX_G,
@@ -154,9 +156,12 @@ def main() -> None:
     args = parser.parse_args()
 
     suffix = "_smoke" if args.smoke else ""
-    run_name = f"{P.RUN_NAME}_{args.method}"
-    output_path = HERE / f"run_{args.method}{suffix}"
-    staging_path = HERE / f".run_{args.method}{suffix}.inprogress-{os.getpid()}"
+    target_suffix = f"_{P.TARGET_TAG}"
+    run_name = f"{P.RUN_NAME}_{args.method}{target_suffix}"
+    output_path = HERE / f"run_{args.method}{target_suffix}{suffix}"
+    staging_path = (
+        HERE / f".run_{args.method}{target_suffix}{suffix}.inprogress-{os.getpid()}"
+    )
     if output_path.exists() and not args.overwrite:
         raise SystemExit(
             f"output exists ({output_path.name}); pass --overwrite to replace it"
@@ -177,8 +182,27 @@ def main() -> None:
         P.MC_STEP, P.WRAPPED_IMAGES
     )
 
-    target = Molecular_Potential.from_bundle(P.BUNDLE)
-    source = target.source()
+    physical_target = Molecular_Potential.from_bundle(P.BUNDLE)
+    target = physical_target.regularized(
+        P.ENERGY_CUT_KJ_MOL,
+        energy_scale_kj_mol=P.ENERGY_SCALE_KJ_MOL,
+        tail_fraction=P.ENERGY_TAIL_FRACTION,
+    )
+    source = physical_target.source()
+    reference_q = physical_target.reference_internal()[None]
+    reference_energy_kj_mol = float(physical_target.physical_energy(reference_q)[0])
+    target_spec = {
+        "schema": 1,
+        "kind": "lin_log_excess_energy",
+        "bundle_manifest_sha256": physical_target.manifest_sha256,
+        "reference_energy_kj_mol": reference_energy_kj_mol,
+        "energy_cut_excess_kj_mol": P.ENERGY_CUT_KJ_MOL,
+        "energy_scale_kj_mol": P.ENERGY_SCALE_KJ_MOL,
+        "tail_fraction": P.ENERGY_TAIL_FRACTION,
+        "jacobian": "unchanged",
+    }
+    target_spec_json = json.dumps(target_spec, sort_keys=True, separators=(",", ":"))
+    target_spec_sha256 = hashlib.sha256(target_spec_json.encode()).hexdigest()
     jflows_source_hash = package_source_sha256("jflows")
     jflows_md_source_hash = package_source_sha256("jflows_md")
     if target.dimension != P.DIMENSION:
@@ -202,11 +226,16 @@ def main() -> None:
         f"objective={args.method} e_clip={P.E_CLIP} relative "
         f"g_clip={P.G_CLIP} bg={P.BG_PARAM} checkpoint={P.CHECKPOINT} "
         f"lr_warmup={P.LR_WARMUP} "
-        f"selection_steps={sizes['selection_steps']}"
+        f"selection_steps={sizes['selection_steps']} | "
+        f"target=regularized c_excess={P.ENERGY_CUT_KJ_MOL:g} kJ/mol "
+        f"scale={P.ENERGY_SCALE_KJ_MOL:g} kJ/mol "
+        f"rho={P.ENERGY_TAIL_FRACTION:g} E_ref={reference_energy_kj_mol:.6f} "
+        f"target_spec={target_spec_sha256}"
     )
     log(
         "model note: GAFF2/AM1-BCC/OBC1 differs from the old vacuum model; "
-        "no sharpening or target deformation is used"
+        "training and every sampler use the declared regularized target; "
+        "the exact physical target is evaluation-only"
     )
 
     source_key, flow_key = jax.random.split(jax.random.key(P.SEED))
@@ -222,7 +251,7 @@ def main() -> None:
     ).zeros()
     flow_metadata = mixed_flow_metadata(flow0)
 
-    monitor = Molecular_Monitor(P.MONITOR_EVERY, f"[{run_name}] ", log)
+    monitor = Monitor(P.MONITOR_EVERY, f"[{run_name}] ", log)
     started = time.time()
     common = dict(
         n_pool=sizes["n_pool"],
@@ -280,6 +309,9 @@ def main() -> None:
     y_push, inverse_ladj = compose_pushforward(stages, x_valid, sizes["chunk"])
     y_push = jax.block_until_ready(y_push)
     target_energy = chunked_energy(target, y_push, sizes["chunk"])
+    physical_target_energy = chunked_energy(
+        physical_target, y_push, sizes["chunk"]
+    )
     source_energy = source(x_valid)
     log_weight = source_energy - target_energy + inverse_ladj
     log_weight = jnp.where(jnp.isfinite(log_weight), log_weight, -jnp.inf)
@@ -287,6 +319,11 @@ def main() -> None:
     if not np.isfinite(final_ess) or final_ess <= 0:
         raise RuntimeError(f"invalid final ESS: {final_ess}")
     weight = normalized_weights(log_weight)
+    physical_log_weight = source_energy - physical_target_energy + inverse_ladj
+    physical_log_weight = jnp.where(
+        jnp.isfinite(physical_log_weight), physical_log_weight, -jnp.inf
+    )
+    physical_final_ess = float(compute_ESS_log(physical_log_weight))
 
     cartesian_nm = chunked_cartesian(target, y_push, sizes["chunk"])
     np.savez_compressed(
@@ -296,6 +333,14 @@ def main() -> None:
         method=args.method,
         bundle=P.BUNDLE,
         manifest_sha256=target.manifest_sha256,
+        target_kind="lin_log_excess_energy",
+        target_tag=P.TARGET_TAG,
+        target_spec_json=target_spec_json,
+        target_spec_sha256=target_spec_sha256,
+        reference_energy_kj_mol=reference_energy_kj_mol,
+        energy_cut_excess_kj_mol=P.ENERGY_CUT_KJ_MOL,
+        energy_scale_kj_mol=P.ENERGY_SCALE_KJ_MOL,
+        energy_tail_fraction=P.ENERGY_TAIL_FRACTION,
         jflows_source_sha256=jflows_source_hash,
         jflows_md_source_sha256=jflows_md_source_hash,
         jax_version=jax.__version__,
@@ -373,8 +418,8 @@ def main() -> None:
         stage_ess_samples=np.asarray(
             [stage["ess_samples"] for stage in stages]
         ),
-        stage_ratio_history=np.asarray(
-            [np.asarray(stage["ratio_history"]) for stage in stages]
+        stage_ess_history=np.asarray(
+            [np.asarray(stage["ess_history"]) for stage in stages]
         ) if stages else np.zeros((0, sizes["steps"])),
         kept_history=np.asarray(
             [np.asarray(stage["kept_history"]) for stage in stages]
@@ -397,12 +442,15 @@ def main() -> None:
             [np.asarray(stage["hat_mala_acceptance"]) for stage in stages]
         ) if stages and args.method == "klxx" else np.zeros((0, sizes["mc_iters"])),
         final_ess=final_ess,
+        physical_final_ess=physical_final_ess,
         q_push=np.asarray(y_push),
         q_particles=np.asarray(particles),
         cartesian_push_nm=np.asarray(cartesian_nm),
         target_energy=np.asarray(target_energy),
+        physical_target_energy=np.asarray(physical_target_energy),
         source_energy=np.asarray(source_energy),
         log_weight=np.asarray(log_weight),
+        physical_log_weight=np.asarray(physical_log_weight),
         normalized_weight=np.asarray(weight),
     )
     eqx.tree_serialise_leaves(flow_path, [stage["flow"] for stage in stages])
@@ -410,7 +458,8 @@ def main() -> None:
         f"DONE complete={complete} K={len(stages)} "
         f"ladder={[f'{value:.4f}' for value in ladder]} "
         f"stage_ESS={[f'{value:.3f}' for value in stage_ess]} "
-        f"final_ESS={final_ess:.4f} wall={wall:.0f}s | "
+        f"surrogate_final_ESS={final_ess:.4f} "
+        f"physical_final_ESS={physical_final_ess:.4f} wall={wall:.0f}s | "
         f"saved {data_path.name}, {flow_path.name}"
     )
     marker = {
@@ -420,6 +469,9 @@ def main() -> None:
         "stage_count": len(stages),
         "bundle": target.bundle_name,
         "manifest_sha256": target.manifest_sha256,
+        "target_spec_sha256": target_spec_sha256,
+        "surrogate_final_ess": final_ess,
+        "physical_final_ess": physical_final_ess,
         "jflows_source_sha256": jflows_source_hash,
         "jflows_md_source_sha256": jflows_md_source_hash,
         "data_sha256": sha256_file(data_path),
