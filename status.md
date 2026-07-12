@@ -1,17 +1,17 @@
 # Project status
 
-Last updated: 2026-07-12T00:13:17-04:00 (America/New_York)
+Last updated: 2026-07-12T06:56:00-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`, branch `main`, base HEAD
-  `50cf110541b8dc81d9e1e0e96fddafabb92c4daa` (`Checkpoint corrected molecular
-  quotient targets`), tracking `origin/main` at 0 ahead / 0 behind before this
-  checkpoint is committed. The reviewed worktree has 36 logical changed files,
-  including 49 path-level bundle renames, and no untracked paths or standalone
-  deletions. Changes are limited to active launch documentation, the molecular
-  plan/driver, the mirrored bundle tree, environment documentation, and this
-  status record.
+- Repository: `/mnt/projects/X-regularization`, branch `main`, HEAD
+  `c7c47b1c18b73e138621c745fbf8c22f212f6923` (`Adopt pip workflow and canonical
+  molecular bundles`), tracking `origin/main` at 0 ahead / 0 behind. The
+  worktree has three modified tracked files
+  (`Molecular_BG/glycerol_36d/{parameters.py,train.py}` and `status.md`) plus
+  the untracked diagnostic directory
+  `Molecular_BG/glycerol_36d/debug_loss_ess/`. Its ignored NPZ/EQX/log payload
+  is recovery-critical and occupies about 290 MB.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -21,12 +21,18 @@ Last updated: 2026-07-12T00:13:17-04:00 (America/New_York)
   live-source `PYTHONPATH=/mnt/projects/jflows` or
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
-- Public `jflows` remains based on pushed HEAD
-  `6910c3cedfd8fc74314e74a1b475c3caec0861d9`, with one reviewed README change.
-  Public `jflows_md` remains based on pushed HEAD
-  `deac775d09cbb8fa686c59e3c3696c769c999e49`, with 22 logical changed files
-  including the same 49 bundle payload renames. Generic `jflows` behavior is
-  unchanged, so existing `Codes/` numerical results require no rerun.
+- Public `jflows` is clean at pushed HEAD
+  `616255f5d6212fcb0b03ccb3b08db0c339c9d0f2` (`Fix circular RQS seam
+  selection`). The narrow change restores the learned circular-RQS derivative
+  and log-Jacobian at the exact left seam while preserving all other knot
+  selection, NSF boundary/tail behavior, public APIs, and Equinox
+  serialization. Public `jflows_md` is clean at pushed HEAD
+  `b8ed572ee8ad38e5452972eb3ca7255e0db3d739` (`Add molecular KLXX checkpoint
+  selection`). It adds molecular KLXX, quench-and-temper support, accurate
+  target-ratio monitoring, sparse flow snapshots and full-validation
+  checkpoint selection, metadata, documentation, and regression coverage.
+  Generic `jflows` behavior is unchanged, so existing `Codes/` numerical
+  results require no rerun.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -59,16 +65,57 @@ Last updated: 2026-07-12T00:13:17-04:00 (America/New_York)
   externally stored bundle with the active toolchain. Real AmberTools 26 runs
   successfully produced and verified both glycerol and diethanolamine
   candidates with clean provenance; disposable candidates were removed.
-- **Verification passed:** `jflows/smoke/test_flow.py` and the final complete
-  `jflows_md/smoke/run_all.py` suite passed from isolated copies on `cuda:0`.
+- **Verification passed:** `jflows/smoke/test_flow.py` and the complete live
+  `jflows_md/smoke/run_all.py` suite passed on `cuda:0`; after strengthening
+  the controller coverage, `smoke/test_boltzmann_checkpoints.py` passed again.
   Coverage includes all three OpenMM/JAX parity tests (maximum energy
   discrepancy `5.04e-8 kJ/mol`, maximum force RMSE `4.48e-8 kJ/mol/nm`),
   quotient Jacobians, ADP chirality, float32 execution, Mixed_NSF, MALA, SMC,
   score-free AIS, a tiny BG training stage, chunking, strict bundle closure,
   legacy artifact migration, wheel/external-data behavior, and the glycerol
-  compile path (`2.45 s` energy+gradient, `5.08 s` one-step MALA in the final
-  smoke). Three independent final reviewers returned PASS with no remaining
-  high- or medium-severity issue. No production molecule training was launched.
+  compile path (`2.46 s` energy+gradient, `5.14 s` one-step MALA in the latest
+  smoke). Two independent final checkpoint/API reviewers returned PASS with no
+  remaining high- or medium-severity issue; a separate gradient audit found no
+  deterministic potential, ESS, clipping, or spline-gradient cause for the
+  observed ESS decline. The complete 14-module `jflows` smoke suite and focused
+  `jflows_md` compatibility/artifact tests also pass with the circular-RQS
+  correction; a final independent compatibility review found no high- or
+  medium-severity issue.
+- **Done — standard optimized-XLA 36D training smoke:** an isolated invocation
+  of `Molecular_BG/glycerol_36d/train.py --smoke` ran on `cuda:0` without
+  `JAX_DISABLE_MOST_OPTIMIZATIONS` or another reduced-optimization setting. It
+  completed 100-step mixed-flow training attempts over 14 accepted adaptive
+  levels, reached `t=1`, promoted its checked artifacts, and exited zero in
+  `290.164 s`. The initial real-molecule SMC path produced its first result in
+  about 24 seconds and the first packed trainer produced all 100 monitored
+  steps about 14 seconds later; warm stage attempts were fast. All optimizer
+  updates were applied and every sample passed the energy screen. This is an
+  execution/compilation pass, not a quality result: the identity fallback won
+  all 14 levels and the final direct flow-proposal ESS was only
+  `1.66716545e-5`. The actual optimizer batch was 120 (not the 12,000-particle
+  SMC pool). All 14 accepted per-step ESS histories had negative fitted slopes:
+  their mean over steps 1--10 was `0.281636`, versus `0.090935` over steps
+  91--100, with many batches reaching the one-dominant-weight floor
+  `1/120 = 0.008333`.
+- **Done — production-scale stage-1 KL/ESS diagnosis:** the interrupted
+  one-million-validation-particle run saved the initial flow and steps 10, 25,
+  50, 100, 250, 500, 750, and 1000. Honest proposal ESS rose from `0.009114`
+  to `0.189589` at step 100, then collapsed to `0.000905` at step 1000 while
+  the fixed-pool training loss continued falling. Independent target holdout
+  evaluation shows a growing generalization gap; forward KL also does not
+  control the chi-square/Renyi-2 moment defining importance ESS. Exact
+  float64 ESS recomputation, finite/infinite `e_clip` equivalence, kept fraction
+  1.0, collision-tail checks, flow/Jacobian direction checks, and gradient
+  replay exclude the proposed hidden ESS/sign/singularity explanations.
+- **Done — opt-in overtraining guard:** `jflows_md` now distinguishes the live
+  target-pool ratio concentration from honest proposal ESS. A sparse
+  `selection_steps` schedule compares exact identity (step -1), the accepted
+  warm start (step 0), requested post-update flows, and the final flow on all
+  validation particles before applying the unchanged `tau_ess` gate. The empty
+  schedule preserves the original final-versus-identity behavior. Focused
+  tests uniquely select a warm start and an intermediate checkpoint, rescue a
+  nonfinite final flow, preserve multi-stage warm starts and trained-on-tie
+  behavior, and enforce the 32-snapshot safety limit.
 
 ## Pending
 
@@ -82,7 +129,18 @@ Last updated: 2026-07-12T00:13:17-04:00 (America/New_York)
   explicit scientific/provenance review before promotion to the frozen registry.
 - **Pending — next authorized molecular run:** launch the local
   `Molecular_BG/glycerol_36d` Boltzmann-generator training only after explicit
-  user instruction. No production molecule training has been launched.
+  user instruction. The completed smoke and interrupted diagnostic attempt are
+  not production results; no GPU process is currently running.
+- **Pending — ESS degeneration and identity selection:** the
+  standard-compiler smoke proved that the complete 36D pipeline runs quickly
+  enough, but identity won every accepted level and the production-size bare-KL
+  diagnostic peaked early before overfitting its fixed 200000-particle pool.
+  This remains the primary unresolved molecular-training problem. The next
+  authorized experiment should retain sparse full-validation checkpoint
+  selection, report independent holdout ESS, and compare KL+X or KLXX against
+  bare KL before increasing step count. A run must select trained stages and
+  achieve materially nonzero direct proposal ESS before it can be treated as a
+  successful Boltzmann generator.
 - **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
   MALA and optimizer-only finite-safe `e_clip`; retain honest unclipped target
   values for MCMC, SMC, ESS, and evaluation, and do not restore sharpening.
@@ -252,3 +310,77 @@ Last updated: 2026-07-12T00:13:17-04:00 (America/New_York)
   new glycerol and diethanolamine bundles. The final isolated GPU smoke suite
   passed, followed by three independent PASS reviews with no high- or
   medium-severity finding. No production molecular training was run.
+
+### 2026-07-12T00:33:27-04:00 — Standard-XLA 36D Boltzmann smoke completed
+
+- Ran the committed glycerol 36D `--smoke` driver from an isolated copy with
+  ordinary optimized JAX/XLA on the RTX 5090. The complete adaptive bridge
+  reached `t=1` in 14 accepted levels and exited zero after `290.164 s`; the
+  first real-molecule compile/execute result arrived in seconds rather than
+  stalling for tens of minutes.
+- Verified the promoted schema-2 artifacts and exact run record: 60,000
+  validation particles, 12,000 SMC particles, batch 120, 100 Adam steps per
+  attempt, six SMC levels, 20 MALA steps per level, float32, all updates
+  applied, and kept fraction 1.0.
+- Recorded the scientific limitation separately from the compilation pass:
+  the identity safeguard won every accepted level and final direct proposal
+  ESS was `1.66716545e-5`, so this smoke validates execution but does not yet
+  establish a useful trained generator. Every accepted stage's optimizer ESS
+  trended downward, and the last level collapsed from `0.724` before its first
+  update to `0.027` before its second; `LR=1e-3` is therefore the first tuning
+  parameter to revisit. Removed the optional
+  `JAX_DISABLE_MOST_OPTIMIZATIONS` reporting field from the public
+  `jflows_md` compile benchmark and its documentation; normal package code was
+  already using ordinary JAX compilation and required no change.
+
+### 2026-07-12T02:05:38-04:00 — Molecular KL/ESS failure diagnosed
+
+- Stopped the production-size glycerol stage after its first rejected attempt
+  and retained nine 3.1-million-parameter flow states, the fixed 200000-sample
+  SMC training pool, all one-million-sample validation log weights, and the
+  optimizer/SMC histories under `Molecular_BG/glycerol_36d/debug_loss_ess/`.
+  The diagnostic NPZ SHA-256 is
+  `6a280484c01cc17467578ddc5f4b21da388cb7b6a902dcdd83d25e12716b47b7`.
+- Recomputed the importance weights independently in float64 and audited map
+  direction, Jacobians, clipping, collision tails, held-out target loss, and
+  saved-flow gradients. The evidence identifies fixed-pool overfitting plus the
+  forward-KL/chi-square objective mismatch: proposal ESS peaks near step 100
+  even as the empirical training loss continues decreasing. Molecular
+  singularities and a hidden ESS implementation error are excluded.
+- Replaced the molecular trainer's misleading live `ESS` label by
+  `target-ratio C`. Added opt-in sparse post-update flow snapshots and a
+  full-validation stage selector that also tests identity and the accepted
+  warm start, while preserving the original empty-schedule behavior and
+  unchanged `tau_ess` gate. The private glycerol driver saves all checkpoint
+  labels, steps, and ESS values.
+- Ran the complete live `jflows_md` smoke suite successfully on `cuda:0`, then
+  reran the strengthened checkpoint-controller smoke. It proves multi-stage
+  warm starts, exact tie behavior, unique warm-start and intermediate-flow
+  selection, nonfinite-final rescue, float32 snapshot indexing, positive-melt
+  KLXX, and the 32-snapshot bound. Two independent final reviewers reported no
+  remaining high- or medium-severity issue. No replacement production run was
+  launched.
+- Updated the local `jflows` skill references to the pip-only activation and
+  live-source `PYTHONPATH` workflow, and documented the molecular monitor,
+  KLXX, snapshot, and selection contracts. Removed the last retired-environment
+  reference from the skill tree.
+
+### 2026-07-12T06:53:55-04:00 — Circular NCSF seam corrected and compatibility audited
+
+- Corrected `MonotonicRQSTransform.searchsorted` only at exact equality with
+  the first knot. Circular RQS/NCSF now evaluates the learned seam derivative
+  and log-Jacobian instead of the identity fallback; interior knots, the upper
+  endpoint, outside tails, NSF values and derivatives, public signatures, and
+  Equinox pytree/serialization structure remain unchanged.
+- Added exact seam, arbitrary-period representative, inverse, autodiff,
+  float32, full-NCSF, bin-convention, and torus-normalization regressions. The
+  complete 14-module `jflows` smoke suite and four focused `jflows_md`
+  compatibility/artifact tests passed on the live pip-only CUDA stack. An
+  independent read-only review reported no high- or medium-severity issue.
+- Audited the original `Codes/` tree: only `Codes/Lattice_Clock` uses NCSF.
+  Its reconstructed 400000-row validation source has six exact seam rows, but
+  its evaluation source and saved pushforward samples have none. Away from the
+  seam, saved-flow output and log-Jacobian evaluation are unchanged exactly.
+  Existing scientific results therefore require no rerun; only a strict demand
+  for bit-identical current-HEAD training provenance would justify rerunning
+  `Codes/Lattice_Clock`. No training run was launched.

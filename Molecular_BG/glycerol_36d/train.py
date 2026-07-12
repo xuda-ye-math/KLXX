@@ -36,12 +36,13 @@ import equinox as eqx  # noqa: E402
 import jax.numpy as jnp  # noqa: E402
 import numpy as np  # noqa: E402
 
-from jflows.train import Monitor  # noqa: E402
 from jflows.utils import compute_ESS_log  # noqa: E402
 from jflows_md import (  # noqa: E402
     Mixed_NSF,
+    Molecular_Monitor,
     Molecular_Potential,
     molecular_boltzmann_forward_KLX_G,
+    molecular_boltzmann_forward_KLXX_G,
     mixed_flow_metadata,
     package_source_sha256,
 )
@@ -119,13 +120,14 @@ def normalized_weights(log_weight):
     return weight / total
 
 
-def run_sizes(smoke: bool) -> dict[str, int]:
+def run_sizes(smoke: bool) -> dict[str, object]:
     if not smoke:
         return {
             "n_valid": P.N_VALID,
             "n_pool": P.N_POOL,
             "n_batch": P.N_BATCH,
             "steps": P.STEPS,
+            "selection_steps": P.SELECTION_STEPS,
             "ladder": P.LADDER,
             "mc_iters": P.MC_ITERS,
             "chunk": P.CHUNK,
@@ -135,6 +137,9 @@ def run_sizes(smoke: bool) -> dict[str, int]:
         "n_pool": P.SMOKE_N_POOL,
         "n_batch": P.SMOKE_N_BATCH,
         "steps": P.SMOKE_STEPS,
+        "selection_steps": tuple(
+            step for step in P.SELECTION_STEPS if step <= P.SMOKE_STEPS
+        ),
         "ladder": P.SMOKE_LADDER,
         "mc_iters": P.SMOKE_MC_ITERS,
         "chunk": P.SMOKE_CHUNK,
@@ -143,13 +148,15 @@ def run_sizes(smoke: bool) -> dict[str, int]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--method", choices=("kl", "klx", "klxx"), default="kl")
     parser.add_argument("--smoke", action="store_true")
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
 
     suffix = "_smoke" if args.smoke else ""
-    output_path = HERE / f"run{suffix}"
-    staging_path = HERE / f".run{suffix}.inprogress-{os.getpid()}"
+    run_name = f"{P.RUN_NAME}_{args.method}"
+    output_path = HERE / f"run_{args.method}{suffix}"
+    staging_path = HERE / f".run_{args.method}{suffix}.inprogress-{os.getpid()}"
     if output_path.exists() and not args.overwrite:
         raise SystemExit(
             f"output exists ({output_path.name}); pass --overwrite to replace it"
@@ -162,6 +169,10 @@ def main() -> None:
     flow_path = staging_path / "flows.eqx"
     log = log_factory(status_path)
     sizes = run_sizes(args.smoke)
+    selection_steps = sizes["selection_steps"]
+    checkpoint_count = 1 + (1 if selection_steps else 0) + len(selection_steps) + (
+        0 if selection_steps and selection_steps[-1] == sizes["steps"] else 1
+    )
     wrapped_error_bound = wrapped_normal_relative_error_bound(
         P.MC_STEP, P.WRAPPED_IMAGES
     )
@@ -176,7 +187,7 @@ def main() -> None:
         raise ValueError("glycerol bundle must have mixed domain R^25 x T^11")
 
     log(
-        f"START {P.RUN_NAME}{suffix} | jax {jax.__version__} | "
+        f"START {run_name}{suffix} | jax {jax.__version__} | "
         f"backend {jax.default_backend()} | bundle={target.bundle_name} "
         f"precision={target.reference_internal().dtype} | "
         f"manifest={target.manifest_sha256} | domain=R^25xT^11 | "
@@ -188,8 +199,10 @@ def main() -> None:
         f"post-MALA uses the same step/iters | "
         f"wrapped_images={P.WRAPPED_IMAGES} "
         f"relative_tail_bound<={wrapped_error_bound:.3e} | "
-        f"e_clip={P.E_CLIP} relative g_clip={P.G_CLIP} bg={P.BG_PARAM}"
-        f" checkpoint={P.CHECKPOINT}"
+        f"objective={args.method} e_clip={P.E_CLIP} relative "
+        f"g_clip={P.G_CLIP} bg={P.BG_PARAM} checkpoint={P.CHECKPOINT} "
+        f"lr_warmup={P.LR_WARMUP} "
+        f"selection_steps={sizes['selection_steps']}"
     )
     log(
         "model note: GAFF2/AM1-BCC/OBC1 differs from the old vacuum model; "
@@ -209,13 +222,9 @@ def main() -> None:
     ).zeros()
     flow_metadata = mixed_flow_metadata(flow0)
 
-    monitor = Monitor(P.MONITOR_EVERY, f"[{P.RUN_NAME}] ", log)
+    monitor = Molecular_Monitor(P.MONITOR_EVERY, f"[{run_name}] ", log)
     started = time.time()
-    particles, stages = molecular_boltzmann_forward_KLX_G(
-        x_valid,
-        source,
-        target,
-        flow0,
+    common = dict(
         n_pool=sizes["n_pool"],
         n_batch=sizes["n_batch"],
         steps=sizes["steps"],
@@ -223,7 +232,6 @@ def main() -> None:
         ladder=sizes["ladder"],
         mc_step=P.MC_STEP,
         mc_iters=sizes["mc_iters"],
-        coeff_lambda=P.COEFF_LAMBDA,
         monitor=monitor,
         bg_param=P.BG_PARAM,
         chunk=sizes["chunk"],
@@ -232,7 +240,32 @@ def main() -> None:
         g_clip=P.G_CLIP,
         seed=P.SEED,
         checkpoint=P.CHECKPOINT,
+        lr_warmup=P.LR_WARMUP,
+        selection_steps=sizes["selection_steps"],
     )
+    if args.method == "klxx":
+        particles, stages = molecular_boltzmann_forward_KLXX_G(
+            x_valid,
+            source,
+            target,
+            flow0,
+            melt=P.MELT,
+            opt_step=P.OPT_STEP,
+            opt_iters=P.OPT_ITERS,
+            coeff_lambda=P.COEFF_LAMBDA,
+            coeff_alpha=P.COEFF_ALPHA,
+            coeff_beta=P.COEFF_BETA,
+            **common,
+        )
+    else:
+        particles, stages = molecular_boltzmann_forward_KLX_G(
+            x_valid,
+            source,
+            target,
+            flow0,
+            coeff_lambda=0.0 if args.method == "kl" else P.COEFF_LAMBDA,
+            **common,
+        )
     particles = jax.block_until_ready(particles)
     jax.effects_barrier()
     wall = time.time() - started
@@ -259,7 +292,8 @@ def main() -> None:
     np.savez_compressed(
         data_path,
         schema_version=2,
-        run_name=P.RUN_NAME,
+        run_name=run_name,
+        method=args.method,
         bundle=P.BUNDLE,
         manifest_sha256=target.manifest_sha256,
         jflows_source_sha256=jflows_source_hash,
@@ -281,6 +315,8 @@ def main() -> None:
         n_batch=sizes["n_batch"],
         steps=sizes["steps"],
         learning_rate=P.LR,
+        lr_warmup=P.LR_WARMUP,
+        selection_steps=np.asarray(selection_steps),
         smc_ladder=sizes["ladder"],
         mc_step=P.MC_STEP,
         mc_iters=sizes["mc_iters"],
@@ -288,7 +324,12 @@ def main() -> None:
         checkpoint=P.CHECKPOINT,
         e_clip=P.E_CLIP,
         g_clip=P.G_CLIP,
-        coeff_lambda=P.COEFF_LAMBDA,
+        coeff_lambda=0.0 if args.method == "kl" else P.COEFF_LAMBDA,
+        coeff_alpha=P.COEFF_ALPHA if args.method == "klxx" else 0.0,
+        coeff_beta=P.COEFF_BETA if args.method == "klxx" else 0.0,
+        melt=P.MELT if args.method == "klxx" else 0.0,
+        opt_step=P.OPT_STEP if args.method == "klxx" else 0.0,
+        opt_iters=P.OPT_ITERS if args.method == "klxx" else 0,
         bg_param_json=json.dumps(P.BG_PARAM, sort_keys=True),
         dimension=P.DIMENSION,
         euclidean_dim=target.domain.euclidean_dim,
@@ -302,20 +343,38 @@ def main() -> None:
         stage_trained_ess=np.asarray(
             [stage["trained_ess"] for stage in stages]
         ),
+        stage_final_ess=np.asarray(
+            [stage["final_ess"] for stage in stages]
+        ),
         stage_identity_ess=np.asarray(
             [stage["identity_ess"] for stage in stages]
         ),
         stage_selected=np.asarray(
             [stage["selected"] for stage in stages]
         ),
+        stage_selected_checkpoint=np.asarray(
+            [stage["selected_checkpoint"] for stage in stages]
+        ),
+        stage_selected_step=np.asarray(
+            [stage["selected_step"] for stage in stages]
+        ),
+        stage_checkpoint_steps=np.asarray(
+            [np.asarray(stage["checkpoint_steps"]) for stage in stages]
+        ) if stages else np.zeros((0, checkpoint_count), dtype=int),
+        stage_checkpoint_ess=np.asarray(
+            [np.asarray(stage["checkpoint_ess"]) for stage in stages]
+        ) if stages else np.zeros((0, checkpoint_count)),
+        stage_checkpoint_labels=np.asarray(
+            [np.asarray(stage["checkpoint_labels"]) for stage in stages]
+        ) if stages else np.zeros((0, checkpoint_count), dtype="U16"),
         stage_improvement=np.asarray(
             [stage["imp_history"] for stage in stages]
         ),
         stage_ess_samples=np.asarray(
             [stage["ess_samples"] for stage in stages]
         ),
-        stage_ess_history=np.asarray(
-            [np.asarray(stage["ess_history"]) for stage in stages]
+        stage_ratio_history=np.asarray(
+            [np.asarray(stage["ratio_history"]) for stage in stages]
         ) if stages else np.zeros((0, sizes["steps"])),
         kept_history=np.asarray(
             [np.asarray(stage["kept_history"]) for stage in stages]
@@ -334,6 +393,9 @@ def main() -> None:
         post_mala_acceptance=np.asarray(
             [np.asarray(stage["mala_acceptance"]) for stage in stages]
         ) if stages else np.zeros((0, sizes["mc_iters"])),
+        hat_mala_acceptance=np.asarray(
+            [np.asarray(stage["hat_mala_acceptance"]) for stage in stages]
+        ) if stages and args.method == "klxx" else np.zeros((0, sizes["mc_iters"])),
         final_ess=final_ess,
         q_push=np.asarray(y_push),
         q_particles=np.asarray(particles),
@@ -353,7 +415,7 @@ def main() -> None:
     )
     marker = {
         "schema_version": 2,
-        "run_name": P.RUN_NAME,
+        "run_name": run_name,
         "bridge_complete": complete,
         "stage_count": len(stages),
         "bundle": target.bundle_name,
