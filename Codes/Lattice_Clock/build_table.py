@@ -7,7 +7,7 @@ generator final ESS, sector coverage / TV / mean |m| of the pushforward, kNN
 coverage against the QT referee set, and the wall time.
 
 Run from the repo root:
-    ~/.envs/jax/bin/python Codes/Lattice_Clock/build_table.py
+    conda activate jflows && python Codes/Lattice_Clock/build_table.py
 """
 
 from pathlib import Path

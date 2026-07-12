@@ -17,7 +17,7 @@ artifacts are saved and reused:
 so reruns re-render the figure with no GPU work and no recomputation.
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/plot_clock_marginals.py
 Writes clock_marginals.png next to this file; progress in
 plot_clock_marginals_status.log.

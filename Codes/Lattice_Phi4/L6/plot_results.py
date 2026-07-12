@@ -6,7 +6,7 @@ phi4_reference.npz, recomputes the final ESS and reweighted p(m > 0) from
 the stored arrays, and re-renders the seed-FIG_SEED methods figure.
 
 Run from the repo root:
-    ~/.envs/jax/bin/python Codes/Lattice_Phi4/L6/plot_results.py
+    conda activate jflows && python Codes/Lattice_Phi4/L6/plot_results.py
 """
 
 from pathlib import Path

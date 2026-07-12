@@ -17,7 +17,7 @@ ensemble phi4_reference.npz (built by reference.py — run it once before
 this script). All Langevin kernels run MALA (mc_adjust = True).
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Phi4/L8/train.py
 Writes results_table.csv (all seeds), data.npz (per-run magnetizations and
 normalized weights), and train_status.log next to this file; plotting is

@@ -15,7 +15,7 @@ from the saved data with no GPU work. The pushforward samples (maps alone,
 no reweighting) come from data_klxx_B25k.npz.
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/plot_clock_target.py
 Writes fig_clock_target.png (and the rebuild npz on first run) next to
 this file; progress in plot_clock_target_status.log.

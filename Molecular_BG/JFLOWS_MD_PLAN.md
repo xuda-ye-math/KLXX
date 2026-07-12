@@ -6,8 +6,9 @@ The first `jflows_md` suite contains three molecular Boltzmann-generator
 targets: FAB alanine dipeptide (ADP, 60D), glycerol (36D), and neutral
 diethanolamine (48D). ADP reproduces a published target; glycerol and
 diethanolamine extend the same package to explicitly defined small-molecule
-benchmarks. This phase designs the package and validation gates; it does not
-implement or train the models yet.
+benchmarks. The package core and validation gates are now implemented. Scaled
+molecular training remains deliberately unlaunched until the bounded compile,
+sampler, and full-path checks are accepted.
 
 Fixed decisions:
 
@@ -29,6 +30,92 @@ Fixed decisions:
 8. A target bundle freezes both the Cartesian Hamiltonian and the complete
    internal-coordinate support. Caller-supplied, unversioned coordinate
    transforms are not allowed in benchmark training.
+
+## Implementation update: molecular compilation and test tiers
+
+Current status: the controller redesign below is implemented in the single
+authoritative `jflows` checkout and in `jflows_md`. The complete bounded smoke suite passes, and
+an isolated 18-cell RTX 5090 benchmark covers flow maps, both public one-step
+trainers, the real glycerol potential/gradient, and a fixed-shape molecular
+MALA chunk. All benchmark cells pass; the largest observed peak is below
+1.64 GB host RSS and 340 MB backend-reported GPU use. No scaled molecular ESS
+run was started.
+
+The molecular controller must not put chunk or ladder-level Python loops
+inside one JIT. Two scaled glycerol attempts demonstrated that this boundary
+is not viable: the default XLA policy spent more than 15 minutes in the first
+SMC compilation and grew toward 53 GB host memory; retrying with
+`JAX_DISABLE_MOST_OPTIMIZATIONS=1` reduced memory to about 20 GB but still did
+not finish the first compilation in comparable time. Neither attempt reached
+the first SMC-selection log line, so optimizer batch size, optimizer steps,
+and the flow-training scan were not the cause of that initial stall.
+
+Lowering the actual glycerol potential isolates the problem. The mixed-MALA
+StableHLO grew from approximately 0.79 million characters at `chunk=1` to
+5.52 million at `chunk=8`, with one copied scan/force-field path per chunk.
+With `ladder=6` and `chunk=128`, the current outer JIT exposes 768 chunk paths
+before XLA optimization. This also defeats the intended memory meaning of
+`chunk`: XLA may overlap independent in-graph chunks. The live `jflows`
+chunk regression test and the old `zflows_md` implementation both require an
+eager Python chunk controller around a compiled fixed-shape kernel.
+
+The API-preserving compilation plan is:
+
+1. Make `mixed_mala` an eager chunk controller. Compile one private
+   single-chunk trajectory kernel containing the `mc_iters` `lax.scan`; call
+   it once per physical chunk and concatenate outside JIT.
+2. Keep SMC and AIS level, reweighting, resampling, and chunk loops in eager
+   Python. Compile only fixed-shape per-chunk weight and MALA kernels. Classical
+   potential-space SMC rejuvenates at each actual intermediate bridge. The
+   flow-proposal training AIS is intentionally different: its nominal
+   incremental weights are followed by final-target rejuvenation at every
+   level, keeping MCMC score-free in the flow at the cost of a biased target
+   surrogate.
+3. Make molecular Boltzmann identity weights, trained weights, flow inverse,
+   and validation passes eager chunk wrappers around private no-chunk JIT
+   kernels. This is a self-contained molecular implementation and does not
+   import private helpers from `jflows`.
+4. The molecular trainer retains its bounded packed optimizer `lax.scan`; it
+   consumes an already prepared SMC pool and nests no sampling controller.
+   Generic `jflows` trainers retain their original whole-stage compiled
+   `lax.scan`, including their sampling path. The different compilation
+   treatments are intentional and are not a compatibility requirement.
+5. As a secondary optimization, consider fusing molecular energy and gradient with
+   `vmap(value_and_grad(single_energy))` so each MALA endpoint does not repeat
+   the primal force-field evaluation. Do not change MALA acceptance or the
+   physical target.
+6. Use the normal JAX compiler policy for the redesigned small kernels.
+   `JAX_DISABLE_MOST_OPTIMIZATIONS=1` remains a diagnostic fallback, not the
+   primary fix. Enable a persistent compilation-cache directory only after a
+   bounded compile succeeds; leave its size unlimited (`-1`).
+
+Testing proceeds in two tiers and never jumps directly to production:
+
+| Tier | N_VALID | N_POOL | N_BATCH | STEPS | LADDER | MC_ITERS | CHUNK |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| compile/path smoke | 2048 | 1024 | 32 | 2 | 2 | 1 | 8 |
+| scaled ESS smoke | 60000 | 12000 | 120 | 100 | 6 | 20 | 128 |
+| production | 600000 | 120000 | 12000 | 1000 | 6 | 200 | 32 |
+
+The bounded component/full-path suite now exercises SMC, score-free AIS, mixed
+MALA, both trainers, full-set weights, resampling, one adaptive BG stage, all
+three molecular potentials, and default-float32 checkpointing. Its real
+glycerol energy/gradient and one-step MALA compiles finish in about 3 and 5
+seconds, respectively. A side-by-side backup comparison gives bitwise-identical
+G-AIS, SMC, two-step KLX parameters, and ESS; F-AIS differs only by
+`1.67e-6` from compiled arithmetic reassociation. The scaled ESS smoke remains
+the requested one-order workload test; its larger chunk count means fewer
+samples per physical chunk after the eager refactor. No individual run may
+exceed two hours.
+
+ESS evaluation uses all `N_VALID` particles at every accepted stage. Save
+separately the optimizer `ess_history`, trained validation ESS, identity
+validation ESS, selected map, kept fraction, and update-applied history. ESS
+is stochastic and need not rise at every optimizer step. Report, per stage,
+the first/last value, first-20 versus last-20 median, linear trend, fraction of
+positive adjacent changes, and whether the trained or identity map won. The
+aggregate evidence for improvement is a positive robust trend and higher
+late-window median in a majority of trained stages, not strict monotonicity.
 
 ## Three-target benchmark matrix
 
@@ -77,26 +164,32 @@ than being independently encoded in the HDF5 metadata. It is not claimed to be
 modern experimental molecular truth. A later modern model must be a separate
 preset with its own MD reference, for example ff14SB + GBn2.
 
-## Proposed package boundary
+## Implemented package boundary
 
 ```text
 jflows_md/
-  system.py          # audited builders + immutable bundle/SystemSpec loading
-  forcefield.py      # pure-JAX Amber bonded/nonbonded and OBC1/ACE energy
-  coordinates.py     # bundle-defined BAT transform and exact Jacobians
-  chirality.py       # target-specific signed-volume/support diagnostics
-  domain.py          # R^p x T^q metadata and periodic operations
+  system.py          # immutable molecular-bundle loading and verification
+  artifacts.py       # versioned source hashes and verified flow loading
   potential.py       # Molecular_Potential facade and Cartesian reconstruction
   source.py          # Gaussian Euclidean x uniform torus source
   flow.py            # mixed Euclidean/circular spline coupling flow
-  mcmc.py            # mixed-domain MALA
-  smc.py             # thin molecular controller around generic jflows SMC
-  validation.py      # OpenMM, geometry, sampler, and distribution gates
+  train.py           # mixed-domain molecular KL+X stage trainer
+  boltzmann.py       # adaptive molecular Boltzmann-generator ladder
+  utils.py           # mixed MALA, classical SMC, and score-free AIS
+  core/
+    forcefield.py    # pure-JAX Amber bonded/nonbonded and OBC1/ACE energy
+    coordinates.py   # bundle-defined BAT transform and exact Jacobians
+    chirality.py     # target-specific signed-volume/support diagnostics
+    domain.py        # R^p x T^q metadata and periodic operations
+    flow.py          # low-level mixed spline coupling transforms
+    validation.py    # OpenMM/geometry validation helpers
 ```
 
 `jflows` remains the generic flow/training engine. Molecular physics,
-coordinates, chirality, and diagnostics belong in `jflows_md`. Small generic
-changes may be made upstream in `jflows`:
+coordinates, chirality, and diagnostics belong in `jflows_md`. The verified
+generic fixes live only in the authoritative `/mnt/projects/jflows` checkout;
+the molecular workspace does not contain a shadow copy. Possible later
+generic extensions are:
 
 - accept an injected transition kernel instead of hard-coding Euclidean
   Langevin in trainers, generic potential-space SMC, and Boltzmann wrappers;
@@ -424,7 +517,7 @@ At each stage:
 Do not initially use KLXX, L-BFGS/quench pools, aggressive energy caps, or any
 post-stage sharpening. They can obscure whether the potential, geometry, and
 basic BG are correct. The current flow-proposal AIS routine rejuvenates at the
-final target on nominal intermediate rungs; it is not used as the molecular
+final target on nominal intermediate ladder levels; it is not used as the molecular
 bridge. `e_clip` screens only optimizer losses.
 
 ## 7. Implementation sequence and hard gates
@@ -498,7 +591,7 @@ until its Gates A--F pass.
   independently for each bundle without any `e_clip` in weights or gates.
 - At least two independent SMC seeds reproduce each target's named modes and
   agree within predeclared divergence gates.
-- Per-rung honest full-target ESS, MALA acceptance, nonfinite rejection,
+- Per-level honest full-target ESS, MALA acceptance, nonfinite rejection,
   support diagnostics, and unchanged bundle/System hashes are saved.
 
 ### Matched references for the two new targets

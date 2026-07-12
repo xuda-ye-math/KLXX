@@ -8,7 +8,9 @@ directory is required.
 
 Run from the repository root with
 
-    conda run -n jflows python Molecular_BG/bundles/build_molecular_bundles.py
+    conda activate jflows
+    PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md \
+        python Molecular_BG/bundles/build_molecular_bundles.py
 """
 
 from __future__ import annotations
@@ -20,12 +22,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 
 
 MOLECULAR_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(MOLECULAR_ROOT))
 
 from jflows_md.core.builder import write_bundle  # noqa: E402
 from jflows_md.system import sha256_file  # noqa: E402

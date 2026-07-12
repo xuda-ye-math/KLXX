@@ -31,7 +31,7 @@ mean |m|), and kNN coverage against a quench-and-temper reference set on the
 full target.
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/train.py
 Writes data_<tag>.npz + flows_<tag>.eqx per run (existing data files are
 skipped, so the sweep resumes) and train_status.log; build the table

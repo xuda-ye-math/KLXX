@@ -16,7 +16,7 @@ flow importance-sampling ESS on the full fixed source set, and coverage
 (k = 5) is measured against a quench-and-temper reference pool.
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/2D_Benchmark/Three-Well/train.py
 Writes samples.png, ess.png, and train_status.log next to this file.
 """

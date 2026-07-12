@@ -21,7 +21,7 @@ sign-pattern mode occupancy of its pushforward (the 2**k bucket counts are
 saved, so coverage and imbalance are recomputable at any threshold).
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/HD_Product/train.py
 Writes data_k{k}.npz per dimension (existing files are skipped, so the sweep
 resumes) and train_status.log; build the tables with build_table.py.

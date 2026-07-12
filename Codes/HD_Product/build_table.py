@@ -10,7 +10,7 @@ mode_coverage_table.csv, mode_balance_table.csv, and tables.md:
     Table 3 — mode imbalance: TV(occupancy, uniform), lower is better.
 
 Run from the repo root:
-    ~/.envs/jax/bin/python Codes/HD_Product/build_table.py
+    conda activate jflows && python Codes/HD_Product/build_table.py
 """
 
 import csv

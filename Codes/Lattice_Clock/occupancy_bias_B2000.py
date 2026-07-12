@@ -24,7 +24,7 @@ Reads data_{kl,klxx}_B2000.npz (ladder + config) and
 flows_{kl,klxx}_B2000.eqx.
 
 Run from the repo root:
-    PYTHONPATH=/mnt/projects/jflows ~/.envs/jax/bin/python \
+    conda activate jflows && PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/occupancy_bias_B2000.py [--smoke]
 """
 
