@@ -1,6 +1,7 @@
-"""Build the loss x dimension tables from the data_k*.npz sweep files.
+"""Build the loss x dimension tables from the saved sweep artifacts.
 
-Reads every data_k{k}.npz written by train.py and writes ess_table.csv,
+Reads every ``artifacts/k{k}/data.npz`` written by train.py and writes
+``results/ess_table.csv``,
 mode_coverage_table.csv, mode_balance_table.csv, and tables.md:
 
     Table 1 — final ESS (the headline);
@@ -20,6 +21,8 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
 
 STRICT_FRAC = 0.5   # threshold share of N / 2**k for a mode to count as covered
 
@@ -39,7 +42,7 @@ LABEL = {
 
 def load():
     found = {}
-    for path in sorted(HERE.glob("data_k*.npz")):
+    for path in sorted(ARTIFACTS.glob("k*/data.npz")):
         d = np.load(path)
         found[int(d["k"])] = d
     return dict(sorted(found.items()))
@@ -64,7 +67,7 @@ def write_table(data, field, fname, fmt="{:.4f}"):
     header = ["loss \\ d"] + [str(int(data[k]["d"])) for k in ks]
     rows = [[LABEL[m]] + [fmt.format(cell(data, k, m, field)) for k in ks]
             for m in METHODS]
-    with open(HERE / fname, "w", newline="") as f:
+    with open(RESULTS / fname, "w", newline="") as f:
         w = csv.writer(f)
         w.writerow(header)
         w.writerows(rows)
@@ -81,17 +84,20 @@ def md_table(header, rows):
 
 def main() -> None:
     data = load()
-    assert data, "no data_k*.npz found — run train.py first"
-    cfg = "  ".join(f"k{k}(d{int(data[k]['d'])}):steps={int(data[k]['steps'])}"
-                    for k in data)
-    batch = 250
+    assert data, f"no run data found below {ARTIFACTS} — run train.py first"
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    cfg = "  ".join(
+        f"k{k}(d{int(data[k]['d'])}):train_steps={int(data[k]['train_steps'])}"
+        for k in data
+    )
+    batch_size = int(next(iter(data.values()))["batch_size"])
     h1, r1 = write_table(data, "final_ess", "ess_table.csv")
     h2, r2 = write_table(data, "strict_cov", "mode_coverage_table.csv")
     h3, r3 = write_table(data, "tv", "mode_balance_table.csv")
     md = [
         "# HD product multi-well — summary tables",
         "",
-        f"Run config: batch={batch}, exp(-x^2) coeff=12.  {cfg}",
+        f"Run config: batch_size={batch_size}, exp(-x^2) coeff=12.  {cfg}",
         "",
         "## Table 1 — final ESS (loss x d)   [headline]",
         "",
@@ -107,8 +113,8 @@ def main() -> None:
         md_table(h3, r3),
         "",
     ]
-    (HERE / "tables.md").write_text("\n".join(md))
-    print(f"wrote {HERE / 'tables.md'} (+ 3 csv files)")
+    (RESULTS / "tables.md").write_text("\n".join(md))
+    print(f"wrote {RESULTS / 'tables.md'} (+ 3 csv files)")
     print(md_table(h1, r1))
 
 

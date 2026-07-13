@@ -916,6 +916,47 @@ The detailed read-only `zflows`/`jflows` replanting audit is complete; its
 direct-first forward-AIS repair is frozen in the package commits recorded by
 the experiment environment snapshot.
 
+## 11. BG histories and recoverable attempt flows
+
+Molecular training is paused while the generic and molecular BG interfaces
+gain a recovery-grade stage record.  This is a diagnostic/interface change;
+it must not alter losses, random keys, optimization, SMC/AIS, the
+trained-versus-identity gate, or any acceptance decision.
+
+Every committed stage records compact, attempt-aligned fields:
+
+- `t_hist`: bridge coefficients that reached training and full validation;
+- `batch_ess_hist`: optimizer-minibatch ESS, with shape
+  `[attempt, train_step]`;
+- `valid_trained_ess_hist` and `valid_identity_ess_hist`: honest ESS on the
+  complete validation population for every trained attempt; and
+- `attempt_status_hist` and `trained_flow_path_hist`: the disposition and
+  recoverable trained-flow file corresponding one-to-one with those arrays.
+
+The committed scalar summary is `t`, `valid_selected_ess`,
+`valid_trained_ess`, `valid_identity_ess`, `selected`, and `flow`, with
+`selected_flow_path` naming its durable file.  The identity map is never
+called "trained".  The old scalar `imp_history` is derivable and is retired;
+temporary read compatibility does not make it a canonical field.
+
+Each trained candidate is serialized atomically outside compiled code as soon
+as full validation finishes, including rejected candidates and candidates that
+lose to identity.  Stable `stage_NNNN/attempt_NNNN` directories contain the
+flow, per-step arrays, and metadata; a run manifest preserves terminal failed
+stages that correctly do not enter the composable returned stage list.  Paths
+stored in records are relative so the complete experiment directory can move.
+Saving is optional at package level and mandatory in molecular experiment
+drivers.  Tests require saving-on/off numerical identity, rejected-flow reload,
+history/path alignment, and exact selected-flow reconstruction.
+
+The accompanying naming cleanup uses `dt` only for an integration step size
+and `steps` only for a count.  Composite controls therefore use `mc_dt` /
+`mc_steps`, `opt_alpha` / `opt_steps`, and `train_steps`; sizes use
+`batch_size` and `pool_size`.  `ladder` remains the annealing-level count.
+Existing public keyword spellings remain compatibility aliases so archived
+`Codes` scripts retain exactly the same numerical behavior and require no
+scientific rerun from this interface-only change.
+
 ## Primary evidence
 
 - FAB target: `/mnt/projects/fab-torch/fab/target_distributions/aldp.py`

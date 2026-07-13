@@ -7,12 +7,12 @@ all centered at theta = 0 on [-pi, pi):
                    ratio-preserving zoom on the [pi/6, pi/2] shoulder.
 
 The densities are reconstructed from N = 2,000,000 fresh source draws
-advanced through the trained klxx B=2000 ladder by the FULL staged sampler
-(map -> reweight -> resample -> MALA at every rung). Both expensive
-artifacts are saved and reused:
+advanced through the trained klxx B=2000 schedule by the FULL staged sampler
+(map -> reweight -> resample -> MALA at every level). Both expensive
+run-scoped artifacts are saved and reused:
 
-    rebuild_klxx_B2000_N2000000.npz          the 2M-sample staged rebuild (GPU, once)
-    clock_marginals_B2000_N2000000.npz       the figure's density data
+    artifacts/klxx_B2000/marginals/rebuild_N2000000.npz
+    artifacts/klxx_B2000/marginals/densities_N2000000.npz
 
 so reruns re-render the figure with no GPU work and no recomputation.
 
@@ -20,8 +20,8 @@ Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/plot_clock_marginals.py
-Writes clock_marginals.png next to this file; progress in
-plot_clock_marginals_status.log.
+Writes ``results/clock_marginals.png``; progress is recorded with the
+temporary artifacts.
 """
 
 import math
@@ -31,13 +31,17 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "data_klxx_B2000.npz"
-FLOWS = HERE / "flows_klxx_B2000.eqx"
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
+RUN_DIR = ARTIFACTS / "klxx_B2000"
+DATA = RUN_DIR / "data.npz"
+FLOWS = RUN_DIR / "flows.eqx"
+ANALYSIS = RUN_DIR / "marginals"
 N_REBUILD = 2000000
 REBUILD_SEED = 202
-REBUILD = HERE / f"rebuild_klxx_B2000_N{N_REBUILD}.npz"
-DENS = HERE / f"clock_marginals_B2000_N{N_REBUILD}.npz"
-STATUS = HERE / "plot_clock_marginals_status.log"
+REBUILD = ANALYSIS / f"rebuild_N{N_REBUILD}.npz"
+DENS = ANALYSIS / f"densities_N{N_REBUILD}.npz"
+STATUS = ANALYSIS / "status.log"
 BINS = 241
 CHUNK_SIZE = 160000     # one compiled shape for the staged rebuild
 BLOCK = 200000          # histogram accumulation block (memory control)
@@ -57,12 +61,10 @@ def wrap(a: np.ndarray) -> np.ndarray:
 
 def staged_rebuild() -> np.ndarray:
     """N=2M fresh source draws advanced through the trained klxx B2000
-    ladder by the full staged sampler (map -> reweight -> resample -> MALA
-    at every rung); GPU."""
+    schedule by the full staged sampler (map -> reweight -> resample -> MALA
+    at every level); GPU."""
     import os
     os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
-    import sys
-    sys.path.insert(0, str(HERE))
 
     import equinox as eqx
     import jax
@@ -73,23 +75,27 @@ def staged_rebuild() -> np.ndarray:
     from jflows.utils import langevin, resample
     from potential import Clock
 
-    data = np.load(DATA)
-    D, P = int(data["L"]) ** 2, int(data["P"])
-    mc_step, mc_iters = float(data["mc_step"]), int(data["mc_iters"])
-    ladder = [float(t) for t in data["ladder"]]
-    u0 = Nlog_Uniform(a=[-math.pi] * D, b=[math.pi] * D)
-    u1 = Clock(int(data["L"]), P, float(data["J"]), float(data["H"]))
-    like = [NCSF(jax.random.key(0), a=[-math.pi] * D, b=[math.pi] * D,
+    with np.load(DATA, allow_pickle=False) as data:
+        D, P = int(data["L"]) ** 2, int(data["P"])
+        mc_dt, mc_steps = float(data["mc_dt"]), int(data["mc_steps"])
+        t_list = [float(t) for t in data["t_list"]]
+        lattice_size = int(data["L"])
+        coupling = float(data["J"])
+        anisotropy = float(data["H"])
+    nsf_lim = math.pi
+    u0 = Nlog_Uniform(a=[-nsf_lim] * D, b=[nsf_lim] * D)
+    u1 = Clock(lattice_size, P, coupling, anisotropy)
+    like = [NCSF(jax.random.key(0), a=[-nsf_lim] * D, b=[nsf_lim] * D,
                  bins=16, transforms=6, hidden_features=(256, 256)).zeros()
-            for _ in range(len(ladder))]
+            for _ in range(len(t_list))]
     flows = eqx.tree_deserialise_leaves(FLOWS, like)
-    assert len(flows) == len(ladder)
+    assert len(flows) == len(t_list)
 
     key = jax.random.key(REBUILD_SEED)
     y = u0.samples(jax.random.fold_in(key, 0), N_REBUILD)
     t_prev = 0.0
     t0 = time.time()
-    for k, (flow, t_k) in enumerate(zip(flows, ladder), start=1):
+    for k, (flow, t_k) in enumerate(zip(flows, t_list), start=1):
         u_prev = linear_combination([u1, u0], [t_prev, 1.0 - t_prev])
         u_k = linear_combination([u1, u0], [t_k, 1.0 - t_k])
         key_k = jax.random.fold_in(key, k)
@@ -116,13 +122,16 @@ def staged_rebuild() -> np.ndarray:
             if nb < CHUNK_SIZE:
                 xb = jnp.concatenate(
                     [xb, jnp.broadcast_to(xb[-1:], (CHUNK_SIZE - nb, D))], axis=0)
-            rejuv.append(langevin(jax.random.fold_in(key_k, 100 + j), xb, u_k,
-                                  step=mc_step, iters=mc_iters,
-                                  adjust=True)[:nb])
+            rejuv.append(
+                langevin(
+                    jax.random.fold_in(key_k, 100 + j), xb, u_k,
+                    dt=mc_dt, steps=mc_steps, adjust=True,
+                )[:nb]
+            )
         y = jnp.concatenate(rejuv)
         y = jax.block_until_ready(y)
         del rejuv
-        log(f"rebuild stage {k}/{len(ladder)} (t={t_k:.4f}) done "
+        log(f"rebuild stage {k}/{len(t_list)} (t={t_k:.4f}) done "
             f"[{time.time() - t0:.0f}s]")
         t_prev = t_k
     return np.asarray(y, dtype=np.float32)
@@ -130,8 +139,9 @@ def staged_rebuild() -> np.ndarray:
 
 def get_rebuild() -> np.ndarray:
     if REBUILD.exists():
-        log(f"rebuild found: {REBUILD.name} (no GPU work)")
-        return np.load(REBUILD)["y"]
+        with np.load(REBUILD, allow_pickle=False) as data:
+            log(f"rebuild found: {REBUILD.name} (no GPU work)")
+            return data["y"]
     log(f"rebuild missing — running the staged sampler at N={N_REBUILD} ...")
     t0 = time.time()
     y = staged_rebuild()
@@ -143,12 +153,12 @@ def get_rebuild() -> np.ndarray:
 def densities() -> dict:
     """The three angle densities (computed once, then loaded)."""
     if DENS.exists():
-        d = dict(np.load(DENS))
+        with np.load(DENS, allow_pickle=False) as data:
+            d = dict(data)
         if "distance2" in d and "sitemean" in d:
             log(f"densities found: {DENS.name} (no recomputation)")
             return d
-        log(f"{DENS.name} lacks a curve — recomputing all curves from the "
-            f"saved rebuild (no GPU)")
+        log(f"{DENS.name} lacks a curve — rebuilding from saved samples")
     y = get_rebuild()
     log(f"accumulating histograms over {y.shape[0]} samples ...")
     edges = np.linspace(-np.pi, np.pi, BINS + 1)
@@ -185,6 +195,8 @@ def densities() -> dict:
 
 
 def main() -> None:
+    ANALYSIS.mkdir(parents=True, exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
     open(STATUS, "a").close()
     d = densities()
 
@@ -269,7 +281,7 @@ def main() -> None:
     zi.tick_params(labelsize=7)
     b.indicate_inset_zoom(zi, edgecolor="0.5", lw=0.7)
 
-    out = HERE / "clock_marginals.png"
+    out = RESULTS / "clock_marginals.png"
     fig.savefig(out, dpi=400, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
     log(f"DONE — saved {out}")

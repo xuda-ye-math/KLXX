@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-from itertools import permutations
+from itertools import permutations, product
 import json
 import os
 from pathlib import Path
@@ -235,6 +235,48 @@ def _methane_permutations(n_atoms: int) -> tuple[tuple[int, ...], ...]:
     if n_atoms != 5:
         raise ValueError("the all-permutation gate is defined for methane only")
     return tuple((0, *hydrogens) for hydrogens in permutations((1, 2, 3, 4)))
+
+
+def _graph_automorphisms(system: dict) -> tuple[tuple[int, ...], ...]:
+    """Enumerate exact atom-graph automorphisms for the small alkane series."""
+
+    n_atoms = len(system["atomic_numbers"])
+    bonds = {tuple(sorted(map(int, pair))) for pair in system["bonds"]}
+    adjacency = [set() for _ in range(n_atoms)]
+    for first, second in bonds:
+        adjacency[first].add(second)
+        adjacency[second].add(first)
+    labels = [
+        (int(system["atomic_numbers"][index]), len(adjacency[index]))
+        for index in range(n_atoms)
+    ]
+    while True:
+        keys = [
+            (labels[index], tuple(sorted(labels[neighbor] for neighbor in adjacency[index])))
+            for index in range(n_atoms)
+        ]
+        unique = {key: value for value, key in enumerate(sorted(set(keys)))}
+        updated = [unique[key] for key in keys]
+        if updated == labels:
+            break
+        labels = updated
+    groups = [
+        tuple(index for index, value in enumerate(labels) if value == label)
+        for label in sorted(set(labels))
+    ]
+    result = []
+    for choices in product(*(permutations(group) for group in groups)):
+        mapping = list(range(n_atoms))
+        for group, choice in zip(groups, choices, strict=True):
+            for old, new in zip(group, choice, strict=True):
+                mapping[old] = new
+        mapped_bonds = {
+            tuple(sorted((mapping[first], mapping[second])))
+            for first, second in bonds
+        }
+        if mapped_bonds == bonds:
+            result.append(tuple(mapping))
+    return tuple(result)
 
 
 def validate_x64(bundle_path: Path) -> dict:
@@ -500,6 +542,242 @@ def validate_x64(bundle_path: Path) -> dict:
     }
 
 
+def validate_generic_x64(bundle_path: Path) -> dict:
+    """Validate a non-methane alkane against independent OpenMM references.
+
+    Methane retains the stronger exhaustive S4 permutation audit above.  For
+    larger alkanes this gate checks the transferable requirements: bundle
+    integrity, chart dimensions and round trip, stored references, and
+    diversified energy/force/term parity with OpenMM's Reference platform.
+    """
+
+    jax.config.update("jax_enable_x64", True)
+    import jax.numpy as jnp
+
+    from jflows_md import Molecular_Bundle, Molecular_Potential
+    from jflows_md.core.validation import compare_stored_openmm
+    from jflows_md.system import sha256_file
+
+    bundle = Molecular_Bundle.load(bundle_path, verify=True)
+    if bundle.manifest["target"] == "methane":
+        raise ValueError("generic alkane validation must not replace the methane gate")
+    expected_dimension = 3 * bundle.n_atoms - 6
+    expected_euclidean = 2 * bundle.n_atoms - 3
+    expected_periodic = bundle.n_atoms - 3
+    if bundle.dimension != expected_dimension:
+        raise ValueError(
+            f"dimension mismatch: {bundle.dimension} != {expected_dimension}"
+        )
+    if (
+        bundle.coordinates["euclidean_dim"],
+        bundle.coordinates["periodic_dim"],
+    ) != (expected_euclidean, expected_periodic):
+        raise ValueError(
+            "alkane chart has the wrong mixed-domain split: "
+            f"{bundle.coordinates['euclidean_dim']},"
+            f"{bundle.coordinates['periodic_dim']} != "
+            f"{expected_euclidean},{expected_periodic}"
+        )
+    if (
+        bundle.coordinates["chiral_torsion_index"] != -1
+        or bundle.coordinates["chirality_sign"] != 0
+    ):
+        raise ValueError("achiral alkane bundle unexpectedly restricts chirality")
+
+    potential = Molecular_Potential.from_bundle(bundle_path, verify=True)
+    target = potential.regularized(
+        P.ENERGY_CUT_KJ_MOL,
+        energy_scale_kj_mol=P.ENERGY_SCALE_KJ_MOL,
+        tail_fraction=P.TAIL_FRACTION,
+    )
+    source = potential.source()
+    stored = compare_stored_openmm(potential, bundle)
+
+    q_reference = potential.reference_internal()
+    reference = np.asarray(potential.cartesian(q_reference[None])[0])
+    atom_permutations = _graph_automorphisms(bundle.system)
+    permutation_orders = [
+        np.argsort(np.asarray(mapping)) for mapping in atom_permutations
+    ]
+    permutation_frames = np.asarray(
+        [reference[order] for order in permutation_orders]
+    )
+    torsion_frames = []
+    for torsion in range(bundle.coordinates["periodic_dim"]):
+        for shift in (-0.6, 0.6):
+            q = q_reference.at[expected_euclidean + torsion].add(shift)
+            torsion_frames.append(np.asarray(potential.cartesian(q[None])[0]))
+    source_probe = source.samples(jax.random.key(20260717), 256)
+    source_energy = np.asarray(potential.physical_energy(source_probe))
+    finite = np.flatnonzero(np.isfinite(source_energy))
+    if finite.size < 8:
+        raise ValueError("not enough finite diversified source probes")
+    selected = finite[np.argsort(source_energy[finite])[-8:]]
+    high_frames = np.asarray(potential.cartesian(source_probe[selected]))
+    frames = np.concatenate(
+        (permutation_frames, np.asarray(torsion_frames), high_frames), axis=0
+    )
+
+    openmm_energy, openmm_force, openmm_terms = _openmm_reference(bundle_path, frames)
+    jax_frames = jnp.asarray(frames)
+    jax_terms = potential.forcefield.energy_terms(jax_frames)
+    jax_energy = np.asarray(jax_terms["total"])
+    jax_force = np.asarray(
+        -jax.vmap(jax.grad(lambda x: potential.forcefield(x[None])[0]))(jax_frames)
+    )
+    force_delta = jax_force - openmm_force
+    energy_error = float(np.max(np.abs(jax_energy - openmm_energy)))
+    force_rmse = float(np.sqrt(np.mean(force_delta**2)))
+    force_max = float(np.max(np.abs(force_delta)))
+    term_errors = {
+        name: float(np.max(np.abs(np.asarray(jax_terms[name]) - expected)))
+        for name, expected in openmm_terms.items()
+    }
+    if energy_error > P.ENERGY_ERROR_KJ_MOL_MAX:
+        raise AssertionError(f"OpenMM/JAX energy error {energy_error}")
+    if (
+        force_rmse > P.FORCE_RMSE_KJ_MOL_NM_MAX
+        or force_max > P.FORCE_COMPONENT_KJ_MOL_NM_MAX
+    ):
+        raise AssertionError(
+            f"OpenMM/JAX force error rmse={force_rmse} max={force_max}"
+        )
+    if max(term_errors.values()) > P.ENERGY_ERROR_KJ_MOL_MAX:
+        raise AssertionError(f"OpenMM/JAX term errors {term_errors}")
+
+    permutation_energy_error = float(np.ptp(jax_energy[: len(atom_permutations)]))
+    if permutation_energy_error > P.ENERGY_ERROR_KJ_MOL_MAX:
+        raise AssertionError(
+            f"alkane automorphism energy invariance failed: {permutation_energy_error}"
+        )
+    identity_index = atom_permutations.index(tuple(range(bundle.n_atoms)))
+    identity_force = jax_force[identity_index]
+    force_covariance = 0.0
+    for frame_index, order in enumerate(permutation_orders):
+        force_covariance = max(
+            force_covariance,
+            float(np.max(np.abs(jax_force[frame_index] - identity_force[order]))),
+        )
+    if force_covariance > P.FORCE_COMPONENT_KJ_MOL_NM_MAX:
+        raise AssertionError(
+            f"alkane automorphism force covariance failed: {force_covariance}"
+        )
+
+    covariance_q = potential.domain.wrap(
+        q_reference[None]
+        + 0.12 * jax.random.normal(
+            jax.random.key(20260719), (2, bundle.dimension)
+        )
+    )
+
+    @jax.jit
+    def covariance_batch(q_batch, order):
+        def transform(value):
+            cartesian = potential.cartesian(value[None])[0]
+            return potential.coordinates.to_internal(
+                cartesian[order][None]
+            )[0][0]
+
+        transformed = jax.vmap(transform)(q_batch)
+        jacobian = jax.vmap(jax.jacfwd(transform))(q_batch)
+        map_logdet = jnp.linalg.slogdet(jacobian)[1]
+        original_logdet = potential.coordinates.to_cartesian(q_batch)[1]
+        transformed_logdet = potential.coordinates.to_cartesian(transformed)[1]
+        energy_delta = (
+            potential.physical_energy(transformed)
+            - potential.physical_energy(q_batch)
+        )
+        jacobian_residual = original_logdet - transformed_logdet - map_logdet
+        target_residual = target(transformed) - target(q_batch) - map_logdet
+        return energy_delta, jacobian_residual, target_residual
+
+    covariance_error = {
+        "physical_energy_kj_mol": 0.0,
+        "jacobian_log_volume": 0.0,
+        "reduced_target": 0.0,
+    }
+    for order in permutation_orders:
+        energy_delta, jacobian_residual, target_residual = covariance_batch(
+            covariance_q, jnp.asarray(order)
+        )
+        covariance_error["physical_energy_kj_mol"] = max(
+            covariance_error["physical_energy_kj_mol"],
+            float(jnp.max(jnp.abs(energy_delta))),
+        )
+        covariance_error["jacobian_log_volume"] = max(
+            covariance_error["jacobian_log_volume"],
+            float(jnp.max(jnp.abs(jacobian_residual))),
+        )
+        covariance_error["reduced_target"] = max(
+            covariance_error["reduced_target"],
+            float(jnp.max(jnp.abs(target_residual))),
+        )
+    if covariance_error["physical_energy_kj_mol"] > P.ENERGY_ERROR_KJ_MOL_MAX:
+        raise AssertionError(
+            f"alkane off-reference energy covariance failed: {covariance_error}"
+        )
+    if max(
+        covariance_error["jacobian_log_volume"],
+        covariance_error["reduced_target"],
+    ) > P.REDUCED_PERMUTATION_ERROR_MAX:
+        raise AssertionError(
+            f"alkane off-reference chart covariance failed: {covariance_error}"
+        )
+
+    q_probe = potential.domain.wrap(
+        q_reference[None]
+        + 0.15 * jax.random.normal(
+            jax.random.key(20260718), (64, bundle.dimension)
+        )
+    )
+    cartesian, logdet = potential.coordinates.to_cartesian(q_probe)
+    roundtrip_q, inverse_logdet = potential.coordinates.to_internal(cartesian)
+    roundtrip = float(
+        jnp.max(jnp.abs(potential.domain.displacement(roundtrip_q, q_probe)))
+    )
+    jacobian_roundtrip = float(jnp.max(jnp.abs(logdet + inverse_logdet)))
+    values, gradient = jax.jit(lambda x: (target(x), target.grad(x)))(source_probe)
+    finite_target = bool(jnp.isfinite(values).all() & jnp.isfinite(gradient).all())
+    if roundtrip > 1e-9 or jacobian_roundtrip > 1e-9:
+        raise AssertionError(
+            f"internal-coordinate round trip failed: q={roundtrip}, "
+            f"logdet={jacobian_roundtrip}"
+        )
+    if not finite_target:
+        raise AssertionError("x64 source target/gradient gate failed")
+
+    return {
+        "mode": "x64",
+        "bundle": str(bundle_path.resolve()),
+        "manifest_sha256": sha256_file(bundle_path / "manifest.json"),
+        "target": bundle.manifest["target"],
+        "formula": bundle.system["formula"],
+        "atoms": bundle.n_atoms,
+        "dimension": bundle.dimension,
+        "domain": {
+            "euclidean": expected_euclidean,
+            "periodic": expected_periodic,
+        },
+        "stored_openmm": {
+            "energy_error_kj_mol": stored.maximum_energy_kj_mol,
+            "force_rmse_kj_mol_nm": stored.force_rmse_kj_mol_nm,
+            "force_max_kj_mol_nm": stored.maximum_force_component_kj_mol_nm,
+        },
+        "diversified_frames": int(frames.shape[0]),
+        "energy_error_kj_mol": energy_error,
+        "force_rmse_kj_mol_nm": force_rmse,
+        "force_max_kj_mol_nm": force_max,
+        "term_energy_errors_kj_mol": term_errors,
+        "graph_automorphisms": len(atom_permutations),
+        "automorphism_energy_range_kj_mol": permutation_energy_error,
+        "automorphism_force_covariance_max_kj_mol_nm": force_covariance,
+        "off_reference_automorphism_covariance_errors": covariance_error,
+        "roundtrip_max": roundtrip,
+        "jacobian_roundtrip_max": jacobian_roundtrip,
+        "finite_target_and_gradient": finite_target,
+    }
+
+
 def validate_float32(bundle_path: Path) -> dict:
     jax.config.update("jax_enable_x64", False)
     import jax.numpy as jnp
@@ -526,13 +804,14 @@ def validate_float32(bundle_path: Path) -> dict:
         & jnp.isfinite(physical).all()
     )
     if not finite:
-        raise AssertionError("float32 methane source energy/gradient gate failed")
+        raise AssertionError("float32 molecular source energy/gradient gate failed")
     if q.dtype != jnp.float32 or values.dtype != jnp.float32 or gradient.dtype != jnp.float32:
         raise AssertionError(f"float32 gate used unexpected dtypes: {q.dtype}, {values.dtype}, {gradient.dtype}")
     return {
         "mode": "float32",
         "bundle": str(bundle_path.resolve()),
         "manifest_sha256": sha256_file(bundle_path / "manifest.json"),
+        "target": bundle.manifest["target"],
         "samples": int(q.shape[0]),
         "sample_dtype": str(q.dtype),
         "target_dtype": str(values.dtype),
@@ -551,11 +830,21 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     bundle_path = args.bundle.expanduser().resolve()
-    result = validate_x64(bundle_path) if args.mode == "x64" else validate_float32(bundle_path)
+    if args.mode == "x64":
+        from jflows_md import Molecular_Bundle
+
+        bundle = Molecular_Bundle.load(bundle_path, verify=True)
+        result = (
+            validate_x64(bundle_path)
+            if bundle.manifest["target"] == "methane"
+            else validate_generic_x64(bundle_path)
+        )
+    else:
+        result = validate_float32(bundle_path)
     result["command"] = [sys.executable, str(Path(__file__).resolve()), *sys.argv[1:]]
     result["runtime"] = _runtime_provenance()
     _json_write(args.output, result)
-    print(f"PASS methane bundle {args.mode}: {args.output}")
+    print(f"PASS {result.get('target', 'molecular')} bundle {args.mode}: {args.output}")
 
 
 if __name__ == "__main__":

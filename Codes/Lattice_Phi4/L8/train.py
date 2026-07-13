@@ -20,9 +20,8 @@ Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Phi4/L8/train.py
-Writes results_table.csv (all seeds), data.npz (per-run magnetizations and
-normalized weights), and train_status.log next to this file; plotting is
-separate — run plot_results.py on the saved data.
+Writes temporary arrays/logs below ``artifacts/`` and the final table below
+``results/``; plotting is separate.
 """
 
 import csv
@@ -39,10 +38,16 @@ import numpy as np
 from jflows.flow import NSF
 from jflows.potential import Nlog_Gaussian, potential_from
 from jflows.train import Monitor, train_forward_KLX_G, train_forward_KLXX_G
-from jflows.utils import compute_ESS, importance_weights
+from jflows.utils import (
+    compute_ESS_log,
+    importance_weights_log,
+    linear_weights_from_log,
+)
 
 HERE = Path(__file__).resolve().parent
-LOG = HERE / "train_status.log"
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
+LOG = ARTIFACTS / "train.log"
 
 # lattice action S[phi] = sum_x [ -2*KAPPA*phi_x*(phi_{x+e1}+phi_{x+e2}) + phi_x^2
 #                                 + LAMBDA*(phi_x^2-1)^2 ] + H*sum_x phi_x
@@ -63,23 +68,23 @@ HIDDEN_FEATURES = (256, 256)
 
 # training parameters
 N_VALID: int = 100000   # the fixed source set (training pool + final evaluation)
-N_BATCH: int = 500      # source samples per training step
-STEPS: int = 2000       # Adam optimization steps
+BATCH_SIZE: int = 500      # source samples per training step
+TRAIN_STEPS: int = 2000       # Adam optimization steps
 LR: float = 1e-3        # Adam learning rate
 E_CLIP: float = float("inf")  # energy screen (inf = keep every sample)
 G_CLIP: float = 1e3     # global gradient-norm clip (pre-Adam)
 SEEDS = (0, 1, 2)       # training seeds (flow batches, AIS, permutations)
 
 # data pipeline (single-hop AIS + MALA rejuvenation)
-LADDER: int = 1         # AIS rungs per manufactured target batch
-MC_STEP: float = 2e-3   # Langevin step size
-MC_ITERS: int = 50      # Langevin steps per rung / per hat_mu freshening
+LADDER: int = 1         # AIS levels per manufactured target batch
+MC_DT: float = 2e-3   # Langevin step size
+MC_STEPS: int = 50      # Langevin steps per level / per hat_mu freshening
 
 # quench and temper (the wide-coverage measure hat_mu)
-N_POOL: int = 2000      # quench-and-temper pool size
+POOL_SIZE: int = 2000      # quench-and-temper pool size
 MELT: float = 2.0       # melt scale (std of the Gaussian scatter)
-OPT_STEP: float = 0.1   # L-BFGS trial alpha (armijo)
-OPT_ITERS: int = 200    # L-BFGS iterations
+OPT_ALPHA: float = 0.1   # L-BFGS trial alpha (armijo)
+OPT_STEPS: int = 200    # L-BFGS iterations
 
 METHODS = (
     "KL",
@@ -117,13 +122,15 @@ def log(msg: str) -> None:
 
 
 def main() -> None:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
     log(f"START Phi4 L={L} (D={D}) | jax {jax.__version__} | backend {jax.default_backend()} | "
         f"kappa={KAPPA} lambda={LAMBDA} h={H} | "
-        f"N_VALID={N_VALID} N_BATCH={N_BATCH} STEPS={STEPS} LR={LR} e_clip={E_CLIP} g_clip={G_CLIP} seeds={SEEDS} "
-        f"MC={MC_STEP}x{MC_ITERS} (MALA) ladder={LADDER} "
-        f"QT: N_POOL={N_POOL} melt={MELT} opt={OPT_STEP}x{OPT_ITERS}")
-    ref = np.load(HERE / "phi4_reference.npz")
+        f"N_VALID={N_VALID} BATCH_SIZE={BATCH_SIZE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} e_clip={E_CLIP} g_clip={G_CLIP} seeds={SEEDS} "
+        f"MC={MC_DT}x{MC_STEPS} (MALA) ladder={LADDER} "
+        f"QT: POOL_SIZE={POOL_SIZE} melt={MELT} opt={OPT_ALPHA}x{OPT_STEPS}")
+    ref = np.load(ARTIFACTS / "phi4_reference.npz")
     m_ref = ref["m_trace"].ravel()
     p_plus_ref = float((m_ref > 0).mean())
     log(f"reference: p(m>0) = {p_plus_ref:.4f}")
@@ -142,36 +149,45 @@ def main() -> None:
             s = jnp.uint32(seed)
             if name == "KL":
                 flow, _ = train_forward_KLX_G(
-                    x_valid, u0, u1, flow0, n_batch=N_BATCH, steps=STEPS, lr=LR,
-                    ladder=LADDER, mc_step=MC_STEP, mc_iters=MC_ITERS,
-                    coeff_lambda=0.0, e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
+                    x_valid, u0, u1, flow0,
+                    batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                    ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
+                    coeff_lambda=0.0, mc_adjust=True,
+                    e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
             elif name == "KL+X_mu":
                 flow, _ = train_forward_KLX_G(
-                    x_valid, u0, u1, flow0, n_batch=N_BATCH, steps=STEPS, lr=LR,
-                    ladder=LADDER, mc_step=MC_STEP, mc_iters=MC_ITERS,
-                    coeff_lambda=1.0, e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
+                    x_valid, u0, u1, flow0,
+                    batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                    ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
+                    coeff_lambda=1.0, mc_adjust=True,
+                    e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
             elif name == "KL+X_mu+X_hat_mu":
                 flow, _ = train_forward_KLXX_G(
-                    x_valid, u0, u1, flow0, n_pool=N_POOL, n_batch=N_BATCH,
-                    steps=STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                    opt_step=OPT_STEP, opt_iters=OPT_ITERS,
-                    mc_step=MC_STEP, mc_iters=MC_ITERS,
+                    x_valid, u0, u1, flow0,
+                    pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
+                    train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
+                    opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                    mc_dt=MC_DT, mc_steps=MC_STEPS,
                     coeff_lambda=1.0, coeff_alpha=1.0, coeff_beta=0.0,
+                    mc_adjust=True,
                     e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
             else:  # KL+X_mu+X_mix
                 flow, _ = train_forward_KLXX_G(
-                    x_valid, u0, u1, flow0, n_pool=N_POOL, n_batch=N_BATCH,
-                    steps=STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                    opt_step=OPT_STEP, opt_iters=OPT_ITERS,
-                    mc_step=MC_STEP, mc_iters=MC_ITERS,
+                    x_valid, u0, u1, flow0,
+                    pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
+                    train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
+                    opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                    mc_dt=MC_DT, mc_steps=MC_STEPS,
                     coeff_lambda=1.0, coeff_alpha=0.5, coeff_beta=0.5,
+                    mc_adjust=True,
                     e_clip=E_CLIP, g_clip=G_CLIP, monitor=mon, seed=s)
             flow = jax.block_until_ready(flow)
             jax.effects_barrier()
 
             y_push = flow.inv(x_valid)
-            w = np.asarray(importance_weights(x_valid, u0, u1, flow, type="G"))
-            ess = float(compute_ESS(jnp.asarray(w)))
+            log_weights = importance_weights_log(x_valid, u0, u1, flow, type="G")
+            ess = float(compute_ESS_log(log_weights))
+            w = np.asarray(linear_weights_from_log(log_weights))
             mag = magnetization(y_push)
             wn = w / w.sum()
             p_plus = float(wn[mag > 0].sum())
@@ -183,14 +199,14 @@ def main() -> None:
                 f"final ESS = {ess:.4f}   reweighted p(m>0) = {p_plus:.4f}")
 
     # ── per-seed table ──
-    with open(HERE / "results_table.csv", "w", newline="") as f:
+    with open(RESULTS / "results_table.csv", "w", newline="") as f:
         wcsv = csv.DictWriter(f, fieldnames=["seed", "method", "final_ess", "p_plus"])
         wcsv.writeheader()
         wcsv.writerows(rows)
-    np.savez_compressed(HERE / "data.npz", **store)
-    log(f"saved {HERE / 'data.npz'} ({len(store)} arrays)")
-    log(f"DONE — table at {HERE / 'results_table.csv'}, "
-        f"data at {HERE / 'data.npz'}")
+    np.savez_compressed(ARTIFACTS / "data.npz", **store)
+    log(f"saved {ARTIFACTS / 'data.npz'} ({len(store)} arrays)")
+    log(f"DONE — table at {RESULTS / 'results_table.csv'}, "
+        f"data at {ARTIFACTS / 'data.npz'}")
 
 
 if __name__ == "__main__":

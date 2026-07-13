@@ -1,6 +1,6 @@
 """Replot fig_methods.png from data.npz — no retraining, no GPU.
 
-Reads data.npz (per-run magnetizations `mag_{seed}_{method}` and normalized
+Reads ``artifacts/data.npz`` (per-run magnetizations and normalized
 importance weights `w_{seed}_{method}`, written by train.py) and
 phi4_reference.npz, recomputes the final ESS and reweighted p(m > 0) from
 the stored arrays, and re-renders the seed-FIG_SEED methods figure.
@@ -19,6 +19,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
 
 FIG_SEED = 0           # the seed drawn in fig_methods
 PLT_LIM = 1.6          # half-width of the magnetization histogram window
@@ -57,8 +59,8 @@ def hist(m, weights=None):
 
 
 def main() -> None:
-    data = np.load(HERE / "data.npz")
-    ref = np.load(HERE / "phi4_reference.npz")
+    data = np.load(ARTIFACTS / "data.npz")
+    ref = np.load(ARTIFACTS / "phi4_reference.npz")
     h0, c0 = hist(ref["m_trace"].ravel())
 
     n = len(METHODS)
@@ -74,7 +76,8 @@ def main() -> None:
         ax.semilogy(cp, hp + 1e-12, color="0.6", lw=1.0, label="pushforward")
         hw, cw = hist(mag, weights=wn)
         ax.semilogy(cw, hw + 1e-12, color=METHOD_COLOR[name], lw=1.6, label="reweighted")
-        ax.semilogy(c0, h0 + 1e-12, color="black", ls=":", lw=1.2, label="PT reference")
+        ax.semilogy(c0, h0 + 1e-12, color="black", ls=":", lw=1.2,
+                    label="mirror-MALA reference")
         ax.set_title(f"{METHOD_LABEL[name]}\nESS={ess:.2f}, $p_+$={p_plus:.2f}")
         ax.set_xlabel(r"$m$")
         ax.set_ylim(1e-4, 30)
@@ -84,9 +87,11 @@ def main() -> None:
     fig.legend(handles, labels, loc="upper center", ncol=3, fontsize=8,
                frameon=False, bbox_to_anchor=(0.5, 1.10))
     plt.tight_layout()
-    fig.savefig(HERE / "fig_methods.png", dpi=400, bbox_inches="tight", pad_inches=0.02)
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    fig.savefig(RESULTS / "fig_methods.png", dpi=400,
+                bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
-    print(f"wrote {HERE / 'fig_methods.png'}")
+    print(f"wrote {RESULTS / 'fig_methods.png'}")
 
 
 if __name__ == "__main__":

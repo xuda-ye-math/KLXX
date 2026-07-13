@@ -16,14 +16,15 @@ activate the pip-only environment and expose both source roots explicitly:
 source ~/.envs/jflows/bin/activate
 export PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md
 python Molecular_BG/training_diagnostics/oracle.py
+python Molecular_BG/training_diagnostics/train_alkanes.py methane
 ```
 
 Unvalidated constructions live below `candidates/`.  Only independently
 reviewed candidates that pass the complete scientific gate are copied below
 `bundles/` and entered in the private registry; they are never added to the
-public `jflows_md` registry. Runtime loads the promoted explicit path. Immutable raw runs
-live below `.aris/experiments/molecular_training_diagnostics/runs/`.  Plotting
-and tables must consume saved artifacts and must not rerun sampling.
+public `jflows_md` registry. Runtime loads the promoted explicit path. Immutable
+raw runs live below `runs/` in this folder. Plotting and tables must consume
+saved artifacts and must not rerun sampling.
 
 The preregistered parameters, gates, seed roles, finite-`N` ESS qualification,
 and outcome rules are authoritative in

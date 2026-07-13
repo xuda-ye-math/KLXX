@@ -1,6 +1,7 @@
 # Hidden files (except .gitignore)
 .*
 Molecular_BG/training_diagnostics/candidates/
+Molecular_BG/training_diagnostics/runs/
 !.gitignore
 
 # Data / model checkpoints and large arrays (any subfolder) -- published as

@@ -1,17 +1,19 @@
 # Project status
 
-Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
+Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`, branch `main`, baseline HEAD
-  `19b9b095e63b356fcf743761ef9859ddbb673368` (`Record jflows_md numerical
-  hardening`), tracking `origin/main`. Four tracked paths are modified:
-  `status.md`, `Molecular_BG/JFLOWS_MD_PLAN.md`, and the glycerol
-  `parameters.py`/`train.py`; three paths are untracked: the preserved
-  `debug_loss_ess/` diagnostic, `dihedrals.py`, and `dihedrals.png`. The
-  diagnostic's NPZ/EQX/log payload is recovery-critical and occupies about
-  290 MB, so it remains part of the ext4 mirror backup.
+- Repository: `/mnt/projects/X-regularization`, branch `main`, inspected on
+  baseline HEAD `c4e4fbee0987022e8f53de7414e6ed2ab3252a8b` (`Add controlled
+  molecular training diagnostics`), tracking the identical `origin/main`
+  before this checkpoint. The reviewed pre-commit worktree contains 25
+  modified, 30 deleted, and 14 untracked status entries: the completed
+  source-only `Codes/` rewrite plus still-pending Molecular_BG sources,
+  bundles, and local diagnostic summaries. Large NPZ/HDF5/EQX/log payloads,
+  interrupted molecular runs, candidate bundles, and diagnostic run
+  directories remain ignored but recovery-critical in the ext4 mirror;
+  ignored bytecode caches are disposable.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -22,8 +24,8 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
 - Public `jflows` is clean and pushed at
-  `0302829fe440b6241172b652ff914db1ebecc273` (`Repair forward AIS and quench
-  correctness`), version 0.2.0. The repair uses the actual source-particle/image
+  `89e837e63331e0795a78b5f8ed8b789a3cb4c120` (`Refactor Boltzmann histories
+  and artifacts`), version 0.2.0. The repair uses the actual source-particle/image
   pair and matching Jacobian for the first forward-AIS correction, preserves a
   per-particle Armijo trial scale after repeated line-search failures, and gives
   OTFlow the same exact-selected-map/near-identity-warm-start contract as the
@@ -32,8 +34,8 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
   reviewers found no remaining material correctness or API issue. The local,
   GitHub, and ext4-mirror commit hashes are identical.
   Public `jflows_md` is clean and pushed at
-  `da2251fcc2a322f80e4a7725ce7872c4eefd0302` (`Synchronize molecular training
-  with jflows 0.2`), version 0.2.0. It now mirrors the direct-first forward-AIS
+  `60d7ca07f4ea5a83246c747c4d96c8ef009ef9a7` (`Align molecular BG APIs and
+  artifacts`), version 0.2.0. It now mirrors the direct-first forward-AIS
   semantics, uses the standard per-step ESS monitor, compares only the final
   trained flow with exact identity on the full validation set, and lets that
   selected ESS alone control post-training acceptance. The retired intermediate
@@ -42,8 +44,25 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
   physical target immutable. Its complete 13-module GPU smoke suite passes from
   an isolated source copy, and three independent molecular reviews returned
   PASS. Private forward-AIS consumers in `Codes/` still require a controlled
-  current-HEAD rerun; reverse-only results and reference ensembles are not
-  invalidated by this AIS correction.
+  current-HEAD rerun before any regenerated numerical result is claimed.
+- **Done — fresh source-only `Codes/` rewrite:** `Codes/` now contains exactly
+  20 Python source files and no historical figures, tables, arrays, logs,
+  checkpoints, cache directories, manifests, hashes, provenance controllers,
+  or nested Git metadata. The 2D scripts render their final figures directly;
+  HD Product, Lattice Clock, and Phi4 write disposable run inputs below
+  `artifacts/` and final figures/tables below `results/`. Neither output
+  directory exists before a run. All 20 files parse, 99 live public `jflows`
+  call sites bind to current signatures, 251 preserved literal scientific and
+  training settings match the dated pre-rewrite backup, and three independent
+  read-only reviews found no scientific or regeneration blocker. No model,
+  reference, smoke, or result-producing script was run during the rewrite.
+  The complete old tree remains in
+  `/mnt/games/X-regularization_071226_231028`.
+- **Pending as a whole — Molecular_BG:** all current alkane, glycerol,
+  regularization, bundle-validation, and training-diagnostic additions remain
+  work in progress. Existing methane/ethane summaries and the interrupted
+  propane/glycerol records are diagnostic evidence, not completed molecular BG
+  results. No molecular training process is running.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -188,7 +207,7 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
   evidence is preserved under
   `Molecular_BG/glycerol_36d/.run_klxx_c50.inprogress-1178333/` and no Python
   compute process remains.
-- **Active autonomous diagnostic program:** the primary goal is an ordered,
+- **Pending molecular diagnostic program:** the primary goal is an ordered,
   soft-c50 explicit-H alkane series (CH4, ethane, propane, n-butane; dimensions
   9, 18, 27, 36) with fixed-batch gradient/update audits and independently
   recomputed full-validation ESS. The explicit secondary goal is a 36D vacuum
@@ -244,6 +263,17 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — all Molecular_BG work:** treat every current molecular source,
+  bundle, validation report, diagnostic run, and incomplete run as work in
+  progress. Complete the methane/ethane/propane reconciliation and the planned
+  glycerol, ADP, and diethanolamine work only under separately authorized
+  experiments; do not promote the present diagnostics as final BG results.
+- **Pending — complete `Codes/` rerun:** the rewrite deliberately removed all
+  old numerical artifacts. Regenerate the 2D, HD Product, Lattice Clock, and
+  Phi4 reference/training outputs with current `jflows`, then render the final
+  figures and tables into each workflow's `results/` directory. Until then,
+  only source compatibility is verified; no current-head numerical comparison
+  is claimed.
 - **Pending — `zflows_md` compilation engineering:** the archived PyTorch
   molecular implementation still has unresolved excessive compile latency and
   memory growth at realistic molecular sizes. Compare compilation boundaries,
@@ -669,3 +699,24 @@ Last updated: 2026-07-12T17:16:45-04:00 (America/New_York)
   diagnosis remains the active molecular goal. A current-head rerun of private
   forward-AIS `Codes/` experiments is explicitly pending before their numerical
   artifacts are refreshed.
+
+### 2026-07-13T00:06:44-04:00 — Private numerical code rewrite completed
+
+- Rebuilt `Codes/` as a clean, source-only current-API project: 20 Python files
+  remain, with old figures, tables, data, logs, copied controllers, result
+  narratives, caches, and presentation artifacts removed. The verified dated
+  pre-rewrite snapshot remains at
+  `/mnt/games/X-regularization_071226_231028`.
+- Standardized current `jflows` names and stable log-space ESS evaluation while
+  preserving the scientific targets, flow directions, objectives, random-key
+  roles, MALA/QT/AIS behavior, and training parameters. Future temporary run
+  data goes to `artifacts/`; final reproducible figures and tables go to
+  `results/`, after which the temporary artifacts may be removed.
+- Static verification passed without running a model: all 20 files parse, 99
+  public calls bind to the live package signatures, 251 literal settings match
+  the backup after canonical rename mapping, and `git diff --check` is clean.
+  Independent reviews of 2D/HD, Lattice Clock, and Phi4 found no remaining
+  scientific or regeneration blocker. The inherited Phi4 density label was
+  corrected from `PT reference` to `mirror-MALA reference`.
+- No result was regenerated. The complete current-head `Codes/` rerun and all
+  Molecular_BG development remain explicitly pending.

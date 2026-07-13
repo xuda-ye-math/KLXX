@@ -23,7 +23,7 @@ Robustness (per MC review): walkers are started SPLIT between the +1 and -1
 wells so the estimate cannot inherit a single-well bias and burn-in becomes
 self-checking. The run logs the guards that must hold to trust the number:
 running p_+ flat, mean/min barrier crossings per walker, and the WORST adjacent
-swap acceptance (a single dead rung would break the ladder).
+swap acceptance (a single dead level would break the ladder).
 
 The phi^4 action is written out here directly (not imported) so this is a true
 independent cross-check of reference.py's energy and of the trained flow.
@@ -31,7 +31,9 @@ independent cross-check of reference.py's energy and of the trained flow.
 Run from the repo root (GPU):
     source ~/.envs/jflows/bin/activate
     python Codes/Lattice_Phi4/pt_reference.py
-Writes pt_reference_status.log next to this file and prints p_+ for L = 6, 8.
+Writes the temporary run log to artifacts/pt_reference.log and prints p_+
+for L = 6, 8.  The artifacts directory can be removed after recording the
+reference values used by the final figure and table scripts.
 """
 
 import time
@@ -42,7 +44,8 @@ import jax.numpy as jnp
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-LOG = HERE / "pt_reference_status.log"
+ARTIFACTS = HERE / "artifacts"
+LOG = ARTIFACTS / "pt_reference.log"
 
 # --- physics (identical action to reference.py, plus the h tilt) -------------
 KAPPA = 0.40
@@ -132,7 +135,7 @@ def run_size(L: int, h: float):
         phi, s0 = swap(phi, ks0, 0)
         phi, s1 = swap(phi, ks1, 1)
         loc = 0.5 * (ae + ao)                                               # (R,)
-        swap_min = jnp.minimum(s0.min(), s1.min())                          # worst adjacent rung
+        swap_min = jnp.minimum(s0.min(), s1.min())                          # worst adjacent level
         swap_mean = 0.5 * (s0.mean() + s1.mean())
         return phi, loc, swap_min, swap_mean
 
@@ -200,6 +203,7 @@ def run_size(L: int, h: float):
 
 
 def main() -> None:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()
     log("parallel-tempering phi^4 reference  |  jax " + jax.__version__
         + "  backend " + jax.default_backend())

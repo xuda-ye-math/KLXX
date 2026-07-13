@@ -1,0 +1,114 @@
+{
+  "acceptance_rule": {
+    "n_valid": 200000,
+    "quantity": "per-level full-validation ESS",
+    "tau_ess": 0.4
+  },
+  "complete": true,
+  "dimension": 18,
+  "domain": {
+    "euclidean": 13,
+    "periodic": 5
+  },
+  "formula": "C2H6",
+  "ladder": [
+    {
+      "ess_samples": 200000,
+      "identity_ess": 0.0010690974304452538,
+      "level": 1,
+      "selected": "trained",
+      "t": 0.2,
+      "trained_ess": 0.4035613238811493,
+      "validation_ess": 0.4035613238811493
+    },
+    {
+      "ess_samples": 200000,
+      "identity_ess": 0.24084927141666412,
+      "level": 2,
+      "selected": "trained",
+      "t": 0.5,
+      "trained_ess": 0.7376829385757446,
+      "validation_ess": 0.7376829385757446
+    },
+    {
+      "ess_samples": 200000,
+      "identity_ess": 0.4815141260623932,
+      "level": 3,
+      "selected": "trained",
+      "t": 0.95,
+      "trained_ess": 0.9260455369949341,
+      "validation_ess": 0.9260455369949341
+    },
+    {
+      "ess_samples": 200000,
+      "identity_ess": 0.9925936460494995,
+      "level": 4,
+      "selected": "identity",
+      "t": 1.0,
+      "trained_ess": 0.9711540341377258,
+      "validation_ess": 0.9925936460494995
+    }
+  ],
+  "molecule": "ethane",
+  "runtime": {
+    "command": [
+      "Molecular_BG/ethane_18d_c50/train.py",
+      "--overwrite"
+    ],
+    "devices": [
+      "cuda:0"
+    ],
+    "driver_sha256": "652aed528f4cc3e6960b71238ba8fc75c0e42c77ee7e37adc07f6ae5485c3297",
+    "jax": "0.10.2",
+    "jax_x64_enabled": false,
+    "jflows": {
+      "dirty": false,
+      "head": "0302829fe440b6241172b652ff914db1ebecc273",
+      "status": []
+    },
+    "jflows_md": {
+      "dirty": true,
+      "head": "5896ba275952333267592e7cf7cb3c0313d5b8f8",
+      "status": [
+        " M jflows_md/artifacts.py",
+        " M jflows_md/flow.py",
+        " M jflows_md/potential.py",
+        " M jflows_md/source.py",
+        " M smoke/test_artifacts.py",
+        " M smoke/test_edge_cases.py",
+        " M smoke/test_mixed_nsf.py",
+        " M smoke/test_molecular_potential.py"
+      ]
+    },
+    "parameters_sha256": "6bf55fe2a58dad052ec4ccd5366a49c1c458bdeee2312f0f17fa2dfcdc36d01f",
+    "python": "3.14.6 (main, Jun 15 2026, 11:36:54) [GCC 16.1.1 20260430]",
+    "wall_seconds": 192.10771560668945
+  },
+  "schema_version": 1,
+  "target": {
+    "energy_cut_kj_mol": 50.0,
+    "energy_scale_kj_mol": 50.0,
+    "tail_fraction": 0.01,
+    "temperature_kelvin": 300.0
+  },
+  "training": {
+    "bg_param": {
+      "enlarge_factor": 1.5,
+      "max_retry": 5,
+      "max_stages": 20,
+      "shrink_factor": 0.7,
+      "t_safe": 0.2,
+      "t_tol": 0.001,
+      "tau_ess": 0.4,
+      "tau_smc": 0.5
+    },
+    "lr": 0.001,
+    "minimum_kept_fraction": 0.9998999834060669,
+    "n_batch": 10000,
+    "n_pool": 50000,
+    "n_valid": 200000,
+    "objective": "adaptive KLXX",
+    "steps_per_level": 500,
+    "update_fraction": 0.997
+  }
+}

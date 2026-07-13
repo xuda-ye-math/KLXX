@@ -1,0 +1,47 @@
+{
+  "bundle": "/mnt/projects/X-regularization/Molecular_BG/training_diagnostics/candidates/ethane_gaff2_am1bcc_obc1__27a8dcd90800",
+  "command": [
+    "/home/xuda/.envs/jflows/bin/python",
+    "/mnt/projects/X-regularization/Molecular_BG/training_diagnostics/validate_bundle.py",
+    "--bundle",
+    "Molecular_BG/training_diagnostics/candidates/ethane_gaff2_am1bcc_obc1__27a8dcd90800",
+    "--mode",
+    "float32",
+    "--output",
+    "/tmp/ethane_float32_validation.json"
+  ],
+  "finite": true,
+  "gradient_abs_max": 51.83769226074219,
+  "gradient_dtype": "float32",
+  "manifest_sha256": "27a8dcd90800ac879624cd5d56760962f94f9d4c5b460f496dbd8ef42ee63322",
+  "mode": "float32",
+  "runtime": {
+    "equinox": "0.13.8",
+    "jax": "0.10.2",
+    "jax_backend": "gpu",
+    "jflows": {
+      "dirty": false,
+      "dirty_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "head": "0302829fe440b6241172b652ff914db1ebecc273"
+    },
+    "jflows_md": {
+      "dirty": true,
+      "dirty_diff_sha256": "59d3a857208ba73f7244c126d1bacb6c6e3a327d93c14def57245fb1676b2677",
+      "head": "5896ba275952333267592e7cf7cb3c0313d5b8f8",
+      "package_source_sha256": "9d153d4f688af475a1ce814d08386fd66460ee0a0f2cda990b9d5518713300fa"
+    },
+    "numpy": "2.4.6",
+    "openmm": "8.5.2",
+    "parameters_sha256": "056c1a8638bd18e932023b6ad4c5b38eb0307a5a19737b41bdec28edd0eb94f9",
+    "parmed": "4.3.1",
+    "python": "3.14.6",
+    "python_executable": "/home/xuda/.envs/jflows/bin/python",
+    "pythonpath": "/mnt/projects/jflows:/mnt/projects/jflows_md",
+    "validator_sha256": "274b32088eb48b97eccf15c0fb4f56d40ce9fb0af0df3e7487569a438d493d07"
+  },
+  "sample_dtype": "float32",
+  "samples": 4096,
+  "target_dtype": "float32",
+  "target_max": 196.22802734375,
+  "target_min": 107.68850708007812
+}

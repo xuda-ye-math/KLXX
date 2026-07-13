@@ -1,7 +1,7 @@
 """Monte Carlo scaling of the staged-sampler occupancy bias (B=2000 runs).
 
-Runs the EXACT staged sampler of each trained B=2000 ladder — kl and klxx,
-per stage: load the stage flow G_k (flows_<method>_B2000.eqx, no
+Runs the exact staged sampler of each trained B=2000 schedule — kl and klxx,
+per stage: load the stage flow G_k (artifacts/<method>_B2000/flows.eqx, no
 retraining), push the chunked compiled inverse, logw = U_{k-1}(x) - U_k(y)
 + ladj, multinomial resample PER TEST BLOCK, MALA rejuvenation on U_k — at
 N = 10000 * 2^k for k = 0..8 with 2^(8-k) independent tests (equal total
@@ -16,12 +16,11 @@ Memory control: one compiled chunk shape (160k) for every heavy op, eager
 per-chunk loops with prompt frees, sector statistics on host, and a full
 buffer + compile-cache release between the two methods.
 
-Writes (new files only): occupancy_bias_B2000.md/.csv, the raw per-test
-data occupancy_bias_B2000_data.npz, and occupancy_bias_B2000_status.log next to
-this file. NO figure here — the figure is rendered separately from the
-saved data npz.
-Reads data_{kl,klxx}_B2000.npz (ladder + config) and
-flows_{kl,klxx}_B2000.eqx.
+Writes its temporary raw data below ``artifacts/occupancy_bias_B2000`` and the
+final Markdown/CSV tables below ``results/``. The figure is rendered
+separately from the saved raw NPZ.
+Reads ``artifacts/{kl,klxx}_B2000/data.npz`` (schedule + config) and the
+corresponding ``flows.eqx`` files.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
@@ -33,7 +32,6 @@ import argparse
 import gc
 import math
 import os
-import sys
 import time
 from pathlib import Path
 
@@ -45,7 +43,8 @@ import jax.numpy as jnp
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE))                             # Lattice_Clock/potential.py
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
 
 from jflows.flow import NCSF
 from jflows.potential import Nlog_Uniform, linear_combination
@@ -59,13 +58,17 @@ METHOD_LABEL = {
 }
 METHOD_COLOR = {"kl": "tab:blue", "klxx": "tab:purple"}
 
-# physics + MC config from the klxx npz; asserted identical across methods
-_REF = np.load(HERE / "data_klxx_B2000.npz")
-L, D, P = int(_REF["L"]), int(_REF["D"]), int(_REF["P"])
-J, H = float(_REF["J"]), float(_REF["H"])
-MC_STEP, MC_ITERS = float(_REF["mc_step"]), int(_REF["mc_iters"])
+# physics + MC config from the paired B=2000 artifacts
+with np.load(ARTIFACTS / "klxx_B2000" / "data.npz", allow_pickle=False) as _ref:
+    L, D, P = int(_ref["L"]), int(_ref["D"]), int(_ref["P"])
+    J, H = float(_ref["J"]), float(_ref["H"])
+    MC_DT, MC_STEPS = float(_ref["mc_dt"]), int(_ref["mc_steps"])
+    _t_list_ref = np.asarray(_ref["t_list"])
+with np.load(ARTIFACTS / "kl_B2000" / "data.npz", allow_pickle=False) as _kl:
+    if not np.array_equal(np.asarray(_kl["t_list"]), _t_list_ref):
+        raise ValueError("B=2000 kl and klxx artifacts use different t_list values")
 
-# flow architecture (matches train.py, not stored in the npz)
+# flow architecture from train.py
 NSF_LIM = math.pi
 BINS, TRANSFORMS, HIDDEN_FEATURES = 16, 6, (256, 256)
 
@@ -74,7 +77,8 @@ KS = list(range(9))                      # N = N_BASE * 2^k, k = 0..8
 REPS = {k: 2 ** (8 - k) for k in KS}     # equal total work per row
 CHUNK_SIZE = 160000                      # one compiled shape for the heavy ops (200k OOMs the compiled inverse)
 
-STATUS = HERE / "occupancy_bias_B2000_status.log"
+ANALYSIS = ARTIFACTS / "occupancy_bias_B2000"
+STATUS = ANALYSIS / "status.log"
 
 
 def log(msg: str) -> None:
@@ -94,19 +98,22 @@ def _inv_ladj(flow, x):
 
 
 def load_run(method: str):
-    """(ladder, stage flows) of the trained B=2000 run of `method`."""
-    data = np.load(HERE / f"data_{method}_B2000.npz")
-    assert (int(data["L"]), int(data["P"]), float(data["J"]), float(data["H"]),
-            float(data["mc_step"]), int(data["mc_iters"])) == \
-           (L, P, J, H, MC_STEP, MC_ITERS), f"{method}: config mismatch"
-    ladder = [float(t) for t in data["ladder"]]
+    """(t_list, stage flows) of the trained B=2000 run of ``method``."""
+    run_dir = ARTIFACTS / f"{method}_B2000"
+    with np.load(run_dir / "data.npz", allow_pickle=False) as data:
+        assert (int(data["L"]), int(data["P"]), float(data["J"]), float(data["H"]),
+                float(data["mc_dt"]), int(data["mc_steps"])) == \
+               (L, P, J, H, MC_DT, MC_STEPS), f"{method}: config mismatch"
+        t_list = [float(t) for t in data["t_list"]]
     like = [NCSF(jax.random.key(0), a=[-NSF_LIM] * D, b=[NSF_LIM] * D,
                  bins=BINS, transforms=TRANSFORMS,
                  hidden_features=HIDDEN_FEATURES).zeros()
-            for _ in range(len(ladder))]
-    flows = eqx.tree_deserialise_leaves(HERE / f"flows_{method}_B2000.eqx", like)
-    assert len(flows) == len(ladder), f"{method}: {len(flows)} flows != {len(ladder)} rungs"
-    return ladder, flows
+            for _ in range(len(t_list))]
+    flows = eqx.tree_deserialise_leaves(run_dir / "flows.eqx", like)
+    assert len(flows) == len(t_list), (
+        f"{method}: {len(flows)} flows != {len(t_list)} levels"
+    )
+    return t_list, flows
 
 
 def sector_bias(y: np.ndarray):
@@ -117,7 +124,7 @@ def sector_bias(y: np.ndarray):
     return float(np.abs(p - 1.0 / P).sum() / P), p.tolist()
 
 
-def staged_sample(n: int, G: int, seed: int, ladder, flows) -> np.ndarray:
+def staged_sample(n: int, G: int, seed: int, t_list, flows) -> np.ndarray:
     """G INDEPENDENT tests of n particles each, stacked into one [G*n, D]
     GPU pass. Map + Langevin act per particle (block-agnostic); the
     reweight/RESAMPLE is done PER TEST BLOCK, so the G tests are exactly
@@ -126,7 +133,7 @@ def staged_sample(n: int, G: int, seed: int, ladder, flows) -> np.ndarray:
     key = jax.random.key(seed)
     y = u0.samples(jax.random.fold_in(key, 0), total)
     t_prev = 0.0
-    for k, (flow, t_k) in enumerate(zip(flows, ladder), start=1):
+    for k, (flow, t_k) in enumerate(zip(flows, t_list), start=1):
         u_prev = linear_combination([u1, u0], [t_prev, 1.0 - t_prev])
         u_k = linear_combination([u1, u0], [t_k, 1.0 - t_k])
         key_k = jax.random.fold_in(key, k)
@@ -163,8 +170,12 @@ def staged_sample(n: int, G: int, seed: int, ladder, flows) -> np.ndarray:
             if nb < CHUNK_SIZE:
                 xb = jnp.concatenate(
                     [xb, jnp.broadcast_to(xb[-1:], (CHUNK_SIZE - nb, D))], axis=0)
-            rejuv.append(langevin(jax.random.fold_in(key_k, 2000 + j), xb, u_k,
-                                  step=MC_STEP, iters=MC_ITERS, adjust=True)[:nb])
+            rejuv.append(
+                langevin(
+                    jax.random.fold_in(key_k, 2000 + j), xb, u_k,
+                    dt=MC_DT, steps=MC_STEPS, adjust=True,
+                )[:nb]
+            )
         del y
         y = jnp.concatenate(rejuv)
         y = jax.block_until_ready(y)
@@ -178,10 +189,10 @@ def staged_sample(n: int, G: int, seed: int, ladder, flows) -> np.ndarray:
 def scaling_rows(method: str, raw: dict) -> list[dict]:
     """The full N-scaling test of one method's staged sampler. Every
     per-test bias and sector histogram lands in `raw` (saved to npz)."""
-    ladder, flows = load_run(method)
-    log(f"--- {method}: ladder={[f'{t:.4f}' for t in ladder]} "
-        f"({len(ladder)} stages) ---")
-    raw[f"ladder_{method}"] = np.asarray(ladder, dtype=np.float64)
+    t_list, flows = load_run(method)
+    log(f"--- {method}: t_list={[f'{t:.4f}' for t in t_list]} "
+        f"({len(t_list)} stages) ---")
+    raw[f"t_list_{method}"] = np.asarray(t_list, dtype=np.float64)
     rows = []
     for k in KS:
         n, reps = N_BASE * 2 ** k, REPS[k]
@@ -192,7 +203,7 @@ def scaling_rows(method: str, raw: dict) -> list[dict]:
         for grp in range(reps // G):
             t1 = time.perf_counter()
             y_np = staged_sample(n, G, seed=10000 * k + grp + 1,
-                                 ladder=ladder, flows=flows)
+                                 t_list=t_list, flows=flows)
             dt = time.perf_counter() - t1
             for b in range(G):
                 err, p = sector_bias(y_np[b * n:(b + 1) * n])
@@ -229,31 +240,42 @@ def main() -> None:
     if args.smoke:
         N_BASE, KS, REPS = 2000, [0, 1], {0: 2, 1: 1}
 
+    ANALYSIS.mkdir(parents=True, exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    data_out = ANALYSIS / f"data{suffix}.npz"
+    csv_out = RESULTS / f"occupancy_bias_B2000{suffix}.csv"
+    md_out = RESULTS / f"occupancy_bias_B2000{suffix}.md"
+    existing = [path for path in (data_out, csv_out, md_out) if path.exists()]
+    if existing:
+        raise FileExistsError(f"refusing to overwrite occupancy outputs: {existing}")
     open(STATUS, "a").close()
     log(f"##### OCC-BIAS-B2000 START | jax {jax.__version__} | "
         f"backend {jax.default_backend()} | L={L} D={D} P={P} J={J} H={H} | "
-        f"MC={MC_STEP}x{MC_ITERS} (MALA) | methods={METHODS} "
+        f"MC={MC_DT}x{MC_STEPS} (MALA) | methods={METHODS} "
         f"N_BASE={N_BASE} ks={KS} reps={REPS} chunk={CHUNK_SIZE} #####")
 
     t0 = time.perf_counter()
-    raw = {"N_BASE": N_BASE, "ks": np.asarray(KS),
-           "reps": np.asarray([REPS[k] for k in KS])}
+    raw = {
+        "N_BASE": N_BASE,
+        "ks": np.asarray(KS),
+        "reps": np.asarray([REPS[k] for k in KS]),
+    }
     rows = {m: scaling_rows(m, raw) for m in METHODS}
 
     # ---- raw per-test data (figure + stats re-renderable without rerun) ----
-    np.savez_compressed(HERE / f"occupancy_bias_B2000{suffix}_data.npz", **raw)
-    log(f"raw per-test data saved: occupancy_bias_B2000{suffix}_data.npz "
+    np.savez_compressed(data_out, **raw)
+    log(f"raw per-test data saved: {data_out} "
         f"({len(raw)} arrays)")
 
     # ---- table ----
     import csv
-    with open(HERE / f"occupancy_bias_B2000{suffix}.csv", "w", newline="") as f:
+    with open(csv_out, "w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["method", "k", "N", "reps", "bias", "sem"])
         w.writeheader()
         for m in METHODS:
             w.writerows(rows[m])
     slopes = {}
-    with open(HERE / f"occupancy_bias_B2000{suffix}.md", "w") as f:
+    with open(md_out, "w") as f:
         f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
                 "sampler, B=2000, kl and klxx)\n\nerr = (1/6) sum_s "
                 "|p_s - 1/6|; equal total work per row (10000*256 "

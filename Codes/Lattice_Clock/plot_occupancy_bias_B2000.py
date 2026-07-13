@@ -1,13 +1,13 @@
 """Occupancy-bias scaling figure for the B=2000 staged samplers — rendered
-purely from the saved per-test data (occupancy_bias_B2000_data.npz); no
-GPU, no recomputation. Style follows the X-regularization paper's
+purely from ``artifacts/occupancy_bias_B2000/data.npz``; no GPU and no
+recomputation. Style follows the X-regularization paper's
 occupancy-bias figure: log-log, +-2 standard-error bars, dashed N^{-1/2}
-Monte Carlo reference anchored at the first rung.
+Monte Carlo reference anchored at the first level.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
     python Codes/Lattice_Clock/plot_occupancy_bias_B2000.py
-Writes occupancy_bias_B2000.png next to this file.
+Writes ``results/occupancy_bias_B2000.png``.
 """
 
 import time
@@ -16,7 +16,10 @@ from pathlib import Path
 import numpy as np
 
 HERE = Path(__file__).resolve().parent
-DATA = HERE / "occupancy_bias_B2000_data.npz"
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
+ANALYSIS = ARTIFACTS / "occupancy_bias_B2000"
+DATA = ANALYSIS / "data.npz"
 
 METHODS = ("kl", "klxx")
 LABEL = {"kl": "forward KL",
@@ -29,7 +32,8 @@ def log(msg: str) -> None:
 
 
 def main() -> None:
-    d = dict(np.load(DATA))
+    with np.load(DATA, allow_pickle=False) as data:
+        d = dict(data)
     ks = [int(k) for k in d["ks"]]
     n_base = int(d["N_BASE"])
     Ns = np.array([n_base * 2 ** k for k in ks], dtype=float)
@@ -63,7 +67,8 @@ def main() -> None:
     ax.set_ylabel("occupancy bias")
     ax.legend(fontsize=8)
     plt.tight_layout()
-    out = HERE / "occupancy_bias_B2000.png"
+    RESULTS.mkdir(parents=True, exist_ok=True)
+    out = RESULTS / "occupancy_bias_B2000.png"
     fig.savefig(out, dpi=400, bbox_inches="tight", pad_inches=0.02)
     plt.close(fig)
     log(f"DONE — saved {out}")

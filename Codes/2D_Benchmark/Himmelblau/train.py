@@ -19,7 +19,8 @@ Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
         Codes/2D_Benchmark/Himmelblau/train.py
-Writes samples.png, ess.png, and train_status.log next to this file.
+Writes final figures below ``results/`` and the temporary log below
+``artifacts/``.
 """
 
 import os
@@ -40,10 +41,17 @@ from matplotlib.colors import LinearSegmentedColormap
 from jflows.flow import NSF
 from jflows.potential import Nlog_Gaussian, potential_from
 from jflows.train import Monitor, train_forward_KLX_G, train_forward_KLXX_G
-from jflows.utils import compute_ESS, coverage, importance_weights, quench_and_temper
+from jflows.utils import (
+    compute_ESS_log,
+    coverage,
+    importance_weights_log,
+    quench_and_temper,
+)
 
 HERE = Path(__file__).resolve().parent
-LOG = HERE / "train_status.log"
+ARTIFACTS = HERE / "artifacts"
+RESULTS = HERE / "results"
+LOG = ARTIFACTS / "train.log"
 
 # boundary of the domain
 SIGMA = 1.0            # standard deviation of the isotropic Gaussian source mu_0
@@ -57,21 +65,21 @@ HIDDEN_FEATURES = (128, 128)
 
 # training parameters
 N_VALID: int = 50000   # the fixed source set (training pool + final ESS / coverage)
-N_BATCH: int = 1000     # source samples per training step
-STEPS: int = 1000      # Adam optimization steps
+BATCH_SIZE: int = 1000     # source samples per training step
+TRAIN_STEPS: int = 1000      # Adam optimization steps
 LR: float = 1e-3       # Adam learning rate
 
 # data pipeline (single-hop AIS + MALA rejuvenation)
-LADDER: int = 1        # AIS rungs per manufactured target batch
-MC_STEP: float = 2e-3  # Langevin step size
-MC_ITERS: int = 50     # Langevin steps per rung / per hat_mu freshening
+LADDER: int = 1        # AIS levels per manufactured target batch
+MC_DT: float = 2e-3  # Langevin step size
+MC_STEPS: int = 50     # Langevin steps per level / per hat_mu freshening
 
 # quench and temper (the wide-coverage measure hat_mu)
-N_POOL: int = 500      # quench-and-temper pool size
+POOL_SIZE: int = 500      # quench-and-temper pool size
 MELT: float = 2.0      # melt scale (std of the Gaussian scatter)
-OPT_STEP: float = 0.5  # L-BFGS trial alpha (armijo)
-OPT_ITERS: int = 200   # L-BFGS iterations
-QT_MC_ITERS: int = 1000  # temper length of the coverage-reference pool
+OPT_ALPHA: float = 0.5  # L-BFGS trial alpha (armijo)
+OPT_STEPS: int = 200   # L-BFGS iterations
+QT_MC_STEPS: int = 1000  # temper length of the coverage-reference pool
 
 COVERAGE_K: int = 5    # k-NN ball of the coverage metric
 
@@ -123,11 +131,13 @@ def log(msg: str) -> None:
 
 
 def main() -> None:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
+    RESULTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
     log(f"START Himmelblau | jax {jax.__version__} | backend {jax.default_backend()} | "
-        f"N_VALID={N_VALID} N_BATCH={N_BATCH} STEPS={STEPS} LR={LR} "
-        f"MC={MC_STEP}x{MC_ITERS} (MALA) ladder={LADDER} "
-        f"QT: N_POOL={N_POOL} melt={MELT} opt={OPT_STEP}x{OPT_ITERS}")
+        f"N_VALID={N_VALID} BATCH_SIZE={BATCH_SIZE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} "
+        f"MC={MC_DT}x{MC_STEPS} (MALA) ladder={LADDER} "
+        f"QT: POOL_SIZE={POOL_SIZE} melt={MELT} opt={OPT_ALPHA}x{OPT_STEPS}")
     x_valid = u0.samples(jax.random.key(2), N_VALID)
     flow0 = NSF(jax.random.key(0), a=[-NSF_LIM, -NSF_LIM], b=[NSF_LIM, NSF_LIM],
                 bins=BINS, transforms=TRANSFORMS,
@@ -135,48 +145,57 @@ def main() -> None:
 
     # coverage-reference pool: quench and temper on the target
     log("building the quench-and-temper coverage reference pool ...")
-    y_hat_ref = quench_and_temper(jax.random.key(1), u0.samples(jax.random.key(4), N_POOL),
-                                  u1, melt=MELT, opt_step=OPT_STEP, opt_iters=OPT_ITERS,
-                                  mc_step=MC_STEP, mc_iters=QT_MC_ITERS)
+    y_hat_ref = quench_and_temper(
+        jax.random.key(1), u0.samples(jax.random.key(4), POOL_SIZE), u1,
+        melt=MELT, opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+        mc_dt=MC_DT, mc_steps=QT_MC_STEPS, mc_adjust=True,
+    )
     y_hat_ref = jax.block_until_ready(y_hat_ref)
-    log(f"QT pool ready ({N_POOL} particles)")
+    log(f"QT pool ready ({POOL_SIZE} particles)")
 
     runs = {}
     for name in METHODS:
         t0 = time.time()
         mon = Monitor(100, f"[{name}] ", log)
         if name == "KL":
-            flow, ess_hist = train_forward_KLX_G(
-                x_valid, u0, u1, flow0, n_batch=N_BATCH, steps=STEPS, lr=LR,
-                ladder=LADDER, mc_step=MC_STEP, mc_iters=MC_ITERS,
-                coeff_lambda=0.0, monitor=mon)
+            flow, batch_ess_hist = train_forward_KLX_G(
+                x_valid, u0, u1, flow0,
+                batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
+                coeff_lambda=0.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_mu":
-            flow, ess_hist = train_forward_KLX_G(
-                x_valid, u0, u1, flow0, n_batch=N_BATCH, steps=STEPS, lr=LR,
-                ladder=LADDER, mc_step=MC_STEP, mc_iters=MC_ITERS,
-                coeff_lambda=1.0, monitor=mon)
+            flow, batch_ess_hist = train_forward_KLX_G(
+                x_valid, u0, u1, flow0,
+                batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
+                coeff_lambda=1.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_mu+X_hat_mu":
-            flow, ess_hist = train_forward_KLXX_G(
-                x_valid, u0, u1, flow0, n_pool=N_POOL, n_batch=N_BATCH,
-                steps=STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                opt_step=OPT_STEP, opt_iters=OPT_ITERS,
-                mc_step=MC_STEP, mc_iters=MC_ITERS,
-                coeff_lambda=1.0, coeff_alpha=1.0, coeff_beta=0.0, monitor=mon)
+            flow, batch_ess_hist = train_forward_KLXX_G(
+                x_valid, u0, u1, flow0,
+                pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
+                train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
+                opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                mc_dt=MC_DT, mc_steps=MC_STEPS,
+                coeff_lambda=1.0, coeff_alpha=1.0, coeff_beta=0.0,
+                mc_adjust=True, monitor=mon)
         else:  # KL+X_mu+X_mix
-            flow, ess_hist = train_forward_KLXX_G(
-                x_valid, u0, u1, flow0, n_pool=N_POOL, n_batch=N_BATCH,
-                steps=STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                opt_step=OPT_STEP, opt_iters=OPT_ITERS,
-                mc_step=MC_STEP, mc_iters=MC_ITERS,
-                coeff_lambda=1.0, coeff_alpha=0.5, coeff_beta=0.5, monitor=mon)
+            flow, batch_ess_hist = train_forward_KLXX_G(
+                x_valid, u0, u1, flow0,
+                pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
+                train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
+                opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                mc_dt=MC_DT, mc_steps=MC_STEPS,
+                coeff_lambda=1.0, coeff_alpha=0.5, coeff_beta=0.5,
+                mc_adjust=True, monitor=mon)
         flow = jax.block_until_ready(flow)
         jax.effects_barrier()
 
         y_push = flow.inv(x_valid)
-        ess = float(compute_ESS(importance_weights(x_valid, u0, u1, flow, type="G")))
-        cov = float(coverage(y_push, y_hat_ref, k=COVERAGE_K, chunk=10))
+        log_weights = importance_weights_log(x_valid, u0, u1, flow, type="G")
+        ess = float(compute_ESS_log(log_weights))
+        cov = float(coverage(y_push, y_hat_ref, k=COVERAGE_K, chunks=10))
         runs[name] = {"samples": np.asarray(y_push),
-                      "ess_history": np.asarray(ess_hist),
+                      "batch_ess_hist": np.asarray(batch_ess_hist),
                       "final_ess": ess, "coverage": cov}
         log(f"[{name}] done in {time.time() - t0:.1f}s   final ESS = {ess:.4f}   "
             f"coverage_k={COVERAGE_K} = {cov:.4f}   (N_VALID = {N_VALID})")
@@ -206,7 +225,7 @@ def main() -> None:
                      f"ESS = $\\mathbf{{{runs[name]['final_ess']:.2f}}}$, "
                      f"cvrg = $\\mathbf{{{runs[name]['coverage']:.2f}}}$")
     plt.tight_layout()
-    samples_out = HERE / "samples.png"
+    samples_out = RESULTS / "samples.png"
     fig.savefig(samples_out, dpi=400, bbox_inches="tight")
     plt.close(fig)
     log(f"saved {samples_out}")
@@ -214,13 +233,13 @@ def main() -> None:
     # ── ess.png: per-step training ESS histories ──
     fig, ax_ess = plt.subplots(1, 1, figsize=(5, 4))
     for name in METHODS:
-        ax_ess.plot(runs[name]["ess_history"], color=METHOD_COLOR[name],
+        ax_ess.plot(runs[name]["batch_ess_hist"], color=METHOD_COLOR[name],
                     label=METHOD_LABEL[name], linewidth=0.6)
     ax_ess.set_xlabel("step"); ax_ess.set_ylabel("ESS")
-    ax_ess.set_xlim(0, STEPS); ax_ess.set_ylim(0, 1)
+    ax_ess.set_xlim(0, TRAIN_STEPS); ax_ess.set_ylim(0, 1)
     ax_ess.legend(loc="lower right")
     plt.tight_layout()
-    ess_out = HERE / "ess.png"
+    ess_out = RESULTS / "ess.png"
     fig.savefig(ess_out, dpi=300, bbox_inches="tight")
     plt.close(fig)
     log(f"DONE — figures at {samples_out} and {ess_out}")

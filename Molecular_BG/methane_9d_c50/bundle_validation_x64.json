@@ -1,0 +1,90 @@
+{
+  "atoms": 5,
+  "bundle": "/mnt/projects/X-regularization/Molecular_BG/methane_9d_c50/bundle",
+  "chart_symmetry_ranges": {
+    "angle_offset_range": 0.0,
+    "angle_scale_range": 0.0,
+    "bond_offset_range": 0.0,
+    "bond_scale_range": 0.0
+  },
+  "command": [
+    "/home/xuda/.envs/jflows/bin/python",
+    "/mnt/projects/X-regularization/Molecular_BG/training_diagnostics/validate_bundle.py",
+    "--bundle",
+    "Molecular_BG/methane_9d_c50/bundle",
+    "--mode",
+    "x64",
+    "--output",
+    "Molecular_BG/methane_9d_c50/bundle_validation_x64.json"
+  ],
+  "dimension": 9,
+  "diversified_frames": 34,
+  "domain": {
+    "euclidean": 7,
+    "periodic": 2
+  },
+  "energy_error_kj_mol": 4.547473508864641e-13,
+  "force_covariance_max_kj_mol_nm": 4.263256414560601e-14,
+  "force_max_kj_mol_nm": 1.0422809282317758e-09,
+  "force_rmse_kj_mol_nm": 6.362676051473681e-11,
+  "formula": "CH4",
+  "hydrogen_charge_range_e": 0.0,
+  "manifest_sha256": "b2d537d77324e43b05358a5092edb264072fe811ee7248699a4260933d877649",
+  "mode": "x64",
+  "off_reference_permutation_covariance_errors": {
+    "jacobian_log_volume": 8.548717289613705e-15,
+    "physical_energy_kj_mol": 3.552713678800501e-14,
+    "reduced_target": 2.042810365310288e-14
+  },
+  "permutation_count": 24,
+  "permutation_errors": {
+    "coordinate_logdet": 0.0,
+    "physical_energy_kj_mol": 0.0,
+    "regularized_reduced_target": 0.0,
+    "source_reduced_energy": 0.0
+  },
+  "positive_parity_fraction": 0.4967,
+  "roundtrip_max": 0.0,
+  "runtime": {
+    "equinox": "0.13.8",
+    "jax": "0.10.2",
+    "jax_backend": "gpu",
+    "jflows": {
+      "dirty": false,
+      "dirty_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "head": "0302829fe440b6241172b652ff914db1ebecc273"
+    },
+    "jflows_md": {
+      "dirty": true,
+      "dirty_diff_sha256": "59d8c848dc7546c01a7e66d09d280bca8025a493f1f5da4e09926262ef57bfb9",
+      "head": "5896ba275952333267592e7cf7cb3c0313d5b8f8",
+      "package_source_sha256": "0b31290d8cf42257db6bce2a42b8a8548533ca99b2fa5814b135d6770ffd2982"
+    },
+    "numpy": "2.4.6",
+    "openmm": "8.5.2",
+    "parameters_sha256": "056c1a8638bd18e932023b6ad4c5b38eb0307a5a19737b41bdec28edd0eb94f9",
+    "parmed": "4.3.1",
+    "python": "3.14.6",
+    "python_executable": "/home/xuda/.envs/jflows/bin/python",
+    "pythonpath": "/mnt/projects/jflows:/mnt/projects/jflows_md",
+    "validator_sha256": "528d1e32520aba6a4ddf9c67e99a4636fc9c275736d7aa721c036e80f00044c2"
+  },
+  "source_permutation_asymmetry": {
+    "fraction_range_above_1e-6": 1.0,
+    "maximum_permutation_range": 1325.2802266213114,
+    "mean_permutation_range": 197.46829335027735,
+    "samples": 256
+  },
+  "stored_openmm": {
+    "energy_error_kj_mol": 5.329070518200751e-15,
+    "force_max_kj_mol_nm": 1.0516032489249483e-12,
+    "force_rmse_kj_mol_nm": 2.916037844781576e-13
+  },
+  "term_energy_errors_kj_mol": {
+    "angle": 4.547473508864641e-13,
+    "bond": 0.0,
+    "gb": 6.217248937900877e-15,
+    "nonbonded": 0.0,
+    "torsion": 0.0
+  }
+}

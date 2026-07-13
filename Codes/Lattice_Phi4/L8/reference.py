@@ -17,7 +17,7 @@ Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Phi4/L8/reference.py
-Writes phi4_reference.npz and reference_status.log next to this file.
+Writes temporary reference data and its log below ``artifacts/``.
 """
 
 import os
@@ -37,7 +37,8 @@ from jflows.utils import langevin, resample
 langevin_jit = eqx.filter_jit(langevin)   # one compiled executable per shape
 
 HERE = Path(__file__).resolve().parent
-LOG = HERE / "reference_status.log"
+ARTIFACTS = HERE / "artifacts"
+LOG = ARTIFACTS / "reference.log"
 
 # lattice action (h enters only through the reweighting)
 L = 8                   # lattice side; D = L*L sites
@@ -48,10 +49,10 @@ H = 0.0144              # explicit Z2 breaking (frozen by the pilot scan)
 
 # MALA sampling of the h = 0 action inside the m > 0 vacuum
 WALKERS: int = 4096     # parallel chains, all started at phi = +1
-BURN_ITERS: int = 300000  # burn-in steps (safe to run long: Z2-fold blocks inter-well leak)
+BURN_STEPS: int = 300000  # burn-in steps (safe to run long: Z2-fold blocks inter-well leak)
 KEEPS: int = 1000        # kept states per walker
 KEEP_EVERY: int = 200    # steps between kept states
-MC_STEP: float = 1e-3   # MALA step size
+MC_DT: float = 1e-3   # MALA step size
 
 # stored ensemble
 N_TRACE: int = 1000000  # unweighted magnetization trace length (resampled)
@@ -79,24 +80,31 @@ u_h0 = potential_from(phi4_h0_energy)
 
 
 def main() -> None:
+    ARTIFACTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
     log(f"START phi4 reference L={L} (D={D}) | jax {jax.__version__} | "
         f"backend {jax.default_backend()} | kappa={KAPPA} lambda={LAMBDA} h={H} | "
-        f"walkers={WALKERS} burn={BURN_ITERS} keeps={KEEPS}x{KEEP_EVERY} "
-        f"MALA step={MC_STEP}")
+        f"walkers={WALKERS} burn={BURN_STEPS} keeps={KEEPS}x{KEEP_EVERY} "
+        f"MALA step={MC_DT}")
     key = jax.random.key(11)
 
     # burn-in inside the m > 0 vacuum of the symmetric action
     x = jnp.ones((WALKERS, D))
-    x = langevin_jit(jax.random.fold_in(key, 0), x, u_h0, step=MC_STEP, iters=BURN_ITERS)
+    x = langevin_jit(
+        jax.random.fold_in(key, 0), x, u_h0,
+        dt=MC_DT, steps=BURN_STEPS, adjust=True,
+    )
     x = jnp.where(jnp.mean(x, axis=1, keepdims=True) < 0.0, -x, x)   # Z2-fold into the m>0 well
     x = jax.block_until_ready(x)
-    log(f"burn-in done ({BURN_ITERS} MALA steps); mean m = {float(x.mean()):.4f}")
+    log(f"burn-in done ({BURN_STEPS} MALA steps); mean m = {float(x.mean()):.4f}")
 
     trace = np.empty((KEEPS, WALKERS, D), dtype=np.float32)
     t0 = time.time()
     for t in range(1, KEEPS + 1):
-        x = langevin_jit(jax.random.fold_in(key, t), x, u_h0, step=MC_STEP, iters=KEEP_EVERY)
+        x = langevin_jit(
+            jax.random.fold_in(key, t), x, u_h0,
+            dt=MC_DT, steps=KEEP_EVERY, adjust=True,
+        )
         x = jnp.where(jnp.mean(x, axis=1, keepdims=True) < 0.0, -x, x)   # keep every walker in the m>0 well
         trace[t - 1] = np.asarray(x, dtype=np.float32)
         if t % 200 == 0 or t == 1:
@@ -131,7 +139,7 @@ def main() -> None:
     barrier = float(np.log(h_w.max() / max(gap.min(), 1e-300)))
     log(f"barrier estimate = {barrier:.2f} kT (weighted histogram)")
 
-    np.savez(HERE / "phi4_reference.npz",
+    np.savez(ARTIFACTS / "phi4_reference.npz",
              m_trace=m_trace.astype(np.float32),
              samples_t1=samples_t1.astype(np.float32),
              barrier=barrier, walkers=WALKERS, keeps=KEEPS)
