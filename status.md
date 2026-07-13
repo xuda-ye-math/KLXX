@@ -1,19 +1,21 @@
 # Project status
 
-Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
+Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`, branch `main`, inspected on
-  baseline HEAD `c4e4fbee0987022e8f53de7414e6ed2ab3252a8b` (`Add controlled
-  molecular training diagnostics`), tracking the identical `origin/main`
-  before this checkpoint. The reviewed pre-commit worktree contains 25
-  modified, 30 deleted, and 14 untracked status entries: the completed
-  source-only `Codes/` rewrite plus still-pending Molecular_BG sources,
-  bundles, and local diagnostic summaries. Large NPZ/HDF5/EQX/log payloads,
-  interrupted molecular runs, candidate bundles, and diagnostic run
-  directories remain ignored but recovery-critical in the ext4 mirror;
-  ignored bytecode caches are disposable.
+  baseline HEAD `fc8ddfeb294a7fa5c293a7c4440baa37a20a1bef` (`Refresh
+  numerical workflows and molecular diagnostics`), tracking the identical
+  `origin/main` before this checkpoint. The reviewed pre-commit worktree has
+  8 modified tracked files, 40 tracked deletions from the retired paper-local
+  figure tree, and 13 top-level untracked status entries. The intended commit
+  comprises the completed fresh 2D, HD Product, Phi4, and schedule-matched
+  Lattice Clock outputs, their reports, the rewritten manuscript and PDF, and
+  this status record. The 6.8 GB `Codes/Lattice_Clock/artifacts/` tree and
+  other NPZ/HDF5/EQX/log payloads remain excluded from Git but
+  recovery-critical in the ext4 mirror; ignored bytecode and LaTeX caches are
+  disposable.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -24,12 +26,15 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
 - Public `jflows` is clean and pushed at
-  `89e837e63331e0795a78b5f8ed8b789a3cb4c120` (`Refactor Boltzmann histories
-  and artifacts`), version 0.2.0. The repair uses the actual source-particle/image
+  `f273a038d00f95e6a80167935c0e004dea566a5e` (`Avoid XLA tiled concat
+  failure in circular RQS`), version 0.2.0. The preceding history/artifact
+  repair uses the actual source-particle/image
   pair and matching Jacobian for the first forward-AIS correction, preserves a
   per-particle Armijo trial scale after repeated line-search failures, and gives
   OTFlow the same exact-selected-map/near-identity-warm-start contract as the
-  other trainable flows. All 16 public smoke modules and the affected 2D,
+  other trainable flows. The latest seam-equivalent gather formulation removes
+  an XLA tiled-concatenate failure in circular RQS/NCSF without changing the
+  spline map. All 16 public smoke modules and the affected 2D,
   periodic-3D, 4D-Boltzmann, CNF, and OTFlow examples pass; three independent
   reviewers found no remaining material correctness or API issue. The local,
   GitHub, and ext4-mirror commit hashes are identical.
@@ -43,8 +48,8 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   differentiable lin-log excess-energy regularizer is explicit and leaves the
   physical target immutable. Its complete 13-module GPU smoke suite passes from
   an isolated source copy, and three independent molecular reviews returned
-  PASS. Private forward-AIS consumers in `Codes/` still require a controlled
-  current-HEAD rerun before any regenerated numerical result is claimed.
+  PASS. The controlled current-HEAD rerun of private forward-AIS consumers is
+  complete for 2D, HD Product, Phi4, and Lattice Clock.
 - **Done — fresh source-only `Codes/` rewrite:** `Codes/` now contains exactly
   20 Python source files and no historical figures, tables, arrays, logs,
   checkpoints, cache directories, manifests, hashes, provenance controllers,
@@ -58,6 +63,39 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   reference, smoke, or result-producing script was run during the rewrite.
   The complete old tree remains in
   `/mnt/games/X-regularization_071226_231028`.
+- **Done — current-head `Codes/` rerun and independent result audits:** the
+  four 2D benchmarks, complete $d=2,\ldots,256$ HD Product sweep, both L=6/L=8
+  Phi4 studies, and all five paired Lattice Clock configurations are finished.
+  Independent reviewers recomputed the displayed values from the live raw
+  arrays and found no remaining discrepancy. The fresh reports contain no
+  historical-comparison framing. The 2D presentation contains only sample
+  panels and final ESS/coverage, not its ESS-history curves. HD Product retains
+  its requested $d=256$ ESS-history figure but drops the old total-variation
+  occupancy analysis. Phi4 uses the distinct $(L,h)=(6,0.0257)$ and
+  $(8,0.0144)$ targets and never bolds a collapsed high-ESS run.
+- **Locked — `Codes/` numerical results:** the completed 2D Benchmark, HD
+  Product, Lattice Phi4, and Lattice Clock raw result sets, reports, tables,
+  and final figures are the accepted numerical checkpoint. Their independent
+  raw-artifact audits are complete. Do not rerun, reseed, regenerate, or alter
+  these numerical results unless the user explicitly reopens them; subsequent
+  package maintenance is not authorization to change this locked checkpoint.
+  The user's final `Paper_Arxiv/main.tex` layout adjustment is preserved, and
+  the corresponding PDF was generated afterward: 34 pages, 5,274,119 bytes,
+  with no unresolved-reference, overfull-box, or fatal-build marker.
+- **Done — corrected Lattice Clock paired rerun and downstream rebuilds:** the
+  repaired driver defines `t_hist` as the accepted KL level history, stores
+  rejected trials only in `attempt_t_hist`, and enforces exact KL/KLXX schedule
+  equality. At batch sizes 2000, 1000, 500, 250, and 125, KLXX improves the
+  full-validation stage ESS on 36 of 37 shared levels and reduces
+  $F=\prod_k\mathrm{ESS}_k^{-1}$ from
+  `26.8707/53.2909/119.9999/342.3248/1058.3636` to
+  `9.4661/20.0376/38.0382/90.7354/251.3791`. Direct composed-map and minibatch
+  ESS are not presented as Clock results. A two-million-sample KLXX rebuild
+  shows all six sectors. Fresh equal-work occupancy scaling gives slopes
+  `-0.492` for KL and `-0.505` for KLXX; KLXX has lower mean bias at all nine
+  particle counts, including `0.00106` versus `0.00161` at 2.56 million. The
+  method-split occupancy jobs took 4267 s and 4306 s, each below two hours.
+  Raw values, figures, report, and paper claims passed a final independent audit.
 - **Pending as a whole — Molecular_BG:** all current alkane, glycerol,
   regularization, bundle-validation, and training-diagnostic additions remain
   work in progress. Existing methane/ethane summaries and the interrupted
@@ -231,6 +269,22 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   that selected ESS alone determines acceptance against `tau_ess`. The
   experimental intermediate checkpoint/`selection_steps` mechanism has been
   removed from code, tests, public API, and documentation.
+- **🚨 DANGER — third severe accident: Lattice Clock paired-history contract
+  violated; all current Clock outputs invalidated:** the fresh Clock driver fed
+  KLXX the accepted KL coefficient sequence stored as `t_list`, but stored
+  every adaptive KL attempt, including rejected coefficients, under `t_hist`.
+  Consequently the paired KL and KLXX `t_hist` arrays were not identical even
+  though their accepted `t_list` arrays were. This violates the user's required
+  comparison contract that KLXX use exactly the same fixed `t_hist` as KL and
+  makes the current Clock provenance ambiguous. The full occupancy analysis
+  was killed during KLXX `N=10000` replication, before it saved its raw NPZ or
+  final table/figure. Every pre-fix `Codes/Lattice_Clock/artifacts/` and
+  `results/` output was invalidated and removed. The required repair is now
+  implemented: `t_hist` is the accepted level history shared exactly by the
+  pair; rejected/adaptive trials live in `attempt_t_hist`; the driver asserts
+  exact schedule equality before and after KLXX training; and no old Clock
+  artifact was reusable. The clean full rerun and downstream audits are now
+  complete under that enforced contract.
 - **Done — independent `jflows` correctness audit:** three blind reviewers
   returned clean clearance for core scientific logic, public APIs,
   serialization, examples, and smoke coverage. All 16 smoke modules passed on
@@ -263,17 +317,16 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — public `jflows` 0.2.1 cleanup:** later remove the deliberately
+  retained legacy-compatibility support from the public `jflows` interface,
+  perform the required compatibility and smoke review, and bump `jflows` to
+  version 0.2.1. This is not part of the locked numerical checkpoint, and no
+  public-package source is changed here.
 - **Pending — all Molecular_BG work:** treat every current molecular source,
   bundle, validation report, diagnostic run, and incomplete run as work in
   progress. Complete the methane/ethane/propane reconciliation and the planned
   glycerol, ADP, and diethanolamine work only under separately authorized
   experiments; do not promote the present diagnostics as final BG results.
-- **Pending — complete `Codes/` rerun:** the rewrite deliberately removed all
-  old numerical artifacts. Regenerate the 2D, HD Product, Lattice Clock, and
-  Phi4 reference/training outputs with current `jflows`, then render the final
-  figures and tables into each workflow's `results/` directory. Until then,
-  only source compatibility is verified; no current-head numerical comparison
-  is claimed.
 - **Pending — `zflows_md` compilation engineering:** the archived PyTorch
   molecular implementation still has unresolved excessive compile latency and
   memory growth at realistic molecular sizes. Compare compilation boundaries,
@@ -291,13 +344,6 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
   and hyperparameters; build a discrepancy ledger and run the same minimal
   diagnostic only after the CH4 gate is understood.
-- **Pending — private forward-AIS reruns:** the public replanting/correctness
-  audit is complete, but the direct-first AIS correction changes the stochastic
-  path of downstream forward-AIS experiments. Rerun the affected private
-  `Codes/` studies (2D benchmark, high-dimensional product, Lattice Clock, and
-  Phi4 L6/L8) under current `jflows` before updating their scientific artifacts.
-  Treat differences beyond floating noise as an algorithm-correction effect;
-  reverse-only runs and stored reference ensembles need no rerun.
 - **Pending — ESS degeneration and identity selection:** the
   standard-compiler smoke proved that the complete 36D pipeline runs quickly
   enough, but identity won every accepted level and the production-size bare-KL
@@ -720,3 +766,79 @@ Last updated: 2026-07-13T00:06:44-04:00 (America/New_York)
   corrected from `PT reference` to `mirror-MALA reference`.
 - No result was regenerated. The complete current-head `Codes/` rerun and all
   Molecular_BG development remain explicitly pending.
+
+### 2026-07-13T06:05:45-04:00 — 🚨 Lattice Clock paired-history accident stopped
+
+- Stopped the full B=2000 occupancy-bias process during the KLXX `N=10000`
+  row. It had completed the full KL scaling curve and 192 KLXX replicates, but
+  had not yet written its raw NPZ, CSV, Markdown table, or figure.
+- Verified all five fresh training pairs: their accepted `t_list` arrays were
+  exactly equal, while their stored `t_hist` arrays differed because adaptive
+  KL included rejected attempts and fixed KLXX did not. This is a provenance
+  and experiment-contract failure even though the accepted numerical bridge
+  coefficients were schedule-matched.
+- Invalidated every current Lattice Clock artifact/result. The clean rerun may
+  begin only after `t_hist` is made the exact shared accepted history,
+  adaptive trials are renamed `attempt_t_hist`, and equality assertions cover
+  both the saved pair and every downstream analysis.
+
+### 2026-07-13T07:53:38-04:00 — Partial numerical rerun independently audited
+
+- Checked the regenerated 2D logs against the dated logs rather than relying
+  on the result narrative. All four targets preserve the archived
+  collapse/full-coverage classification; the largest ESS and coverage changes
+  are `0.0722` and `0.0297`. Visually inspected all four sample figures: the
+  two support-local objectives still miss the hidden/far wells, while both
+  coverage-pool objectives recover them.
+- Audited all eight HD Product NPZ artifacts for finite arrays and compared the
+  current and dated ESS tables. The equal-weight KLXX objective wins 6/8
+  dimensions and every dimension d>=32; the only exceptions are d=4 and d=16,
+  where another X objective leads by `0.0002` and `0.0012`. Every method still
+  covers every strict mode. This is a more credible nuanced result than a
+  universal-best claim and preserves the predicted high-dimensional benefit.
+- Audited both Phi4 NPZ/CSV result sets and their figures. All 24 runs preserve
+  their archived phase-coverage classification, every checked raw array is
+  finite, and the largest change in a three-seed mean ESS is `0.010733`.
+  Hence the fake-high-ESS collapse result and the two-phase recovery of the
+  quench-and-temper losses are unchanged.
+- Confirmed the repaired Clock runtime contract on the clean rerun. B=1000,
+  B=500, and B=250 are complete with exact shared KL/KLXX `t_hist`; B=125 KL
+  is active. Restored the archived presentation rule:
+  only full-validation per-level ESS is reported and
+  `F = product_k ESS_k^(-1)` is derived from those values. The direct composed
+  ESS is excluded from the result table. At B=250 the resulting factor is
+  `342.3` for KL versus `90.7` for KLXX.
+
+### 2026-07-13T12:01:14-04:00 — Fresh numerical rerun and paper rewrite completed
+
+- Completed all five exact-schedule Lattice Clock KL/KLXX pairs. KLXX raises
+  full-validation ESS on 36/37 shared levels and reduces the staged
+  propagation factor at every batch size.
+- Rebuilt two million fresh KLXX clock samples and the full equal-work
+  occupancy scaling from 10000 to 2560000 particles. The occupancy slopes are
+  `-0.492` for KL and `-0.505` for KLXX; KLXX has lower bias at all nine sizes.
+- Rewrote the per-experiment result reports and manuscript from live outputs.
+  The 2D section presents sample panels and final ESS/coverage only; the HD
+  section retains its ESS-history figure but no old TV analysis; Phi4 uses the
+  correct size-dependent fields and collapse-aware emphasis.
+- Deleted the stale paper-local figure tree and linked every completed panel to
+  its live result. Unfinished molecular production panels remain explicit
+  pending placeholders.
+- Independent raw-artifact audits pass for 2D, HD Product, Phi4, and Clock.
+  The final manuscript compiles to a visually inspected 35-page PDF with no
+  missing reference/citation, overfull box, or fatal error.
+
+### 2026-07-13T12:16:43-04:00 — Codes results locked for checkpoint
+
+- Marked the complete current-head 2D Benchmark, HD Product, Lattice Phi4, and
+  paired Lattice Clock reruns as finished. Their independently audited raw
+  outputs, reports, tables, and figures are now locked and require explicit
+  user authorization before any numerical regeneration or revision.
+- Preserved the user's final manuscript layout adjustment. The PDF was built
+  after the source change and is 34 pages and 5,274,119 bytes; the build log
+  contains no unresolved-reference, overfull-box, fatal-error, or emergency-stop
+  marker.
+- Left two future workstreams explicitly open: removal of legacy `jflows`
+  compatibility followed by its 0.2.1 release, and every Molecular_BG test
+  and production result. Neither is included in this numerical-results
+  checkpoint.

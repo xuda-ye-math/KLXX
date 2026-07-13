@@ -10,13 +10,13 @@ objectives per batch size start from the same identity-initialized NCSF on
             ladder (SMC selection gate + acceptance)
     klxx :  boltzmann_forward_KLXX_G_fixed — KL + X_mu + X_{(hat_mu+bar_nu)/2}
             stages, (alpha, beta) = (1/2, 1/2), per-stage QT pool, trained on
-            the SAME t_list the kl run accepted (fixed schedule, no SMC gate,
+            the SAME accepted t_hist as the kl run (fixed schedule, no SMC gate,
             no acceptance), so the two losses see identical bridge increments
 
 The sweep runs the (BATCH_SIZE, TRAIN_STEPS) pairs of BATCH_SIZE_LIST x TRAIN_STEPS_LIST in
 order (kl then klxx at each size); an optional argument in {1, .., 5} runs a
 single pair, e.g. `train.py 1` for BATCH_SIZE = 1000. When a kl data file
-already exists its `t_list` is loaded from the npz, so the paired klxx run can
+already exists its accepted `t_hist` is loaded from the npz, so the paired klxx run can
 start (or resume) without retraining kl. All Langevin kernels run MALA
 (mc_adjust = True); float32 throughout. The circular layers of the NCSF wrap
 every input into the box, so unwrapped angles from Langevin / L-BFGS are
@@ -32,7 +32,7 @@ Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
         Codes/Lattice_Clock/train.py
-Writes temporary rerun data below ``artifacts/<tag>``. The public ``flow_dir``
+Writes temporary run data below ``artifacts/<tag>``. The public ``flow_dir``
 interface saves every trained attempt below ``artifacts/<tag>/attempts``.
 After the tables and figures have been rendered into ``results/``, the entire
 ``artifacts/`` directory may be removed. Build the summary table with
@@ -107,7 +107,7 @@ COEFF_BETA: float = 0.5
 E_CLIP: float = 1e3    # energy screen: samples with target > E_CLIP drop from the loss
 G_CLIP: float = 1e2    # global gradient-norm clip (spike guard before Adam)
 
-# adaptive ladder (bg_param of the kl driver; klxx inherits the accepted t_list)
+# adaptive ladder (bg_param of the kl driver; klxx inherits accepted t_hist)
 BG_PARAM = {
     "t_safe": 0.25,        # stage-1 bridge coefficient (the safe start)
     "shrink_factor": 0.7,  # rejected stage: t_k <- t_prev + shrink (t_k - t_prev)
@@ -127,6 +127,7 @@ CHUNKS: int = 64        # chunk count for the drivers' full-set evaluations
 MONITOR_EVERY: int = 50
 
 METHODS = ("kl", "klxx")
+SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
 
 
 # source: uniform on the torus; target: the clock model
@@ -191,30 +192,38 @@ def main(test: int | None = None) -> None:
         f"in {time.time() - t0:.1f}s")
 
     for batch_size, train_steps in pairs:
-        t_list_kl = None       # the kl-accepted ladder, inherited by klxx
+        t_hist_kl = None       # accepted KL levels, inherited exactly by KLXX
         for method in METHODS:
             tag = f"{method}_B{batch_size}"
             run_dir = ARTIFACTS / tag
             out = run_dir / "data.npz"
             if out.exists():
                 with np.load(out, allow_pickle=False) as data:
+                    if "schedule_contract" not in data.files:
+                        raise ValueError(
+                            f"missing schedule contract (pre-fix artifact): {run_dir}"
+                        )
                     complete_saved = bool(data["complete"])
-                    t_list_saved = [float(t) for t in data["t_list"]]
+                    t_hist_saved = [float(t) for t in data["t_hist"]]
+                    schedule_contract = str(data["schedule_contract"])
                     identity = (
                         str(data["tag"]), str(data["method"]),
                         int(data["batch_size"]), int(data["train_steps"]),
                     )
                 expected = (tag, method, batch_size, train_steps)
-                if identity != expected or not complete_saved or not t_list_saved \
-                        or t_list_saved[-1] != 1.0:
+                if schedule_contract != SCHEDULE_CONTRACT:
+                    raise ValueError(f"incompatible schedule contract: {run_dir}")
+                if identity != expected or not complete_saved or not t_hist_saved \
+                        or t_hist_saved[-1] != 1.0:
                     raise ValueError(f"incompatible or incomplete saved run: {run_dir}")
                 if method == "kl":
-                    t_list_kl = t_list_saved
+                    t_hist_kl = t_hist_saved
                     log(f"{tag}: completed artifact exists, skipping "
-                        f"(t_list for klxx: {[f'{t:.4f}' for t in t_list_kl]})")
+                        f"(fixed t_hist for klxx: "
+                        f"{[f'{t:.4f}' for t in t_hist_kl]})")
                 else:
-                    if t_list_saved != t_list_kl:
-                        raise ValueError(f"{tag}: saved t_list differs from paired kl")
+                    if t_hist_saved != t_hist_kl:
+                        raise ValueError(f"{tag}: saved t_hist differs from paired kl")
                     log(f"{tag}: completed artifact exists, skipping")
                 continue
             run_dir.mkdir(parents=True, exist_ok=True)
@@ -232,18 +241,21 @@ def main(test: int | None = None) -> None:
                     monitor=mon, bg_param=BG_PARAM, chunks=CHUNKS,
                     checkpoint=False, e_clip=E_CLIP, g_clip=G_CLIP,
                     flow_dir=run_dir / "attempts")
-                t_list_kl = [float(s["t"]) for s in stages]
-            else:  # klxx: fixed schedule on the kl-accepted ladder
-                if not t_list_kl or t_list_kl[-1] != 1.0:
-                    raise RuntimeError(f"{tag}: completed kl t_list is required")
-                log(f"[{tag}] fixed t_list from kl: "
-                    f"{[f'{t:.4f}' for t in t_list_kl]}")
+                t_hist_kl = [float(s["t"]) for s in stages]
+            else:  # klxx: fixed schedule on the exact accepted KL history
+                if not t_hist_kl or t_hist_kl[-1] != 1.0:
+                    raise RuntimeError(f"{tag}: completed kl t_hist is required")
+                log(f"[{tag}] fixed t_hist from kl: "
+                    f"{[f'{t:.4f}' for t in t_hist_kl]}")
                 y, stages = boltzmann_forward_KLXX_G_fixed(
                     x_valid, u0, u1, flow0,
                     pool_size=POOL_SIZE, batch_size=batch_size,
                     train_steps=train_steps, lr=LR, ladder=LADDER, melt=MELT,
                     opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
-                    mc_dt=MC_DT, mc_steps=MC_STEPS, t_list=t_list_kl,
+                    # The public fixed-driver keyword remains `t_list`; the
+                    # experiment contract and saved accepted history are
+                    # deliberately named `t_hist`.
+                    mc_dt=MC_DT, mc_steps=MC_STEPS, t_list=t_hist_kl,
                     coeff_lambda=COEFF_LAMBDA, coeff_alpha=COEFF_ALPHA,
                     coeff_beta=COEFF_BETA,
                     mc_adjust=True,
@@ -254,7 +266,12 @@ def main(test: int | None = None) -> None:
             jax.effects_barrier()
             wall = time.time() - t0
 
-            t_list = np.array([s["t"] for s in stages], dtype=np.float64)
+            t_hist = np.array([s["t"] for s in stages], dtype=np.float64)
+            if method == "klxx" and not np.array_equal(
+                    t_hist, np.asarray(t_hist_kl, dtype=np.float64)):
+                raise RuntimeError(
+                    f"{tag}: returned t_hist differs from paired KL t_hist"
+                )
             valid_selected_ess = np.array(
                 [s["valid_selected_ess"] for s in stages], dtype=np.float64
             )
@@ -268,7 +285,7 @@ def main(test: int | None = None) -> None:
             attempt_count = np.asarray(
                 [len(s["t_hist"]) for s in stages], dtype=np.int64
             )
-            t_hist = np.concatenate(
+            attempt_t_hist = np.concatenate(
                 [np.asarray(s["t_hist"], dtype=np.float64) for s in stages]
             ) if stages else np.zeros((0,), dtype=np.float64)
             batch_ess_hist = np.concatenate(
@@ -286,9 +303,17 @@ def main(test: int | None = None) -> None:
             attempt_status_hist = np.concatenate(
                 [np.asarray(s["attempt_status_hist"]) for s in stages]
             ) if stages else np.zeros((0,), dtype="U1")
-            complete = bool(len(t_list) > 0 and t_list[-1] == 1.0)
+            accepted_attempt_t_hist = attempt_t_hist[
+                attempt_status_hist == "accepted"
+            ]
+            expected_attempt_t_hist = t_hist.astype(np.float32).astype(np.float64)
+            if not np.array_equal(accepted_attempt_t_hist, expected_attempt_t_hist):
+                raise RuntimeError(
+                    f"{tag}: accepted attempt_t_hist does not reconstruct t_hist"
+                )
+            complete = bool(len(t_hist) > 0 and t_hist[-1] == 1.0)
             if not complete:
-                reached = float(t_list[-1]) if len(t_list) else 0.0
+                reached = float(t_hist[-1]) if len(t_hist) else 0.0
                 log(f"!!!!! {tag} INCOMPLETE LADDER: reached t={reached:.4f} < 1 "
                     f"— the metrics below are vs the FULL target and NOT "
                     f"target-faithful !!!!!")
@@ -308,13 +333,14 @@ def main(test: int | None = None) -> None:
                 batch_size=batch_size, train_steps=train_steps, lr=LR,
                 ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
                 mc_adjust=True, chunks=CHUNKS,
-                t_list=t_list,
+                t_hist=t_hist,
+                schedule_contract=SCHEDULE_CONTRACT,
                 valid_selected_ess=valid_selected_ess,
                 valid_trained_ess=valid_trained_ess,
                 valid_identity_ess=valid_identity_ess,
                 selected=selected,
                 attempt_count=attempt_count,
-                t_hist=t_hist,
+                attempt_t_hist=attempt_t_hist,
                 batch_ess_hist=batch_ess_hist,
                 valid_trained_ess_hist=valid_trained_ess_hist,
                 valid_identity_ess_hist=valid_identity_ess_hist,
@@ -332,7 +358,7 @@ def main(test: int | None = None) -> None:
             eqx.tree_serialise_leaves(run_dir / "flows.eqx",
                                       [s["flow"] for s in stages])
             log(f"##### {tag} DONE K={len(stages)} complete={complete} "
-                f"t_list={[f'{t:.3f}' for t in t_list]} "
+                f"t_hist={[f'{t:.3f}' for t in t_hist]} "
                 f"final_ESS={final_ess:.4f} "
                 f"sectors(push)={int(sec_push[0] * P)}/{P} tv={sec_push[1]:.3f} "
                 f"|m|={sec_push[3]:.3f} knn={knn_cov:.3f} wall={wall:.0f}s #####")
@@ -342,7 +368,7 @@ def main(test: int | None = None) -> None:
                 del y, stages, y_push, logw
                 gc.collect()
                 jax.clear_caches()
-                t_list_kl = None
+                t_hist_kl = None
                 break
             # release CUDA memory before the next method: drop this run's
             # buffers and the compiled executables (VRAM accumulation

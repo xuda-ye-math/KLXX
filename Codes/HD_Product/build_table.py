@@ -2,13 +2,12 @@
 
 Reads every ``artifacts/k{k}/data.npz`` written by train.py and writes
 ``results/ess_table.csv``,
-mode_coverage_table.csv, mode_balance_table.csv, and tables.md:
+mode_coverage_table.csv, and tables.md:
 
     Table 1 — final ESS (the headline);
     Table 2 — strict mode coverage: modes_found / 2**k, a mode counting as
               covered only if it holds >= STRICT_FRAC of the uniform
               expected share of the evaluation pool;
-    Table 3 — mode imbalance: TV(occupancy, uniform), lower is better.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
@@ -56,9 +55,6 @@ def cell(data, k, m, field):
     n, nmodes = counts.sum(), 2 ** k
     if field == "strict_cov":
         return float((counts >= STRICT_FRAC * n / nmodes).sum() / nmodes)
-    if field == "tv":
-        p = counts / n
-        return float(0.5 * np.abs(p - 1.0 / nmodes).sum())
     raise ValueError(field)
 
 
@@ -93,7 +89,6 @@ def main() -> None:
     batch_size = int(next(iter(data.values()))["batch_size"])
     h1, r1 = write_table(data, "final_ess", "ess_table.csv")
     h2, r2 = write_table(data, "strict_cov", "mode_coverage_table.csv")
-    h3, r3 = write_table(data, "tv", "mode_balance_table.csv")
     md = [
         "# HD product multi-well — summary tables",
         "",
@@ -108,13 +103,9 @@ def main() -> None:
         "",
         md_table(h2, r2),
         "",
-        "## Table 3 — mode imbalance  TV(occupancy, uniform), lower=better (loss x d)",
-        "",
-        md_table(h3, r3),
-        "",
     ]
     (RESULTS / "tables.md").write_text("\n".join(md))
-    print(f"wrote {RESULTS / 'tables.md'} (+ 3 csv files)")
+    print(f"wrote {RESULTS / 'tables.md'} (+ 2 csv files)")
     print(md_table(h1, r1))
 
 

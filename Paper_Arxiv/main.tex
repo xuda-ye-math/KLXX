@@ -13,11 +13,15 @@
 \begin{document}
 \maketitle
 
+\newcommand{\pendingfigure}{%
+\fbox{\parbox[c][0.16\textheight][c]{0.82\linewidth}{%
+\centering\texttt{[pending to run]}}}}
+
 \begin{abstract}
-Forward KL training of a normalizing flow Boltzmann generator is mass-covering and usually trains well. Its weakness lies in the annealing chain that supplies its target samples, which starts at the flow's own pushforward and mixes only among the modes the flow already covers. The objective can then miss the remaining modes while still reporting a high effective sample size, a fake ESS where the importance weights look benign but target mass is absent. The chain's samples are also biased, and the forward KL controls only the mean of the log-ratio, so this bias passes into the trained flow. We address these failures with the log-ratio variation, a family of X functionals that penalize pairwise variation of the flow's own log-ratio. Three weights give complementary roles: accuracy under the target, mode discovery against a wide-coverage measure built by quench and temper, and suppression of leakage outside the target. The balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ combines them at the cost of one extra sampling batch. A Fisher--Rao analysis shows that the forward KL still converges under the $\X_\mu$ term and that this term can lower the accuracy floor left by biased samples. The model problems confirm the intended robustness at small batch and show a second regime: on a difficult multimodal annealing path, the balanced loss retains a clear aggregate advantage over forward KL through the largest tested batch, although that advantage need not hold at every stage.
+Forward KL training of a normalizing flow Boltzmann generator is mass-covering and usually trains well. Its weakness lies in the annealing chain that supplies its target samples, which starts at the flow's own pushforward and mixes only among the modes the flow already covers. The objective can then miss the remaining modes while still reporting a high effective sample size, a fake ESS where the importance weights look benign but target mass is absent. The chain's samples are also biased, and the forward KL controls only the mean of the log-ratio, so this bias passes into the trained flow. We address these failures with the log-ratio variation, a family of X functionals that penalize pairwise variation of the flow's own log-ratio. Three weights give complementary roles: accuracy under the target, mode discovery against a wide-coverage measure built by quench and temper, and suppression of leakage outside the target. The balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ combines them at the cost of one extra sampling batch. A Fisher--Rao analysis shows that the forward KL still converges under the $\X_\mu$ term and that this term can lower the accuracy floor left by biased samples. The completed model problems confirm the intended accuracy and mode-coverage effects. On schedule-matched clock ladders, the balanced loss raises validation ESS on $36$ of $37$ shared levels and reduces the cumulative error-propagation factor by $2.7$--$4.2$ across batch sizes.
 \end{abstract}
 
-% ===================== Section 1: Introduction (verbatim) =====================
+% ===================== Section 1: Introduction =====================
 \section{Introduction}
 \label{sec: intro}
 
@@ -94,7 +98,7 @@ up to an additive constant that cancels in each pairwise difference, so the loss
 The $\X_\mu$ term reuses the target batch and log-ratio evaluations of the forward KL, while the mixture term draws and evaluates one further batch. Adding either term preserves $\nu=\mu$ as a global minimizer of the exact forward KL.
 
 \paragraph{Contributions.}
-This paper makes the following contributions. We introduce the log-ratio variation $\X_\omega$, a family of X functionals that augment the forward KL by penalizing the pairwise variation of the flow's own log-ratio $z=\log(\mu/\nu)$. We study three instances in complementary roles, $\X_\mu$, $\X_{\hat\mu}$, and $\X_{\bar\nu}$, together with the balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, which folds accuracy, mode discovery, and leakage suppression into one objective. The construction keeps the AIS target score free of the flow and requires no replay buffer; the balanced mixture adds one sampling batch beyond a plain forward KL step. We give a Fisher--Rao analysis showing that the forward KL decays along the $\KL{+}\lambda\X_\mu$ flow under no structural assumption on $\mu$ and, under a bound on $\lambda$, that the $\X_\mu$ term lowers the accuracy floor left by biased target samples. We pair the $\ESS$ with a coverage diagnostic \citep{naeem2020reliable}, so density calibration on the reached support is not confused with mode coverage. Finally, we build an adaptive-temperature Boltzmann generator that grows its temperature ladder from per-stage sampling diagnostics. The numerical study isolates the three roles of the X functionals and separates two empirical regimes. Small batches and high dimension expose the intended accuracy robustness; on the multimodal clock ladder, the balanced loss also reduces the aggregate error-propagation factor at every tested batch size, including the largest, while the last stages at the smallest batch delimit the claim.
+This paper makes the following contributions. We introduce the log-ratio variation $\X_\omega$, a family of X functionals that augment the forward KL by penalizing the pairwise variation of the flow's own log-ratio $z=\log(\mu/\nu)$. We study three instances in complementary roles, $\X_\mu$, $\X_{\hat\mu}$, and $\X_{\bar\nu}$, together with the balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, which folds accuracy, mode discovery, and leakage suppression into one objective. The construction keeps the AIS target score free of the flow and requires no replay buffer; the balanced mixture adds one sampling batch beyond a plain forward KL step. We give a Fisher--Rao analysis showing that the forward KL decays along the $\KL{+}\lambda\X_\mu$ flow under no structural assumption on $\mu$ and, under a bound on $\lambda$, that the $\X_\mu$ term lowers the accuracy floor left by biased target samples. We pair the $\ESS$ with a coverage diagnostic \citep{naeem2020reliable}, so density calibration on the reached support is not confused with mode coverage. Finally, we build an adaptive-temperature Boltzmann generator that grows its temperature ladder from per-stage sampling diagnostics. The completed numerical study isolates the three roles of the X functionals on smooth and collective-barrier targets and verifies the balanced loss on schedule-matched clock ladders; only the molecular production results remain explicitly pending.
 
 \paragraph{Organization.}
 Section~\ref{sec: FR} states the main Fisher--Rao gradient-flow results for the regularized loss, with the full derivations, convergence proof, and biased-target accuracy analysis deferred to Appendix~\ref{sec: appendix-FR}. Section~\ref{sec: training} turns the loss into a training algorithm for the flow map $G$, detailing the annealing procedure that approximates $\mu$, the quench and temper construction of the wide-coverage measure $\hat\mu$, and the $\ESS$ and coverage diagnostics. Section~\ref{sec: boltzmann} builds the adaptive-temperature Boltzmann generator on top of this loss. Section~\ref{sec: experiments} reports the numerical study on model problems, and Section~\ref{sec: conclusions} concludes.
@@ -146,7 +150,7 @@ Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \
 \end{theorem}
 \noindent The rank-based feedback inflates $\nu^\star$ where it undercovers $\mu$ and deflates it elsewhere, pulling the stationary density off $\tilde\mu$ back toward $\mu$ by an amount set by the spread of the importance weights $\mu/\nu^\star$ across the support of $\tilde\mu$. Thus $\X_\mu$ is not merely a stabilizer for the forward KL flow: within the stated range of $\lambda$, it lowers the asymptotic accuracy floor left by biased target samples, a correction especially relevant at small batches and early stages. Our experiments use $\lambda=1$ and show robust performance there, but the theorem itself guarantees the bound only for $\lambda<\tfrac12$. The full FR-gradient derivation, the rank-correlation lemma, the convergence proof, and the accuracy proof are in Appendix~\ref{sec: appendix-FR}. This analysis lives on the space of densities and assumes access to $\mu$; the next section supplies approximations of $\mu$ and the wide-coverage measure $\hat\mu$ that make the loss trainable.
 
-% ===================== Sections 3-4: training + generator (VERBATIM, untouched) =====================
+% ===================== Sections 3-4: training + generator =====================
 \section{Flow training with log-ratio variations}
 \label{sec: training}
 
@@ -175,7 +179,7 @@ Adding these non-negative terms to the exact forward KL preserves $\nu=\mu$ as a
 
 \begin{remark}[Robustness across regimes]
 \label{rem: robustness-not-speed}
-As discussed in Section~\ref{subsec: FR-convergence}, the exponential rate \eqref{eq: KL-exponential} is a statement about the idealized FR flow. The discrete Adam dynamics carries no corresponding speed guarantee. The loss was designed primarily to stabilize training with small or imperfect target batches. On a difficult staged target, however, the benefit need not be confined to that regime: in the clock experiment, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ reduces the aggregate propagation factor by $2.6$--$3.6$ across every tested batch size, including $B=2000$. This is benchmark-specific evidence, not a universal large-batch guarantee; at $B=125$, the bare forward KL leads on the final four stages where inter-sector mass transport becomes limiting.
+As discussed in Section~\ref{subsec: FR-convergence}, the exponential rate \eqref{eq: KL-exponential} is a statement about the idealized FR flow. The discrete Adam dynamics carries no corresponding speed guarantee. The loss was designed primarily to stabilize training with small or imperfect target batches. Whether its benefit persists through every level of a difficult staged target is a separate empirical question. The clock experiment therefore uses an exact schedule-matched comparison and is reported only after every paired level and downstream occupancy diagnostic has been regenerated.
 \end{remark}
 
 The forward KL and $\X_\mu$ share one target batch: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$. Thus $\X_\mu$ adds only a permutation and pairwise difference to the same autograd graph. The balanced mixture evaluates one additional batch drawn from $(\hat\mu+\bar\nu)/2$ and applies the same randomized pairwise estimator.
@@ -441,7 +445,7 @@ The trained ladder is a Boltzmann generator for $\mu$. Starting from $x \sim \mu
 Setting every stage flow $G_k$ to the identity reduces the adaptive-temperature generator to annealed SMC, a Monte Carlo sampler that requires no training and serves as the benchmark against the flow-based methods. With no flow to train, steps~(iii) and~(iv) (the wide-coverage set and balanced training loss) fall away, leaving the source pool, adaptive temperature selection, and reweight--resample--rejuvenate update. The log-Jacobian then vanishes, so the stage weight reduces to the classical tempering weight $w_k = \exp\bigl(U_{t_{k-1}}(\mathcal Y_{k-1}) - U_{t_k}(\mathcal Y_{k-1})\bigr)$. Run on the same adaptive ladder and acceptance standard, this baseline isolates the value added by the trained stage maps.
 
 
-% ===================== Section 5: model problems (FULL verbatim) =====================
+% ===================== Section 5: model problems =====================
 \section{Numerical experiments on model problems}
 \label{sec: experiments}
 
@@ -459,47 +463,47 @@ For every target, we initialize the same neural spline flow at the identity and 
 \KL{+}\X_\mu{+}\X_{\hat\mu},\qquad
 \KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}.
 \]
-The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$. Each training step constructs a target surrogate by a single-stage AIS update through the current flow followed by $50$ MALA steps of size $2\times 10^{-3}$. Quench and temper uses melt scale $2$, an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations, and a separate reference pool for coverage. The final ESS is computed from the flow importance weights on the full fixed source set. Coverage, with $\kappa=5$ against the quench-and-temper reference pool, measures the fraction of target mass represented by the pushforward. Hence a collapsed flow can have ESS near one but cannot have full coverage.
+The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$. Each training step constructs a target surrogate by a single-stage AIS update through the current flow followed by $50$ MALA steps of size $2\times 10^{-3}$. Quench and temper uses melt scale $2$, an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations, and a separate reference pool for coverage. The final ESS is computed from the flow importance weights on the full fixed source set. Coverage, with $\kappa=5$ against the quench-and-temper reference pool, measures the fraction of reference configurations represented by the pushforward through the nearest-neighbor test of Section~\ref{subsec: eval}. Hence a collapsed flow can have ESS near one but cannot have full coverage.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Two-Moon/samples.png}
+    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Two-Moon/results/samples.png}
     \caption{Two-Moon target. Columns, from left to right, are forward KL, $\KL{+}\X_\mu$, $\KL{+}\X_\mu{+}\X_{\hat\mu}$, and $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Each panel overlays the learned pushforward on the target energy and reports its final ESS and coverage. Gray points show the source.}
     \label{fig: two-moon}
 \end{figure}
 
 \paragraph{Two-Moon.}
-The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$. With batch size $200$, $500$ Adam steps, and learning rate $2\times10^{-3}$, the bare forward KL reaches ESS $0.8021$. Adding $\X_\mu$ raises it to $0.9157$ without additional flow evaluations, while the equal-weight mixture reaches $0.9446$ (Figure~\ref{fig: two-moon}). This benchmark isolates the accuracy role of $\X_\mu$: the pairwise term constrains the spread of the log-ratio left uncontrolled by the mean-only forward KL objective.
+The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$. With batch size $200$, $500$ Adam steps, and learning rate $2\times10^{-3}$, the bare forward KL reaches ESS $0.7989$. Adding $\X_\mu$ raises it to $0.9150$ without additional flow evaluations, while the equal-weight mixture reaches $0.9567$ (Figure~\ref{fig: two-moon}). This benchmark isolates the accuracy role of $\X_\mu$: the pairwise term constrains the spread of the log-ratio left uncontrolled by the mean-only forward KL objective.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Three-Well/samples.png}
+    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Three-Well/results/samples.png}
     \caption{Three-Well target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: threewell}
 \end{figure}
 
 \paragraph{Three-Well.}
-The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and initially covering no basin. Training uses batch size $1000$, $500$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ fill the two favored wells and report ESS $0.9830$ and $0.9933$, respectively, while their coverage remains $0.7525$. Quench and temper discovers the suppressed third well. The $\hat\mu$ and equal-weight mixtures raise coverage to $0.9763$ and $0.9660$ while retaining ESS $0.9771$ and $0.9858$ (Figure~\ref{fig: threewell}).
+The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and initially covering no basin. Training uses batch size $1000$, $500$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ fill the two favored wells and report ESS $0.9881$ and $0.9942$, respectively, while their coverage remains $0.7595$. Quench and temper discovers the suppressed third well. The $\hat\mu$ and equal-weight mixtures raise coverage to $0.9693$ and $0.9773$ while retaining ESS $0.9731$ and $0.9922$ (Figure~\ref{fig: threewell}).
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Himmelblau/samples.png}
+    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Himmelblau/results/samples.png}
     \caption{Himmelblau target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: himmelblau}
 \end{figure}
 
 \paragraph{Himmelblau.}
-The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approximately $3$--$4$. Training uses batch size $1000$, $1000$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ capture only two wells, giving coverage $0.5140$ despite ESS $0.9722$ and $0.9818$. Both discovery mixtures attain coverage $1$. However, the $\hat\mu$-only flow leaks thin trails of mass between wells and has ESS $0.9516$, whereas adding the $\bar\nu$ half suppresses this leakage and raises the ESS to $0.9757$ (Figure~\ref{fig: himmelblau}).
+The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approximately $3$--$4$. Training uses batch size $1000$, $1000$ steps, and learning rate $10^{-3}$. Forward KL and $\KL{+}\X_\mu$ capture only two wells, giving coverage $0.5160$ despite ESS $0.9748$ and $0.9626$. Both discovery mixtures attain coverage $1$. However, the $\hat\mu$-only flow leaks thin trails of mass between wells and has ESS $0.9517$, whereas adding the $\bar\nu$ half suppresses this leakage and raises the ESS to $0.9782$ (Figure~\ref{fig: himmelblau}).
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/2D_Benchmark/Sparse/samples.png}
+    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Sparse/results/samples.png}
     \caption{Sparse target. Methods and annotations are as in Figure~\ref{fig: two-moon}.}
     \label{fig: sparse}
 \end{figure}
 
 \paragraph{Sparse.}
-The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL{+}\X_\mu$ cover only the central pair. Their coverage is $0.5038$, while their ESS remains $0.9590$ and $0.9572$. The $\hat\mu$-only mixture restores coverage but pays a large leakage cost, with ESS $0.8112$. The equal-weight mixture also attains coverage $1$ and recovers most of the calibration, reaching ESS $0.9417$.
+The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL{+}\X_\mu$ cover only the central pair. Their coverage is $0.5335$, while their ESS is $0.9486$ and $0.9590$. The $\hat\mu$-only mixture restores coverage but pays a leakage cost, with ESS $0.8834$. The equal-weight mixture also attains coverage $1$ and recovers most of the calibration, reaching ESS $0.9348$.
 
 \begin{table}[htb]
     \centering
@@ -507,13 +511,13 @@ The target is a four-component Gaussian mixture with component standard deviatio
         \toprule
         target & KL & $\KL{+}\X_\mu$ & $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ \\
         \midrule
-        Two-Moon   & $0.802\,(1.000)$ & $0.916\,(1.000)$ & $0.887\,(1.000)$ & $\mathbf{0.945}\,(1.000)$ \\
-        Three-Well & $0.983\,(0.753)$ & $0.993\,(0.753)$ & $0.977\,(0.976)$ & $\mathbf{0.986}\,(0.966)$ \\
-        Himmelblau & $0.972\,(0.514)$ & $0.982\,(0.514)$ & $0.952\,(1.000)$ & $\mathbf{0.976}\,(1.000)$ \\
-        Sparse     & $0.959\,(0.504)$ & $0.957\,(0.504)$ & $0.811\,(1.000)$ & $\mathbf{0.942}\,(1.000)$ \\
+        Two-Moon   & $0.799\,(1.000)$ & $0.915\,(1.000)$ & $0.918\,(1.000)$ & $\mathbf{0.957}\,(1.000)$ \\
+        Three-Well & $0.988\,(0.760)$ & $0.994\,(0.760)$ & $0.973\,(0.969)$ & $\mathbf{0.992}\,(0.977)$ \\
+        Himmelblau & $0.975\,(0.516)$ & $0.963\,(0.516)$ & $0.952\,(1.000)$ & $\mathbf{0.978}\,(1.000)$ \\
+        Sparse     & $0.949\,(0.534)$ & $0.959\,(0.534)$ & $0.883\,(1.000)$ & $\mathbf{0.935}\,(1.000)$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the equal-weight mixture, which is the strongest overall setting: it attains essentially full coverage and lies within $0.02$ of the best ESS on every target.}
+    \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the equal-weight mixture, which is the strongest overall setting: it attains essentially full coverage and lies within $0.025$ of the best ESS on every target.}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
@@ -538,26 +542,26 @@ All four objectives use the same identity-initialized neural spline flow on $[-4
         \toprule
         loss $\backslash$ $d$ & 2 & 4 & 8 & 16 & 32 & 64 & 128 & 256 \\
         \midrule
-        forward KL & 0.974 & 0.942 & 0.906 & 0.878 & 0.796 & 0.704 & 0.615 & 0.420 \\
-        $\KL{+}\X_\mu$ & 0.997 & 0.983 & 0.958 & 0.957 & 0.909 & 0.850 & 0.744 & 0.562 \\
-        $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & 0.996 & 0.983 & 0.959 & 0.952 & 0.923 & 0.875 & 0.744 & 0.585 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.998}$ & $\mathbf{0.985}$ & $\mathbf{0.963}$ & $\mathbf{0.960}$ & $\mathbf{0.941}$ & $\mathbf{0.887}$ & $\mathbf{0.791}$ & $\mathbf{0.596}$ \\
+        forward KL & 0.960 & 0.929 & 0.889 & 0.870 & 0.808 & 0.715 & 0.548 & 0.331 \\
+        $\KL{+}\X_\mu$ & 0.997 & $\mathbf{0.985}$ & 0.957 & 0.953 & 0.903 & 0.858 & 0.753 & 0.545 \\
+        $\KL{+}\X_\mu{+}\X_{\hat\mu}$ & 0.997 & 0.984 & 0.955 & $\mathbf{0.953}$ & 0.926 & 0.886 & 0.719 & 0.582 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.998}$ & 0.985 & $\mathbf{0.962}$ & 0.952 & $\mathbf{0.941}$ & $\mathbf{0.902}$ & $\mathbf{0.788}$ & $\mathbf{0.583}$ \\
         \bottomrule
     \end{tabular}
     \caption{Final ESS on the product multi-well target \eqref{eq: highd-potential}. Every loss finds all $2^k$ modes under the strict coverage threshold; bold marks the best ESS in each dimension.}
     \label{tab: highd-ess}
 \end{table}
 
-Every loss finds every mode, so ESS is meaningful here. The forward KL degrades from $0.974$ at $d=2$ to $0.420$ at $d=256$ as coordinatewise fitting errors accumulate in the log weights. Adding $\X_\mu$ improves every dimension and reaches $0.562$ at $d=256$. The equal-weight mixture is best in every column, retaining ESS $0.941$ at $d=32$ and $0.596$ at $d=256$, a factor $1.42$ above the bare forward KL.
+Every loss finds every mode, so ESS is meaningful here. The forward KL degrades from $0.960$ at $d=2$ to $0.331$ at $d=256$ as coordinatewise fitting errors accumulate in the log weights. Adding $\X_\mu$ raises the ESS to $0.545$ at $d=256$. The equal-weight mixture is best in six of the eight dimensions, retaining ESS $0.941$ at $d=32$ and $0.583$ at $d=256$, a factor $1.76$ above the bare forward KL. The $\X_\mu$ and $\X_{\hat\mu}$ variants are narrowly best at $d=4$ and $d=16$, respectively.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.4\textwidth]{figures/HD_Product/ess_k8.png}
-    \caption{Per-step training ESS at $d=256$. Faint curves show raw histories and bold curves their moving averages. Forward KL rises quickly but plateaus near $0.44$; the objectives containing log-ratio variations continue improving, and the quench-and-temper mixtures finish in the highest band.}
+    \includegraphics[width=0.48\textwidth]{../Codes/HD_Product/results/ess_k8.png}
+    \caption{Per-step training ESS at $d=256$. Faint curves show raw histories and bold curves their moving averages. Forward KL rises quickly but plateaus near $0.45$; the objectives containing log-ratio variations continue improving, and the quench-and-temper mixtures finish near $0.60$--$0.62$.}
     \label{fig: highd-ess-history}
 \end{figure}
 
-Figure~\ref{fig: highd-ess-history} separates transient speed from final accuracy. Forward KL climbs fastest during roughly the first $500$ steps but saturates early. The $\X_\mu$ objective initially trails it and then overtakes it, while the two quench-and-temper mixtures combine the fast initial climb with the highest final ESS. Thus the gain in Table~\ref{tab: highd-ess} is not obtained by sacrificing the early training regime.
+Figure~\ref{fig: highd-ess-history} separates transient speed from final accuracy. Forward KL rises faster than the $\X_\mu$ objective early but saturates first. The equal-weight quench-and-temper mixture is fastest overall, crossing the same ESS levels before forward KL and retaining the highest final ESS, while the $\X_{\hat\mu}$ mixture finishes close behind. Thus the gain in Table~\ref{tab: highd-ess} is not obtained by sacrificing the early training regime.
 
 \subsection{Lattice \texorpdfstring{$\phi^4$}{phi4} field theory: fake ESS at a collective barrier}
 \label{subsec: phi4}
@@ -567,40 +571,41 @@ The tilted scalar $\phi^4$ theory provides a sharp fake-ESS test. On a periodic 
 U(\boldsymbol\phi)
 =-0.8\sum_{\langle jl\rangle}\phi_j\phi_l
 +\sum_{j=1}^{d}\left[\phi_j^2+\frac12(\phi_j^2-1)^2\right]
-+\begin{cases}
-0.0257\displaystyle\sum_{j=1}^{d}\phi_j, & L=6,\\
-0.0144\displaystyle\sum_{j=1}^{d}\phi_j, & L=8.
-\end{cases}
++h\sum_{j=1}^{d}\phi_j.
 \end{equation*}
+We take $h=0.0257$ at $L=6$ and $h=0.0144$ at $L=8$. This size-dependent
+field keeps the extensive tilt scale nearly fixed:
+$hL^2=0.9252$ at $L=6$ and $hL^2=0.9216$ at $L=8$. Thus the two targets have
+comparable phase imbalance despite their different volumes.
 In the broken phase the field orders near two vacua $\pm v\mathbf 1$, separated by a collective domain-wall barrier. The positive linear term gives the two phases unequal probability, so the minority weight $p_+=\mathbb P(m>0)$ is not fixed by symmetry and must be learned.
 
-Parallel tempering gives the references $p_+=0.125$ and $0.128$, consistent with an independent symmetry-confined MALA reweighting. Each loss is run at seeds $0,1,2$ using an identity-initialized neural spline flow on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.25I_d)$, centered on the barrier. Training uses a fixed set of $10^5$ source samples, batch size $500$, $2000$ Adam steps at learning rate $10^{-3}$, and gradient clipping at $10^3$. The live surrogate uses one AIS hop and $50$ MALA steps of size $2\times10^{-3}$. Quench and temper uses $2000$ particles, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.1$ and $200$ iterations.
+Parallel tempering gives the references $p_+=0.1251\pm0.0009$ and $0.1284\pm0.0014$, statistically consistent with occupancies $0.1260$ and $0.1268$ in the independent one-million-sample resampled symmetry-confined MALA traces. Each loss is run at seeds $0,1,2$ using an identity-initialized neural spline flow on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.25I_d)$, centered on the barrier. Training uses a fixed set of $10^5$ source samples, batch size $500$, $2000$ Adam steps at learning rate $10^{-3}$, and gradient clipping at $10^3$. The live surrogate uses one AIS hop and $50$ MALA steps of size $2\times10^{-3}$. Quench and temper uses $2000$ particles, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.1$ and $200$ iterations.
 
 \begin{table}[htb]
     \centering
     \begin{tabular}{@{}l cc cc@{}}
         \toprule
-        & \multicolumn{2}{c}{$L=6$ ($d=36$)} & \multicolumn{2}{c}{$L=8$ ($d=64$)} \\
+        & \multicolumn{2}{c}{$L=6$ ($d=36$, $h=0.0257$)} & \multicolumn{2}{c}{$L=8$ ($d=64$, $h=0.0144$)} \\
         \cmidrule(lr){2-3}\cmidrule(lr){4-5}
         & ESS & $p_+$ & ESS & $p_+$ \\
         \midrule
         forward KL
-        & $0.78/0.82/0.82$ & $1/1/0$
-        & $0.67/0.68/0.67$ & $1/0/1$ \\
+        & $0.775/0.823/0.831$ & $1/1/0$
+        & $0.642/0.692/0.663$ & $1/0/1$ \\
         $\KL{+}\X_\mu$
-        & $0.93/0.93/0.94$ & $1/1/0$
-        & $0.81/0.82/0.82$ & $1/0/0$ \\
+        & $0.933/0.934/0.935$ & $1/1/0$
+        & $0.803/0.802/0.818$ & $1/0/0$ \\
         $\KL{+}\X_\mu{+}\X_{\hat\mu}$
-        & $0.88/0.87/0.87$ & $0.127/0.128/0.126$
-        & $0.62/0.61/0.63$ & $0.127/0.126/0.124$ \\
+        & $0.885/0.870/0.883$ & $0.127/0.128/0.126$
+        & $0.629/0.639/0.628$ & $0.126/0.126/0.126$ \\
         $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$
-        & $\mathbf{0.90/0.89/0.88}$ & $0.128/0.129/0.128$
-        & $\mathbf{0.67/0.68/0.71}$ & $0.130/0.129/0.130$ \\
+        & $0.884/0.882/0.899$ & $0.129/0.128/0.128$
+        & $0.703/0.681/0.704$ & $0.129/0.127/0.131$ \\
         \midrule
-        PT reference & --- & $0.125$ & --- & $0.128$ \\
+        PT reference & --- & $0.1251\pm0.0009$ & --- & $0.1284\pm0.0014$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS and reweighted minority-phase weight $p_+$ for three seeds on the tilted $\phi^4$ lattice. Integer values $0$ and $1$ indicate collapse onto one vacuum. Bold marks the highest ESS among the objectives that recover both phases.}
+    \caption{Final ESS and reweighted minority-phase weight $p_+$ for three seeds on the two tilted $\phi^4$ targets, $(L,h)=(6,0.0257)$ and $(8,0.0144)$. The size-dependent field keeps $hL^2\simeq0.923$, making the phase imbalance comparable across the two volumes. Integer values $0$ and $1$ indicate collapse onto one vacuum.}
     \label{tab: phi4}
 \end{table}
 
@@ -608,12 +613,12 @@ Forward KL and $\KL{+}\X_\mu$ collapse at every size and seed. Because the AIS c
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{figures/Lattice_Phi4/L8/fig_methods.png}
-    \caption{Magnetization density on the $L=8$ lattice at seed $0$. Each panel shows the pushforward density (gray), the reweighted density (color), and the parallel-tempering reference (dotted); the title reports ESS and the reweighted $p_+$.}
+    \includegraphics[width=\textwidth]{../Codes/Lattice_Phi4/L8/results/fig_methods.png}
+    \caption{Magnetization density on the $L=8$ lattice at seed $0$. Each panel shows the pushforward density (gray), the reweighted density (color), and the saved resampled mirror-MALA reference density (dotted); the title reports ESS and the reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
 
-Both quench-and-temper objectives populate both vacua at every seed. Their recovered $p_+$ lies between $0.124$ and $0.130$, within $0.004$ of the corresponding reference. This recovery has an unavoidable ESS cost: a diffeomorphism maps the connected Gaussian source to a connected pushforward, so covering both vacua forces a low-weight bridge across the suppressed inter-phase region. At $L=8$, the equal-weight mixture recovers part of this cost, with ESS $0.67$--$0.71$ rather than $0.61$--$0.63$ for the $\hat\mu$-only objective. The $\bar\nu$ component penalizes precisely the leaked bridge mass while preserving discovery.
+Both quench-and-temper objectives populate both vacua at every seed. Their recovered $p_+$ lies between $0.1256$ and $0.1307$, within $0.004$ of both the parallel-tempering estimate and the saved resampled mirror-MALA reference at the corresponding lattice size. This recovery has an unavoidable ESS cost: a diffeomorphism maps the connected Gaussian source to a connected pushforward, so covering both vacua forces a low-weight bridge across the suppressed inter-phase region. At $L=8$, the equal-weight mixture recovers part of this cost, with ESS $0.681$--$0.704$ rather than $0.628$--$0.639$ for the $\hat\mu$-only objective. The $\bar\nu$ component penalizes precisely the leaked bridge mass while preserving discovery.
 
 \subsection{Boltzmann generator on \texorpdfstring{$p$}{p}-state clock model}
 \label{subsec: clock}
@@ -632,11 +637,11 @@ Each stage uses an identity-initialized neural circular spline flow with $16$ bi
 
 The comparison is schedule-matched. Forward KL first constructs an adaptive ladder using SMC preselection and an ESS acceptance gate. The loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ is then trained on the identical accepted values of $t$, without a second gate. Hence the two methods see the same bridge increments within each batch-size pair. Every configuration is a single run, so individual stage values carry single-run fluctuation.
 
-The principal metric is the validation ESS of each accepted increment. We define
+The principal metric is the validation ESS of each accepted increment. We define the
 \[
 \text{propagation factor}\quad F:=\prod_k \mathrm{ESS}_k^{-1}
 \]
-estimates the factor by which staged reweighting enlarges Monte Carlo error across the full ladder. Smaller $F$ is better. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting $F$.
+as an estimate of the factor by which staged reweighting enlarges Monte Carlo error across the full ladder. Smaller $F$ is better. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting $F$.
 
 \begin{table}[htb]
     \centering
@@ -645,505 +650,229 @@ estimates the factor by which staged reweighting enlarges Monte Carlo error acro
         \toprule
         stage $k$ & 1 & 2 & 3 & 4 & 5 & 6 & 7 & 8 & 9 & 10 & $F$ \\
         \midrule
-        $t_k$ ($B=2000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ &  \\
-        forward KL & 0.752 & 0.572 & 0.499 & 0.506 & 0.527 & 0.630 & --- & --- & --- & --- & 27.7 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.919}$ & $\mathbf{0.767}$ & $\mathbf{0.643}$ & $\mathbf{0.587}$ & $\mathbf{0.578}$ & $\mathbf{0.664}$ & --- & --- & --- & --- & $\mathbf{9.8}$ \\
+        $t_k$ ($B=2000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ & \\
+        forward KL & 0.749 & 0.584 & 0.502 & 0.503 & 0.533 & 0.631 & --- & --- & --- & --- & 26.9 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.921}$ & $\mathbf{0.773}$ & $\mathbf{0.645}$ & $\mathbf{0.590}$ & $\mathbf{0.581}$ & $\mathbf{0.671}$ & --- & --- & --- & --- & $\mathbf{9.5}$ \\
         \midrule
-        $t_k$ ($B=1000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ &  \\
-        forward KL & 0.678 & 0.492 & 0.419 & 0.450 & 0.487 & 0.585 & --- & --- & --- & --- & 55.7 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.863}$ & $\mathbf{0.659}$ & $\mathbf{0.539}$ & $\mathbf{0.507}$ & $\mathbf{0.522}$ & $\mathbf{0.610}$ & --- & --- & --- & --- & $\mathbf{20.2}$ \\
+        $t_k$ ($B=1000$) & 0.250 & 0.495 & 0.663 & 0.779 & 0.887 & 1.000 & $\times$ & $\times$ & $\times$ & $\times$ & \\
+        forward KL & 0.672 & 0.490 & 0.431 & 0.456 & 0.487 & 0.595 & --- & --- & --- & --- & 53.3 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.862}$ & $\mathbf{0.661}$ & $\mathbf{0.531}$ & $\mathbf{0.525}$ & $\mathbf{0.521}$ & $\mathbf{0.604}$ & --- & --- & --- & --- & $\mathbf{20.0}$ \\
         \midrule
-        $t_k$ ($B=500$) & 0.250 & 0.421 & 0.590 & 0.705 & 0.818 & 0.945 & 1.000 & $\times$ & $\times$ & $\times$ & \\
-        forward KL & 0.580 & 0.556 & 0.428 & 0.464 & 0.401 & 0.412 & 0.784 & --- & --- & --- & 120.9 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.778}$ & $\mathbf{0.705}$ & $\mathbf{0.530}$ & $\mathbf{0.535}$ & $\mathbf{0.430}$ & $\mathbf{0.416}$ & 0.784 & --- & --- & --- & $\mathbf{45.7}$ \\
+        $t_k$ ($B=500$) & 0.250 & 0.421 & 0.590 & 0.705 & 0.784 & 0.895 & 1.000 & $\times$ & $\times$ & $\times$ & \\
+        forward KL & 0.578 & 0.550 & 0.421 & 0.458 & 0.561 & 0.437 & 0.554 & --- & --- & --- & 120.0 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.780}$ & $\mathbf{0.708}$ & $\mathbf{0.530}$ & $\mathbf{0.541}$ & $\mathbf{0.617}$ & $\mathbf{0.457}$ & $\mathbf{0.588}$ & --- & --- & --- & $\mathbf{38.0}$ \\
         \midrule
-        $t_k$ ($B=250$) & 0.250 & 0.421 & 0.539 & 0.654 & 0.734 & 0.811 & 0.887 & 1.000 & $\times$ & $\times$ & \\
-        forward KL & 0.470 & 0.464 & 0.512 & 0.428 & 0.522 & 0.493 & 0.534 & 0.476 & --- & --- & 319.6 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.662}$ & $\mathbf{0.603}$ & $\mathbf{0.625}$ & $\mathbf{0.503}$ & $\mathbf{0.584}$ & $\mathbf{0.540}$ & $\mathbf{0.564}$ & 0.476 & --- & --- & $\mathbf{94.1}$ \\
+        $t_k$ ($B=250$) & 0.250 & 0.421 & 0.539 & 0.654 & 0.734 & 0.811 & 0.920 & 1.000 & $\times$ & $\times$ & \\
+        forward KL & 0.464 & 0.457 & 0.502 & 0.444 & 0.519 & 0.504 & 0.407 & 0.582 & --- & --- & 342.3 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.656}$ & $\mathbf{0.602}$ & $\mathbf{0.628}$ & $\mathbf{0.512}$ & $\mathbf{0.582}$ & $\mathbf{0.554}$ & $\mathbf{0.423}$ & $\mathbf{0.637}$ & --- & --- & $\mathbf{90.7}$ \\
         \midrule
-        $t_k$ ($B=125$) & 0.175 & 0.295 & 0.413 & 0.528 & 0.607 & 0.685 & 0.761 & 0.835 & 0.908 & 1.000 & \\
-        forward KL & 0.455 & 0.506 & 0.472 & 0.434 & 0.533 & 0.514 & $\mathbf{0.514}$ & $\mathbf{0.547}$ & $\mathbf{0.601}$ & $\mathbf{0.515}$ & 891.1 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.656}$ & $\mathbf{0.698}$ & $\mathbf{0.637}$ & $\mathbf{0.553}$ & $\mathbf{0.634}$ & $\mathbf{0.559}$ & 0.509 & 0.501 & 0.559 & 0.496 & $\mathbf{246.3}$ \\
+        $t_k$ ($B=125$) & 0.175 & 0.346 & 0.464 & 0.579 & 0.659 & 0.736 & 0.812 & 0.886 & 0.966 & 1.000 & \\
+        forward KL & 0.453 & 0.405 & 0.452 & 0.411 & 0.505 & 0.469 & 0.455 & 0.505 & 0.559 & $\mathbf{0.913}$ & 1058.4 \\
+        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.655}$ & $\mathbf{0.563}$ & $\mathbf{0.588}$ & $\mathbf{0.501}$ & $\mathbf{0.567}$ & $\mathbf{0.503}$ & $\mathbf{0.478}$ & $\mathbf{0.525}$ & $\mathbf{0.562}$ & 0.912 & $\mathbf{251.4}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Validation ESS on every accepted stage of the schedule-matched clock-model comparison between forward KL and $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Within each batch-size block, both losses traverse the same ladder. The final column is $F=\prod_k\mathrm{ESS}_k^{-1}$; bold marks the better loss on each stage and the smaller $F$.}
+    \caption{Validation ESS on every accepted stage of the schedule-matched clock-model comparison between forward KL and $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. Within each batch-size block, both losses traverse the same ladder. The final column is $F=\prod_k\mathrm{ESS}_k^{-1}$; bold marks the better loss at each stage and the smaller $F$.}
     \label{tab: clock-summary}
     \label{tab: clock-ladder}
 \end{table}
 
-The loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ raises the geometric mean stage ESS by $0.07$--$0.11$ at every batch size and reduces $F$ by a factor between $2.6$ and $3.6$. The advantage therefore persists at the largest batch $B=2000$, where $F$ decreases from $27.7$ to $9.8$. As the batch shrinks, both ladders lengthen, from $6$ stages at $B=2000$ to $10$ at $B=125$, and error propagation grows sharply.
+The balanced loss raises the geometric mean stage ESS at every batch size: from $0.578$ to $0.688$ at $B=2000$, from $0.515$ to $0.607$ at $B=1000$, from $0.505$ to $0.595$ at $B=500$, from $0.482$ to $0.569$ at $B=250$, and from $0.498$ to $0.575$ at $B=125$. Correspondingly, it reduces $F$ by factors between $2.7$ and $4.2$. The gain is therefore not confined to the small-batch regime: at the largest batch, $F$ falls from $26.9$ to $9.5$.
 
-The improvement is concentrated on early and middle stages. There the bridge deformation is large but smooth, so fitting accuracy is the binding constraint. Near $t=1$, the six sectors separate and the problem shifts from fitting within sectors to transporting their relative mass. Reweighting, common to both losses, performs that redistribution. At $B=125$, forward KL is slightly better on the final four stages, where quench-and-temper discovers sectors but does not assign their exact weights. This is the main limitation observed in the ladder experiment. By $B\Ge 1000$, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ again leads on every stage.
+The comparison is also consistent level by level. The balanced loss has the higher validation ESS on $36$ of the $37$ shared increments. The sole reversal is the final $B=125$ level, where $0.913$ and $0.912$ differ by only $0.001$. As the batch shrinks, the adaptive forward-KL schedule lengthens from six to ten levels and both propagation factors grow. The X-regularized advantage nevertheless becomes larger in the aggregate, because its early and middle increments lose less ESS before the final target is reached.
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.7\textwidth]{figures/Lattice_Clock/clock_marginals.png}
-    \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ ladder by map, reweighting, resampling, and MALA. The single-site marginal peaks at the six clock angles. Pair-difference densities at increasing lattice separation retain an alignment peak at zero while transferring mass toward neighboring clock wells and the tails.}
+    \includegraphics[width=0.7\textwidth]{../Codes/Lattice_Clock/results/clock_marginals.png}
+    \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ ladder by map, reweighting, resampling, and MALA. The upper panel is the single-site marginal. The lower panel gives pair differences at offsets $(0,1)$, $(1,1)$, and $(0,2)$; dots and the inset resolve the one-clock-step angle $\pi/3$. Dashed lines show the uniform density.}
     \label{fig: clock-marginals}
 \end{figure}
 
-All six sectors are found at every batch size. To test whether staged resampling preserves their symmetry, we rebuild fresh samples through the trained $B=2000$ ladders at sizes $N=10^4\,2^k$, $k=0,\ldots,8$, using equal total work of $2.56\times10^6$ particles per row. We define
+The single-site marginal exhibits all six clock wells with nearly equal peak heights. Pair differences are most concentrated at zero for nearest neighbors; as the lattice separation increases, the alignment peak falls and the shoulders near $\pm\pi/3$ gain mass. This is the expected decay of local angular order with distance and confirms that the staged sampler is not confined to a single global sector.
+
+To quantify whether staged resampling preserves the sixfold symmetry, we rebuild fresh samples through the trained $B=2000$ ladders at sizes $N=10^4\,2^k$, $k=0,\ldots,8$, using equal total work of $2.56\times10^6$ particles per row. We define
 \[
 \operatorname{occupancy\ bias}:=\frac16\sum_{s=0}^{5}\left|p_s-\frac16\right|.
 \]
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.55\textwidth]{figures/Lattice_Clock/occupancy_bias_B2000.png}
-    \caption{Clock-sector occupancy bias versus fresh rebuild size. Error bars are $\pm2$ standard errors, and the dashed line is an $N^{-1/2}$ reference anchored at the smallest $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ point. Each curve replays one trained ladder, so the cross-loss comparison retains the single-run qualification.}
+    \includegraphics[width=0.55\textwidth]{../Codes/Lattice_Clock/results/occupancy_bias_B2000.png}
+    \caption{Clock-sector occupancy bias versus fresh rebuild size for the trained $B=2000$ ladders. Every row uses equal total work, with $N=10^4 2^k$ particles in each of $2^{8-k}$ independent rebuilds. Error bars are $\pm2$ standard errors where at least two rebuilds are available; the largest $N$ has one rebuild and no empirical error bar. The dashed line is an $N^{-1/2}$ reference anchored at the smallest $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ point.}
     \label{fig: clock-occupancy}
 \end{figure}
 
-Both losses approach the Monte Carlo scaling rate: fitted log--log slopes are $-0.474$ for forward KL and $-0.584$ for $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$. The $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ ladder has lower occupancy bias at every tested size and reaches $6.4\times10^{-4}$ at $N=2.56\times10^6$. The largest-$N$ point of each curve is a single rebuild and therefore influences the fitted slopes. Together with Table~\ref{tab: clock-summary}, this shows that the per-stage ESS improvement survives composition without hiding a sector imbalance, while the late-stage reversal remains confined to the smallest-batch corner.
-% ===================== Section 6: molecular (FULL verbatim) =====================
+Both methods follow the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.492$ for forward KL and $-0.505$ for the balanced loss. This excludes a detectable particle-count-independent sector imbalance in either staged sampler over the tested range. The balanced curve is nevertheless lower at all nine sizes, reducing the mean bias from $0.02930$ to $0.01851$ at $N=10^4$ and from $0.00161$ to $0.00106$ at $N=2.56\times10^6$. Together with the six peaks in Figure~\ref{fig: clock-marginals}, the scaling test shows that the staged samples are not confined to one global sector. Because each flow ladder is one training run, the amplitude difference is evidence for these $B=2000$ realizations rather than an estimate of variation over independently trained models.
+
+% ===================== Section 6: molecular targets =====================
 \section{Boltzmann generators on molecular potential energies}
 \label{sec: molecular}
 
-Each model problem of the previous section isolates one failure mode of forward KL training
-on a smooth target: the 2D benchmarks, the high-dimensional multi-well, the lattice $\phi^4$ theory, and the $p$-state clock model.
-The application that motivates a Boltzmann generator is a molecule. A molecular target
-exercises the whole pipeline at once. This section applies the adaptive-temperature, X-regularized generator
-of the previous section to three molecules of increasing difficulty in full internal coordinates,
-$d = 36$ to $60$, on a single consumer GPU. It has five parts: the motivation and the two
-difficulties that make a molecular potential hard (Section~\ref{sec: mol-background}); \emph{sharpening}, the simplification that makes the framework tractable on a singular target (Section~\ref{sec: mol-sharpening}); the
-molecule-specific engineering it requires (Section~\ref{sec: mol-engineering}); the numerical results on
-glycerol, diethanolamine, and alanine dipeptide (Section~\ref{sec: mol-results}); and the limitations of the
-molecular study (Section~\ref{sec: mol-limitations}).
+The model problems above isolate accuracy, discovery, and collective barriers on targets whose measure is unambiguous. The application that motivates a Boltzmann generator is a molecule. Its equilibrium conformers determine thermodynamic averages, free-energy differences, and the structural ensembles used downstream in computational chemistry \citep{noe2019boltzmann}. Conventional molecular dynamics provides local physical trajectories, but torsional barriers can make transitions between conformers rare. A trained invertible map instead proposes independent configurations together with a tractable density, after which ordinary importance reweighting corrects the residual error. The payoff is therefore not an unweighted picture of plausible conformers, but a reusable proposal whose statistical error can be measured.
 
-\subsection{Motivation and background}
+A molecular target exercises the full construction at once. The Cartesian force field contains a steep nonbonded core; removing rigid translation and rotation produces a mixed Euclidean--periodic internal-coordinate domain; and the physically intended support may contain only one stereochemical component. These are target-definition questions, not implementation details: changing the solvent model, omitting the coordinate Jacobian, wrapping a bond coordinate, or mixing mirror components changes the probability measure being learned. This section consequently fixes the physical model, coordinate measure, and support before reporting a molecular result. It defines three implicit-solvent benchmarks---glycerol, neutral diethanolamine, and L-alanine dipeptide---and the adaptive mixed-domain training protocol that will be used for all three.
+
+The molecular production runs are not yet complete. The discussion below is deliberately divided into what has already been fixed---Hamiltonians, coordinate charts, reference data, and controller semantics---and what remains empirical. No interrupted run, compile smoke test, or softened-potential diagnostic is promoted as a Boltzmann-generator result.
+
+\subsection{Bundle-defined implicit-solvent targets}
 \label{sec: mol-background}
 
-Concretely, the target is the equilibrium (Boltzmann) distribution
-$\mu \propto e^{-U}$ of a molecular potential, with $U$ its dimensionless reduced form. Its samples are the conformers that set binding
-affinities, reaction rates, and free energies in computational chemistry and drug design
-\citep{noe2019boltzmann}. The targets studied so far are smooth by design; a molecular potential is not. Drawing \emph{independent} samples from
-$\mu$ is the central computational problem. MD and MCMC mix slowly across
-the high torsion barriers that separate conformers. A trained flow that emits independent conformers with a
-tractable density supports the exact importance-sampling pipeline of the previous sections, and this payoff
-justifies the training cost.
-
-We take the potential energy to be the Amber molecular-mechanics force field \citep{cornell1995amber}, the
-standard classical model. Its raw force-field energy $U_{\mathrm{FF}}(x)$ in kJ/mol sums bonded terms, harmonic bonds and angles and
-periodic torsions, and nonbonded Lennard-Jones and Coulomb terms,
+For Cartesian coordinates \(x\), let \(E(x)\) denote the complete molecular-mechanics energy
 \begin{equation}
-    U_{\mathrm{FF}}(x) = \!\!\sum_{\text{bonds}}\!\! k_b (r-r_0)^2 + \!\!\sum_{\text{angles}}\!\! k_\theta (\theta-\theta_0)^2
-    + \!\!\sum_{\text{torsions}}\!\! \frac{V_n}{2}\big[1+\cos(n\phi-\gamma)\big]
-    + \sum_{i<j}\!\bigg[ 4\epsilon_{ij}\bigg(\frac{\sigma_{ij}^{12}}{r_{ij}^{12}} - \frac{\sigma_{ij}^{6}}{r_{ij}^{6}}\bigg) + \frac{q_i q_j}{r_{ij}} \bigg],
-    \label{eq: amber}
+E(x)
+=E_{\mathrm{bond}}+E_{\mathrm{angle}}+E_{\mathrm{torsion}}
+ +E_{\mathrm{LJ}}+E_{\mathrm{Coul}}
+ +E_{\mathrm{GB}}^{\mathrm{OBC1}}+E_{\mathrm{ACE}} .
+\label{eq: molecular-energy}
 \end{equation}
-the last sum running over nonbonded atom pairs, with charges in units that absorb the Coulomb constant. The
-Boltzmann distribution at temperature $T$ is $\mu \propto e^{-U}$ in the dimensionless reduced potential
-\begin{equation*}
-    U(x) = \frac{1}{k_B T} U_{\mathrm{FF}}(x),
-\end{equation*}
-with $k_B$ the Boltzmann constant. We evaluate $U_{\mathrm{FF}}$ for the \emph{isolated
-molecule in vacuum}, with no solvent and no nonbonded cutoff. Section~\ref{sec: mol-limitations} discusses
-this and two further simplifications of the molecular study.
+The bonded and vacuum nonbonded part has the familiar Amber form \citep{cornell1995amber}
+\begin{align}
+E_{\mathrm{vac}}(x)
+={}&\sum_{b} k_b(r_b-r_b^0)^2
+ +\sum_{a} k_a(\theta_a-\theta_a^0)^2
+ +\sum_{\tau}\frac{V_\tau}{2}
+       \bigl[1+\cos(n_\tau\varphi_\tau-\gamma_\tau)\bigr] \notag\\
+&+\sum_{\substack{i<j\\\mathrm{nonbonded}}}
+ \left\lbrace 4\epsilon_{ij}\left[
+ \left(\frac{\sigma_{ij}}{r_{ij}}\right)^{12}
+ -\left(\frac{\sigma_{ij}}{r_{ij}}\right)^6\right]
+ +k_{\mathrm e}\frac{q_iq_j}{r_{ij}}\right\rbrace,
+\label{eq: molecular-amber-energy}
+\end{align}
+with the topology fixing exclusions and the usual scaled interactions. OBC1 adds a generalized-Born approximation to electrostatic solvation, and ACE adds its nonpolar contribution. Thus the benchmark is not a vacuum force field with a post-processing correction: all terms in \eqref{eq: molecular-energy} belong to the energy used by sampling and reweighting.
 
-We work in \emph{whitened internal coordinates} \citep{noe2019boltzmann}. The six rigid-body degrees of
-freedom, global translation and rotation, leave $U$ unchanged. We drop them and describe the shape by
-bond lengths, bond angles, and torsions. A z-matrix gives a smooth, invertible map $x \mapsto \xi \in
-\mathbb R^{d}$ with $d = 3N - 6$ for an $N$-atom molecule and a tractable volume Jacobian. Bonds and angles are stiff and near-Gaussian
-about their equilibria, so each is standardized to unit variance; torsions stay periodic on $[-\pi,\pi)$. The
-source $\mu_0 \propto e^{-U_0}$ is then a product base, standard normal on the bond/angle
-directions and uniform on the torsions. The target, pulled back through the change of variables, is
-\begin{equation*}
-    \mu(\xi) \propto \exp\!\big(\!-U(x(\xi))\big)\big|\det\big(\partial x/\partial \xi\big)\big|,
-\end{equation*}
-so $U_0$ and $U$ as functions of $\xi$ already absorb the change-of-variables log-Jacobian. This
-makes the target tractable for a flow. The rigid-body symmetries and the stiff, correlated
-bond/angle vibrations are factored out, leaving the combinatorially multimodal torsional landscape, the
-conformers, as the structure the diffeomorphism must transport.
+At temperature \(T\), the Cartesian target is proportional to \(\exp[-\beta E(x)]\), with \(\beta=(k_BT)^{-1}\). Alanine dipeptide uses the 22-atom ACE--ALA--NME Hamiltonian of the FAB benchmark \citep{midgley2022flow}: Amber ff96, OBC1 with \(\texttt{igb}=2\) and \(\texttt{mbondi2}\) radii, ACE nonpolar solvation, solute and solvent dielectric constants \(1\) and \(78.5\), zero salt, no cutoff, no constraints, and \(T=300\,\mathrm K\). In particular, the similarly named OpenMM \texttt{amber96\_obc.xml} model is not substituted, because it uses a different OBC convention. Glycerol and neutral diethanolamine use GAFF2 bonded and Lennard--Jones parameters, AM1-BCC charges, and the same OBC1/ACE solvent convention at \(300\,\mathrm K\).
 
-Two features make \eqref{eq: amber} harder than a smooth model target, and they compound. First,
-the dimension grows with the molecule ($d = 36$ to $60$ here), and the conformer landscape is
-\emph{combinatorially multimodal}: every rotatable torsion is multi-well (gauche$^{\pm}$/trans), so the joint
-over several torsions has dozens of basins the flow must discover. Second, the
-Lennard-Jones $r^{-12}$ repulsion makes $U$ \emph{singular}: as any pair distance $r_{ij} \to 0$ the energy
-diverges, so the target has a hard, near-singular clash boundary that a smooth diffeomorphism cannot represent
-without enormous Jacobians. Neither difficulty is decisive alone, since high-dimensional smooth targets
-and low-dimensional singular ones are both routine. Together they are worse than either: the
-singular clash core sits \emph{inside} the high-dimensional multimodal landscape, and a single flow asked to
-discover modes \emph{and} resolve the singularity at once trains badly at both. This compounding,
-absent from every model problem of the previous section, is what the rest of this section
-addresses. On alanine dipeptide ($d = 60$) below it is decisive: the clash core, not the torsion profile,
-becomes the binding constraint.
+A PDB file does not determine this target: it supplies atoms and coordinates but not a unique protonation state, force field, partial charges, solvent model, exclusions, or coordinate chart. Reconstructing those choices from a filename would make two nominally identical runs capable of learning different measures. Each benchmark is therefore defined by an immutable bundle containing the topology, serialized Hamiltonian, reference coordinates, temperature and units, atom map, internal-coordinate construction, support convention, provenance, and content hashes. OpenMM constructs and independently evaluates the Cartesian system; training uses the corresponding pure-JAX energy frozen in the bundle. Energies and forces are compared against OpenMM before a bundle is admitted. This separation makes the production target reproducible without putting OpenMM inside the differentiated training graph.
 
-\subsection{Sharpening: the core simplification}
-\label{sec: mol-sharpening}
+\subsection{Mixed internal coordinates and stereochemical support}
+\label{sec: mol-coordinates}
 
-Sharpening keeps the singular part out of the flow, by annealing a second index the flow never sees. Annealing runs from the source $U_0$ of Section~\ref{sec: mol-background} to the target, for which we write the alias $U_1 = U$. A \emph{regularization} index $s \in [0,1]$ defines a soft-core target $U_{1,s}$ by taming the $r \to 0$ clash of the raw energy $U_{\mathrm{FF}}$ \eqref{eq: amber} before its reduction by $k_B T$. Two soft-core parameters act on $U_{\mathrm{FF}}$: an energy cap $e_{\mathrm{cap}}$ (kJ/mol) that log-compresses the energy above its threshold to $e_{\mathrm{cap}} + a \log(1 + (U_{\mathrm{FF}} - e_{\mathrm{cap}})/a)$ with fixed scale $a = 50$ kJ/mol, a $C^1$ wall of finite height and gradient (a hard clamp would zero the escape force); and a distance floor $r_{\mathrm{floor}}$ (nm) that replaces each nonbonded pair distance by $\max(r_{ij}, r_{\mathrm{floor}})$, removing the $r_{ij}^{-12}$ pole. Writing $U_{\mathrm{FF}}\big|_{e_{\mathrm{cap}}, r_{\mathrm{floor}}}$ for the regularized energy, the reduced soft-core target is
+For a nonlinear molecule with \(N\) atoms, the Cartesian energy is invariant under three translations and three rotations. Carrying those six null directions through the flow wastes capacity and gives no normalizable laboratory-frame target, so we remove them exactly and retain \(d=3N-6\) internal degrees of freedom. A rooted internal-coordinate tree reconstructs \(x=x(q)\) from bond lengths, bond angles, and torsions. The tree, root frame, atom order, and reconstruction convention are frozen in the bundle; they are part of the density transformation rather than plotting metadata.
+
+The coordinate types cannot be treated uniformly. Bond and angle coordinates are whitened with fixed location and scale parameters obtained from the bundle construction, producing unbounded Euclidean variables. Torsions remain angles modulo \(2\pi\). Thus the molecular domain is not a periodic box but
 \begin{equation}
-    U_{1,s} = \frac{1}{k_B T} U_{\mathrm{FF}}\big|_{e_{\mathrm{cap}}(s), r_{\mathrm{floor}}(s)},
-    \label{eq: softcore}
+\mathcal Q=\mathbb R^{d_{\mathrm E}}\times\mathbb T^{d_{\mathrm T}},
+\qquad d_{\mathrm E}+d_{\mathrm T}=3N-6 .
+\label{eq: mixed-molecular-domain}
 \end{equation}
-with the cap threshold $e_{\mathrm{cap}}(s)$ and floor $r_{\mathrm{floor}}(s)$ annealed from soft ($s=0$) to sharp ($s=1$) on a geometric or arithmetic schedule,
-\begin{equation*}
-    e_{\mathrm{cap}}(s) = e_{\min}(e_{\max}/e_{\min})^{s} \ \text{ or }\ e_{\min} + (e_{\max}-e_{\min})s, \qquad
-    r_{\mathrm{floor}}(s) = r_{\max} + (r_{\min}-r_{\max})s,
-\end{equation*}
-between a low cap $e_{\min}$ and high cap $e_{\max}$, and a loose floor $r_{\max}$ and the physical floor $r_{\min}$. Both controls act only on the high-energy clash region, inactive on the equilibrium basins where $U_{\mathrm{FF}} \Le e_{\mathrm{cap}}$ and $r_{ij} > r_{\mathrm{floor}}$, so $U_{1,1} = U_1$ there and $U_{0,s} = U_0$ for all $s$. The bridge potential carries both indices,
-\begin{equation*}
-    U_{t,s} = (1-t)U_0 + t U_{1,s},
-\end{equation*}
-and the whole run is a single anneal from the soft source $U_{0,0}$ to the sharp target $U_{1,1}$, the regularization reaching the temperature at every accepted stage, $s_k = t_k$. The two indices coincide only at the accepted nodes. Within a stage they differ: $t$ first advances to $t_k$ while $s$ lags at $s_{k-1}$, then $s$ catches up to $s_k$, as described next.
-
-The change from Algorithm~\ref{alg: boltzmann} is one extra, flow-free step per stage. Algorithm~\ref{alg: boltzmann} advances the single temperature index $t$ on the bridge $U_{t_k}$; with sharpening each stage advances the pair $(t,s)$ in two sub-steps,
-\begin{equation*}
-    \underbrace{(t_{k-1},s_{k-1}) \xrightarrow{\ G_k\ } (t_k,s_{k-1})}_{\text{flow step: advance } t}
-    \xrightarrow{\ w^{\mathrm{sharp}}_k\ }
-    \underbrace{(t_k,s_{k-1}) \to (t_k,s_k)}_{\text{sharpening step: advance } s} .
-\end{equation*}
-The \emph{flow step} advances the temperature at the \emph{lagged} regularization, $U_{t_{k-1},s_{k-1}} \to U_{t_k,s_{k-1}}$. At fixed $s_{k-1}$ the soft-core bridge $U_{t,s_{k-1}}$ is a single-temperature bridge to the target $U_{1,s_{k-1}}$, so the trained map $G_k$ and its validation update are steps (i)--(v) of Algorithm~\ref{alg: boltzmann} with $U_1$ replaced by $U_{1,s_{k-1}}$; the diffeomorphism transports only the smooth surrogate. The \emph{Monte Carlo sharpening step} then advances the regularization at fixed temperature, $U_{t_k,s_{k-1}} \to U_{t_k,s_k}$, by a single importance reweight with weight
+The reduced potential with respect to Lebesgue measure on the Euclidean coordinates and Haar measure on the torus is
 \begin{equation}
-    w^{\mathrm{sharp}}_k(\xi) = \exp\bigl(U_{t_k,s_{k-1}}(\xi) - U_{t_k,s_k}(\xi)\bigr)
-    = \exp\bigl(-t_k[U_{1,s_k}(\xi) - U_{1,s_{k-1}}(\xi)]\bigr),
-    \label{eq: sharpen-w}
+U(q)=\beta E(x(q))-\log J(q),
+\label{eq: molecular-reduced-potential}
 \end{equation}
-followed by resampling and a short Langevin rejuvenation on $U_{t_k,s_k}$, with no flow. The importance step asks nothing the singularity forbids. It never inverts or differentiates $U_1$; it reweights and rejuvenates samples inside the basins they already occupy. The stiff repulsive wall costs some weight variance rather than the unbounded Jacobian it would impose on a smooth map. This is the asymmetry the split exploits: the flow handles the smooth, high-dimensional part, the Monte Carlo step the singular part, confined to the thin clash boundary.
-
-Each stage thus yields two effective sample sizes: the flow's validation $\ESS^{\mathrm{val}}_k$ from the flow step, the $\ESS$ of the step-(v) validation weights $w_k$ of Algorithm~\ref{alg: boltzmann}, and the sharpening $\ESS^{\mathrm{sharp}}_k$ of $w^{\mathrm{sharp}}_k$ \eqref{eq: sharpen-w}. Each is the normalized effective sample size of Section~\ref{subsec: eval}, a fraction in $(0,1]$. The Monte Carlo error-propagation factor through the two per-stage reweights,
-\begin{equation}
-    F = \prod_{k} \frac{1}{\ESS^{\mathrm{val}}_k}\frac{1}{\ESS^{\mathrm{sharp}}_k}, \qquad F = 1 \ \text{ideal},
-    \label{eq: F}
-\end{equation}
-charges the cost of both; it is smaller-is-better, and a run with no sharpening step has $\ESS^{\mathrm{sharp}}_k \equiv 1$. On the clash-dominated target a few near-singular weights collapse the raw validation $\ESS$, so before forming it we saturate the log-weights about their median. With $m$ the median of $\{\log w_i\}$ and $\sigma_w = c\mathrm{median}_i|\log w_i - m|$, the \emph{smooth} validation effective sample size is
-\begin{equation}
-    \ESS^{\mathrm{val}*}_k = \ESS\big(\{\tilde w_i\}\big), \qquad
-    \log\tilde w_i = m + \sigma_w\tanh\!\big((\log w_i - m)/\sigma_w\big),
-    \label{eq: smooth-ess}
-\end{equation}
-the normalized $\ESS$ of Section~\ref{subsec: eval} evaluated on the saturated weights, with $c = 6$ on alanine dipeptide as detailed in Section~\ref{sec: mol-engineering}. Its error-propagation factor is
-\begin{equation}
-    F^{*} = \prod_{k} \frac{1}{\ESS^{\mathrm{val}*}_k}\frac{1}{\ESS^{\mathrm{sharp}}_k}.
-    \label{eq: Fstar}
-\end{equation}
-We report $F$ where the raw validation $\ESS$ is well behaved, and $F^{*}$, written with a star, where the clash singularity forces the smooth estimator; the two are the same product evaluated with raw or smooth validation $\ESS$. This factor is the headline metric for every result below: the variance amplification a downstream importance-sampling estimator inherits from the full ladder.
-
-\subsection{Engineering for the singularity}
-\label{sec: mol-engineering}
-
-The singular targets require three further devices, all inert on the smooth ones (glycerol and diethanolamine
-ran with none of them). (i) \emph{Particle drop}: each validation and resample $\ESS$ discards the worst $2\%$
-of particles before the $\ESS$ is formed, so a few clash-singular outliers, finite but
-enormous under the soft cap, cannot hijack the importance weights. (ii) \emph{Best $\ESS$ gate snapshots}:
-within a stage the flow is snapshotted at each $\ESS$ gate, and the stage keeps the
-\emph{highest} validation $\ESS$ snapshot rather than the last training step, which overfits the soft cap and
-sheds $\ESS$; a step-$0$ identity snapshot is always included as a Monte Carlo fallback. (iii)
-\emph{Distance-floor anneal}: for the worst clash core (alanine dipeptide) $r_{\mathrm{floor}}$ is annealed
-alongside the cap, softening the Lennard-Jones wall early and tightening it to the physical value only at
-$s = 1$, at the cost of a longer ladder. The wide-coverage pool $\hat\mu$ comes from the
-$\delta$-reweighted quench and temper of Section~\ref{subsec: QT} ($\delta = 0.1$), unchanged. The sharpening split
-remains the core mechanism; these three devices are the supporting engineering the singularity demands.
-
-A metric-level choice accompanies them on the singular target: the per-stage validation $\ESS$ that
-gates and scores each stage is the smooth estimator $\ESS^{\mathrm{val}*}_k$ of \eqref{eq: smooth-ess}, with
-$c = 6$ on alanine dipeptide. Saturating the log-weights about their median bounds the few clash-singular
-dominators that otherwise collapse the raw weighted $\ESS$; a raw $\ESS$ of $0.4$ then reads as a smooth
-${\approx}0.5$. Glycerol and diethanolamine, free of such dominators, keep the raw $\ESS$ and report $F$.
-
-\subsection{Numerical results}
-\label{sec: mol-results}
-
-We treat three molecules of increasing difficulty in full internal coordinates on a single consumer GPU
-(RTX~5070\,Ti): glycerol ($d = 36$), diethanolamine ($d = 48$), and alanine dipeptide ($d = 60$, the canonical
-Boltzmann generator benchmark). One comparison runs through all
-three: the X-regularized $\delta$-reweighted loss against an annealed SMC reference, the same adaptive
-sharpening scheme with the flow set to the identity at every stage, which selects its own longer ladder.
-Because the factor is a product over stages, the \emph{ratio} of trained-flow to annealed SMC $F$, not the
-absolute value, is the cross-molecule comparison. The trained flow cuts $F$ by ${\sim}30$--$40\times$ on the two
-clash-mild, combinatorially multimodal targets, but only ${\sim}2\times$ on alanine dipeptide, where the
-singular clash core rather than the multimodality dominates, the core that the Monte Carlo sharpening already resolves. The per-molecule subsections below give the full ablation, ladder, and reference figures for each.
-The baselines here, the bare forward KL and the identity-flow annealed SMC, are the natural same-cost
-comparisons for a forward KL-trained generator.
-
-\subsubsection{Glycerol ($d = 36$)}
-\label{sec: glycerol}
-
-We ablate the generator on the full internal-coordinate glycerol target along three axes: the loss
-(forward KL versus the X-regularized $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$); the regularization schedule
-(\emph{sharpen}: the soft-core cap $e_{\mathrm{cap}}$ is geometrically annealed from $100$ to $200$ kJ/mol along the ladder, with a
-Monte Carlo sharpening step per stage; \emph{raw}: fixed $e_{\mathrm{cap}} = 200$ kJ/mol, no anneal or sharpening); and the
-wide-coverage sampler (plain quench and temper versus its $\delta$-reweighted variant, $\delta = 0.1$, defined
-only for the $\X$ loss). The headline metric is the error-propagation factor $F$ \eqref{eq: F}. The \emph{raw} runs
-take no sharpening step ($\ESS^{\mathrm{sharp}} \equiv 1$).
+where \(J(q)\) is the exact Cartesian volume Jacobian of the internal-coordinate reconstruction, including the whitening transforms. Omitting this term would sample \(\exp[-\beta E(x(q))]\) with respect to the wrong base measure and would bias even a perfectly optimized flow. The source is standard normal on \(\mathbb R^{d_{\mathrm E}}\) and uniform on \(\mathbb T^{d_{\mathrm T}}\). The mixed neural spline flow uses ordinary rational-quadratic splines on Euclidean coordinates and circular rational-quadratic splines on torsions. Its masks may couple the two blocks through their conditioners, but its scalar maps respect the topology of each coordinate; bonds are never wrapped and torsions never acquire artificial boundaries.
 
 \begin{table}[htb]
-    \centering
-    \small
-    \begin{tabular}{@{}lccc@{}}
-        \toprule
-        loss (raw pushforward) & $K$ & wall (min) & $F$ \\
-        \midrule
-        annealed SMC                                           & 10 & 2 & 635.56 \\
-        forward KL                                             & 7 & 215 & 40.86 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$              & 6 & 162 & 21.96 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-rw. & 6 & 158 & 16.56 \\
-        \midrule
-        loss (sharpening) & $K$ & wall (min) & $F$ \\
-        \midrule
-        annealed SMC                                           & 10 & 5 & 463.02 \\
-        forward KL                                             & 4 & 88  & 44.00 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$              & 4 & 73  & 22.51 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-rw. & 4 & 73  & \textbf{14.16} \\
-        \bottomrule
-    \end{tabular}
-    \caption{Glycerol ($d = 36$) ablation, raw pushforward (top) and sharpening (bottom): ladder length $K$,
-    training wall-clock, and the error-propagation factor $F$ \eqref{eq: F} (smaller better; the sharpening
-    rows include the per-stage Monte Carlo sharpening reweight). $\delta$-rw.\ $=$ $\delta$-reweighted quench
-    and temper.}
-    \label{tab: glycerol}
+\centering
+\small
+\begin{tabular}{@{}l c p{3.3cm} p{3.0cm} p{3.2cm}@{}}
+\toprule
+target & atoms / \(d\) & frozen Hamiltonian & internal domain and support & reference \\
+\midrule
+L-alanine dipeptide
+& \(22/60\)
+& ff96 + OBC1/ACE
+& \(\mathbb R^{42}\times\mathbb T^{18}\), L component only
+& FAB \(10^6\)-frame REMD split \\
+glycerol
+& \(14/36\)
+& GAFF2/AM1-BCC + OBC1/ACE
+& \(\mathbb R^{25}\times\mathbb T^{11}\), full labeled parity support
+& matched reference pending \\
+neutral diethanolamine
+& \(18/48\)
+& GAFF2/AM1-BCC + OBC1/ACE
+& \(\mathbb R^{33}\times\mathbb T^{15}\), both N-pyramid signs
+& matched reference pending \\
+\bottomrule
+\end{tabular}
+\caption{Frozen definitions of the three molecular benchmarks. This is a target-specification table, not a training-result table.}
+\label{tab: molecular-targets}
 \end{table}
 
-The $\X$ regularizer is the dominant factor (Table~\ref{tab: glycerol}), roughly halving $F$ at either schedule. The $\delta$-reweighted
-quench and temper lowers $F$ further in both schedules. Once the sharpening reweight is charged to $F$, the \emph{sharpen} schedule no longer beats the
-fixed-cap \emph{raw} run on $F$ alone; its advantage is feasibility and speed. The lowest-$F$ and fastest run is
-$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted, under the sharpen schedule. Turning the trained
-flow off entirely (the identity map at every stage, i.e.\ plain adaptive annealed SMC over the same ladder
-and acceptance standard) gives a far larger $F$ in $K = 10$ stages. The trained
-flow thus cuts the propagation factor by ${\sim}30$--$40\times$ and shortens the ladder from $K = 10$ to $K = 4$--$6$ (Figure~\ref{fig: glycerol-ladder}). This
-is the value the transport map adds over annealing alone.
+The support convention is also part of the target. A classical force field can assign the same energy to mirror-related configurations even when the intended molecular benchmark contains a named stereoisomer. If both components are left in the state space, an invertible continuous flow must either learn a physically unwanted mirror mode or place connecting mass across a chirality-changing set. If one component is removed by an after-the-fact filter, the stated flow density is no longer the proposal density used for importance sampling.
+
+The million-frame FAB trajectory lies entirely in the L-alanine component. We therefore encode a smooth L-only chart for alanine dipeptide from the outset rather than adding a soft chirality wall to its energy. Glycerol has no configurational stereocenter, and neutral diethanolamine must retain both signs of its nitrogen-pyramidal coordinate; imposing the alanine half-chart on either would change its distribution. Signed-volume invariants test these conventions on reconstructed configurations, and the accepted sign rule is frozen in the same bundle as the Hamiltonian. Chirality is thereby handled as support geometry, not as an energy-sharpening device.
+
+\subsection{Exact target, diagnostic regularization, and mixed-domain sampling}
+\label{sec: mol-regularization}
+
+The Lennard--Jones core in \eqref{eq: molecular-amber-energy} grows like \(r^{-12}\). This singularity is physically useful---it excludes atomic overlap---but it creates a severe optimization problem when a smooth map is still assigning appreciable mass to clashes. A few configurations can dominate both the energy and its gradient before the map has learned the broad conformational structure. The remedy must distinguish numerical training protection from a change of target.
+
+The physical potential in \eqref{eq: molecular-reduced-potential} is never energy-clipped. In particular, the optimizer screen \(e_{\mathrm{clip}}\) only drops extreme samples from a stochastic loss; it does not alter MALA, SMC weights, validation weights, final importance weights, or the definition of \(U\). Gradient clipping similarly protects the optimizer update without modifying the target score used by the Monte Carlo kernels. This distinction matters because a finite training loss is not evidence for a finite, normalized, or physically correct surrogate.
+
+The present molecular diagnostic uses an explicit family of regularized Cartesian energies to determine whether a smoother starting target preserves the physical torsional modes. Let \(E_{\mathrm{ref}}\) be the bundle reference energy, \(d(x)=E(x)-E_{\mathrm{ref}}\), \(c\) an excess-energy cutoff, \(s>0\) a logarithmic scale, and \(0\leq\rho\leq1\) a linear-tail fraction. Define
+\begin{equation}
+\mathcal R_{c,s,\rho}(d)=
+\begin{cases}
+d, & d\leq c,\\[2pt]
+c+(1-\rho)s\log\!\left(1+\dfrac{d-c}{s}\right)+\rho(d-c), & d>c,
+\end{cases}
+\label{eq: molecular-regularizer}
+\end{equation}
+and
+\begin{equation}
+U_{c,s,\rho}(q)
+=\beta\!\left[E_{\mathrm{ref}}+\mathcal R_{c,s,\rho}(d(x(q)))\right]-\log J(q).
+\label{eq: regularized-molecular-potential}
+\end{equation}
+Only the Cartesian energy is deformed; the coordinate Jacobian and stereochemical support remain exact. The construction is continuously differentiable at \(d=c\): the tail begins with the same value and unit slope as the physical excess energy. The parameter \(c\) fixes where the deformation starts, \(s\) controls the logarithmic transition, and a positive \(\rho\) retains a coercive linear tail. The endpoint of any accepted continuation is the undeformed potential \(U\), not a capped substitute. Consequently, a regularized run may diagnose a viable starting landscape, but it cannot by itself serve as the reported molecular equilibrium distribution.
+
+MALA updates the Euclidean coordinates without wrapping and the torsions modulo \(2\pi\); its proposal density and accept/reject step use the same mixed-domain convention. Potential-space SMC selects intermediate bridges from honest incremental ESS, resamples, and rejuvenates at the actual intermediate potential. This is the classical sampling path used to construct and validate a bridge. The flow-proposal AIS surrogate used inside training is deliberately score-free in the flow: the molecular score comes only from the target potential, while the map enters through proposal samples and density ratios.
+
+The adaptive training controller then compares exactly two proposals on the complete validation set, the final trained map and the identity fallback. The higher full-validation ESS is the sole post-training stage-acceptance quantity. Per-step batch ESS remains the optimizer-loop monitor; update counts, kept fractions, and compilation diagnostics never shrink or accept a stage. This separation is essential on molecules, where a stable optimizer trace can coexist with a proposal that has not improved the held-out importance weights.
+
+A completed two-seed glycerol cutoff scan shows why the distinction between diagnostic and result is necessary. Above \(c=100\,\mathrm{kJ/mol}\), the selected one-dimensional torsion marginals change negligibly on the path to the exact potential, but the two exact-potential endpoint populations still disagree in joint rotamer occupancy. High MALA acceptance therefore did not establish intermode mixing. The scan identifies \(c=100\,\mathrm{kJ/mol}\) as a candidate starting surrogate, not an equilibrium reference. Production training waits for a full-particle, independently mixed reference diagnostic with a coercive tail and agreement in the joint torsional statistics.
+
+\subsection{Training and evaluation protocol}
+\label{sec: mol-training}
+
+The molecular generator uses the same adaptive-temperature construction as the clock experiment, with a mixed-domain spline flow in place of the toroidal flow. Starting from the Gaussian--uniform source, the controller advances a bridge only as far as the SMC preselection gate permits. A candidate flow is then trained for that fixed increment. At every accepted level \(t_k\), the final trained proposal is evaluated against identity on all validation particles; whichever has the larger full-set ESS supplies the particle update. The controller therefore cannot manufacture progress from a minibatch fluctuation, and identity remains an exact Monte Carlo fallback when a learned increment is unhelpful.
+
+The saved history distinguishes the quantities that serve different roles: \(t_k\), the per-step batch ESS seen during optimization, the trained and identity full-validation ESS, and the selected full-validation ESS. Every stage flow, including the most recent rejected attempt, is checkpointed. These checkpoints make it possible to locate a failed bridge or replot a diagnostic without rerunning earlier molecular dynamics, while leaving the accept/reject rule unchanged. The planned comparison is forward KL against \(\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}\), using the same accepted schedule within each paired comparison.
+
+ESS alone is not sufficient for these targets. It measures calibration on the proposal support, but a molecular generator can miss a conformer and still assign nearly constant weights to the basins it has reached. Evaluation is therefore molecule-specific and always computed from saved particles, so plotting never reruns dynamics. Glycerol and diethanolamine are judged by all torsion marginals, joint rotamer populations, signed-volume populations, energy distributions, and matched-reference reweighting. Alanine dipeptide is additionally judged by its L-only Ramachandran distribution. The FAB million-frame split supplies the fixed alanine reference; matched implicit-solvent references for glycerol and diethanolamine remain part of the pending production workflow.
+
+The reference and generator are compared under exactly the same coordinate convention. Periodic histograms or kernel estimates are constructed only after the raw torsions have been saved, and their smoothing parameters affect the picture rather than the samples. For alanine dipeptide, the familiar \((\phi,\psi)\) plane is a readable two-dimensional projection of a 60-dimensional measure, not a replacement for full-energy reweighting or the remaining torsions. For the smaller molecules, agreement of one-dimensional marginals is likewise necessary but not sufficient: joint rotamer counts are retained precisely because independently reasonable marginals can conceal different basin weights.
 
 \begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/glycerol_36d/ladder.png}
-    \caption{Glycerol per-stage validation $\ESS$ as annealing-ladder arcs, raw (top) and sharpen (bottom).
-    In each row forward KL is drawn above the axis (blue), $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ below
-    (purple), and its $\delta$-reweighted variant further below (red). Each arc is an accepted stage; the apex
-    label is that stage's validation $\ESS$; a cross marks a bridge the ladder failed to reach.}
-    \label{fig: glycerol-ladder}
+\centering
+\pendingfigure
+\caption{Glycerol implicit-solvent torsion marginals and trained-generator comparison. \texttt{[pending to run]}}
+\label{fig: glycerol-dihedrals}
 \end{figure}
-
-Glycerol is achiral (each torsion marginal is even, $p(\phi) = p(-\phi)$; Figure~\ref{fig: glycerol-dihedrals}), and every rotatable torsion is
-three-fold: gauche$^{\pm}$ near $\pm 60^\circ$ and trans near $180^\circ$. The $\pm\phi$ symmetry pairs
-gauche$^{-}\!\leftrightarrow$\,gauche$^{+}$ and leaves trans self-symmetric. The joint target over the five
-rotatable torsions is therefore combinatorially multimodal (dozens of conformers), which the wide-coverage pool
-must cover.
-
 
 \begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/glycerol_36d/dihedrals.png}
-    \caption{Glycerol torsion marginals of both generators against a converged annealed SMC reference
-    (grey): forward KL (blue) and
-    $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted (red), both sharpened with the cap annealed
-    to $e_{\mathrm{cap}} = 200$ kJ/mol. Both recover the multimodal gauche$^{\pm}$/trans structure of the characteristic glycerol
-    torsions.}
-    \label{fig: glycerol-dihedrals}
+\centering
+\pendingfigure
+\caption{Neutral-diethanolamine implicit-solvent torsion marginals and trained-generator comparison. \texttt{[pending to run]}}
+\label{fig: dea-dihedrals}
 \end{figure}
-
-\FloatBarrier
-\subsubsection{Diethanolamine ($d = 48$)}
-\label{sec: dea}
-
-We test the generator on the full internal-coordinate diethanolamine target (\mbox{HN(CH$_2$CH$_2$OH)$_2$},
-$d = 48$), comparing the two best losses under the same sharpening schedule (the soft cap geometrically
-annealed $e_{\mathrm{cap}}\!:\!100\!\to\!200$ kJ/mol, a Monte Carlo sharpening step per stage): forward KL, and the X-regularized
-$\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ with the $\delta$-reweighted quench and temper ($\delta = 0.1$).
-Forward KL reaches $t = 1$ in $K = 6$ stages, the X-regularized loss in $K = 5$, a single direct
-$0.65 \to 1$ step.
-
-\begin{table}[htb]
-    \centering
-    \small
-    \begin{tabular}{@{}lccc@{}}
-        \toprule
-        loss & $K$ & wall (min) & $F$ \\
-        \midrule
-        annealed SMC                                            & 10 & 7 & 1455.44 \\
-        forward KL                                              & 6 & 896 & 92.60 \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-rw. & 5 & 782 & \textbf{35.90} \\
-        \bottomrule
-    \end{tabular}
-    \caption{Diethanolamine ($d = 48$): two trained-flow losses and an annealed SMC reference, all with
-    a per-stage Monte Carlo sharpening reweight (cap $e_{\mathrm{cap}}$ geometrically annealed $100 \to 200$ kJ/mol): ladder length
-    $K$, training wall-clock, and the error-propagation factor $F$ \eqref{eq: F} (smaller better; $F$ includes
-    the sharpening reweight). $\delta$-rw.\ $=$
-    $\delta$-reweighted quench and temper.}
-    \label{tab: dea}
-\end{table}
-
-The X-regularized loss with $\delta$-reweighting reaches a lower $F$ than forward KL (Table~\ref{tab: dea}), a
-${\sim}2.6\times$ reduction in importance-weight waste at identical settings (glycerol showed a comparable
-${\sim}3.1\times$ gap). The advantage shows in the late, sharp stages and in the ladder
-length. Forward KL's per-stage validation $\ESS$ stalls and it needs $6$ stages to reach
-$t = 1$, whereas the $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted run holds a higher $\ESS$
-and reaches $t = 1$ in $5$ (Figure~\ref{fig: dea-ladder}). This target is singular, high-dimensional, and
-combinatorially multimodal, so each run is a multi-hour computation. Closing it efficiently is the practical
-contribution of the X-regularized loss.
 
 \begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/diethanolamine_48d/ladder.png}
-    \caption{Diethanolamine per-stage $\ESS$ as annealing-ladder arcs (sharpening schedule): forward KL above
-    the axis (blue), $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted, below (red). Each arc is an
-    accepted stage; the apex label is that stage's validation $\ESS$, with the sharpening $\ESS$ in
-    parentheses.}
-    \label{fig: dea-ladder}
+\centering
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\includegraphics[width=\linewidth]{../Molecular_BG/reference/adp_truth.png}\\[-2pt]
+\small FAB \(10^6\)-frame reference
+\end{minipage}
+\hfill
+\begin{minipage}[t]{0.47\textwidth}
+\centering
+\pendingfigure\\[-2pt]
+\small trained L-ADP generator
+\end{minipage}
+\caption{Alanine-dipeptide Ramachandran reference and the planned generator comparison on the exact ff96/OBC1 target. The reference panel is fixed; the generator panel is \texttt{[pending to run]}.}
+\label{fig: adp-rama}
 \end{figure}
 
-Diethanolamine has a plane of symmetry (each torsion marginal is even, $p(\phi) = p(-\phi)$). Its rotatable
-backbone torsions, O-C-C-N and C-C-N-C along the ethanolamine arms plus the hydroxyl rotations,
-are each multi-well (gauche$^{\pm}$/trans), so the joint target is combinatorially multimodal, which the
-wide-coverage pool must cover.
-
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.8\textwidth]{figures/Molecular_BG/diethanolamine_48d/dihedrals.png}
-    \caption{Diethanolamine torsion marginals of both generators against a converged annealed SMC
-    reference (grey): forward KL (blue) and
-    $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-reweighted (red), both sharpened with the cap annealed
-    to $e_{\mathrm{cap}} = 200$ kJ/mol. Both recover the multimodal backbone torsions and track the annealed SMC reference.}
-    \label{fig: dea-dihedrals}
-\end{figure}
-
-Against the annealed SMC reference (Figure~\ref{fig: dea-dihedrals}) the two losses are visually indistinguishable: both
-recover the multimodal backbone torsions, and neither is closer to the reference. The separation is in
-efficiency, not in the sampled marginals. $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ reaches $t = 1$ in fewer
-stages, with a higher final-step $\ESS$, a $\sim 2.6\times$ smaller
-error-propagation factor, and fewer rejected stage attempts in the early ladder. Switching the trained flow off entirely (the
-identity map at every stage, i.e.\ plain adaptive annealed SMC over the same ladder) gives a far larger $F$. The trained
-X-regularized flow therefore cuts the propagation factor by ${\sim}40\times$ and halves the ladder length
-($5$ vs $10$). On this singular target the transport map adds even more over annealing alone than on glycerol,
-a justification for training a flow.
-
-\FloatBarrier
-\subsubsection{Alanine dipeptide ($d = 60$)}
-\label{sec: adp}
-
-We push the generator to alanine dipeptide (Ac-Ala-NHMe), the canonical Boltzmann generator benchmark,
-in full internal coordinates ($d = 60$). The step up from glycerol and diethanolamine is the
-target's character. Those are dominated by smooth rotatable-bond multimodality. Alanine dipeptide folds the backbone
-tightly enough that the Lennard-Jones clash core, not the torsion profile, sets the hardest part of the
-anneal. We report the X-regularized loss only ($\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$,
-$\delta$-reweighted, $\delta = 0.1$), with a per-stage Monte Carlo sharpening in which \emph{both} the cap
-$e_{\mathrm{cap}}\!:\!100\!\to\!200$ kJ/mol and the clash floor $r_{\mathrm{floor}}\!:\!0.2\!\to\!0.1$ nm are annealed arithmetically, unlike the geometric
-$e_{\mathrm{cap}}$ schedule of glycerol and diethanolamine. Alanine dipeptide is also the only target that anneals $r_{\mathrm{floor}}$, which glycerol and diethanolamine hold fixed at $0.1$ nm. The run reaches $t = 1$ in $K = 11$ stages,
-every stage holding a high validation and sharpening $\ESS$
-(Table~\ref{tab: adp}, Figure~\ref{fig: adp-ess}). The bare composed flow's end-to-end $\ESS$ against the sharp
-target, from a single importance reweight of source samples pushed through the fully composed $K$-stage map and
-scored against $U_{1,1}$, is only ${\sim}5\times10^{-6}$, so the per-stage sharpening, not a raw pushforward,
-is the deliverable.
-
-\begin{table}[htb]
-    \centering
-    \small
-    \begin{tabular}{@{}lccc@{}}
-        \toprule
-        loss & $K$ & wall (min) & $F^{*}$ \\
-        \midrule
-        annealed SMC                                           & 12 & 23  & 129.70$^{*}$ \\
-        $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$, $\delta$-rw. & 11 & ${\sim}1000$ & \textbf{67.95}$^{*}$ \\
-        \bottomrule
-    \end{tabular}
-    \caption{Alanine dipeptide ($d = 60$), the X-regularized loss with a per-stage Monte Carlo sharpening
-    reweight (the cap $e_{\mathrm{cap}}$ and floor $r_{\mathrm{floor}}$ annealed arithmetically): ladder length $K$,
-    wall-clock, and the error-propagation factor $F^{*}$ \eqref{eq: Fstar}, starred throughout because every
-    entry uses the smooth validation $\ESS$ (smaller better; $F^{*}$ includes the sharpening reweight). The
-    first row is an annealed SMC reference, the identity map over the same ladder.
-    $\delta$-rw.\ $=$ $\delta$-reweighted quench and temper.}
-    \label{tab: adp}
-\end{table}
-
-Compared with the lighter targets, alanine dipeptide's larger $F^{*}$ is the price of its singular nonbonded core, not of its multimodality. Three
-alanine-dipeptide-only factors make this $F^{*}$ read smaller than a strict like-for-like extension of that trend:
-the per-stage $\ESS$ is the smooth estimator $\ESS^{\mathrm{val}*}_k$ \eqref{eq: smooth-ess} rather than the raw weighted
-$\ESS$; $r_{\mathrm{floor}}$ is annealed alongside the cap; and the ladder is longer ($K = 11$
-versus $4$ and $5$), its smaller per-step jumps keeping each per-stage $\ESS$ high. All three raise the
-per-stage $\ESS$ entering $F^{*}$, and none applied to the lighter targets.
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/adp_60d/ess_history.png}
-    \caption{Alanine dipeptide per-stage $\ESS$ history: each panel is the per-step effective sample size
-    during that stage's X-regularized $\delta$-reweighted flow training (red), against the identity-map
-    baseline at $t = 0$ (blue dashed). Below each panel is that stage's accepted validation $\ESS$ with the
-    sharpening $\ESS$ in parentheses. The dip across $t \approx 0.29$--$0.43$ is the clash bottleneck, with
-    $\ESS$ recovering to $\approx 0.8$ once the cap is sharp enough to separate the basins.}
-    \label{fig: adp-ess}
-\end{figure}
-
-The instability is localized to a clash bottleneck near $t \approx 0.3$--$0.43$. The stages spanning
-$t \approx 0.29$--$0.43$ (soft cap $e_{\mathrm{cap}} \approx 129$--$143$ kJ/mol) are where the nonbonded core first bites: the run
-minimum validation $\ESS$ sits here, and these are the only stages that shrink
-the step or retry heavily. Below
-$t \approx 0.3$ the torsions dominate and the flow trains in a single attempt. Above $t \approx 0.5$ the
-cap is sharp enough that the basins separate cleanly and $\ESS$ recovers to ${\approx}0.8$. The binding
-constraint for alanine dipeptide is the clash singularity, not the multimodality. This is the qualitative difference from the
-$d \Le 48$ molecules, and the reason the three devices of Section~\ref{sec: mol-engineering} (particle drop,
-best $\ESS$ gate snapshots, $r$-floor anneal), inert on glycerol and diethanolamine, were necessary here.
-
-The per-stage $\ESS$ history (Figure~\ref{fig: adp-ess}) exposes two coupled instabilities that the best $\ESS$
-gate works around but does not cure. First, the within-stage $\ESS$ is \emph{non-monotone and unstable}: it
-can rise, plateau, then drop abruptly (the collapse late in the $t = 0.65$ stage and the volatility at
-$t = 1$ are the clearest cases), so the last training step is often far below the best. Second, near the clash bottleneck ($t \approx 0.3$--$0.5$) several flows \emph{degenerate
-toward the identity map}: the best achievable $\ESS$ barely exceeds the $t = 0$ identity baseline, i.e.\ training fails to improve on
-doing nothing. Both follow from the \emph{singularity of the potential}: the Lennard-Jones
-$r \to 0$ divergence leaves the soft-capped target ill-conditioned where the nonbonded core first
-bites, so the gradient signal that would pull the flow off identity is weakest there. We report this as a
-known limitation; remedies (stronger or adaptive regularization annealing, parameterizations tailored
-to the repulsive wall) are left to future work.
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=\textwidth]{figures/Molecular_BG/adp_60d/dihedrals.png}
-    \caption{Alanine dipeptide torsion marginals of the BG deliverable (red) against a converged
-    annealed SMC reference (grey). The four most multimodal proper
-    torsions are shown; the densities are $\pm\phi$-symmetrised, the achiral target having $p(\phi) = p(-\phi)$.
-    The BG recovers the multimodal backbone torsions and tracks the reference; the peptide-bond torsion $\omega$ (C-C-N-C) is
-    trans-dominant in the generator, the one torsion whose high rotation barrier also makes the uniform-init annealed SMC
-    reference slow to converge.}
-    \label{fig: adp-dihedrals}
-\end{figure}
-
-Alanine dipeptide's backbone $\phi,\psi$ are multi-basin (Figure~\ref{fig: adp-dihedrals}). A second, alanine-dipeptide-specific feature
-is chirality: the classical force field is mirror-symmetric (every term in \eqref{eq: amber} is invariant
-under reflection), so the L- and D-forms are isoenergetic, and the internal-coordinate flow, carrying no
-chirality constraint, emits \emph{both} where a physical trajectory would stay in one. In the Ramachandran (Figure~\ref{fig: adp-rama}) this appears as the $(\phi,\psi)\!\to\!(-\phi,-\psi)$ point symmetry, the D-basins mirroring the L-basins, each populated.
-
-\begin{figure}[htb]
-    \centering
-    \includegraphics[width=0.92\linewidth]{figures/Molecular_BG/adp_60d/ramachandran.png}
-    \caption{Alanine dipeptide Ramachandran ($\phi,\psi$), shared log-density scale: the BG deliverable
-    (right) against the annealed SMC reference (left). Red dots mark the maximum-probability conformer of
-    each enantiomer (L at $\phi<0,\psi>0$; D at $\phi>0,\psi<0$). Both panels populate the same backbone basins
-    with the $(\phi,\psi)\!\to\!(-\phi,-\psi)$ point symmetry: the achiral vacuum force field makes the L- and
-    D-enantiomers isoenergetic, and the generator, carrying no chirality constraint, samples both.}
-    \label{fig: adp-rama}
-\end{figure}
-
-The X-regularized BG closes the full internal-coordinate alanine dipeptide target to $t = 1$ in $11$ stages,
-recovering the multimodal backbone torsions against a converged annealed SMC reference and emitting both
-chiral forms of the mirror-symmetric target. The lesson from the lighter $d \Le 48$ molecules is
-inverted: alanine dipeptide's difficulty is not its combinatorial torsion multimodality but its nonbonded clash core,
-concentrated in the $t \approx 0.3$--$0.43$ stages, which the particle drop,
-best $\ESS$ gate snapshots, and $r$-floor anneal together make tractable. Across all three molecules the
-pattern is consistent: the sharpening split makes the singular target trainable at all, and the
-X-regularized flow then earns a ${\sim}30$--$40\times$ reduction in importance-weight waste where the landscape is
-multimodal but clash-mild, narrowing to ${\sim}2\times$ where the singularity dominates.
-
-\subsection{Limitations}
+\subsection{Current status and limitations}
 \label{sec: mol-limitations}
 
-Four simplifications bound the molecular experiments, each a direction for future work. First, the
-targets are evaluated in vacuum: $U_{\mathrm{FF}}$ is the isolated-molecule Amber potential \eqref{eq: amber} with no solvent
-and no nonbonded cutoff. Solvation only reshapes $U_{\mathrm{FF}}$, not the sampler, and the vacuum targets already
-display the well-separated potential wells the generator must discover and resolve; implicit or explicit
-solvent and larger peptides are left untreated. Second, the internal-coordinate generator carries no chirality
-constraint, so for the achiral Amber force field it samples both the L- and D-enantiomers
-(Section~\ref{sec: adp}), whereas a physical trajectory stays in one; isolating a single enantiomer by a filter
-or restraint is left to future work. Third, we do not benchmark against FAB
-\citep{midgley2022flow}: its large per-step batches and replay buffer make a like-for-like comparison under the
-same compute budget as these forward KL-type losses prohibitive, so the natural same-cost baselines here are
-the bare forward KL and the identity-flow annealed SMC. Fourth, on the alanine dipeptide clash core the
-per-stage flow training is unstable and can degenerate toward the identity map
-(Section~\ref{sec: adp}); the best $\ESS$ gate works around this but does not cure it, and a regularization or
-parameterization that conditions the repulsive wall remains open.
+The pure-JAX/OpenMM parity tests, mixed-domain flow, MALA, SMC/AIS, checkpointing, and the three frozen bundles pass their bounded smoke tests. Those checks establish implementation consistency and compilation, not sampling quality. The methane and ethane soft-potential runs and the glycerol cutoff scan answer narrower engineering questions: whether the differentiated energy is finite, whether the mixed-domain kernels compile, and whether a proposed softened landscape retains visible torsional modes. They do not establish equilibrium basin weights. The propane sequence, the matched small-molecule references, and all three production Boltzmann generators remain incomplete. No molecular ESS, ladder factor, or distributional comparison is therefore included in the result claims of this paper revision.
 
-
-
-% ===================== Section 7: Conclusions + Acknowledgement (verbatim) =====================
+Three limitations define the remaining work. First, the softened starting potential must preserve joint basin weights, not merely one-dimensional torsion marginals. The present glycerol scan shows why: two chains can agree in the plotted marginals and still disagree in their joint rotamer population. Second, alanine dipeptide has a published L-only reference, whereas glycerol and diethanolamine still require independently mixed ensembles under their exact, matched implicit-solvent Hamiltonians. A reference generated under a vacuum model or a different generalized-Born variant would answer a different question. Third, the final comparison must reach the exact potential with unclipped importance weights and must select trained stages over identity on held-out validation particles. Until those gates pass, the molecular section fixes a reproducible target and protocol but deliberately reports \texttt{[pending to run]} for the learned-sampler panels.
+% ===================== Section 7: Conclusions + Acknowledgement =====================
 \section{Conclusions}
 \label{sec: conclusions}
 
@@ -1153,21 +882,23 @@ Forward KL training of a normalizing flow Boltzmann generator usually trains wel
 \item We propose the log-ratio variation, a family of X functionals. They augment the forward KL by penalizing the pairwise variation of $\log(\mu/\nu)$ under a non-negative weight. One forward pass of the flow computes them. The shape term costs little beyond a plain forward KL step; the mixture adds one sampling batch.
 \item One regularizer takes three roles through its weight. $\X_\mu$ controls the shape of the log-ratio and stabilizes training. $\X_{\hat\mu}$ drives mode discovery, drawing the flow toward a wide-coverage measure that quench and temper prepares before training. $\X_{\bar\nu}$ suppresses leakage.
 \item The balanced loss $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ combines the three roles in one objective. It folds mode discovery and leakage suppression into a single pairwise integral. It serves as a default and needs little tuning. A Fisher--Rao analysis shows the forward KL still decays along the $\X_\mu$-regularized flow. Under a bound on the regularization strength, the $\X_\mu$ term can lower the accuracy floor that biased AIS samples leave behind. The forward KL is sensitive to these samples early in training, so the X-regularized losses help most when the training batch is small. The loss applies across smooth benchmarks, a high-dimensional multi-well, and lattice field theories, where it tends to discover modes and sharpen accuracy.
-\item We build an adaptive-temperature Boltzmann generator on the loss. It grows its ladder from the SMC effective sample size. On molecular potentials, a sharpening reweight pulls each stage toward the physical potential. In our experiments it tends to improve per-stage quality and reduce importance-weight waste over annealing alone. Gains are smaller where a singular clash core, not multimodality, is the difficulty.
+\item We build an adaptive-temperature Boltzmann generator on the loss. It grows its ladder from the SMC effective sample size and compares the trained proposal with identity on the complete validation set at every stage. On schedule-matched clock ladders, the balanced loss improves validation ESS on $36$ of $37$ levels and reduces the cumulative propagation factor at every tested batch size. For molecules, we additionally fix an implicit-solvent Hamiltonian, an exact mixed Euclidean--periodic coordinate measure, and the intended stereochemical support. The molecular production results remain pending and are not included in the empirical claims of this revision.
 \end{itemize}
 
-Several directions invite further study. First, a comparison with FAB \citep{midgley2022flow}, and a possible combination with it, would weigh our quench against its replay buffer; the same comparison extends to other AIS-based flow samplers. Second, the training instability at the singular clash core calls for a remedy that conditions the repulsive wall, since the present best $\ESS$ gate works around the instability rather than curing it. Third, larger and solvated systems are a natural target, where the potential reshapes but the sampler need not change. Finally, a JAX implementation in place of the present PyTorch one would speed up training and inference.
+Several directions invite further study. First, the three fixed molecular benchmarks must be completed against their matched references before comparing with FAB \citep{midgley2022flow}; such a comparison would weigh our quench-and-temper coverage source against FAB's replay buffer. Second, the regularized molecular starting target must preserve joint basin weights while admitting a reliable continuation to the exact potential. Third, larger molecules and explicit solvent require a richer Hamiltonian and reference ensemble, while leaving the mixed-domain sampler unchanged. Finally, the single-run clock comparison should be extended to independent training seeds to quantify its run-to-run variation.
 
 
 \section*{Acknowledgement}
 
-The normalizing flows are built on the Python packages \texttt{zflows} and \texttt{zflows\_md}, written by the author Xuda Ye and installable through Anaconda. The source code reproducing all numerical experiments is openly available. Both are listed below:
+The normalizing flows are built on the JAX packages \texttt{jflows} and \texttt{jflows\_md}, written by the author Xuda Ye. The experiment sources and the two package repositories are available at:
 \begin{tcolorbox}[colback=gray!12,boxrule=0pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt]
-\texttt{conda install xudaye::zflows xudaye::zflows\_md}\\[3pt]
-\url{https://github.com/xuda-ye-math/X-regularization}
+\url{https://github.com/xuda-ye-math/X-regularization}\\
+\url{https://github.com/xuda-ye-math/jflows}\\
+\url{https://github.com/xuda-ye-math/jflows_md}
 \end{tcolorbox}
 \noindent
-Numerical tests run on an NVIDIA RTX 5070\,Ti GPU with $16$\,GB of VRAM.
+The numerical tests run on one NVIDIA GeForce RTX 5090 GPU with
+$32$\,GB of VRAM.
 
 \clearpage
 \appendix
@@ -1311,7 +1042,7 @@ The uniform convergence rate \eqref{eq: appendix-KL-exponential} should \emph{no
 
 A naive comparison of dissipation rates between $\KL$-only and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: while the pure KL FR gradient is local in $x$, the rank field $S_t$ is global, so the regularized flow \eqref{eq: appendix-FR-L-flow} couples the update at $x$ to the entire distribution of importance weights under $\mu$. This nonlocal coupling amplifies the birth rate on undercovered regions of $\mu$ and suppresses it on overcovered ones, a global comparison that pure forward KL, which knows only whether $\mu(x)/\nu_t(x)$ exceeds or falls below $1$ pointwise, cannot produce.
 
-Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a population statement, while each gradient step sees an estimate from a finite, generally biased target surrogate. Small batches are the primary regime for which the regularizer was designed. On the difficult staged clock target, however, $\KL{+}\X_\mu{+}\X_{(\hat\mu+\bar\nu)/2}$ retains an aggregate advantage across $B=125$--$2000$, including a $2.8$-fold smaller propagation factor at $B=2000$. This does not imply uniform dominance: at $B=125$, the final four stages favor the bare forward KL.
+Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a population statement, while each gradient step sees an estimate from a finite, generally biased target surrogate. Small batches are the primary regime for which the regularizer was designed. The staged clock experiment tests this finite-batch regime with a schedule-matched comparison: its quantitative claims use the saved full-validation per-level ESS values, not a composed endpoint estimate or a training-minibatch diagnostic.
 
 \begin{remark}[Monotone decay of $\X_\mu$]
 The regularizer $\X_\mu$ also decreases monotonically along the regularized flow: pairing the variation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: appendix-var-X} against the flow \eqref{eq: appendix-FR-L-flow} gives

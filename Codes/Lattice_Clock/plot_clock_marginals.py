@@ -46,6 +46,7 @@ BINS = 241
 CHUNK_SIZE = 160000     # one compiled shape for the staged rebuild
 BLOCK = 200000          # histogram accumulation block (memory control)
 L = 8
+SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
 
 
 def log(msg: str) -> None:
@@ -76,9 +77,12 @@ def staged_rebuild() -> np.ndarray:
     from potential import Clock
 
     with np.load(DATA, allow_pickle=False) as data:
+        if "schedule_contract" not in data.files or \
+                str(data["schedule_contract"]) != SCHEDULE_CONTRACT:
+            raise ValueError("incompatible KLXX schedule contract")
         D, P = int(data["L"]) ** 2, int(data["P"])
         mc_dt, mc_steps = float(data["mc_dt"]), int(data["mc_steps"])
-        t_list = [float(t) for t in data["t_list"]]
+        t_hist = [float(t) for t in data["t_hist"]]
         lattice_size = int(data["L"])
         coupling = float(data["J"])
         anisotropy = float(data["H"])
@@ -87,15 +91,15 @@ def staged_rebuild() -> np.ndarray:
     u1 = Clock(lattice_size, P, coupling, anisotropy)
     like = [NCSF(jax.random.key(0), a=[-nsf_lim] * D, b=[nsf_lim] * D,
                  bins=16, transforms=6, hidden_features=(256, 256)).zeros()
-            for _ in range(len(t_list))]
+            for _ in range(len(t_hist))]
     flows = eqx.tree_deserialise_leaves(FLOWS, like)
-    assert len(flows) == len(t_list)
+    assert len(flows) == len(t_hist)
 
     key = jax.random.key(REBUILD_SEED)
     y = u0.samples(jax.random.fold_in(key, 0), N_REBUILD)
     t_prev = 0.0
     t0 = time.time()
-    for k, (flow, t_k) in enumerate(zip(flows, t_list), start=1):
+    for k, (flow, t_k) in enumerate(zip(flows, t_hist), start=1):
         u_prev = linear_combination([u1, u0], [t_prev, 1.0 - t_prev])
         u_k = linear_combination([u1, u0], [t_k, 1.0 - t_k])
         key_k = jax.random.fold_in(key, k)
@@ -131,7 +135,7 @@ def staged_rebuild() -> np.ndarray:
         y = jnp.concatenate(rejuv)
         y = jax.block_until_ready(y)
         del rejuv
-        log(f"rebuild stage {k}/{len(t_list)} (t={t_k:.4f}) done "
+        log(f"rebuild stage {k}/{len(t_hist)} (t={t_k:.4f}) done "
             f"[{time.time() - t0:.0f}s]")
         t_prev = t_k
     return np.asarray(y, dtype=np.float32)

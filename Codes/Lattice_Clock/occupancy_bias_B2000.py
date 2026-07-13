@@ -16,16 +16,22 @@ Memory control: one compiled chunk shape (160k) for every heavy op, eager
 per-chunk loops with prompt frees, sector statistics on host, and a full
 buffer + compile-cache release between the two methods.
 
-Writes its temporary raw data below ``artifacts/occupancy_bias_B2000`` and the
-final Markdown/CSV tables below ``results/``. The figure is rendered
-separately from the saved raw NPZ.
+The production workload is split by method so no single GPU process exceeds
+two hours. Each method writes a temporary raw archive below
+``artifacts/occupancy_bias_B2000``; a zero-GPU merge produces the combined raw
+NPZ and final Markdown/CSV tables below ``results/``. The figure is rendered
+separately from the merged raw NPZ.
 Reads ``artifacts/{kl,klxx}_B2000/data.npz`` (schedule + config) and the
 corresponding ``flows.eqx`` files.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
     PYTHONPATH=/mnt/projects/jflows python \
-        Codes/Lattice_Clock/occupancy_bias_B2000.py [--smoke]
+        Codes/Lattice_Clock/occupancy_bias_B2000.py --method kl
+    PYTHONPATH=/mnt/projects/jflows python \
+        Codes/Lattice_Clock/occupancy_bias_B2000.py --method klxx
+    PYTHONPATH=/mnt/projects/jflows python \
+        Codes/Lattice_Clock/occupancy_bias_B2000.py --merge
 """
 
 import argparse
@@ -57,16 +63,23 @@ METHOD_LABEL = {
     "klxx": r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$",
 }
 METHOD_COLOR = {"kl": "tab:blue", "klxx": "tab:purple"}
+SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
 
 # physics + MC config from the paired B=2000 artifacts
 with np.load(ARTIFACTS / "klxx_B2000" / "data.npz", allow_pickle=False) as _ref:
+    if "schedule_contract" not in _ref.files or \
+            str(_ref["schedule_contract"]) != SCHEDULE_CONTRACT:
+        raise ValueError("B=2000 klxx artifact has an incompatible schedule contract")
     L, D, P = int(_ref["L"]), int(_ref["D"]), int(_ref["P"])
     J, H = float(_ref["J"]), float(_ref["H"])
     MC_DT, MC_STEPS = float(_ref["mc_dt"]), int(_ref["mc_steps"])
-    _t_list_ref = np.asarray(_ref["t_list"])
+    _t_hist_ref = np.asarray(_ref["t_hist"])
 with np.load(ARTIFACTS / "kl_B2000" / "data.npz", allow_pickle=False) as _kl:
-    if not np.array_equal(np.asarray(_kl["t_list"]), _t_list_ref):
-        raise ValueError("B=2000 kl and klxx artifacts use different t_list values")
+    if "schedule_contract" not in _kl.files or \
+            str(_kl["schedule_contract"]) != SCHEDULE_CONTRACT:
+        raise ValueError("B=2000 kl artifact has an incompatible schedule contract")
+    if not np.array_equal(np.asarray(_kl["t_hist"]), _t_hist_ref):
+        raise ValueError("B=2000 kl and klxx artifacts use different t_hist values")
 
 # flow architecture from train.py
 NSF_LIM = math.pi
@@ -98,22 +111,22 @@ def _inv_ladj(flow, x):
 
 
 def load_run(method: str):
-    """(t_list, stage flows) of the trained B=2000 run of ``method``."""
+    """(accepted t_hist, stage flows) of the trained B=2000 run."""
     run_dir = ARTIFACTS / f"{method}_B2000"
     with np.load(run_dir / "data.npz", allow_pickle=False) as data:
         assert (int(data["L"]), int(data["P"]), float(data["J"]), float(data["H"]),
                 float(data["mc_dt"]), int(data["mc_steps"])) == \
                (L, P, J, H, MC_DT, MC_STEPS), f"{method}: config mismatch"
-        t_list = [float(t) for t in data["t_list"]]
+        t_hist = [float(t) for t in data["t_hist"]]
     like = [NCSF(jax.random.key(0), a=[-NSF_LIM] * D, b=[NSF_LIM] * D,
                  bins=BINS, transforms=TRANSFORMS,
                  hidden_features=HIDDEN_FEATURES).zeros()
-            for _ in range(len(t_list))]
+            for _ in range(len(t_hist))]
     flows = eqx.tree_deserialise_leaves(run_dir / "flows.eqx", like)
-    assert len(flows) == len(t_list), (
-        f"{method}: {len(flows)} flows != {len(t_list)} levels"
+    assert len(flows) == len(t_hist), (
+        f"{method}: {len(flows)} flows != {len(t_hist)} levels"
     )
-    return t_list, flows
+    return t_hist, flows
 
 
 def sector_bias(y: np.ndarray):
@@ -124,7 +137,7 @@ def sector_bias(y: np.ndarray):
     return float(np.abs(p - 1.0 / P).sum() / P), p.tolist()
 
 
-def staged_sample(n: int, G: int, seed: int, t_list, flows) -> np.ndarray:
+def staged_sample(n: int, G: int, seed: int, t_hist, flows) -> np.ndarray:
     """G INDEPENDENT tests of n particles each, stacked into one [G*n, D]
     GPU pass. Map + Langevin act per particle (block-agnostic); the
     reweight/RESAMPLE is done PER TEST BLOCK, so the G tests are exactly
@@ -133,7 +146,7 @@ def staged_sample(n: int, G: int, seed: int, t_list, flows) -> np.ndarray:
     key = jax.random.key(seed)
     y = u0.samples(jax.random.fold_in(key, 0), total)
     t_prev = 0.0
-    for k, (flow, t_k) in enumerate(zip(flows, t_list), start=1):
+    for k, (flow, t_k) in enumerate(zip(flows, t_hist), start=1):
         u_prev = linear_combination([u1, u0], [t_prev, 1.0 - t_prev])
         u_k = linear_combination([u1, u0], [t_k, 1.0 - t_k])
         key_k = jax.random.fold_in(key, k)
@@ -189,10 +202,10 @@ def staged_sample(n: int, G: int, seed: int, t_list, flows) -> np.ndarray:
 def scaling_rows(method: str, raw: dict) -> list[dict]:
     """The full N-scaling test of one method's staged sampler. Every
     per-test bias and sector histogram lands in `raw` (saved to npz)."""
-    t_list, flows = load_run(method)
-    log(f"--- {method}: t_list={[f'{t:.4f}' for t in t_list]} "
-        f"({len(t_list)} stages) ---")
-    raw[f"t_list_{method}"] = np.asarray(t_list, dtype=np.float64)
+    t_hist, flows = load_run(method)
+    log(f"--- {method}: t_hist={[f'{t:.4f}' for t in t_hist]} "
+        f"({len(t_hist)} stages) ---")
+    raw[f"t_hist_{method}"] = np.asarray(t_hist, dtype=np.float64)
     rows = []
     for k in KS:
         n, reps = N_BASE * 2 ** k, REPS[k]
@@ -203,7 +216,7 @@ def scaling_rows(method: str, raw: dict) -> list[dict]:
         for grp in range(reps // G):
             t1 = time.perf_counter()
             y_np = staged_sample(n, G, seed=10000 * k + grp + 1,
-                                 t_list=t_list, flows=flows)
+                                 t_hist=t_hist, flows=flows)
             dt = time.perf_counter() - t1
             for b in range(G):
                 err, p = sector_bias(y_np[b * n:(b + 1) * n])
@@ -229,11 +242,111 @@ def scaling_rows(method: str, raw: dict) -> list[dict]:
     return rows
 
 
+def rows_from_raw(method: str, raw: dict) -> list[dict]:
+    """Reconstruct summary rows from one method's saved per-test arrays."""
+    n_base = int(raw["N_BASE"])
+    ks = [int(k) for k in raw["ks"]]
+    reps_by_k = {
+        k: int(reps) for k, reps in zip(ks, np.asarray(raw["reps"]))
+    }
+    rows = []
+    for k in ks:
+        errs = np.asarray(raw[f"bias_{method}_k{k}"], dtype=np.float64)
+        reps = reps_by_k[k]
+        if errs.shape != (reps,):
+            raise ValueError(
+                f"{method} k={k}: {errs.shape} bias array, expected {(reps,)}"
+            )
+        rows.append(
+            dict(
+                method=method,
+                k=k,
+                N=n_base * 2 ** k,
+                reps=reps,
+                bias=float(errs.mean()),
+                sem=(
+                    float(errs.std(ddof=1) / np.sqrt(reps))
+                    if reps > 1 else float("nan")
+                ),
+            )
+        )
+    return rows
+
+
+def write_summary(raw: dict, rows: dict[str, list[dict]], suffix: str) -> None:
+    """Write the merged raw archive and final human/machine summaries."""
+    data_out = ANALYSIS / f"data{suffix}.npz"
+    csv_out = RESULTS / f"occupancy_bias_B2000{suffix}.csv"
+    md_out = RESULTS / f"occupancy_bias_B2000{suffix}.md"
+    existing = [path for path in (data_out, csv_out, md_out) if path.exists()]
+    if existing:
+        raise FileExistsError(f"refusing to overwrite occupancy outputs: {existing}")
+
+    np.savez_compressed(data_out, **raw)
+    log(f"raw per-test data saved: {data_out} ({len(raw)} arrays)")
+
+    import csv
+    with open(csv_out, "w", newline="") as f:
+        w = csv.DictWriter(
+            f, fieldnames=["method", "k", "N", "reps", "bias", "sem"]
+        )
+        w.writeheader()
+        for method in METHODS:
+            w.writerows(rows[method])
+
+    slopes = {}
+    with open(md_out, "w") as f:
+        f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
+                "sampler, B=2000, kl and klxx)\n\nerr = (1/6) sum_s "
+                "|p_s - 1/6|; equal total work per row (10000*256 "
+                "particles); 2^(8-k) independent tests at N=10000*2^k.\n")
+        for method in METHODS:
+            r = rows[method]
+            ratios = [r[i]["bias"] / r[i + 1]["bias"]
+                      for i in range(len(r) - 1)]
+            slopes[method] = np.polyfit(
+                np.log([x["N"] for x in r]),
+                np.log([x["bias"] for x in r]), 1,
+            )[0]
+            f.write(f"\n## {method}\n\n")
+            f.write("| | " + " | ".join(
+                f"N=1e4*2^{x['k']}" for x in r) + " |\n")
+            f.write("|---|" + "---|" * len(r) + "\n")
+            f.write("| mean occupancy bias | "
+                    + " | ".join(f"{x['bias']:.5f}" for x in r) + " |\n")
+            f.write("| sem (over tests) | "
+                    + " | ".join(f"{x['sem']:.5f}" for x in r) + " |\n")
+            f.write("| tests | " + " | ".join(str(x["reps"]) for x in r)
+                    + " |\n\n")
+            f.write("Adjacent-row ratios (N^(-1/2) predicts sqrt(2)=1.41): "
+                    f"{['%.2f' % x for x in ratios]}\n")
+            f.write(f"\nLog-log slope of bias vs N: {slopes[method]:.3f} "
+                    f"(Monte Carlo rate = -0.5)\n")
+
+    log("##### OCC-BIAS-B2000 MERGED "
+        + " ".join(
+            f"{method}: biases={['%.5f' % x['bias'] for x in rows[method]]} "
+            f"slope={slopes[method]:.3f}" for method in METHODS
+        ) + " #####")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
+    group = ap.add_mutually_exclusive_group()
+    group.add_argument(
+        "--method", choices=METHODS,
+        help="run one production method; run both methods separately, then --merge",
+    )
+    group.add_argument(
+        "--merge", action="store_true",
+        help="merge the two completed method archives without GPU work",
+    )
     ap.add_argument("--smoke", action="store_true",
                     help="tiny sanity run: N_BASE=2000, k in {0,1}, 2/1 reps")
     args = ap.parse_args()
+
+    if not args.smoke and args.method is None and not args.merge:
+        ap.error("production runs require --method kl, --method klxx, then --merge")
 
     global N_BASE, KS, REPS
     suffix = "_smoke" if args.smoke else ""
@@ -242,66 +355,53 @@ def main() -> None:
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(parents=True, exist_ok=True)
-    data_out = ANALYSIS / f"data{suffix}.npz"
-    csv_out = RESULTS / f"occupancy_bias_B2000{suffix}.csv"
-    md_out = RESULTS / f"occupancy_bias_B2000{suffix}.md"
-    existing = [path for path in (data_out, csv_out, md_out) if path.exists()]
-    if existing:
-        raise FileExistsError(f"refusing to overwrite occupancy outputs: {existing}")
     open(STATUS, "a").close()
+
+    if args.merge:
+        raw = {}
+        for method in METHODS:
+            part = ANALYSIS / f"data{suffix}_{method}.npz"
+            with np.load(part, allow_pickle=False) as data:
+                current = dict(data)
+            for key in ("N_BASE", "ks", "reps"):
+                if key in raw and not np.array_equal(raw[key], current[key]):
+                    raise ValueError(f"{part}: incompatible {key}")
+                raw[key] = current[key]
+            for key, value in current.items():
+                if key not in {"N_BASE", "ks", "reps"}:
+                    if key in raw:
+                        raise ValueError(f"{part}: duplicate key {key}")
+                    raw[key] = value
+        rows = {method: rows_from_raw(method, raw) for method in METHODS}
+        write_summary(raw, rows, suffix)
+        return
+
+    methods = (args.method,) if args.method is not None else METHODS
+    part_suffix = f"{suffix}_{args.method}" if args.method is not None else suffix
+    data_out = ANALYSIS / f"data{part_suffix}.npz"
+    if data_out.exists():
+        raise FileExistsError(f"refusing to overwrite occupancy output: {data_out}")
+
     log(f"##### OCC-BIAS-B2000 START | jax {jax.__version__} | "
         f"backend {jax.default_backend()} | L={L} D={D} P={P} J={J} H={H} | "
-        f"MC={MC_DT}x{MC_STEPS} (MALA) | methods={METHODS} "
+        f"MC={MC_DT}x{MC_STEPS} (MALA) | methods={methods} "
         f"N_BASE={N_BASE} ks={KS} reps={REPS} chunk={CHUNK_SIZE} #####")
-
     t0 = time.perf_counter()
     raw = {
         "N_BASE": N_BASE,
         "ks": np.asarray(KS),
         "reps": np.asarray([REPS[k] for k in KS]),
     }
-    rows = {m: scaling_rows(m, raw) for m in METHODS}
-
-    # ---- raw per-test data (figure + stats re-renderable without rerun) ----
+    rows = {method: scaling_rows(method, raw) for method in methods}
     np.savez_compressed(data_out, **raw)
-    log(f"raw per-test data saved: {data_out} "
-        f"({len(raw)} arrays)")
+    log(f"raw method data saved: {data_out} ({len(raw)} arrays)")
 
-    # ---- table ----
-    import csv
-    with open(csv_out, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["method", "k", "N", "reps", "bias", "sem"])
-        w.writeheader()
-        for m in METHODS:
-            w.writerows(rows[m])
-    slopes = {}
-    with open(md_out, "w") as f:
-        f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
-                "sampler, B=2000, kl and klxx)\n\nerr = (1/6) sum_s "
-                "|p_s - 1/6|; equal total work per row (10000*256 "
-                "particles); 2^(8-k) independent tests at N=10000*2^k.\n")
-        for m in METHODS:
-            r = rows[m]
-            ratios = [r[i]["bias"] / r[i + 1]["bias"] for i in range(len(r) - 1)]
-            slopes[m] = np.polyfit(np.log([x["N"] for x in r]),
-                                   np.log([x["bias"] for x in r]), 1)[0]
-            f.write(f"\n## {m}\n\n")
-            f.write("| | " + " | ".join(f"N=1e4*2^{x['k']}" for x in r) + " |\n")
-            f.write("|---|" + "---|" * len(r) + "\n")
-            f.write("| mean occupancy bias | "
-                    + " | ".join(f"{x['bias']:.5f}" for x in r) + " |\n")
-            f.write("| sem (over tests) | "
-                    + " | ".join(f"{x['sem']:.5f}" for x in r) + " |\n")
-            f.write("| tests | " + " | ".join(str(x["reps"]) for x in r)
-                    + " |\n\n")
-            f.write(f"Adjacent-row ratios (N^(-1/2) predicts sqrt(2)=1.41): "
-                    f"{['%.2f' % x for x in ratios]}\n")
-            f.write(f"\nLog-log slope of bias vs N: {slopes[m]:.3f} "
-                    f"(Monte Carlo rate = -0.5)\n")
+    if args.method is not None:
+        log(f"##### OCC-BIAS-B2000 {args.method} DONE "
+            f"wall={time.perf_counter() - t0:.0f}s #####")
+        return
 
-    log(f"##### OCC-BIAS-B2000 DONE wall={time.perf_counter() - t0:.0f}s "
-        + " ".join(f"{m}: biases={['%.5f' % x['bias'] for x in rows[m]]} "
-                   f"slope={slopes[m]:.3f}" for m in METHODS) + " #####")
+    write_summary(raw, rows, suffix)
 
 
 if __name__ == "__main__":
