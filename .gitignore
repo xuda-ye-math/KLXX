@@ -4,6 +4,10 @@ Molecular_BG/training_diagnostics/candidates/
 Molecular_BG/training_diagnostics/runs/
 !.gitignore
 
+# Generated experiment artifacts are local/mirror-only. Keep final,
+# publication-ready outputs under results/ eligible for version control.
+**/artifacts/
+
 # Data / model checkpoints and large arrays (any subfolder) -- published as
 # GitHub release assets instead (tag data-L8-sweep); restore with:
 #   gh release download data-L8-sweep -D Clock_Lattice/
