@@ -1,15 +1,19 @@
 # Project status
 
-Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
+Last updated: 2026-07-14T13:30:37-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/mnt/projects/X-regularization`, branch `main`, at
-  `7522a64ef66ceb216b8b3e1bd381ed059c514f43` (`Ignore generated experiment
-  artifacts`), tracking the identical `origin/main` before this status-only
-  edit. The locked numerical outputs are unchanged. Large NPZ/HDF5/EQX/log
-  payloads remain excluded from Git but recovery-critical in the ext4 mirror;
-  ignored bytecode and LaTeX caches are disposable.
+  `c8c574fd97eb7e0f3ba1da05e702df4f766e8490` (`Complete methane and ethane
+  c50 benchmarks`), tracking the identical `origin/main` before this diary
+  edit. The worktree now has 11 modified, 19 deleted, and 110 untracked paths:
+  the active changes are confined to Molecular_BG diagnostics/results, the
+  new local `Molecular_BG_zflows/` control workspace, plus this status record.
+  The locked `Codes/` numerical outputs are unchanged.
+  Large NPZ/HDF5/EQX/log payloads remain excluded from Git but
+  recovery-critical in the ext4 mirror; ignored bytecode and LaTeX caches are
+  disposable.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -32,7 +36,11 @@ Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
   path remains. Stable `smc` and `ais` short names remain intentional current
   API. The full isolated GPU smoke suite passes after this cleanup. This state
   is pushed at `2d015e16b4b0cad8e90df09e7da690480af40a94` (`Simplify molecular
-  bundles and artifacts`).
+  bundles and artifacts`). The live `jflows_md` worktree now has five
+  uncommitted modified files implementing the pending full-validation-pool
+  mode and the molecular per-attempt identity reset described below; its
+  focused controller regression passes, but the complete smoke suite and
+  production c50 rerun are still pending.
 - **Done — fresh source-only `Codes/` rewrite:** `Codes/` now contains exactly
   20 Python source files and no historical figures, tables, arrays, logs,
   checkpoints, cache directories, manifests, hashes, provenance controllers,
@@ -86,11 +94,32 @@ Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
   adaptive runs reached `t=1` using only full-validation ESS for stage
   acceptance. Their independent single-precision OpenMM references and all
   saved floating arrays are float32. No molecular process is running.
-- **Pending — higher-dimensional Molecular_BG:** propane, glycerol, ADP, and
-  diethanolamine remain open. Validation ESS degradation and the increasingly
-  singular physical target remain unresolved beyond ethane. A controlled
-  sharpening schedule has not been tested; no higher-dimensional result is
-  promoted by this checkpoint.
+- **Diagnostic complete — identity-reset n-butane c20/c50 comparison:** full
+  implicit-solvent 36D forward-KL and KLXX runs reached `t=1` at both caps.
+  The reset removed the catastrophic stage-2 geometry/energy blow-up. Bare KL
+  learned nontrivial maps at levels 1 and 3 and selected identity at most later
+  levels. KLXX learned only level 1; every later attempt reported zero applied
+  optimizer updates and was numerically identical to the identity fallback.
+  At c20, KL finished in eight levels with ESS
+  `0.421/0.432/0.382/0.365/0.327/0.382/0.338/0.834`; KLXX finished in eight
+  levels with ESS `0.518/0.429/0.353/0.374/0.351/0.391/0.323/0.818`.
+  Lowering c50 to c20 therefore did not repair the post-level-1 KLXX update
+  failure. These are diagnostics, not promoted molecular benchmarks.
+- **Control complete — historical glycerol 36D vacuum KLXX:** the standalone
+  PyTorch `zflows_md` control reached `t=1` in five accepted sharpening levels
+  at `t=0.1/0.24/0.436/0.828/1.0`. Full-600000-sample validation ESS is
+  `0.7162/0.5541/0.6157/0.4940/0.9049`; every level stores a nonempty trained
+  flow state. The first three levels were replayed from the early-stop
+  checkpoint with ESS close to the originals before levels 4–5 were trained.
+  The final checkpoint reports `complete=True`, and no molecular process is
+  running.
+- **Pending — higher-dimensional JAX Molecular_BG:** implicit-solvent
+  glycerol, ADP, and diethanolamine remain open. Propane/n-butane diagnostics
+  and the successful PyTorch vacuum control have not yet established whether
+  OBC1 solvent, potential tails, or a remaining `jflows_md` logic difference
+  causes the JAX difficulty. The vacuum Hamiltonian is now a validated fallback
+  for a term-by-term JAX port; no implicit-solvent result is promoted by this
+  checkpoint.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -100,6 +129,14 @@ Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
   `ambertools-unofficial` 26.0.0 command-line toolchain. `pip check`
   is clean; JAX selects `cuda:0`; and OpenMM's Reference, CPU, CUDA, and
   OpenCL installation tests agree within tolerance.
+- **Active old-framework control environment:** `/home/xuda/.envs/zflows` is a
+  separate pip-only Python 3.14.6 environment. It intentionally contains no
+  installed `zflows`, `zflows_md`, `jflows`, or `jflows_md`; local tests use
+  `PYTHONPATH=/mnt/projects/X-regularization/Molecular_BG_zflows`. Its
+  dependency stack includes PyTorch 2.12.1+cu130 (matching the extant archived
+  Conda environment's PyTorch release), Triton 3.7.1, OpenMM/OpenMM-CUDA-13
+  8.5.2, ParmEd 4.3.1, and the scientific/figure stack. `pip check` passes and
+  PyTorch sees the RTX 5090 through CUDA 13.0.
 - Neither `jflows` nor `jflows_md` is installed in the local environment.
   Imports are intentionally absent without `PYTHONPATH`, while explicit roots
   resolve to the current repositories. Public readers may use editable pip
@@ -296,8 +333,51 @@ Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
   The active alkane drivers, OpenMM references, saved samples, ESS histories,
   energies, and flow parameters use float32. Offline diagnostic recomputation
   is separate from training.
+- **🚨 DANGER — fourth severe accident: molecular bridge attempts omitted the
+  required identity reset:** archived `zflows_md` executes `flow.zeros()`
+  immediately before every KL/KLXX stage attempt, but the current molecular
+  companion instead passed the last accepted incremental flow into the next
+  bridge. In the 36D n-butane c50 KL diagnosis, that reused map already gave
+  stage-2 validation ESS `1/400000` before the first optimizer update and
+  collapsed a terminal H--H separation to `0.00414 nm`; both implicit-solvent
+  and vacuum controls reproduced the failure. `jflows_md` now rebinds
+  `attempt_flow = flow.zeros()` for every stage and retry, with that exact map
+  also serving as the identity ESS fallback. A focused two-level/retry
+  regression proves every trainer entry sees identity and passes on `cuda:0`.
+  Full c50 and c20 n-butane KL/KLXX diagnostics now complete the repair check:
+  the pre-update collision collapse is gone, while the independent post-level-1
+  KLXX zero-update problem remains open.
+- **Scope warning for locked `Codes/`:** every current and dated experiment
+  driver constructs its initial NSF/NCSF with `.zeros()`. The 2D, HD Product,
+  and Phi4 studies then make one direct trainer call per independently created
+  flow. Lattice Clock is the sole multilevel BG use; its generic `jflows`
+  controller starts level 1 from identity but warm-starts later incremental
+  levels. The molecular repair does not modify frozen `jflows` or locked
+  `Codes/`. Whether generic per-level warm starts should also be replaced must
+  be decided by a separate paper/algorithm audit before any package edit or
+  numerical rerun.
 
 ## Pending
+
+- **Pending — diagnose post-level-1 molecular KLXX updates:** n-butane c20 and
+  c50 prove that cap strength does not explain the all-rejected optimizer path.
+  Identify which KLXX loss/gradient component becomes nonfinite before treating
+  a numerically identity stage as learned.
+- **Active controlled old-framework comparison:** the standalone historical
+  PyTorch package, Amber assets, smoke suite, and glycerol driver now live only
+  under `Molecular_BG_zflows/`. The byte-identical legacy vacuum driver differs
+  from the archived configuration only by `max_stages=3` (explicit
+  `max_retry=8` equals its old fallback). Its first full attempt reproduced
+  stage-1 SMC ESS `0.831` but PyTorch 2.13's compiled inverse OOMed before the
+  first optimizer step at about 30.1 GiB. The environment was aligned to the
+  archived PyTorch 2.12.1 release; a second attempt was deliberately stopped
+  before training when the user required smoke tests first. Run the copied
+  smoke suite, then the three-stage vacuum control, then an otherwise identical
+  OBC1/ACE potential control. Do not overwrite the archived package/results.
+- **Decision needed — generic `jflows` multilevel initialization:** audit the
+  paper algorithm and the locked Lattice Clock controller before deciding
+  whether its later levels should remain warm-started or begin from exact
+  identity. No change or rerun is authorized by the molecular-only fix.
 
 - **Pending — remaining private molecular API rewrite:** the shared
   `Molecular_BG/alkane_bg.py` and the methane/ethane entry points now use the
@@ -881,3 +961,89 @@ Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
 - Stopped at ethane as instructed. Propane and all higher-dimensional molecule
   tests remain pending because validation ESS degradation and potential
   singularity are unresolved. A sharpening schedule has not been tested.
+
+### 2026-07-14T09:14:00-04:00 — 🚨 Molecular identity-reset omission found and repaired
+
+- Compared pure forward KL only against `/mnt/projects/zflows_md_backup`.
+  Archived molecular KL resets the incremental flow to exact identity before
+  every stage and retry; live `jflows_md` had instead reused the preceding
+  accepted increment. The saved stage-2 probe proves the resulting collapse
+  existed before optimization, so learning rate and optimizer batch size did
+  not create it.
+- Restored `attempt_flow = flow.zeros()` in the molecular controller and made
+  the same exact identity the validation fallback. Replaced the warm-start
+  smoke assertion with two-level and retry assertions that every attempt sees
+  zero parameters. The isolated focused controller smoke passed with exit code
+  zero using the live pip-only CUDA environment.
+- Audited `Codes/` without rerunning it. All flows start from `.zeros()`, but
+  Lattice Clock alone uses a multilevel generic `jflows` driver whose later
+  levels are warm-started. Frozen `jflows` and the locked numerical results
+  were not modified. The full implicit-solvent n-butane c50 KL rerun is the
+  next verification step.
+
+### 2026-07-14T11:53:29-04:00 — n-butane cap controls completed; old PyTorch control isolated
+
+- Completed full implicit-solvent n-butane c50 and c20 runs for both bare KL
+  and KLXX after restoring per-attempt identity initialization. All four
+  ladders reached `t=1`, and none reproduced the former pre-update collision
+  collapse. Bare KL learned selected nonidentity maps only at levels 1 and 3;
+  KLXX learned level 1 but applied zero optimizer updates at every later level.
+  The c20 softening did not resolve that KLXX-specific defect.
+- Created `Molecular_BG_zflows/` as a standalone local copy of the historical
+  PyTorch `zflows_md` package, Amber inputs, tests, documentation, and glycerol
+  driver. Neither the dedicated pip-only environment nor the copied package
+  imports or installs `zflows`, `jflows`, or `jflows_md`; runtime resolution is
+  explicit through the local workspace `PYTHONPATH`.
+- Two independent read-only audits confirmed the copied source and driver are
+  byte-identical to the archived package. The early-stop vacuum configuration
+  changes only `max_stages` to 3; explicit `max_retry=8` equals the old default.
+  Vacuum `NoCutoff`, `r_floor=0.1`, geometric cap sharpening 100 to 200 kJ/mol,
+  and delta-QT at 0.1 retain their original semantics. The auditors also noted
+  that the historical driver is not literally config-only: method/raw/delta
+  mode are CLI controls and 300 K/whitening-MD/compile choices are hardcoded.
+  Preserve exact legacy behavior for the baseline rather than silently
+  rewriting those controls.
+- The first full-size launch reproduced the archived stage-1 SMC ESS `0.831`
+  but PyTorch 2.13 exhausted 31.39 GiB while compiling the 12000-sample inverse
+  before optimizer step 1. The new pip-only environment was aligned to PyTorch
+  2.12.1+cu130, the exact release in the extant archived environment. A second
+  launch was interrupted before training when the user required the package's
+  smoke tests to pass first. No old result was overwritten and no control
+  result has yet been claimed.
+
+### 2026-07-14T13:30:37-04:00 — 🛟 Full vacuum control completed; solvent difficulty remains under test
+
+- The historical glycerol 36D vacuum KLXX+delta-QT sharpening control reached
+  `t=1` in five accepted levels. At `t=0.1/0.24/0.436/0.828/1.0`, SMC ESS is
+  `0.8287/0.7896/0.8523/0.8479/0.9897`, full-600000-sample validation ESS is
+  `0.7162/0.5541/0.6157/0.4940/0.9049`, and sharpening ESS is
+  `0.9998/0.9761/0.6524/0.9730/1.0000`. The initial `t=0.3` second-level
+  attempt missed the independent full-set gate, then the prescribed shrink to
+  `t=0.24` passed; all other accepted levels used one attempt.
+- The existing `zflows_md` resume algorithm replayed the first three saved
+  levels over a fresh source population before continuing. Replay ESS
+  `0.704/0.535/0.605` closely matches stored ESS `0.716/0.554/0.616`, providing
+  a direct checkpoint/coordinate-chart consistency audit. The resume segment
+  then trained levels 4–5, checkpointed after each, and exited normally with
+  `complete=True` in 1,312 recorded seconds (2,738 seconds for the initial
+  three-level segment). The read-back-verified 143,225,887-byte checkpoint,
+  full 545,786-byte log, and config live in
+  `Molecular_BG_zflows/Molecular_BG/glycerol_36d/`; every stage contains a
+  nonempty flow state and no training process remains.
+- Keep a deliberate route of retreat: if OBC1 implicit solvent proves to be the
+  source of the extreme molecular-tail difficulty, reproduce the successful
+  historical vacuum Hamiltonian, coordinate chart, cap sharpening, and KLXX
+  logic in `jflows_md` and establish the JAX vacuum result first. There is no
+  scientific reason to accept an intrinsically weaker JAX result when the old
+  PyTorch logic can be ported and checked term by term.
+- The preferred investigation remains to determine whether implicit solvent is
+  the causal difficulty. FAB/OBC1 parity and the correct implicit-solvent
+  glycerol comparison therefore remain future work, not silently abandoned;
+  the vacuum path is a validated fallback and diagnostic control rather than a
+  replacement claim.
+- Treat the molecular rewrite as an engineering and experimental campaign, not
+  an impossible benchmark. Stable and accurate performance may require careful
+  controller reconciliation, potential/gradient parity checks, larger pools,
+  sharpening schedules, and GPU-day-scale tuning. The project has viable exits
+  and should remain active until those controlled comparisons identify the
+  limiting factor.

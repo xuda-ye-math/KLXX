@@ -1,0 +1,1489 @@
+# pyright: reportOperatorIssue=false
+from __future__ import annotations
+
+import torch
+import numpy as np
+from .flow import ComposedTransform
+from .potential import Potential, linear_combination
+
+
+# ──────────────────────────────────────────────────────────────────────
+# ESS / CESS — effective sample size diagnostics
+# ──────────────────────────────────────────────────────────────────────
+
+def compute_ESS(weights: torch.Tensor) -> torch.Tensor:
+    """
+    Compute the Effective Sample Size (ESS) of samples with given
+    weights. The ESS lies in [0, 1] by Cauchy's inequality.
+    Input:
+        weights: Tensor [N]   (non-negative, not required to be normalized)
+    Output:
+        ESS: Tensor (scalar in [0, 1])
+    """
+    N = weights.shape[0]
+    return weights.sum() ** 2 / (N * (weights ** 2).sum())
+
+# ---------------------------------------------------------------------------
+# Opt-in robust ESS metrics (default "raw" = identity; set ONCE per run via
+# set_ess_metric, read by compute_ESS_log -> all call sites unchanged).
+#   "smooth": tanh-saturate the log-weights (MAD-scaled) so a soft-core-CAPPED
+#             clash tail can't dominate -- threshold-free, no tail assumption.
+#   "psis":   Pareto-smoothed IS (Vehtari et al.) -- GPD-fit the upper tail,
+#             replace it with smoothed order statistics; exposes k-hat
+#             (get_ess_khat) as a heavy-tail reliability flag (<0.7 trustworthy).
+# Both return an ESS on the SAME [0,1] scale (close to 1 = good).
+# ---------------------------------------------------------------------------
+_ESS_METRIC = {"mode": "raw", "c": 2.5, "last_khat": float("nan")}
+
+def set_ess_metric(mode: str = "raw", c: float = 2.5):
+    """Select the ESS estimator used by compute_ESS_log for the whole run."""
+    assert mode in ("raw", "smooth", "psis"), mode
+    _ESS_METRIC["mode"] = mode; _ESS_METRIC["c"] = float(c); _ESS_METRIC["last_khat"] = float("nan")
+
+def get_ess_khat() -> float:
+    """k-hat from the most recent PSIS call (nan for raw/smooth)."""
+    return _ESS_METRIC["last_khat"]
+
+def _smooth_logw(log_weights: torch.Tensor, c: float = 2.5) -> torch.Tensor:
+    """Smooth-ESS transform: saturate log-weights about their median with a MAD-scaled tanh."""
+    m = log_weights.median()
+    s = (c * (log_weights - m).abs().median()).clamp_min(1e-6)
+    return m + s * torch.tanh((log_weights - m) / s)
+
+def _gpdfit(x: np.ndarray):
+    """Empirical-Bayes generalized-Pareto fit (Zhang & Stephens 2009; arviz convention).
+    x: 1-D, sorted ascending, strictly positive (tail exceedances). Returns (k_hat, sigma)."""
+    n = x.shape[0]; prior_bs, prior_k = 3.0, 10.0
+    m = 30 + int(n ** 0.5)
+    bs = 1.0 - np.sqrt(m / (np.arange(1, m + 1) - 0.5))
+    bs = bs / (prior_bs * x[int(n / 4 + 0.5) - 1]) + 1.0 / x[-1]
+    ks = np.mean(np.log1p(-bs[:, None] * x[None, :]), axis=1)
+    L = n * (np.log(-bs / ks) - ks - 1.0)
+    w = np.exp(L - L.max())                                  # stable softmax (logsumexp trick) -> no overflow
+    w = w / w.sum()
+    b = np.sum(bs * w)
+    k = float(np.mean(np.log1p(-b * x)))
+    sigma = (-k / b) if b != 0 else float("nan")
+    k = (k * n + prior_k * 0.5) / (n + prior_k)
+    return k, sigma
+
+def _gpinv(p: np.ndarray, k: float, sigma: float) -> np.ndarray:
+    """Generalized-Pareto inverse CDF (quantiles)."""
+    if not np.isfinite(sigma) or sigma <= 0:
+        return np.zeros_like(p)
+    x = (-np.log1p(-p)) if abs(k) < 1e-8 else (np.expm1(-k * np.log1p(-p)) / k)
+    return x * sigma
+
+def _psis_logw(log_weights: torch.Tensor):
+    """Pareto-smoothed log-weights + k-hat. Falls back to raw (khat nan) if N too small / fit fails."""
+    lw_t = log_weights
+    lw = lw_t.detach().cpu().numpy().astype(np.float64)
+    n = lw.shape[0]
+    m = min(int(0.2 * n), int(3.0 * n ** 0.5))
+    if n < 50 or m < 5:
+        return lw_t, float("nan")
+    shift = lw.max()
+    lws = lw - shift                                          # <= 0 (exp-safe)
+    order = np.argsort(lws)
+    cutoff = lws[order[n - m - 1]]                            # log-threshold below the tail
+    tail_idx = order[n - m:]                                  # m largest (ascending)
+    excd = np.exp(cutoff)
+    tail = np.clip(np.exp(lws[tail_idx]) - excd, 1e-300, None)   # weight-space exceedances
+    if not np.all(np.isfinite(tail)):
+        return lw_t, float("nan")
+    try:
+        k, sigma = _gpdfit(tail)
+    except Exception:
+        return lw_t, float("nan")
+    if not np.isfinite(sigma) or sigma <= 0:
+        return lw_t, float("nan")            # fit degenerate -> no smoothing applied -> no reliable k-hat
+    sti = (np.arange(1, m + 1) - 0.5) / m
+    q = _gpinv(sti, k, sigma) + excd                         # smoothed tail (weight space, shifted)
+    out = lws.copy()
+    out[tail_idx] = np.minimum(np.log(np.clip(q, 1e-300, None)), 0.0)   # cap at the max (=0 shifted)
+    return torch.as_tensor(out + shift, dtype=lw_t.dtype, device=lw_t.device), float(k)
+
+
+def compute_ESS_log(log_weights: torch.Tensor, drop: float = 0.0) -> torch.Tensor:
+    """
+    Compute the Effective Sample Size (ESS) from log-weights, using
+    logsumexp for numerical stability. The ESS lies in [0, 1] by
+    Cauchy's inequality.
+
+        log(ESS) = 2 * logsumexp(log_w) - log(N) - logsumexp(2 * log_w)
+
+    Input:
+        log_weights: Tensor [N]   unnormalized log-weights
+    Output:
+        ESS: Tensor (scalar in [0, 1])
+    """
+    if drop > 0.0:                                       # discard the `drop` fraction with the LARGEST weights
+        k = int(drop * log_weights.shape[0])            # (the dominators that tank ESS); drop=0 -> unchanged
+        if k > 0:
+            log_weights = torch.topk(log_weights, log_weights.shape[0] - k, largest=False).values
+    _m = _ESS_METRIC["mode"]                                 # opt-in robust metric (default "raw" = unchanged)
+    if _m == "smooth":
+        log_weights = _smooth_logw(log_weights, _ESS_METRIC["c"])
+    elif _m == "psis":
+        log_weights, _ESS_METRIC["last_khat"] = _psis_logw(log_weights)
+    N = log_weights.shape[0]
+    log_num = 2 * torch.logsumexp(log_weights, dim=0)
+    log_den = torch.logsumexp(2 * log_weights, dim=0) + torch.log(torch.tensor(N, dtype=log_weights.dtype, device=log_weights.device))
+    return (log_num - log_den).exp()
+
+def compute_CESS(source_weights: torch.Tensor, importance_weights: torch.Tensor):
+    """
+    Compute the Conditional Effective Sample Size (CESS) with given
+    importance sampling weights applied on source distribution.
+    The CESS lies in [0,1] by Cauchy's inequality.
+    Input:
+        source_weights:     Tensor [N]   (non-negative, not required to be normalized)
+        importance_weights: Tensor [N]   (non-negative)
+    Output:
+        CESS: Tensor (scalar in [0, 1])
+    """
+    assert source_weights.shape == importance_weights.shape
+    source_weights = source_weights / source_weights.sum()
+    w1 = importance_weights * source_weights
+    w2 = importance_weights * w1
+    return w1.sum() ** 2 / w2.sum()
+
+def compute_CESS_log(source_weights: torch.Tensor, log_importance_weights: torch.Tensor):
+    """
+    Compute the Conditional Effective Sample Size (CESS) where the
+    importance weights are given in log-space (source_weights stays in
+    linear space). Uses logsumexp for numerical stability.
+
+        log(CESS) = 2 * logsumexp(log_s + log_iw) - logsumexp(log_s + 2 * log_iw)
+
+    where log_s_i = log(source_weights_i / sum(source_weights)).
+
+    Input:
+        source_weights:         Tensor [N]   (non-negative, not required to be normalized)
+        log_importance_weights: Tensor [N]   unnormalized log importance weights
+    Output:
+        CESS: Tensor (scalar in [0, 1])
+    """
+    assert source_weights.shape == log_importance_weights.shape
+    log_s = source_weights.log() - torch.logsumexp(source_weights.log(), dim=0)
+    log_w1 = log_s + log_importance_weights
+    log_w2 = log_s + 2 * log_importance_weights
+    return (2 * torch.logsumexp(log_w1, dim=0) - torch.logsumexp(log_w2, dim=0)).exp()
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Importance weights — log/linear-space SMC reweighting
+# ──────────────────────────────────────────────────────────────────────
+
+def importance_weights_log_F(samples: torch.Tensor, source: Potential, target: Potential, F: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, chunk: int = 1) -> torch.Tensor:
+    """
+    Self-normalized importance-sampling log-weights for the proposal
+    `nu = F_# mu_0` against the target `mu_1`, where the source and
+    target are the tempered Gibbs distributions
+        mu_0(x) ~ exp(-beta_source * source(x)),
+        mu_1(y) ~ exp(-beta_target * target(y)),
+    and `F` is the trained FORWARD bijection (source -> target) that pushes
+    source samples toward the target.
+
+    For x drawn from the (beta_source-tempered) source, y = F(x), the
+    proposal density is
+        log nu(y) = -beta_source * source(x) - log|det J_F(x)|.
+    The unnormalized log-importance-weight is therefore
+        log w(y) = log mu_1(y) - log nu(y)
+                 = -beta_target * target(y) + beta_source * source(x)
+                   + log|det J_F(x)|,
+    using `Potential` energies U = -log mu (up to additive constants
+    that cancel after self-normalization). Default
+    beta_source = beta_target = 1.0 recovers the standard case.
+
+    `importance_weights_log` is an alias for this forward-map variant; the
+    twin `importance_weights_log_G` is identical but takes the INVERSE map
+    `G = F^{-1}` (target -> source). If `F.enable_for_ladj()` has been called
+    on the transform, the compiled fused `(y, log|det J_F|)` map is used here;
+    otherwise the raw `F.call_and_ladj`. `source(x)` / `target(y)` go through
+    the regular forward call (no `enable_eval()` opt-in needed — not on the
+    per-iter MALA hot path).
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from `source`
+        source:      Potential          source (proposal-base) potential U_0
+        target:      Potential          target potential U_1
+        F:           ComposedTransform  forward flow map (e.g. flow.t()); uses
+                                        `F.for_ladj` if `F.enable_for_ladj()` was
+                                        called, else `F.call_and_ladj`.
+        beta_source: float              inverse temperature of the source
+                                        distribution (default 1.0).
+        beta_target: float              inverse temperature of the target
+                                        distribution (default 1.0). Pair this
+                                        with the same beta that was passed to
+                                        the loss / Langevin / HMC so the
+                                        weights match the tempered training
+                                        objective.
+        chunk:       int                split `samples` along dim 0 into this many
+                                        chunks and concatenate the per-chunk
+                                        log-weights. Reduces peak GPU memory at
+                                        the cost of wall time; statistically and
+                                        numerically equivalent to chunk=1 (each
+                                        sample's log-weight depends only on its
+                                        own (x, F(x))).
+    Output:
+        log_w: Tensor [N]   unnormalized log importance weights, ready
+                            to feed into compute_ESS_log / compute_CESS_log
+                            or to exponentiate (after subtracting max).
+    """
+    push = F.for_ladj if F._for_ladj_fn is not None else F.call_and_ladj
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        y, ladj = push(x) # y = F(x), ladj = log|det J_F(x)|
+        out.append(-beta_target * target(y) + beta_source * source(x) + ladj)
+    return torch.cat(out, dim=0)
+
+def importance_weights_log_G(samples: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, chunk: int = 1) -> torch.Tensor:
+    """
+    Inverse-map twin of `importance_weights_log_F`: the same self-normalized
+    IS log-weights for `nu = F_# mu_0` against `mu_1`, but the flow is supplied
+    as the INVERSE map `G = F^{-1}` (target -> source) rather than the forward
+    `F` (same convention as `reverse_KL_F`).
+
+    For x ~ source, the forward image is `y = F(x) = G^{-1}(x)`, recovered via
+    `G.inv.call_and_ladj(x) -> (y, log|det J_{G^-1}(x)|)` with
+        log|det J_{G^-1}(x)| = log|det J_F(x)|,
+    so the weight is identical to the `_F` variant:
+        log w(y) = -beta_target * target(y) + beta_source * source(x)
+                   + log|det J_F(x)|.
+    If `G.enable_inv_ladj()` has been called, the compiled fused map
+    (`G.inv_ladj == G.inv.call_and_ladj`) is used; otherwise the raw
+    `G.inv.call_and_ladj`.
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from `source`
+        source:      Potential          source (proposal-base) potential U_0
+        target:      Potential          target potential U_1
+        G:           ComposedTransform  inverse flow map target -> source
+                                        (G = F^{-1}, e.g. flow.t()); uses
+                                        `G.inv_ladj` if `G.enable_inv_ladj()` was
+                                        called, else `G.inv.call_and_ladj`.
+        beta_source: float              inverse temperature of the source (default 1.0).
+        beta_target: float              inverse temperature of the target (default 1.0).
+        chunk:       int                split `samples` along dim 0 into this many
+                                        chunks and concatenate the per-chunk
+                                        log-weights (statistically / numerically
+                                        equivalent to chunk=1).
+    Output:
+        log_w: Tensor [N]   unnormalized log importance weights.
+    """
+    push = G.inv_ladj if G._inv_ladj_fn is not None else G.inv.call_and_ladj
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        y, ladj = push(x) # y = G^{-1}(x) = F(x), ladj = log|det J_{G^-1}(x)| = log|det J_F(x)|
+        out.append(-beta_target * target(y) + beta_source * source(x) + ladj)
+    return torch.cat(out, dim=0)
+
+# alias: the forward-map variant is the default importance-weight log-routine
+importance_weights_log = importance_weights_log_F
+
+def importance_weights_F(samples: torch.Tensor, source: Potential, target: Potential, F: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, chunk: int = 1) -> torch.Tensor:
+    """
+    Linear-space self-normalized importance weights for the proposal
+    `nu = F_# mu_0` against the target `mu_1` (FORWARD-map variant). Thin
+    convenience wrapper around `importance_weights_log_F`: subtract the max
+    log-weight for numerical stability, then exponentiate.
+
+        w_i = exp(log_w_i - max_j log_w_j),   w in [0, 1].
+
+    The omitted factor `exp(max log_w)` is a sample-dependent scalar that
+    cancels in every *self-normalized* downstream use (ratios in compute_ESS,
+    draws from compute_ESS_log / resample, MC averages of bounded test
+    functions). Use this when the consumer expects plain non-negative weights
+    (e.g. `resample(samples, weights)`); use `importance_weights_log_F` +
+    `compute_ESS_log` / `compute_CESS_log` when log-space stability is required.
+
+    `importance_weights` is an alias for this; `importance_weights_G` is the
+    inverse-map (`G = F^{-1}`) twin. As with `importance_weights_log_F`, the
+    compiled `F.for_ladj` fast path is used when `F.enable_for_ladj()` was called.
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from `source`
+        source:      Potential          source (proposal-base) potential U_0
+        target:      Potential          target potential U_1
+        F:           ComposedTransform  forward flow map (e.g. flow.t())
+        beta_source: float              inverse temperature of the source (default 1.0).
+        beta_target: float              inverse temperature of the target (default 1.0).
+        chunk:       int                split `samples` along dim 0 into this many chunks.
+    Output:
+        w: Tensor [N]   unnormalized importance weights in [0, 1].
+    """
+    log_w = importance_weights_log_F(samples, source, target, F, beta_source=beta_source, beta_target=beta_target, chunk=chunk)
+    return (log_w - log_w.max()).exp()
+
+def importance_weights_G(samples: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, chunk: int = 1) -> torch.Tensor:
+    """
+    Inverse-map twin of `importance_weights_F`: linear-space self-normalized
+    importance weights with the flow supplied as the INVERSE map `G = F^{-1}`
+    (target -> source). Thin wrapper around `importance_weights_log_G`
+    (subtract max log-weight, exponentiate). Uses the compiled `G.inv_ladj`
+    fast path when `G.enable_inv_ladj()` was called.
+
+    Input: as `importance_weights_F`, but `G: ComposedTransform` is the inverse map.
+    Output:
+        w: Tensor [N]   unnormalized importance weights in [0, 1].
+    """
+    log_w = importance_weights_log_G(samples, source, target, G, beta_source=beta_source, beta_target=beta_target, chunk=chunk)
+    return (log_w - log_w.max()).exp()
+
+# alias: the forward-map variant is the default importance-weight routine
+importance_weights = importance_weights_F
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Resample — multinomial resampling with replacement
+# ──────────────────────────────────────────────────────────────────────
+
+def resample(samples: torch.Tensor, weights: torch.Tensor, N: int | None = None, drop: float = 0.0) -> torch.Tensor:
+    """
+    Multinomial resampling from weighted distribution with replacement
+    Input:
+        samples: Tensor [M, d]
+        weights: Tensor [M]   (non-negative, not required to be normalized)
+        N: number of independent samples to return; defaults to samples.shape[0]
+    Output:
+        resampled: Tensor [N, d]
+    """
+    if drop > 0.0:                                       # zero the `drop` fraction with the LARGEST weights so the
+        k = int(drop * weights.shape[0])                # dominating bad particles are not propagated; drop=0 -> unchanged
+        if k > 0:
+            weights = weights.clone()
+            weights[torch.topk(weights, k, largest=True).indices] = 0.0
+    if N is None:
+        N = samples.shape[0]
+    probs = weights / weights.sum()
+    idx = torch.multinomial(probs, N, replacement=True)
+    return samples[idx]
+
+
+# ──────────────────────────────────────────────────────────────────────
+# L-BFGS — batched mode finder / MAP refinement
+# ──────────────────────────────────────────────────────────────────────
+
+def lbfgs(samples: torch.Tensor, potential: Potential, step: float = 1.0, iters: int = 100, memory: int = 6, armijo: bool = False, chunk: int = 1) -> torch.Tensor:
+    """
+    Batched L-BFGS for mode-finding / MAP refinement on the target
+    exp(-U(x)). Every particle in `samples` carries its own (s, y)
+    history and they all step in lockstep through vectorised tensor
+    ops, so N=2000 particles optimise as cheaply as one (modulo
+    per-row arithmetic). Exposed in zflows.utils both as `lbfgs` and as
+    the `optimization` alias (which is the default mode-finder).
+
+    L-BFGS builds a rank-`memory` approximation of the inverse Hessian
+    from the last `memory` gradient differences, giving superlinear
+    convergence on smooth potentials. It typically reaches near-machine
+    precision in a few iterations per effective curvature direction,
+    well-conditioned or not -- contrast with Adam-style sign descent,
+    which is O(init_err / step) just to reach the basin.
+
+    Algorithm, per iteration:
+      1. Two-loop recursion: combine the current gradient g_k with the
+         stored pairs (s_i, y_i) = (x_{i+1} - x_i, g_{i+1} - g_i) to get
+         the search direction d_k = -H_k^{-1} g_k, where
+            H_0^k = gamma_k * I,
+            gamma_k = (s_last^T y_last) / (y_last^T y_last)   (= 1 when
+                                                                empty).
+      2. Update x_{k+1} = x_k + alpha_k * d_k. Two step-size policies:
+           - `armijo=False` (default): no line search, alpha_k = step
+             always. Newton-style update under the BFGS approximation.
+             Fast, but can overshoot in non-convex regions or on the
+             very first iteration (empty history, d = -g can be huge).
+           - `armijo=True`: per-particle masked Armijo backtracking.
+             Start with alpha = step, halve until each particle's
+             trial satisfies the Armijo sufficient-decrease condition
+                U(x + alpha * d) <= U(x) + C1 * alpha * (d . g),
+             where C1 = 1e-4. All particles run K_MAX = 6 trials in
+             lockstep through batched U evaluations; a per-particle
+             `done` mask freezes alpha as soon as Armijo is satisfied.
+             Particles that never satisfy Armijo within K_MAX trials
+             take the smallest tested step (very conservative fallback).
+             Cost per L-BFGS iter: 1 batched .grad() + K_MAX batched
+             .eval() calls. `armijo=True` therefore requires
+             `potential.enable_eval()`.
+      3. Evaluate g_{k+1} = grad U(x_{k+1}). Curvature pair (s, y) is
+         appended; if more than `memory` pairs are stored, the oldest
+         is dropped. Per particle, pairs that violate the BFGS
+         curvature condition s^T y > 0 are kept in the history but with
+         rho_i = 0, which makes the two-loop recursion ignore them.
+         This preserves full batch vectorisation (no per-particle
+         history-length divergence).
+
+    The `potential.grad` and `potential.eval` fast paths are compiled
+    with reduce-overhead, so their outputs are static buffers that get
+    overwritten on the next call. We `.clone()` after each grad call so
+    that the previous g survives long enough to form y = g_new - g_old,
+    and similarly for the cached U(x) value carried across iterations
+    when armijo=True. (Same hazard as `langevin`'s "consume gx before
+    potential.grad(y)" comment.)
+
+    Requires `potential.enable_grad()`; with `armijo=True`, also
+    requires `potential.enable_eval()`. Either missing -> RuntimeError.
+
+    Input:
+        samples:   Tensor [N, d]   initial particles
+        potential: Potential       target potential U; must support .grad(x)
+                                   (and .eval(x) when armijo=True)
+        step:      float           multiplier on the L-BFGS direction.
+                                   With armijo=False: fixed per-iter step.
+                                   With armijo=True: initial trial alpha
+                                   for the backtracking line search.
+                                   1.0 ~ pure Newton step; reduce
+                                   (e.g. 0.5, 0.1) for stiff problems.
+        iters:     int             number of L-BFGS iterations
+        memory:    int             curvature pairs (s, y) kept per
+                                   particle (Nocedal's `m`). Typical 3-20;
+                                   larger = better Hessian approximation
+                                   and more memory (N * d * 2 * memory floats).
+        armijo:    bool            if True, enable masked Armijo
+                                   backtracking line search. Adds K_MAX
+                                   compiled forward passes per iteration
+                                   but guarantees sufficient decrease of
+                                   U at every accepted step. Use it when
+                                   the line-search-free update is
+                                   unstable (first-iter blow-up, very
+                                   non-convex landscapes).
+        chunk:     int             split `samples` along dim 0 into this
+                                   many chunks and run sequentially.
+                                   Reduces peak GPU memory at the cost of
+                                   wall time; statistically equivalent to
+                                   chunk=1 (each particle's history is
+                                   independent, and there is no noise).
+    Output:
+        samples: Tensor [N, d]   particles after `iters` L-BFGS updates
+    """
+    if potential._grad_fn is None:
+        raise RuntimeError(
+            f"lbfgs() requires gradients on the potential; "
+            f"call {type(potential).__name__}.enable_grad() before passing it in."
+        )
+    if armijo and potential._eval_fn is None:
+        raise RuntimeError(
+            f"lbfgs(armijo=True) needs the compiled forward fast path; "
+            f"call {type(potential).__name__}.enable_eval() before passing it in."
+        )
+    C1, SHRINK, K_MAX = 1e-4, 0.5, 6
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        history: list[tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = []
+        # clone(): potential.grad / potential.eval use torch.compile
+        # reduce-overhead, so each call's output is a static buffer that
+        # the next call overwrites. Clone anything we need across calls.
+        g = potential.grad(x).clone()
+        U_x = potential.eval(x).clone() if armijo else None
+        for _ in range(iters):
+            # Two-loop recursion: r approximates H_k^{-1} g
+            q = g
+            alphas = []
+            for s_i, y_i, rho_i in reversed(history):
+                a_i = rho_i * (s_i * q).sum(dim=-1) # [N]
+                q = q - a_i.unsqueeze(-1) * y_i
+                alphas.append(a_i)
+            alphas.reverse() # chronological order
+            if history:
+                s_last, y_last, _ = history[-1]
+                gamma = (s_last * y_last).sum(dim=-1) / (y_last ** 2).sum(dim=-1).clamp(min=1e-10) # [N]
+            else:
+                gamma = x.new_ones(x.shape[0])
+            r = gamma.unsqueeze(-1) * q
+            for (s_i, y_i, rho_i), a_i in zip(history, alphas):
+                beta_i = rho_i * (y_i * r).sum(dim=-1)
+                r = r + (a_i - beta_i).unsqueeze(-1) * s_i
+            if armijo:
+                # Masked Armijo backtracking: per-particle alpha, all
+                # particles run K_MAX trials in lockstep.
+                d = -r # search direction
+                dg = (d * g).sum(dim=-1) # [N], < 0 for descent direction
+                alpha = x.new_full((x.shape[0],), step)
+                done = x.new_zeros(x.shape[0], dtype=torch.bool)
+                for _ in range(K_MAX):
+                    x_trial = x + alpha.unsqueeze(-1) * d
+                    U_trial = potential.eval(x_trial)
+                    ok = U_trial <= U_x + C1 * alpha * dg # [N] bool
+                    done = done | ok
+                    alpha = torch.where(done, alpha, alpha * SHRINK)
+                # After the loop, x_trial = x + alpha_final * d encodes
+                # "accepted alpha" for done particles (alpha was frozen
+                # at acceptance) and "smallest fallback alpha" otherwise.
+                x_new = x_trial
+                U_x_new = U_trial.clone() # carry to next iter as U_x
+            else:
+                x_new = x - step * r
+                U_x_new = None
+            g_new = potential.grad(x_new).clone() # clone for same static-buffer reason
+            # Store curvature pair; mask out particles that violate s^T y > 0
+            s_new = x_new - x
+            y_new = g_new - g
+            ys = (s_new * y_new).sum(dim=-1) # [N]
+            rho_new = torch.where(ys > 1e-10, 1.0 / ys, ys.new_zeros(ys.shape))
+            history.append((s_new, y_new, rho_new))
+            if len(history) > memory:
+                history.pop(0)
+            x, g = x_new, g_new
+            if armijo:
+                U_x = U_x_new
+        out.append(x)
+    return torch.cat(out, dim=0)
+
+
+# alias: L-BFGS is the default mode-finder / MAP-refinement routine in zflows
+optimization = lbfgs
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Langevin — overdamped Langevin / MALA / tamed variants
+# ──────────────────────────────────────────────────────────────────────
+
+def langevin(samples: torch.Tensor, potential: Potential, beta: float = 1.0, step: float = 1e-3, iters: int = 100, adjust: bool = False, taming: float = 0, chunk: int = 1) -> torch.Tensor:
+    """
+    Langevin dynamics targeting the tempered distribution exp(-beta * U(x)).
+
+    Proposal (Euler-Maruyama on the overdamped Langevin SDE
+    dtheta = -beta * grad U(theta) dt + sqrt(2) dB):
+        y = x - step * beta * grad U(x) + sqrt(2 * step) * xi,   xi ~ N(0, I_d).
+
+    When `taming > 0`, the raw drift beta * grad U(x) is replaced with the
+    tamed effective force
+        G(x) = beta * grad U(x) / (1 + taming * ||beta * grad U(x)||),
+    so that ||taming * G(x)|| <= 1. This stabilizes ULA on targets whose
+    |grad U| grows super-linearly (polynomial-tail energies), where plain
+    ULA can explode on outlier particles, and reduces to standard ULA in
+    the bulk (taming * ||beta * grad U|| << 1). Tamed drift is incompatible
+    with adjust=True, since the MH correction below assumes the Gaussian
+    proposal centred on x - step * beta * grad U(x).
+
+    With adjust=False (default), every proposal is accepted; this is the
+    unadjusted Langevin algorithm (ULA), which has an O(step) bias but
+    needs only one gradient call per iteration. With adjust=True, each
+    proposal is accepted via Metropolis-Hastings, giving the standard MALA
+    scheme whose stationary distribution is *exactly* exp(-beta * U)
+    (unbiased) at the cost of ~2x runtime (two gradient calls per iteration).
+
+    The MH acceptance probability is min(1, exp(log_alpha)) with
+        log_alpha = beta * (U(x) - U(y)) + log q(x|y) - log q(y|x),
+    where the proposal density is Gaussian:
+        log q(z|w) = -||z - w + step * beta * grad U(w)||^2 / (4 * step) + const.
+    Both the energy difference *and* the asymmetric-proposal correction are
+    needed; using only the energy term leaves a residual O(step) bias.
+
+    Requires `potential.enable_grad()` to have been called so that
+    `potential.grad(x)` is available; otherwise raises RuntimeError.
+    For the MALA branch (`adjust=True`), if `potential.enable_eval()` has
+    also been called, the U(y) / U(x) energy evaluations route through
+    the compiled `potential.eval(x)` fast path; otherwise they fall back
+    to the regular `potential(x)` call.
+
+    Input:
+        samples:   Tensor [N, d]   initial particles
+        potential: Potential       target potential U; must support .grad(x)
+        beta:      float           inverse temperature; the stationary
+                                   distribution is exp(-beta * U). Default
+                                   1.0 recovers the standard scheme.
+        step:      float           Euler-Maruyama step size
+        iters:     int             number of Langevin steps
+        adjust:    bool            if True, run MALA (unbiased); if False, run ULA
+        taming:    float           if > 0, use tamed drift
+                                   beta * grad U(x) / (1 + taming * ||beta * grad U(x)||).
+                                   Stabilizes ULA on super-linearly growing
+                                   potentials. Not compatible with adjust=True.
+        chunk:     int             split `samples` along dim 0 into this many
+                                   chunks and run the trajectories sequentially.
+                                   Reduces peak GPU memory at the cost of wall
+                                   time. Statistically equivalent to chunk=1
+                                   (each chunk uses its own independent noise);
+                                   set higher only if you hit OOM on the
+                                   whole batch.
+    Output:
+        samples: Tensor [N, d]   particles after `iters` Langevin updates
+    """
+    if potential._grad_fn is None:
+        raise RuntimeError(
+            f"langevin() requires gradients on the potential; "
+            f"call {type(potential).__name__}.enable_grad() before passing it in."
+        )
+    if adjust and taming > 0:
+        raise ValueError("langevin(): adjust=True and taming>0 are mutually exclusive.")
+    # MALA accept/reject needs U(x), U(y); use the compiled fast path if
+    # the user has opted in via .enable_eval(), else fall back to __call__.
+    U = potential.eval if potential._eval_fn is not None else potential
+    noise_scale = (2.0 * step) ** 0.5
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        for _ in range(iters):
+            fx = beta * potential.grad(x) # effective force beta * grad U(x)
+            drift = fx / (1 + taming * fx.norm(dim=-1, keepdim=True)) if taming > 0 else fx
+            y = x - step * drift + noise_scale * torch.randn_like(x)
+            if adjust:
+                # log q(z|w) = -||z - w + step * beta * grad U(w)||^2 / (4 * step) + const
+                # Consume fx (-> log_q_yx) BEFORE calling potential.grad(y)
+                log_q_yx = -((y - x + step * fx) ** 2).sum(dim=-1) / (4.0 * step) # log q(y|x)
+                fy = beta * potential.grad(y)
+                log_q_xy = -((x - y + step * fy) ** 2).sum(dim=-1) / (4.0 * step) # log q(x|y)
+                # Evaluate U(y) then U(x); the -U(y) allocates a fresh tensor
+                # before U(x) overwrites the CUDA-Graphs eval output buffer.
+                log_alpha = beta * (-U(y) + U(x)) + log_q_xy - log_q_yx # [N]
+                accept = torch.rand_like(log_alpha).log() < log_alpha # [N] bool
+                x = torch.where(accept.unsqueeze(-1), y, x)
+            else:
+                x = y
+        out.append(x)
+    return torch.cat(out, dim=0)
+
+# alias: in SMC literature, Langevin steps are the standard "rejuvenation" move
+rejuvenation = langevin
+
+def sequential_monte_carlo(samples: torch.Tensor, source: Potential, target: Potential, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> tuple[torch.Tensor, list[float]]:
+    """
+    Sequential Monte Carlo (annealed Langevin) that transports the input
+    particles from the source `mu_0 ~ exp(-beta_source * source)` to the target
+    `mu_1 ~ exp(-beta_target * target)` (both on the SAME space, no flow) through
+    a ladder of M = `ladder` linearly-interpolated bridge potentials, alternating
+    importance reweighting (with multinomial resampling) and Langevin
+    rejuvenation **on each bridge** at every rung.
+
+    The bridge at rung k is the linear combination
+        u_k(x) = (1 - k/M) * beta_source * source(x) + (k/M) * beta_target * target(x),
+        k = 0, ..., M,
+    so u_0 = beta_source * source (the distribution `samples` follow) and
+    u_M = beta_target * target. Built via `linear_combination([target, source],
+    [c_k * beta_target, (1 - c_k) * beta_source])` (c_k = k/M) and retuned in
+    place each rung with `set_coeffs`.
+
+    For each k = 1, ..., M, starting from particles x ~ exp(-u_{k-1}):
+      1. Incremental self-normalised importance weights from u_{k-1} to u_k:
+             log w(x) = u_{k-1}(x) - u_k(x)
+                      = (1/M) * (beta_source * source(x) - beta_target * target(x)),
+         exponentiated after subtracting the max for numerical stability.
+      2. Multinomial resampling of x by w.
+      3. Langevin (ULA) rejuvenation targeting exp(-u_k) -- i.e. ON THE BRIDGE
+         POTENTIAL u_k itself -- for `iters` steps.
+    After the final rung the particles approximate exp(-beta_target * target).
+
+    Contrast with `annealed_importance_sampling_F` / `_G`, which use a trained
+    flow as the proposal and rejuvenate only in the final target `mu_1`: here
+    there is no flow, the bridge is built directly in potential space, and
+    Langevin runs on each intermediate `u_k`.
+
+    Requires `source.enable_grad()` and `target.enable_grad()` so the combined
+    bridge `.grad(x)` closure routes into the children's compiled fast paths;
+    otherwise raises RuntimeError. The per-rung weight evaluates `source` /
+    `target` through their compiled `.eval(x)` fast path when `.enable_eval()`
+    has been called (same opt-in as `langevin` / `hmc`), else the plain `__call__`.
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from exp(-beta_source * source)
+        source:      Potential          source potential (must be enable_grad()'d)
+        target:      Potential          target potential (must be enable_grad()'d)
+        beta_source: float              inverse temperature of the source (default 1.0)
+        beta_target: float              inverse temperature of the target (default 1.0)
+        ladder:      int                number of annealing rungs M (>= 1). M=1 is a
+                                        single reweight + resample + Langevin hop
+                                        straight from source to target; larger M
+                                        bridges low-overlap source/target pairs.
+        step:        float              Langevin (ULA) step size, shared across rungs
+        iters:       int                Langevin steps per rung
+        chunk:       int                split along dim 0 into this many chunks inside
+                                        each Langevin call to bound peak VRAM
+                                        (statistically equivalent to chunk=1).
+    Output:
+        samples:     Tensor [N, d]      particles approximating exp(-beta_target * target).
+        ess:         list[float]        length-M list of the per-rung effective sample size
+                                        (in [0, 1]) of the incremental importance weights at
+                                        each of the M ladder steps, computed *before*
+                                        resampling -- a diagnostic of how well consecutive
+                                        bridges overlap (close to 1 = well-spaced ladder).
+    """
+    if source._grad_fn is None or target._grad_fn is None:
+        missing = type(source).__name__ if source._grad_fn is None else type(target).__name__
+        raise RuntimeError(
+            f"sequential_monte_carlo() runs Langevin on the bridge potentials, "
+            f"which needs gradients on both source and target; call "
+            f"{missing}.enable_grad() before passing it in."
+        )
+    M = ladder
+    # Energy reweighting uses the compiled `.eval` fast path when the potentials
+    # have it (same opt-in as langevin / hmc), else the raw __call__. Safe under
+    # reduce-overhead: each `beta * <eval>` allocates a fresh tensor before the
+    # next `.eval` overwrites its static buffer.
+    t_eval = target.eval if target._eval_fn is not None else target
+    s_eval = source.eval if source._eval_fn is not None else source
+    # The bridge u_k is built once and retuned per rung via set_coeffs (pure
+    # coefficient update; its combined `.grad` closure, linked at
+    # linear_combination.__init__, reads self.coeffs fresh on every call), then
+    # used as the Langevin rejuvenation target. Convention:
+    #   linear_combination([target, source], [c*beta_target, (1-c)*beta_source])
+    #   -> u_k = c*beta_target*target + (1-c)*beta_source*source, c = k/M in [0, 1].
+    u_curr = linear_combination([target, source])
+    x = samples
+    ess = [] # per-rung effective sample size of the incremental weights
+    for k in range(1, M + 1):
+        c_curr = k / M
+        u_curr.set_coeffs([c_curr * beta_target, (1.0 - c_curr) * beta_source]) # u_k
+        # (1) incremental IS weights from u_{k-1} to u_k on x ~ exp(-u_{k-1}). The
+        #     bridge difference u_{k-1}(x) - u_k(x) telescopes (for every k) to
+        #     (1/M)*(beta_source*source(x) - beta_target*target(x)), so it is read
+        #     straight off the potentials' `.eval` fast path.
+        with torch.no_grad():
+            log_w = (beta_source * s_eval(x) - beta_target * t_eval(x)) / M # = u_{k-1}(x) - u_k(x)
+            ess.append(compute_ESS_log(log_w).item()) # ESS of this rung's weights (pre-resample)
+            w = (log_w - log_w.max()).exp() # self-normalised, in [0, 1]
+        # (2) resample onto high-weight particles, then (3) Langevin-rejuvenate
+        #     ON the bridge u_k to obtain fresh samples ~ exp(-u_k).
+        x = resample(x, w)
+        x = langevin(x, u_curr, step=step, iters=iters, chunk=chunk)
+    return x, ess
+
+def annealed_importance_sampling_F(samples: torch.Tensor, source: Potential, target: Potential, F: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> torch.Tensor:
+    """
+    Annealed importance sampling (an SMC sampler) that uses a trained flow `F`
+    as the proposal. The source `mu_0 ~ exp(-beta_source * source)` and target
+    `mu_1 ~ exp(-beta_target * target)` live in the same space, and `F` has been
+    trained so that the pushforward `F_# mu_0 ~~ mu_1`. The input `samples` are
+    drawn from `mu_0`; the routine returns samples from `mu_1`.
+
+    `F` is the **forward** map (source -> target); `F(x)` pushes a source sample
+    forward and `F.inv(y)` recovers its latent pre-image. The twin
+    `annealed_importance_sampling_G` is identical but takes the **inverse** map
+    `G = F^{-1}` (target -> source) instead, swapping `F(x) <-> G.inv(x)` and
+    `F.inv(y) <-> G(y)` (same convention as `reverse_KL_F`).
+
+    Annealing follows the geometric path between the flow proposal and the
+    target,
+        pi_k(y) = mu_1(y) ** (k / M) * (F_# mu_0)(y) ** (1 - k / M),
+        k = 0, ..., M   (M = `ladder`),
+    so pi_0 = F_# mu_0 (the pushforward of the source) and pi_M = mu_1. The
+    pushforward density is the usual change-of-variables
+        (F_# mu_0)(y) = mu_0(x) / |det J_F(x)|,   x = F^{-1}(y),
+    so the full proposal -> target importance weight (cf. `importance_weights_log`)
+    is, for y with pre-image x = F^{-1}(y),
+        log w(y) = -beta_target * target(y) + beta_source * source(x)
+                   + log|det J_F(x)|,
+    and the incremental weight along the geometric path is exactly its 1/M-th:
+        log[pi_k(y) / pi_{k-1}(y)] = (1 / M) * log w(y).
+
+    Steps:
+      (0) y <- F(samples)                     # push source samples to pi_0 = F_# mu_0
+      (1) for k = 1, ..., M:
+            x      <- F^{-1}(y)                # refresh the latent pre-images
+            log w  <- (1 / M) * (-beta_target * target(y)
+                                 + beta_source * source(x)
+                                 + log|det J_F(x)|)
+            y      <- resample(y, softmax-free self-normalised w)
+            y      <- langevin(y, target, beta=beta_target, ...)   # rejuvenate in mu_1
+
+    No bridge potential / `linear_combination` is constructed: the weights are
+    computed directly from the raw `source` / `target` energies and the flow
+    Jacobian, exactly as in `importance_weights_log` but with x recovered from y
+    by `F.inv`. The Langevin rejuvenation targets `mu_1 = exp(-beta_target *
+    target)` **directly** rather than the exact intermediate `pi_k`: evaluating
+    / differentiating `log pi_k` would require the pushforward density of F
+    (hence F^{-1} and its Jacobian gradient), which is far more expensive, and
+    since the de-facto target is `mu_1` and the incremental weights already
+    follow the `pi_k` path, the `mu_1` kernel introduces no essential deviation.
+
+    Requires `target.enable_grad()` (the Langevin rejuvenation calls
+    `target.grad`); otherwise raises RuntimeError. `source` is only ever called
+    in the forward direction for the weights, so it needs no `enable_grad`. `F`
+    must support `F.inv` (the latent refresh) and `F.call_and_ladj`. The per-rung
+    energy reweighting routes `target` / `source` through their compiled
+    `.eval(x)` fast path when `.enable_eval()` has been called (same opt-in as
+    `langevin` / `hmc`), else the plain `__call__`.
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from mu_0 (source space)
+        source:      Potential          source potential U_0 = -log mu_0
+        target:      Potential          target potential U_1 = -log mu_1
+                                        (must be enable_grad()'d)
+        F:           ComposedTransform  trained forward flow map (e.g. flow.t()).
+                                        If `F.enable_for_ladj()` / `F.enable_inv_ladj()`
+                                        have been called, those compiled fused maps
+                                        are used (the inverse fast path replaces
+                                        `F.inv` + `F.call_and_ladj` with a single
+                                        pass); otherwise the raw transform is used.
+        beta_source: float              inverse temperature of the source (default 1.0)
+        beta_target: float              inverse temperature of the target (default
+                                        1.0); also the Langevin rejuvenation temperature
+        ladder:      int                number of annealing rungs M (>= 1). M=1 is a
+                                        single reweight + resample + Langevin hop
+                                        from the flow proposal to the target.
+        step:        float              Langevin (ULA) step size, shared across rungs
+        iters:       int                Langevin steps per rung
+        chunk:       int                split along dim 0 into this many chunks for
+                                        the pushforward / inverse / weight passes and
+                                        inside each Langevin call, to bound peak VRAM
+                                        (statistically equivalent to chunk=1).
+    Output:
+        samples:     Tensor [N, d]      particles in mu_1 (target space),
+                                        approximating exp(-beta_target * target).
+    """
+    if target._grad_fn is None:
+        raise RuntimeError(
+            f"annealed_importance_sampling_F() rejuvenates with Langevin on the "
+            f"target, which needs gradients; call "
+            f"{type(target).__name__}.enable_grad() before passing it in."
+        )
+    M = ladder
+    # If `F` has the compiled fused fast paths enabled (F.enable_for_ladj() /
+    # F.enable_inv_ladj()), use them:
+    #   for_ladj(x) == F.call_and_ladj(x)      -> (y, log|det J_F(x)|)
+    #   inv_ladj(y) == F.inv.call_and_ladj(y)  -> (x, log|det J_{F^-1}(y)| = -log|det J_F(x)|)
+    # the inverse fast path fuses the bisection + Jacobian into one pass (vs the
+    # raw `F.inv(y)` then `F.call_and_ladj(x)`). Otherwise use the raw transform.
+    for_ladj = F.for_ladj if F._for_ladj_fn is not None else None
+    inv_ladj = F.inv_ladj if F._inv_ladj_fn is not None else None
+    # Energy reweighting uses the compiled `.eval` fast path when the potentials
+    # have it (same opt-in as langevin / hmc), else the raw __call__. Safe under
+    # reduce-overhead: each `beta * <eval>` allocates a fresh tensor before the
+    # next `.eval` overwrites its static buffer.
+    t_eval = target.eval if target._eval_fn is not None else target
+    s_eval = source.eval if source._eval_fn is not None else source
+    # (0) push the source samples through F to obtain pi_0 = F_# mu_0.
+    with torch.no_grad():
+        push = for_ladj if for_ladj is not None else F.call_and_ladj
+        y = torch.cat([push(xc)[0] for xc in torch.chunk(samples, chunk, dim=0)], dim=0)
+    for _ in range(M):
+        # (1) incremental weights w(y) ** (1 / M). For each particle y, refresh
+        #     its latent pre-image x = F^{-1}(y) and reuse the
+        #     importance_weights_log rule
+        #         log w = -beta_target * target(y) + beta_source * source(x) + ladj(x),
+        #     where ladj(x) = log|det J_F(x)|; scale by 1/M for one geometric rung.
+        with torch.no_grad():
+            parts = []
+            for yc in torch.chunk(y, chunk, dim=0):
+                if inv_ladj is not None:
+                    xc, ladj_inv = inv_ladj(yc) # fused inverse + inverse Jacobian
+                    ladj = -ladj_inv # log|det J_F(x)| = -log|det J_{F^-1}(y)|
+                else:
+                    xc = F.inv(yc) # x = F^{-1}(y)
+                    _, ladj = F.call_and_ladj(xc) # ladj = log|det J_F(x)|
+                parts.append((-beta_target * t_eval(yc) + beta_source * s_eval(xc) + ladj) / M)
+            log_w = torch.cat(parts, dim=0)
+            w = (log_w - log_w.max()).exp() # self-normalised, in [0, 1]
+        # (2) resample onto high-weight particles, then rejuvenate in mu_1.
+        y = resample(y, w)
+        y = langevin(y, target, beta=beta_target, step=step, iters=iters, chunk=chunk)
+    return y
+
+def annealed_importance_sampling_G(samples: torch.Tensor, source: Potential, target: Potential, G: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> torch.Tensor:
+    """
+    Inverse-map twin of `annealed_importance_sampling_F`: identical flow-proposal
+    SMC, but the flow is supplied as the **inverse** map `G = F^{-1}` (target ->
+    source) rather than the forward `F` (source -> target). The proposal is still
+    `F_# mu_0 = (G^{-1})_# mu_0`, where `mu_0 ~ exp(-beta_source * source)` and
+    `mu_1 ~ exp(-beta_target * target)`. Input `samples` are drawn from `mu_0`;
+    the routine returns samples from `mu_1`.
+
+    The only difference from the `_F` variant is which direction of the flow each
+    call uses (same convention as `reverse_KL_F`):
+        F(x)      <-> G.inv(x)      (push a source sample forward to mu_1)
+        F^{-1}(y) <-> G(y)          (recover a target sample's latent pre-image)
+    and the Jacobian read off `G` is the inverse one,
+        log|det J_G(y)| = -log|det J_F(x)|,   x = G(y),
+    so the same proposal -> target importance weight
+        log w(y) = -beta_target * target(y) + beta_source * source(x)
+                   + log|det J_F(x)|
+                 = -beta_target * target(y) + beta_source * source(x)
+                   - log|det J_G(y)|
+    appears with a flipped Jacobian sign.
+
+    Steps:
+      (0) y <- G^{-1}(samples)                 # push source samples to pi_0 = F_# mu_0
+      (1) for k = 1, ..., M:
+            x      <- G(y)                       # latent pre-image (x = F^{-1}(y))
+            log w  <- (1 / M) * (-beta_target * target(y)
+                                 + beta_source * source(x)
+                                 - log|det J_G(y)|)
+            y      <- resample(y, self-normalised w)
+            y      <- langevin(y, target, beta=beta_target, ...)   # rejuvenate in mu_1
+
+    As in the `_F` variant, no bridge potential is built, rejuvenation targets
+    `mu_1` directly (not the exact intermediate `pi_k`), and only
+    `target.enable_grad()` is required (`source` is forward-only). `G` must
+    support `G.inv` (the forward push) and `G.call_and_ladj` (the latent refresh
+    + inverse Jacobian). The per-rung energy reweighting routes `target` /
+    `source` through their compiled `.eval(x)` fast path when `.enable_eval()`
+    has been called (else the plain `__call__`).
+
+    Input:
+        samples:     Tensor [N, d]      particles drawn from mu_0 (source space)
+        source:      Potential          source potential U_0 = -log mu_0
+        target:      Potential          target potential U_1 = -log mu_1
+                                        (must be enable_grad()'d)
+        G:           ComposedTransform  trained inverse flow map target -> source
+                                        (G = F^{-1}, e.g. flow.t()). If
+                                        `G.enable_for_ladj()` / `G.enable_inv_ladj()`
+                                        have been called, those compiled fused maps
+                                        are used (here `inv_ladj` is the source->target
+                                        push and `for_ladj` the latent refresh);
+                                        otherwise the raw transform is used.
+        beta_source: float              inverse temperature of the source (default 1.0)
+        beta_target: float              inverse temperature of the target (default
+                                        1.0); also the Langevin rejuvenation temperature
+        ladder:      int                number of annealing rungs M (>= 1)
+        step:        float              Langevin (ULA) step size, shared across rungs
+        iters:       int                Langevin steps per rung
+        chunk:       int                split along dim 0 into this many chunks for
+                                        the pushforward / inverse / weight passes and
+                                        inside each Langevin call, to bound peak VRAM
+                                        (statistically equivalent to chunk=1).
+    Output:
+        samples:     Tensor [N, d]      particles in mu_1 (target space),
+                                        approximating exp(-beta_target * target).
+    """
+    if target._grad_fn is None:
+        raise RuntimeError(
+            f"annealed_importance_sampling_G() rejuvenates with Langevin on the "
+            f"target, which needs gradients; call "
+            f"{type(target).__name__}.enable_grad() before passing it in."
+        )
+    M = ladder
+    # If `G` has the compiled fused fast paths enabled, use them. Note the
+    # directions are mirrored vs the `_F` variant (G is the target->source map):
+    #   for_ladj(y) == G.call_and_ladj(y)      == G(y), G's forward (latent refresh)
+    #   inv_ladj(x) == G.inv.call_and_ladj(x)  == G.inv(x), the source->target push
+    # Otherwise use the raw transform.
+    for_ladj = G.for_ladj if G._for_ladj_fn is not None else None
+    inv_ladj = G.inv_ladj if G._inv_ladj_fn is not None else None
+    # Energy reweighting uses the compiled `.eval` fast path when available
+    # (same opt-in as langevin / hmc), else the raw __call__.
+    t_eval = target.eval if target._eval_fn is not None else target
+    s_eval = source.eval if source._eval_fn is not None else source
+    # (0) push the source samples forward through F = G^{-1} to obtain pi_0 = F_# mu_0.
+    with torch.no_grad():
+        push = inv_ladj if inv_ladj is not None else G.inv.call_and_ladj
+        y = torch.cat([push(xc)[0] for xc in torch.chunk(samples, chunk, dim=0)], dim=0)
+    for _ in range(M):
+        # (1) incremental weights w(y) ** (1 / M). For each particle y, refresh
+        #     its latent pre-image x = G(y) (= F^{-1}(y)) and reuse the
+        #     importance_weights_log rule
+        #         log w = -beta_target * target(y) + beta_source * source(x) - ladj(y),
+        #     where ladj(y) = log|det J_G(y)| = -log|det J_F(x)|; scale by 1/M.
+        with torch.no_grad():
+            refresh = for_ladj if for_ladj is not None else G.call_and_ladj
+            parts = []
+            for yc in torch.chunk(y, chunk, dim=0):
+                xc, ladj = refresh(yc) # x = G(y) = F^{-1}(y), ladj = log|det J_G(y)|
+                parts.append((-beta_target * t_eval(yc) + beta_source * s_eval(xc) - ladj) / M)
+            log_w = torch.cat(parts, dim=0)
+            w = (log_w - log_w.max()).exp() # self-normalised, in [0, 1]
+        # (2) resample onto high-weight particles, then rejuvenate in mu_1.
+        y = resample(y, w)
+        y = langevin(y, target, beta=beta_target, step=step, iters=iters, chunk=chunk)
+    return y
+
+
+# alias: the forward-map variant is the default annealed importance sampler
+annealed_importance_sampling = annealed_importance_sampling_F
+
+
+def stochastic_heun(samples: torch.Tensor, potential: Potential, beta: float = 1.0, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> torch.Tensor:
+    """
+    Overdamped Langevin dynamics targeting exp(-beta * U(x)), integrated with
+    the stochastic Heun (Stratonovich predictor-corrector) scheme instead of
+    the Euler-Maruyama step used by `langevin`.
+
+    For the SDE dtheta = -beta * grad U(theta) dt + sqrt(2) dB, one Heun step
+    reuses a single Wiener increment dW = sqrt(2 * step) * xi (xi ~ N(0, I_d)):
+        predictor:  x~ = x - step * beta * grad U(x) + dW
+        corrector:  x' = x - 0.5 * step * (beta * grad U(x) + beta * grad U(x~)) + dW
+    The drift is evaluated at both ends of the step and averaged (trapezoidal
+    rule), so the noise dW is shared between the two stages -- this is what
+    makes the update Stratonovich-consistent. Since the noise here is additive,
+    Ito and Stratonovich coincide and no extra correction term is needed.
+
+    Versus Euler-Maruyama (`langevin(adjust=False)`): two gradient calls per
+    iteration instead of one, but the trapezoidal drift cancels the leading
+    O(step) drift-discretization error, so the residual bias of this unadjusted
+    scheme shrinks faster as `step -> 0`. It remains an *unadjusted* integrator
+    (no Metropolis correction), so a small step-dependent bias persists; use
+    `langevin(adjust=True)` or `hmc` when you need the exactly-unbiased target.
+
+    Requires `potential.enable_grad()` to have been called so that
+    `potential.grad(x)` is available; otherwise raises RuntimeError. Unlike
+    `langevin(adjust=True)` / `hmc`, no energy evaluations are performed, so
+    `potential.enable_eval()` is not used.
+
+    Input:
+        samples:   Tensor [N, d]   initial particles
+        potential: Potential       target potential U; must support .grad(x)
+        beta:      float           inverse temperature; the stationary
+                                   distribution is exp(-beta * U). Default
+                                   1.0 recovers the standard scheme.
+        step:      float           Heun step size
+        iters:     int             number of Heun steps
+        chunk:     int             split `samples` along dim 0 into this many
+                                   chunks and run the trajectories sequentially.
+                                   Reduces peak GPU memory at the cost of wall
+                                   time. Statistically equivalent to chunk=1
+                                   (each chunk uses its own independent noise);
+                                   set higher only if you hit OOM on the
+                                   whole batch.
+    Output:
+        samples: Tensor [N, d]   particles after `iters` Heun updates
+    """
+    if potential._grad_fn is None:
+        raise RuntimeError(
+            f"stochastic_heun() requires gradients on the potential; "
+            f"call {type(potential).__name__}.enable_grad() before passing it in."
+        )
+    noise_scale = (2.0 * step) ** 0.5
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        for _ in range(iters):
+            dw = noise_scale * torch.randn_like(x) # shared Wiener increment dW
+            # The `beta *` multiply allocates a fresh tensor each call, so fx
+            # never aliases the CUDA-Graphs buffer behind potential.grad and
+            # survives the second .grad() call without a .clone() (same
+            # convention as hmc's leapfrog / langevin's MALA branch).
+            fx = beta * potential.grad(x) # effective force beta * grad U(x)
+            x_pred = x - step * fx + dw # Euler-Maruyama predictor x~
+            fx_pred = beta * potential.grad(x_pred) # force at the predictor
+            x = x - 0.5 * step * (fx + fx_pred) + dw # Heun corrector (same dW)
+        out.append(x)
+    return torch.cat(out, dim=0)
+
+# ──────────────────────────────────────────────────────────────────────
+# HMC — Hamiltonian Monte Carlo with leapfrog + MH gate
+# ──────────────────────────────────────────────────────────────────────
+
+def hamiltonian_monte_carlo(samples: torch.Tensor, potential: Potential, beta: float = 1.0, step: float = 1e-2, iters: int = 10, burns: int = 10, chunk: int = 1) -> torch.Tensor:
+    """
+    Hamiltonian Monte Carlo (HMC) targeting the tempered distribution
+    exp(-beta * U(x)).
+
+    Each "burn" performs a full HMC trajectory:
+      1. Resample momentum p ~ N(0, I_d) -- a complete, "high-temperature"
+         refresh that discards any correlation with the previous burn.
+      2. Integrate the Hamiltonian flow of H(x, p) = beta * U(x) + 0.5 * ||p||^2
+         for `iters` leapfrog steps of size `step`. Each kick uses the
+         effective force beta * grad U(x).
+      3. Metropolis-Hastings accept/reject on the trajectory endpoint:
+            log_alpha = beta * (U(x0) - U(x_end))
+                       + 0.5 * (||p0||^2 - ||p_end||^2),
+            accept with probability min(1, exp(log_alpha)).
+         Leapfrog is exactly volume-preserving, so no Jacobian term enters.
+
+    Compared to MALA (`langevin(adjust=True)`), HMC pays
+    `iters + 1` gradient calls per MH decision instead of 2, but the
+    trajectory moves O(step * iters) per decision rather than O(sqrt(step)),
+    giving much lower autocorrelation at fixed acceptance.
+
+    "Safer" than ULA/MALA on stiff targets in two senses:
+      - The MH correction makes the stationary distribution exactly exp(-U),
+        with no O(step) bias to tune away.
+      - Divergent trajectories (NaN / inf energies from too-large leapfrog
+        steps in steep regions) produce non-finite log_alpha, which is
+        clamped to -inf so the particle reverts to its pre-trajectory
+        position. NaN coordinates never enter the returned tensor; the
+        worst a bad trajectory can do is waste compute on that burn.
+
+    GPU-parallel structure:
+      - Every particle in a chunk runs exactly `iters` leapfrog steps in
+        lockstep; per-particle decisions only happen at the MH accept mask
+        (`torch.where`), so the inner loop stays on one CUDA graph.
+      - Efficient leapfrog combines adjacent trailing/leading half-kicks,
+        costing `iters + 1` compiled grad calls per trajectory instead of
+        the naive 2 * iters.
+      - `potential.grad` and `potential.eval` use torch.compile
+        reduce-overhead, so their outputs are static buffers overwritten on
+        the next call. The leapfrog consumes each gradient before the next
+        .grad() call (no clone needed), but U_start must survive across the
+        leapfrog AND across the U_end .eval() call, so we .clone() it once.
+
+    Requires `potential.enable_grad()`. If `potential.enable_eval()` has
+    also been called, the U(x_start) / U(x_end) energies route through the
+    compiled fast path; otherwise they fall back to `potential(x)`.
+
+    Input:
+        samples:   Tensor [N, d]   initial particles
+        potential: Potential       target potential U; must support .grad(x)
+        beta:      float           inverse temperature; stationary
+                                   distribution is exp(-beta * U). Default
+                                   1.0 recovers the standard HMC scheme.
+        step:      float           leapfrog step size epsilon. Tune so the
+                                   MH acceptance rate is ~0.6-0.8 (the HMC
+                                   sweet spot from Beskos et al. 2013).
+        iters:     int             number of leapfrog steps per trajectory.
+                                   Trajectory length L = step * iters; pick
+                                   L on the scale of the target's largest
+                                   correlation length. Larger trades grad
+                                   calls for lower autocorrelation.
+        burns:     int             number of momentum refreshes / MH
+                                   trajectories. Each burn fully redraws
+                                   p ~ N(0, I) (a "high-temperature" reset)
+                                   and runs one MH accept/reject decision.
+        chunk:     int             split `samples` along dim 0 into this
+                                   many chunks and run sequentially.
+                                   Reduces peak GPU memory at the cost of
+                                   wall time; statistically equivalent to
+                                   chunk=1 (each chunk uses its own
+                                   independent momentum and accept noise).
+    Output:
+        samples: Tensor [N, d]   particles after `burns` HMC trajectories
+    """
+    if potential._grad_fn is None:
+        raise RuntimeError(
+            f"hamiltonian_monte_carlo() requires gradients on the potential; "
+            f"call {type(potential).__name__}.enable_grad() before passing it in."
+        )
+    # MH accept/reject needs U(x_start), U(x_end); use the compiled fast
+    # path if the user has opted in via .enable_eval(), else fall back to
+    # __call__ (same convention as langevin).
+    U = potential.eval if potential._eval_fn is not None else potential
+    out = []
+    for x in torch.chunk(samples, chunk, dim=0):
+        for _ in range(burns):
+            x_start = x
+            p_start = torch.randn_like(x)
+            # clone(): U_start must survive across the leapfrog AND across
+            # the U_end .eval() call, which would otherwise overwrite the
+            # static buffer under reduce-overhead.
+            U_start = U(x_start).clone()
+            K_start = 0.5 * (p_start ** 2).sum(dim=-1) # [N]
+
+            # Efficient leapfrog: iters + 1 grad calls, combined half-kicks.
+            # Effective force is beta * grad U; the `beta *` allocates a
+            # fresh tensor each call, so g never aliases the CUDA-Graphs
+            # buffer behind potential.grad.
+            p = p_start
+            if iters >= 1:
+                g = beta * potential.grad(x)
+                p = p - 0.5 * step * g
+                for _ in range(iters - 1):
+                    x = x + step * p
+                    g = beta * potential.grad(x)
+                    p = p - step * g
+                x = x + step * p
+                g = beta * potential.grad(x)
+                p = p - 0.5 * step * g
+
+            U_end = U(x) # [N]
+            K_end = 0.5 * (p ** 2).sum(dim=-1) # [N]
+
+            # MH accept/reject with NaN guard: divergent trajectories
+            # produce non-finite log_alpha -> -inf -> reject -> revert to
+            # x_start, so the returned tensor is always finite.
+            log_alpha = beta * (U_start - U_end) + (K_start - K_end) # [N]
+            log_alpha = torch.where(
+                torch.isfinite(log_alpha),
+                log_alpha,
+                log_alpha.new_full((), float("-inf")),
+            )
+            accept = torch.rand_like(log_alpha).log() < log_alpha # [N] bool
+            x = torch.where(accept.unsqueeze(-1), x, x_start)
+        out.append(x)
+    return torch.cat(out, dim=0)
+
+# alias: HMC is the standard short name for Hamiltonian Monte Carlo
+hmc = hamiltonian_monte_carlo
+
+
+# ──────────────────────────────────────────────────────────────────────
+# torch.compile environment helpers
+# ──────────────────────────────────────────────────────────────────────
+
+def check_compile_available() -> bool:
+    """Diagnose whether the current environment can actually run torch.compile.
+
+    Runs three checks, in order. The first two emit non-blocking warnings
+    and do NOT affect the return value — they only flag known footguns
+    (non-Linux OS, missing `nvcc`) so the user gets a useful pointer if
+    the third check then fails. The third check is the authoritative one:
+    it really compiles + runs a tiny function and the return value reflects
+    only its success.
+
+    Checks:
+      1. **OS:** zflows has only been tested on Linux + NVIDIA GPU.
+         `torch.compile` does not run on native Windows
+         (https://github.com/pytorch/pytorch/issues/167062); on macOS the
+         flow code imports but the compiled fast paths are untested.
+         Warns if `platform.system() != 'Linux'`.
+      2. **nvcc on $PATH:** `torch.compile`'s Triton / TorchInductor backend
+         JIT-compiles a small CUDA helper on first use, which requires the
+         CUDA Toolkit's C++ compiler `nvcc` — *not* just the CUDA runtime
+         shipped with the PyTorch wheel. Warns if `shutil.which('nvcc')`
+         returns None. Harmless if you only intend to compile on CPU.
+      3. **Sanity test (authoritative):** actually `torch.compile` a small
+         function and run one forward pass. On CUDA, uses
+         `mode='reduce-overhead'` (the mode that `Potential.enable_grad` /
+         `enable_eval` default to; `loss.loss_compile` / `loss_compile_beta` default to `'default'`); on CPU, uses
+         `mode='default'`. The return value is True iff this step succeeds.
+
+    Prints a one-line PASS/WARN/FAIL summary for each step.
+
+    Intended usage: **run interactively or from a standalone diagnostic
+    script** — not from your main training code. The sanity test really
+    invokes `torch.compile`, which costs compile time on every call and
+    consumes a Dynamo cache slot. Use it once to validate a fresh
+    environment, then remove the call.
+
+    Returns:
+        bool: True iff the sanity test succeeded. The OS / nvcc warnings
+              do NOT influence this value — a Mac with `nvcc` missing but
+              a working CPU `torch.compile` will still return True.
+    """
+    import platform
+    import shutil
+    import warnings
+
+    import torch
+
+    # (1) OS check — warn, do not gate
+    sys_name = platform.system()
+    if sys_name == "Linux":
+        print(f"[OK ]   OS = {sys_name}")
+    else:
+        warnings.warn(
+            f"torch.compile might not be supported on your system: {sys_name}. "
+            f"zflows is tested only on Linux + NVIDIA GPU. On native Windows, "
+            f"use WSL; macOS is untested."
+        )
+        print(f"[WARN] OS = {sys_name}  (torch.compile may not work)")
+
+    # (2) nvcc check — warn, do not gate (CPU-only setups don't need it).
+    # Try $PATH first, then fall back to the Ubuntu default install
+    # locations that `cuda-toolkit` leaves off $PATH unless the user
+    # explicitly added them: the symlinked /usr/local/cuda/bin/nvcc and,
+    # for side-by-side installs, the versioned /usr/local/cuda-*/bin/nvcc.
+    from pathlib import Path
+    nvcc_path = shutil.which("nvcc")
+    if nvcc_path is None:
+        candidates = [Path("/usr/local/cuda/bin/nvcc")]
+        # Versioned installs (e.g. /usr/local/cuda-12.4/bin/nvcc); newest first.
+        candidates += sorted(
+            Path("/usr/local").glob("cuda-*/bin/nvcc"), reverse=True
+        )
+        for c in candidates:
+            if c.is_file():
+                nvcc_path = str(c)
+                break
+    if nvcc_path is not None:
+        print(f"[OK ]   nvcc = {nvcc_path}")
+    else:
+        warnings.warn(
+            "nvcc not found on $PATH or in /usr/local/cuda/bin or "
+            "/usr/local/cuda-*/bin. Install the full CUDA Toolkit from "
+            "https://developer.nvidia.com/cuda-downloads. Harmless if you "
+            "only intend to compile on CPU."
+        )
+        print("[WARN] nvcc not found")
+
+    # (3) Sanity test — the authoritative check; gates the return value
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    mode = "reduce-overhead" if device == "cuda" else "default"
+
+    @torch.compile(mode=mode)
+    def _probe(x: torch.Tensor) -> torch.Tensor:
+        return x.sin() + x.cos()
+
+    try:
+        x = torch.randn(8, device=device)
+        y = _probe(x)
+        if device == "cuda":
+            torch.cuda.synchronize()
+        _ = y.sum().item()
+        print(f"[OK ]   sanity test passed (device={device}, mode={mode})")
+        ok = True
+    except Exception as e:
+        print(f"[FAIL] sanity test (device={device}, mode={mode}): "
+              f"{type(e).__name__}: {e}")
+        ok = False
+
+    print()
+    print("Note: please run check_compile_available() interactively or in a "
+          "standalone python script. Do not call it from your main training "
+          "code — the sanity test really invokes torch.compile, which costs "
+          "compile time on every call and consumes a Dynamo cache slot.")
+    return ok
+
+
+def set_cache_size_limit(limit: int = 8) -> None:
+    """Set torch._dynamo's per-code-object compile-cache size limit.
+
+    Dynamo caches compiled specializations per ``__code__`` object. The stock
+    default is 8 — plenty for a normal training loop with one model and a
+    fixed batch shape. Sweep / benchmark code that compiles many distinct
+    closures sharing one code body can exceed the limit and silently fall
+    back to eager from cell N+1 onward. Common triggers:
+
+      - hyperparameter sweeps where `zflows.loss.loss_compile` /
+        `loss_compile_beta` are called once per cell (each call produces a
+        fresh closure on the same code object, distinguished by the
+        captured `transform` and `potential`);
+      - annealed training that constructs many short-lived `Potential`
+        instances of the same subclass, each calling `.enable_grad()`;
+      - scripts that mix several distinct compiled functions.
+
+    Bump the limit only when you actually observe eager fallback (set
+    `torch._dynamo.config.suppress_errors = False` and watch for recompile
+    warnings, or set `torch._logging.set_logs(recompiles=True)` to see
+    them directly). Each cached spec costs a small amount of memory and a
+    constant lookup overhead on every call, so don't raise it gratuitously.
+    Needing > 100 usually indicates an uncontrolled retrace pattern that's
+    better fixed at its source (mark dynamic shapes, share backends, or
+    restructure to reuse compiled objects).
+
+    Argument:
+        limit: max number of specializations to cache per code object.
+            Default 8 matches torch._dynamo's stock setting (so calling
+            with no argument resets to the default).
+
+    Typical usage at the top of a sweep script::
+
+        from zflows.utils import set_cache_size_limit
+        set_cache_size_limit(64)   # generous headroom for ~30 specs
+    """
+    import torch._dynamo
+    torch._dynamo.config.cache_size_limit = limit
+
+
+def suppress_warnings() -> None:
+    """Silence the various warning/log channels that PyTorch, Triton, and
+    Inductor emit during a typical zflows training run (especially with
+    `torch.compile` / `zflows.loss.loss_compile` / `loss_compile_beta` in the loop).
+
+    Covers four orthogonal layers of noise:
+      1. **Python `warnings`** (e.g. inductor's TF32 hint, deprecation
+         warnings from `torch.distributions`): filter to "ignore".
+      2. **torch._logging channels** (recompiles, graph breaks): toggled off.
+      3. **Triton autotune stderr** (per-kernel "AUTOTUNE addmm ..." banners
+         from the Triton C-side autotuner): silenced via
+         `TRITON_PRINT_AUTOTUNING=0`. Only takes effect for kernels that
+         have not been autotuned yet — call this BEFORE the first
+         `torch.compile` invocation.
+      4. **Inductor compile-worker interleaving** (gcc/nvcc warnings,
+         `_POSIX_C_SOURCE redefined`, etc.): serialized to one worker via
+         `TORCHINDUCTOR_COMPILE_THREADS=1`. Same caveat as (3): set it
+         before workers spawn (i.e. before the first compile call).
+
+    The function is idempotent and safe to call multiple times. Real
+    compile failures still raise — only the routine noise is muted.
+
+    Typical usage at the top of a training script::
+
+        from zflows.utils import suppress_warnings
+        suppress_warnings()
+        # ... rest of imports and training code
+    """
+    import os
+    import warnings
+
+    os.environ.setdefault("TRITON_PRINT_AUTOTUNING", "0")
+    os.environ.setdefault("TORCHINDUCTOR_COMPILE_THREADS", "1")
+
+    warnings.filterwarnings("ignore")
+
+    # Import lazily to avoid pulling torch._logging into module-load if the
+    # user never calls this function.
+    import torch._logging
+    torch._logging.set_logs(recompiles=False, graph_breaks=False)
+# === zflows_md MD helpers (PDB/prmtop I/O, structural alignment) ===
+
+import numpy as np
+import torch
+
+def pdb_to_prmtop(pdb_path: str, prmtop_path: str, rst_path: str, forcefield_xml: str | tuple[str, ...] = "amber14-all.xml", minimize: bool = True) -> tuple[np.ndarray, float | None]:
+    """Load a PDB, parameterize with an Amber FFXML, optionally minimize,
+    and dump both an Amber `.prmtop` (FF + topology) and `.rst7` (coords).
+
+    Returns (coords in Angstroms shape (N, 3), openmm minimized energy in
+    kcal/mol or None if minimize=False).
+    """
+    try:
+        import openmm
+        import openmm.app as app
+        import openmm.unit as u
+        import parmed
+    except ImportError as e:
+        raise ImportError(
+            "pdb_to_prmtop requires `openmm` and `parmed` (the chem-stack side "
+            "of the pipeline). Install via `pip install openmm parmed`. "
+            "If you already have a cached `.prmtop` / `.rst7` you don't need "
+            "either."
+        ) from e
+
+    pdb = app.PDBFile(pdb_path)
+    ff_args = (forcefield_xml,) if isinstance(forcefield_xml, str) else tuple(forcefield_xml)
+    ff = app.ForceField(*ff_args)
+    system = ff.createSystem(
+        pdb.topology,
+        nonbondedMethod=app.NoCutoff,
+        constraints=None,
+        removeCMMotion=False,
+    )
+
+    energy_kcal = None
+    positions = pdb.positions
+    if minimize:
+        integ = openmm.LangevinMiddleIntegrator(300 * u.kelvin, 1.0 / u.picosecond, 1.0 * u.femtosecond)
+        sim = app.Simulation(pdb.topology, system, integ)
+        sim.context.setPositions(positions)
+        sim.minimizeEnergy(maxIterations=2000)
+        state = sim.context.getState(getPositions=True, getEnergy=True)
+        positions = state.getPositions()
+        energy_kcal = state.getPotentialEnergy().value_in_unit(u.kilocalorie_per_mole)
+
+    struct = parmed.openmm.load_topology(pdb.topology, system, positions)
+    struct.save(prmtop_path, overwrite=True)
+    struct.save(rst_path, overwrite=True)
+
+    coords_ang = np.asarray(
+        positions.value_in_unit(u.angstrom), dtype=np.float32
+    )
+    return coords_ang, energy_kcal
+
+def rotation_translation_align(x: torch.Tensor, x_0: torch.Tensor) -> torch.Tensor:
+    """Rigid-body align each frame of `x` onto `x_0` via the Kabsch algorithm.
+
+    Removes the trivial translation + rotation degrees of freedom that
+    inflate atom-wise RMSD without changing the internal geometry: for
+    each frame in `x`, finds the (rotation R, translation t) that
+    minimises ||R @ atom + t - x_0_atom|| summed over atoms, then
+    returns the rotated + translated frame. Equal per-atom weighting
+    (no mass weighting); the standard reflection correction is applied
+    so R is a proper rotation (det = +1).
+
+    Differentiable through `torch.linalg.svd`, so usable inside a
+    training loss (e.g. an alignment-invariant reconstruction loss
+    against a reference conformation `x_0`).
+
+    Input:
+        x:   Tensor [N, 3 * natoms]   batch of flattened atom-major coords
+        x_0: Tensor [3 * natoms]      reference frame (single)
+    Output:
+        x_aligned: Tensor [N, 3 * natoms]
+            each row is the rigid-body image of the corresponding row
+            of `x` that minimises atom-wise RMSD against `x_0`.
+    """
+    assert x_0.ndim == 1 and x.shape[-1] == x_0.shape[0], \
+        f"shapes must be x: [N, 3*natoms], x_0: [3*natoms]; got {tuple(x.shape)}, {tuple(x_0.shape)}"
+    assert x.shape[-1] % 3 == 0, f"flat dim must be divisible by 3, got {x.shape[-1]}"
+    N, D = x.shape
+    natoms = D // 3
+
+    P = x.view(N, natoms, 3)            # to-align
+    Q = x_0.view(natoms, 3)             # reference
+
+    cP = P.mean(dim=1, keepdim=True)    # [N, 1, 3]
+    cQ = Q.mean(dim=0, keepdim=True)    # [1, 3]
+    Pc = P - cP
+    Qc = Q - cQ
+
+    # Cross-covariance H_n = Pc_n^T @ Qc.
+    H = torch.einsum("nai,aj->nij", Pc, Qc)             # [N, 3, 3]
+    U, _, Vh = torch.linalg.svd(H)
+    V = Vh.transpose(-2, -1)
+
+    # Reflection guard: if det(V @ U^T) == -1, flip the smallest singular
+    # component so R is a proper rotation (det = +1).
+    d = torch.sign(torch.det(V @ U.transpose(-2, -1)))  # [N], +/- 1
+    D_corr = torch.eye(3, device=x.device, dtype=x.dtype).expand(N, 3, 3).contiguous()
+    D_corr[:, 2, 2] = d
+    R = V @ D_corr @ U.transpose(-2, -1)                # [N, 3, 3]
+
+    P_aligned = Pc @ R.transpose(-2, -1) + cQ
+    return P_aligned.reshape(N, D)

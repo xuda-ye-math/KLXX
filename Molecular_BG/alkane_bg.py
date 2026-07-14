@@ -1,4 +1,4 @@
-"""Shared full adaptive-KLXX driver for the three small-alkane tests."""
+"""Shared full adaptive forward-KL/KLXX driver for the alkane tests."""
 
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ import numpy as np
 
 from jflows.train import Monitor
 from jflows_md import Mixed_NSF, Molecular_Potential
-from jflows_md.boltzmann import boltzmann_forward_KLXX_G
+from jflows_md.boltzmann import boltzmann_forward_KLX_G, boltzmann_forward_KLXX_G
 
 
 def _json_write(path: Path, value: dict) -> None:
@@ -98,7 +98,22 @@ def run(parameters) -> None:
             stream.write(line + "\n")
 
     started = time.time()
-    physical = Molecular_Potential.from_bundle(bundle_path, temperature_kelvin=300.0)
+    objective = str(getattr(parameters, "OBJECTIVE", "klxx")).lower()
+    if objective not in ("kl", "klxx"):
+        raise ValueError(f"unsupported molecular objective {objective!r}")
+    environment = str(getattr(parameters, "ENVIRONMENT", "implicit")).lower()
+    if environment not in ("implicit", "vacuum"):
+        raise ValueError(f"unsupported molecular environment {environment!r}")
+    objective_label = "KL" if objective == "kl" else "KLXX"
+    bundle_physical = Molecular_Potential.from_bundle(
+        bundle_path, temperature_kelvin=300.0
+    )
+    if environment == "vacuum":
+        from training_diagnostics.vacuum import Vacuum_Molecular_Potential
+
+        physical = Vacuum_Molecular_Potential(bundle_physical)
+    else:
+        physical = bundle_physical
     if physical.dimension != parameters.DIMENSION:
         raise ValueError(
             f"bundle dimension {physical.dimension} != {parameters.DIMENSION}"
@@ -110,15 +125,18 @@ def run(parameters) -> None:
     )
     source = physical.source()
     log(
-        f"START {parameters.MOLECULE}_{parameters.DIMENSION}d_c50 full adaptive "
-        f"KLXX | jax={jax.__version__} backend={jax.default_backend()} "
+        f"START {parameters.MOLECULE}_{parameters.DIMENSION}d_"
+        f"c{parameters.ENERGY_CUT_KJ_MOL:g} full adaptive "
+        f"{objective_label} {environment} | jax={jax.__version__} "
+        f"backend={jax.default_backend()} "
         f"dtype=float32 domain=R{physical.domain.euclidean_dim}"
         f"xT{physical.domain.periodic_dim}"
     )
     log(
         f"flow balanced bins={parameters.BINS} "
         f"transforms={parameters.TRANSFORMS} hidden={parameters.HIDDEN_FEATURES} | "
-        f"N_VALID={parameters.N_VALID} POOL_SIZE={parameters.POOL_SIZE} "
+        f"N_VALID={parameters.N_VALID} "
+        f"POOL={'full' if parameters.POOL_SIZE == 0 else parameters.POOL_SIZE} "
         f"BATCH_SIZE={parameters.BATCH_SIZE} train_steps={parameters.TRAIN_STEPS} "
         f"lr={parameters.LR} bg={parameters.BG_PARAM}"
     )
@@ -140,35 +158,48 @@ def run(parameters) -> None:
         mask_strategy="balanced",
     ).zeros()
     monitor = Monitor(parameters.MONITOR_EVERY, f"[{parameters.MOLECULE}] ", log)
-    particles, stages = boltzmann_forward_KLXX_G(
-        x_valid,
-        source,
-        target,
-        flow0,
-        pool_size=parameters.POOL_SIZE,
-        batch_size=parameters.BATCH_SIZE,
-        train_steps=parameters.TRAIN_STEPS,
-        lr=parameters.LR,
-        ladder=parameters.LADDER,
-        mc_dt=parameters.MC_DT,
-        mc_steps=parameters.MC_STEPS,
-        melt=parameters.MELT,
-        opt_alpha=parameters.OPT_ALPHA,
-        opt_steps=parameters.OPT_STEPS,
-        coeff_lambda=parameters.COEFF_LAMBDA,
-        coeff_alpha=parameters.COEFF_ALPHA,
-        coeff_beta=parameters.COEFF_BETA,
-        monitor=monitor,
-        bg_param=parameters.BG_PARAM,
-        chunks=parameters.CHUNKS,
-        mc_image_radius=parameters.MC_IMAGE_RADIUS,
-        e_clip=parameters.E_CLIP,
-        g_clip=parameters.G_CLIP,
-        seed=parameters.SEED,
-        checkpoint=parameters.CHECKPOINT,
-        lr_warmup=parameters.LR_WARMUP,
-        flow_dir=final_artifacts / "flows",
-    )
+    common = {
+        "pool_size": parameters.POOL_SIZE,
+        "batch_size": parameters.BATCH_SIZE,
+        "train_steps": parameters.TRAIN_STEPS,
+        "lr": parameters.LR,
+        "ladder": parameters.LADDER,
+        "mc_dt": parameters.MC_DT,
+        "mc_steps": parameters.MC_STEPS,
+        "monitor": monitor,
+        "bg_param": parameters.BG_PARAM,
+        "chunks": parameters.CHUNKS,
+        "mc_image_radius": parameters.MC_IMAGE_RADIUS,
+        "e_clip": parameters.E_CLIP,
+        "g_clip": parameters.G_CLIP,
+        "seed": parameters.SEED,
+        "checkpoint": parameters.CHECKPOINT,
+        "lr_warmup": parameters.LR_WARMUP,
+        "flow_dir": final_artifacts / "flows",
+    }
+    if objective == "kl":
+        particles, stages = boltzmann_forward_KLX_G(
+            x_valid,
+            source,
+            target,
+            flow0,
+            coeff_lambda=0.0,
+            **common,
+        )
+    else:
+        particles, stages = boltzmann_forward_KLXX_G(
+            x_valid,
+            source,
+            target,
+            flow0,
+            melt=parameters.MELT,
+            opt_alpha=parameters.OPT_ALPHA,
+            opt_steps=parameters.OPT_STEPS,
+            coeff_lambda=parameters.COEFF_LAMBDA,
+            coeff_alpha=parameters.COEFF_ALPHA,
+            coeff_beta=parameters.COEFF_BETA,
+            **common,
+        )
     jax.block_until_ready(particles)
     if not stages or float(stages[-1]["t"]) != 1.0:
         reached = float(stages[-1]["t"]) if stages else 0.0
@@ -230,6 +261,9 @@ def run(parameters) -> None:
         level_trained_ess=level_trained_ess,
         level_identity_ess=level_identity_ess,
         level_selected=level_selected,
+        selection_pool_mode=np.asarray(stages[0]["selection_pool_mode"]),
+        selection_pool_size=np.int32(stages[0]["selection_pool_size"]),
+        objective=np.asarray(objective),
         batch_ess_hist=batch_ess_hist,
         kept_fraction_hist=kept_fraction_hist,
         update_applied_hist=update_applied_hist,
@@ -239,6 +273,8 @@ def run(parameters) -> None:
         "temperature_kelvin": np.float32(300.0),
         "energy_cut_kj_mol": np.float32(parameters.ENERGY_CUT_KJ_MOL),
         "floating_point": "float32",
+        "objective": objective,
+        "environment": environment,
     }
     with h5py.File(final_artifacts / "flow_samples.h5", "w") as handle:
         handle.create_dataset(
@@ -291,6 +327,7 @@ def run(parameters) -> None:
             "periodic": physical.domain.periodic_dim,
         },
         "target": {
+            "environment": environment,
             "temperature_kelvin": 300.0,
             "energy_cut_kj_mol": parameters.ENERGY_CUT_KJ_MOL,
             "energy_scale_kj_mol": parameters.ENERGY_SCALE_KJ_MOL,
@@ -304,9 +341,10 @@ def run(parameters) -> None:
         },
         "ladder": ladder_summary,
         "training": {
-            "objective": "adaptive KLXX",
+            "objective": f"adaptive {objective_label}",
             "n_valid": parameters.N_VALID,
-            "pool_size": parameters.POOL_SIZE,
+            "selection_pool_mode": stages[0]["selection_pool_mode"],
+            "selection_pool_size": stages[0]["selection_pool_size"],
             "batch_size": parameters.BATCH_SIZE,
             "train_steps_per_level": parameters.TRAIN_STEPS,
             "lr": parameters.LR,
