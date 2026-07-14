@@ -2,36 +2,25 @@
 
 from __future__ import annotations
 
-import argparse
 from datetime import datetime
 import json
 import os
 from pathlib import Path
 import shutil
-import subprocess
-import sys
 import time
+
 
 os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 import equinox as eqx
 import h5py
 import jax
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+import jax.numpy as jnp
 import numpy as np
 
 from jflows.train import Monitor
-from jflows_md import (
-    Mixed_NSF,
-    Molecular_Potential,
-    mixed_flow_metadata,
-    molecular_boltzmann_forward_KLXX_G,
-    package_source_sha256,
-)
-from jflows_md.system import sha256_file
+from jflows_md import Mixed_NSF, Molecular_Potential
+from jflows_md.boltzmann import boltzmann_forward_KLXX_G
 
 
 def _json_write(path: Path, value: dict) -> None:
@@ -41,98 +30,66 @@ def _json_write(path: Path, value: dict) -> None:
     )
 
 
-def _git_state(path: Path) -> dict:
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"],
-        cwd=path,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.strip()
-    status = subprocess.run(
-        ["git", "status", "--porcelain"],
-        cwd=path,
-        check=True,
-        text=True,
-        capture_output=True,
-    ).stdout.splitlines()
-    return {"head": head, "dirty": bool(status), "status": status}
+@eqx.filter_jit
+def _inverse_chunk(flow, samples):
+    return flow.inv(samples)
 
 
-def _save_particles(path: Path, particles: np.ndarray, attributes: dict) -> None:
-    with h5py.File(path, "w") as handle:
-        handle.create_dataset(
-            "particles",
-            data=particles,
-            compression="gzip",
-            compression_opts=1,
-            shuffle=True,
+@eqx.filter_jit
+def _physical_energy_chunk(target, samples):
+    return target.physical_energy(samples)
+
+
+def _flow_chain_samples(source, stages, key, sample_count: int, chunks: int):
+    samples = source.samples(key, N=sample_count)
+    if samples.dtype != jnp.float32:
+        raise TypeError(f"source produced {samples.dtype}, expected float32")
+    for stage in stages:
+        pieces = []
+        for part in jnp.array_split(samples, chunks, axis=0):
+            pieces.append(jax.block_until_ready(_inverse_chunk(stage["flow"], part)))
+        samples = jnp.concatenate(pieces, axis=0)
+    return np.asarray(jax.block_until_ready(samples), dtype=np.float32)
+
+
+def _physical_energy(target, samples: np.ndarray, chunks: int) -> np.ndarray:
+    pieces = []
+    for part in np.array_split(samples, chunks, axis=0):
+        value = jax.block_until_ready(
+            _physical_energy_chunk(target, jnp.asarray(part))
         )
-        for name, value in attributes.items():
-            handle.attrs[name] = value
+        pieces.append(np.asarray(value, dtype=np.float32))
+    return np.concatenate(pieces)
 
 
-def _plot_ladder(path: Path, stages: list[dict]) -> None:
-    level = np.arange(1, len(stages) + 1)
-    figure, axes = plt.subplots(1, 2, figsize=(10, 4), constrained_layout=True)
-    axes[0].plot(level, [stage["t"] for stage in stages], "o-", lw=2)
-    axes[0].set(
-        xlabel="ladder level",
-        ylabel="bridge coefficient",
-        ylim=(0, 1.03),
-        title="adaptive ladder",
-    )
-    axes[1].plot(
-        level,
-        [stage["ess"] for stage in stages],
-        "o-",
-        lw=2,
-        label="selected",
-    )
-    axes[1].plot(
-        level,
-        [stage["trained_ess"] for stage in stages],
-        "o--",
-        label="trained",
-    )
-    axes[1].plot(
-        level,
-        [stage["identity_ess"] for stage in stages],
-        "o:",
-        label="identity",
-    )
-    axes[1].axhline(
-        stages[0]["tau_ess"], color="0.6", ls="--", lw=1, label="ESS gate"
-    )
-    axes[1].set(
-        xlabel="ladder level",
-        ylabel="full-validation ESS",
-        ylim=(0, 1.03),
-        title="per-level validation ESS",
-    )
-    axes[1].legend(frameon=False)
-    for axis in axes:
-        axis.spines[["top", "right"]].set_visible(False)
-    figure.savefig(path, dpi=180)
-    plt.close(figure)
+def _write_ess_table(path: Path, summary: dict) -> None:
+    lines = [
+        "# Full-validation ESS",
+        "",
+        "| Level | t | Selected | Validation ESS | Trained ESS | Identity ESS |",
+        "|---:|---:|:---:|---:|---:|---:|",
+    ]
+    for record in summary["ladder"]:
+        lines.append(
+            f"| {record['level']} | {record['t']:.6f} | {record['selected']} | "
+            f"{record['valid_selected_ess']:.6f} | "
+            f"{record['valid_trained_ess']:.6f} | "
+            f"{record['valid_identity_ess']:.6f} |"
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def run(parameters) -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--overwrite", action="store_true")
-    args = parser.parse_args()
     here = Path(parameters.__file__).resolve().parent
     bundle_path = here / "bundle"
-    final = here / "run"
-    if final.exists():
-        if not args.overwrite:
-            raise SystemExit(f"output exists: {final}; use --overwrite to replace it")
-        shutil.rmtree(final)
-    staging = here / f".run.inprogress-{os.getpid()}"
-    if staging.exists():
-        raise SystemExit(f"staging path exists: {staging}")
-    staging.mkdir()
-    status_path = staging / "train_status.log"
+    final_artifacts = here / "artifacts"
+    final_results = here / "results"
+    existing = [path for path in (final_artifacts, final_results) if path.exists()]
+    for path in existing:
+        shutil.rmtree(path)
+    final_artifacts.mkdir()
+    final_results.mkdir()
+    status_path = final_artifacts / "train.log"
 
     def log(message: str) -> None:
         line = f"[{datetime.now().astimezone().strftime('%H:%M:%S')}] {message}"
@@ -141,9 +98,7 @@ def run(parameters) -> None:
             stream.write(line + "\n")
 
     started = time.time()
-    physical = Molecular_Potential.from_bundle(
-        bundle_path, temperature_kelvin=300.0
-    )
+    physical = Molecular_Potential.from_bundle(bundle_path, temperature_kelvin=300.0)
     if physical.dimension != parameters.DIMENSION:
         raise ValueError(
             f"bundle dimension {physical.dimension} != {parameters.DIMENSION}"
@@ -157,18 +112,23 @@ def run(parameters) -> None:
     log(
         f"START {parameters.MOLECULE}_{parameters.DIMENSION}d_c50 full adaptive "
         f"KLXX | jax={jax.__version__} backend={jax.default_backend()} "
-        f"domain=R{physical.domain.euclidean_dim}xT{physical.domain.periodic_dim}"
+        f"dtype=float32 domain=R{physical.domain.euclidean_dim}"
+        f"xT{physical.domain.periodic_dim}"
     )
     log(
         f"flow balanced bins={parameters.BINS} "
         f"transforms={parameters.TRANSFORMS} hidden={parameters.HIDDEN_FEATURES} | "
-        f"N_VALID={parameters.N_VALID} N_POOL={parameters.N_POOL} "
-        f"N_BATCH={parameters.N_BATCH} steps={parameters.STEPS} lr={parameters.LR} "
-        f"bg={parameters.BG_PARAM}"
+        f"N_VALID={parameters.N_VALID} POOL_SIZE={parameters.POOL_SIZE} "
+        f"BATCH_SIZE={parameters.BATCH_SIZE} train_steps={parameters.TRAIN_STEPS} "
+        f"lr={parameters.LR} bg={parameters.BG_PARAM}"
     )
 
-    source_key, flow_key = jax.random.split(jax.random.key(parameters.SEED))
-    x_valid = source.samples(source_key, parameters.N_VALID)
+    source_key, flow_key, output_key = jax.random.split(
+        jax.random.key(parameters.SEED), 3
+    )
+    x_valid = source.samples(source_key, N=parameters.N_VALID)
+    if x_valid.dtype != jnp.float32:
+        raise TypeError(f"validation population is {x_valid.dtype}, expected float32")
     flow0 = Mixed_NSF(
         flow_key,
         physical.domain,
@@ -179,103 +139,126 @@ def run(parameters) -> None:
         slope=parameters.SLOPE,
         mask_strategy="balanced",
     ).zeros()
-    monitor = Monitor(
-        parameters.MONITOR_EVERY, f"[{parameters.MOLECULE}] ", log
-    )
-    particles, stages = molecular_boltzmann_forward_KLXX_G(
+    monitor = Monitor(parameters.MONITOR_EVERY, f"[{parameters.MOLECULE}] ", log)
+    particles, stages = boltzmann_forward_KLXX_G(
         x_valid,
         source,
         target,
         flow0,
-        n_pool=parameters.N_POOL,
-        n_batch=parameters.N_BATCH,
-        steps=parameters.STEPS,
+        pool_size=parameters.POOL_SIZE,
+        batch_size=parameters.BATCH_SIZE,
+        train_steps=parameters.TRAIN_STEPS,
         lr=parameters.LR,
         ladder=parameters.LADDER,
-        mc_step=parameters.MC_STEP,
-        mc_iters=parameters.MC_ITERS,
+        mc_dt=parameters.MC_DT,
+        mc_steps=parameters.MC_STEPS,
         melt=parameters.MELT,
-        opt_step=parameters.OPT_STEP,
-        opt_iters=parameters.OPT_ITERS,
+        opt_alpha=parameters.OPT_ALPHA,
+        opt_steps=parameters.OPT_STEPS,
         coeff_lambda=parameters.COEFF_LAMBDA,
         coeff_alpha=parameters.COEFF_ALPHA,
         coeff_beta=parameters.COEFF_BETA,
         monitor=monitor,
         bg_param=parameters.BG_PARAM,
-        chunk=parameters.CHUNK,
-        images=parameters.WRAPPED_IMAGES,
+        chunks=parameters.CHUNKS,
+        mc_image_radius=parameters.MC_IMAGE_RADIUS,
         e_clip=parameters.E_CLIP,
         g_clip=parameters.G_CLIP,
         seed=parameters.SEED,
         checkpoint=parameters.CHECKPOINT,
         lr_warmup=parameters.LR_WARMUP,
+        flow_dir=final_artifacts / "flows",
     )
-    particles = np.asarray(jax.block_until_ready(particles))
+    jax.block_until_ready(particles)
     if not stages or float(stages[-1]["t"]) != 1.0:
         reached = float(stages[-1]["t"]) if stages else 0.0
         raise RuntimeError(f"adaptive ladder incomplete at t={reached}")
 
-    for stage in stages:
-        stage["tau_ess"] = parameters.BG_PARAM["tau_ess"]
-    ess_history = np.concatenate(
-        [np.asarray(stage["ess_history"]) for stage in stages]
+    flow_samples = _flow_chain_samples(
+        source, stages, output_key, parameters.N_VALID, parameters.CHUNKS
     )
-    kept_history = np.concatenate(
-        [np.asarray(stage["kept_history"]) for stage in stages]
+    flow_energy = _physical_energy(physical, flow_samples, parameters.CHUNKS)
+    reference_energy = np.asarray(
+        target.reference_energy_kj_mol, dtype=np.float32
+    ).item()
+    cap_active_fraction = float(
+        np.mean(flow_energy - np.float32(reference_energy) > parameters.ENERGY_CUT_KJ_MOL)
     )
-    update_history = np.concatenate(
-        [np.asarray(stage["update_history"]) for stage in stages]
-    )
-    level_t = np.asarray([stage["t"] for stage in stages])
-    level_ess = np.asarray([stage["ess"] for stage in stages])
-    level_trained_ess = np.asarray([stage["trained_ess"] for stage in stages])
-    level_identity_ess = np.asarray([stage["identity_ess"] for stage in stages])
-    level_selected = np.asarray([stage["selected"] for stage in stages])
 
-    data_path = staging / "data.npz"
+    batch_ess_hist = np.concatenate(
+        [np.asarray(stage["batch_ess_hist"], dtype=np.float32).reshape(-1) for stage in stages]
+    )
+    kept_fraction_hist = np.concatenate(
+        [
+            np.asarray(stage["kept_fraction_hist"], dtype=np.float32).reshape(-1)
+            for stage in stages
+        ]
+    )
+    update_applied_hist = np.concatenate(
+        [
+            np.asarray(stage["update_applied_hist"], dtype=np.bool_).reshape(-1)
+            for stage in stages
+        ]
+    )
+    level_t = np.asarray([stage["t"] for stage in stages], dtype=np.float32)
+    level_selected_ess = np.asarray(
+        [stage["valid_selected_ess"] for stage in stages], dtype=np.float32
+    )
+    level_trained_ess = np.asarray(
+        [stage["valid_trained_ess"] for stage in stages], dtype=np.float32
+    )
+    level_identity_ess = np.asarray(
+        [stage["valid_identity_ess"] for stage in stages], dtype=np.float32
+    )
+    level_selected = np.asarray([stage["selected"] for stage in stages])
     np.savez_compressed(
-        data_path,
-        schema_version=2,
-        bundle="../bundle",
-        manifest_sha256=physical.manifest_sha256,
-        stage_count=len(stages),
-        bins=parameters.BINS,
-        transforms=parameters.TRANSFORMS,
-        hidden_features=np.asarray(parameters.HIDDEN_FEATURES),
-        slope=parameters.SLOPE,
-        nsf_lim=parameters.NSF_LIM,
-        flow_key_data=np.asarray(jax.random.key_data(flow_key)),
-        jflows_source_sha256=package_source_sha256("jflows"),
-        jflows_md_source_sha256=package_source_sha256("jflows_md"),
-        jax_version=jax.__version__,
-        equinox_version=eqx.__version__,
+        final_artifacts / "training_data.npz",
+        schema_version=np.int32(1),
+        bundle=np.asarray("../bundle"),
+        stage_count=np.int32(len(stages)),
+        bins=np.int32(parameters.BINS),
+        transforms=np.int32(parameters.TRANSFORMS),
+        hidden_features=np.asarray(parameters.HIDDEN_FEATURES, dtype=np.int32),
+        slope=np.float32(parameters.SLOPE),
+        nsf_lim=np.float32(parameters.NSF_LIM),
+        flow_key_data=np.asarray(jax.random.key_data(flow_key), dtype=np.uint32),
+        output_key_data=np.asarray(jax.random.key_data(output_key), dtype=np.uint32),
+        jax_version=np.asarray(jax.__version__),
+        equinox_version=np.asarray(eqx.__version__),
         level_t=level_t,
-        level_ess=level_ess,
+        level_selected_ess=level_selected_ess,
         level_trained_ess=level_trained_ess,
         level_identity_ess=level_identity_ess,
         level_selected=level_selected,
-        ess_history=ess_history,
-        kept_history=kept_history,
-        update_history=update_history,
-        **mixed_flow_metadata(flow0),
+        batch_ess_hist=batch_ess_hist,
+        kept_fraction_hist=kept_fraction_hist,
+        update_applied_hist=update_applied_hist,
     )
-    flows_path = staging / "flows.eqx"
-    eqx.tree_serialise_leaves(
-        flows_path, tuple(stage["flow"] for stage in stages)
-    )
-    particles_path = staging / "particles.h5"
-    _save_particles(
-        particles_path,
-        particles,
-        {
-            "molecule": parameters.MOLECULE,
-            "temperature_kelvin": 300.0,
-            "energy_cut_kj_mol": parameters.ENERGY_CUT_KJ_MOL,
-            "manifest_sha256": physical.manifest_sha256,
-        },
-    )
-    figure_path = staging / "adaptive_bg.png"
-    _plot_ladder(figure_path, stages)
+    common_attributes = {
+        "molecule": parameters.MOLECULE,
+        "temperature_kelvin": np.float32(300.0),
+        "energy_cut_kj_mol": np.float32(parameters.ENERGY_CUT_KJ_MOL),
+        "floating_point": "float32",
+    }
+    with h5py.File(final_artifacts / "flow_samples.h5", "w") as handle:
+        handle.create_dataset(
+            "particles",
+            data=flow_samples,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        handle.create_dataset(
+            "physical_energy_kj_mol",
+            data=flow_energy,
+            compression="gzip",
+            compression_opts=1,
+            shuffle=True,
+        )
+        for name, value in common_attributes.items():
+            handle.attrs[name] = value
+        handle.attrs["sample_kind"] = "raw composed inverse-flow proposal"
+        handle.attrs["sample_count"] = parameters.N_VALID
 
     ladder_summary = []
     for index, stage in enumerate(stages):
@@ -283,18 +266,19 @@ def run(parameters) -> None:
             "level": index + 1,
             "t": float(stage["t"]),
             "selected": stage["selected"],
-            "validation_ess": float(stage["ess"]),
-            "trained_ess": float(stage["trained_ess"]),
-            "identity_ess": float(stage["identity_ess"]),
-            "ess_samples": int(stage["ess_samples"]),
+            "valid_selected_ess": float(stage["valid_selected_ess"]),
+            "valid_trained_ess": float(stage["valid_trained_ess"]),
+            "valid_identity_ess": float(stage["valid_identity_ess"]),
+            "valid_sample_count": int(stage["valid_sample_count"]),
+            "selected_flow_path": stage["selected_flow_path"],
         }
         ladder_summary.append(record)
         log(
             f"RESULT level={record['level']} t={record['t']:.4f} "
-            f"validation_ESS[N={record['ess_samples']}]="
-            f"{record['validation_ess']:.6f} selected={record['selected']} "
-            f"trained={record['trained_ess']:.6f} "
-            f"identity={record['identity_ess']:.6f}"
+            f"validation_ESS[N={record['valid_sample_count']}]="
+            f"{record['valid_selected_ess']:.6f} selected={record['selected']} "
+            f"trained={record['valid_trained_ess']:.6f} "
+            f"identity={record['valid_identity_ess']:.6f}"
         )
     summary = {
         "schema_version": 1,
@@ -311,6 +295,7 @@ def run(parameters) -> None:
             "energy_cut_kj_mol": parameters.ENERGY_CUT_KJ_MOL,
             "energy_scale_kj_mol": parameters.ENERGY_SCALE_KJ_MOL,
             "tail_fraction": parameters.TAIL_FRACTION,
+            "flow_cap_active_fraction": cap_active_fraction,
         },
         "acceptance_rule": {
             "quantity": "per-level full-validation ESS",
@@ -321,45 +306,31 @@ def run(parameters) -> None:
         "training": {
             "objective": "adaptive KLXX",
             "n_valid": parameters.N_VALID,
-            "n_pool": parameters.N_POOL,
-            "n_batch": parameters.N_BATCH,
-            "steps_per_level": parameters.STEPS,
+            "pool_size": parameters.POOL_SIZE,
+            "batch_size": parameters.BATCH_SIZE,
+            "train_steps_per_level": parameters.TRAIN_STEPS,
             "lr": parameters.LR,
-            "minimum_kept_fraction": float(kept_history.min()),
-            "update_fraction": float(update_history.mean()),
+            "minimum_kept_fraction": float(kept_fraction_hist.min()),
+            "update_fraction": float(update_applied_hist.mean()),
             "bg_param": parameters.BG_PARAM,
         },
         "runtime": {
             "wall_seconds": time.time() - started,
-            "command": sys.argv,
-            "python": sys.version,
             "jax": jax.__version__,
-            "jax_x64_enabled": bool(jax.config.x64_enabled),
+            "floating_point": "float32",
             "devices": [str(device) for device in jax.devices()],
-            "jflows": _git_state(Path("/mnt/projects/jflows")),
-            "jflows_md": _git_state(Path("/mnt/projects/jflows_md")),
-            "driver_sha256": sha256_file(Path(__file__)),
-            "parameters_sha256": sha256_file(Path(parameters.__file__)),
         },
     }
-    summary_path = staging / "summary.json"
+    summary_path = final_artifacts / "summary.json"
     _json_write(summary_path, summary)
+    ess_table_path = final_results / "ess.md"
+    _write_ess_table(ess_table_path, summary)
     log(
         f"DONE adaptive ladder complete ({len(stages)} levels); "
-        f"final level validation ESS={level_ess[-1]:.6f}"
+        f"final level validation ESS={level_selected_ess[-1]:.6f}; "
+        f"flow cap-active fraction={cap_active_fraction:.6g}"
     )
-    marker = {
-        "schema_version": 2,
-        "data_sha256": sha256_file(data_path),
-        "flows_sha256": sha256_file(flows_path),
-        "status_sha256": sha256_file(status_path),
-        "particles_sha256": sha256_file(particles_path),
-        "summary_sha256": sha256_file(summary_path),
-        "figure_sha256": sha256_file(figure_path),
-    }
-    _json_write(staging / "COMPLETE.json", marker)
-    staging.rename(final)
-    print(f"PASS {parameters.MOLECULE}: {final}", flush=True)
+    print(f"PASS {parameters.MOLECULE}: {final_results}", flush=True)
 
 
 def main(parameters) -> None:

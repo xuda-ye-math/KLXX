@@ -1,21 +1,15 @@
 # Project status
 
-Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
+Last updated: 2026-07-13T23:10:04-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`, branch `main`, inspected on
-  baseline HEAD `fc8ddfeb294a7fa5c293a7c4440baa37a20a1bef` (`Refresh
-  numerical workflows and molecular diagnostics`), tracking the identical
-  `origin/main` before this checkpoint. The reviewed pre-commit worktree has
-  8 modified tracked files, 40 tracked deletions from the retired paper-local
-  figure tree, and 13 top-level untracked status entries. The intended commit
-  comprises the completed fresh 2D, HD Product, Phi4, and schedule-matched
-  Lattice Clock outputs, their reports, the rewritten manuscript and PDF, and
-  this status record. The 6.8 GB `Codes/Lattice_Clock/artifacts/` tree and
-  other NPZ/HDF5/EQX/log payloads remain excluded from Git but
-  recovery-critical in the ext4 mirror; ignored bytecode and LaTeX caches are
-  disposable.
+- Repository: `/mnt/projects/X-regularization`, branch `main`, at
+  `7522a64ef66ceb216b8b3e1bd381ed059c514f43` (`Ignore generated experiment
+  artifacts`), tracking the identical `origin/main` before this status-only
+  edit. The locked numerical outputs are unchanged. Large NPZ/HDF5/EQX/log
+  payloads remain excluded from Git but recovery-critical in the ext4 mirror;
+  ignored bytecode and LaTeX caches are disposable.
 - **Public/private boundary:** `/mnt/projects/jflows` and
   `/mnt/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -25,31 +19,20 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
   live-source `PYTHONPATH=/mnt/projects/jflows` or
   `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
-- Public `jflows` is clean and pushed at
-  `f273a038d00f95e6a80167935c0e004dea566a5e` (`Avoid XLA tiled concat
-  failure in circular RQS`), version 0.2.0. The preceding history/artifact
-  repair uses the actual source-particle/image
-  pair and matching Jacobian for the first forward-AIS correction, preserves a
-  per-particle Armijo trial scale after repeated line-search failures, and gives
-  OTFlow the same exact-selected-map/near-identity-warm-start contract as the
-  other trainable flows. The latest seam-equivalent gather formulation removes
-  an XLA tiled-concatenate failure in circular RQS/NCSF without changing the
-  spline map. All 16 public smoke modules and the affected 2D,
-  periodic-3D, 4D-Boltzmann, CNF, and OTFlow examples pass; three independent
-  reviewers found no remaining material correctness or API issue. The local,
-  GitHub, and ext4-mirror commit hashes are identical.
-  Public `jflows_md` is clean and pushed at
-  `60d7ca07f4ea5a83246c747c4d96c8ef009ef9a7` (`Align molecular BG APIs and
-  artifacts`), version 0.2.0. It now mirrors the direct-first forward-AIS
-  semantics, uses the standard per-step ESS monitor, compares only the final
-  trained flow with exact identity on the full validation set, and lets that
-  selected ESS alone control post-training acceptance. The retired intermediate
-  checkpoint/`selection_steps` API and target-ratio monitor are absent. A
-  differentiable lin-log excess-energy regularizer is explicit and leaves the
-  physical target immutable. Its complete 13-module GPU smoke suite passes from
-  an isolated source copy, and three independent molecular reviews returned
-  PASS. The controlled current-HEAD rerun of private forward-AIS consumers is
-  complete for 2D, HD Product, Phi4, and Lattice Clock.
+- Public `jflows` version 0.2.1 is clean and pushed at
+  `21c5ad696211b54752792e771c2bb1ad2e7f3943` (`Release 0.2.1 without legacy
+  compatibility shims`). Its annotated `0.2.0` tag preserves the exact
+  pre-removal release at `f273a038d00f95e6a80167935c0e004dea566a5e`.
+  Canonical 0.2.1 behavior remains numerically equivalent to 0.2.0 while the
+  retired argument translations and aliases are gone.
+  Public `jflows_md` remains version 0.2.1 and has completed a current-format
+  cleanup aligned with `jflows>=0.2.1`: only individual current `Mixed_NSF`
+  flow save/load remains, molecular bundles contain exactly six runtime files,
+  and no digest, run-migration, old-coordinate-measure, or old bundle-reader
+  path remains. Stable `smc` and `ais` short names remain intentional current
+  API. The full isolated GPU smoke suite passes after this cleanup. This state
+  is pushed at `2d015e16b4b0cad8e90df09e7da690480af40a94` (`Simplify molecular
+  bundles and artifacts`).
 - **Done — fresh source-only `Codes/` rewrite:** `Codes/` now contains exactly
   20 Python source files and no historical figures, tables, arrays, logs,
   checkpoints, cache directories, manifests, hashes, provenance controllers,
@@ -96,11 +79,18 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
   particle counts, including `0.00106` versus `0.00161` at 2.56 million. The
   method-split occupancy jobs took 4267 s and 4306 s, each below two hours.
   Raw values, figures, report, and paper claims passed a final independent audit.
-- **Pending as a whole — Molecular_BG:** all current alkane, glycerol,
-  regularization, bundle-validation, and training-diagnostic additions remain
-  work in progress. Existing methane/ethane summaries and the interrupted
-  propane/glycerol records are diagnostic evidence, not completed molecular BG
-  results. No molecular training process is running.
+- **Done — c50 methane and ethane Boltzmann generators:** the canonical
+  `Molecular_BG/methane_9d_c50` and `ethane_18d_c50` tests now have minimal
+  six-file bundles, one `parameters.py`, one `train.py`, ignored raw artifacts,
+  and tracked `results/ess.md` plus `results/dihedrals.png`. Both full KLXX
+  adaptive runs reached `t=1` using only full-validation ESS for stage
+  acceptance. Their independent single-precision OpenMM references and all
+  saved floating arrays are float32. No molecular process is running.
+- **Pending — higher-dimensional Molecular_BG:** propane, glycerol, ADP, and
+  diethanolamine remain open. Validation ESS degradation and the increasingly
+  singular physical target remain unresolved beyond ethane. A controlled
+  sharpening schedule has not been tested; no higher-dimensional result is
+  promoted by this checkpoint.
 - **Active environment:** `/home/xuda/.envs/jflows` is a pip-only Python 3.14.6
   virtual environment. The former Conda `jflows` environment and
   `/home/xuda/.envs/jax` are retired. The current resolver-selected stack is
@@ -114,41 +104,34 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
   Imports are intentionally absent without `PYTHONPATH`, while explicit roots
   resolve to the current repositories. Public readers may use editable pip
   installation; private runs continue to consume live source directly.
-- **Done — canonical external bundle interface:** coordinate schema 2 and the
-  rigid-motion-quotient measure remain unchanged, while public lookup names are
-  now `adp_ff96_obc1`, `glycerol_gaff2_am1bcc_obc1`, and
-  `diethanolamine_gaff2_am1bcc_obc1`. Old `_v2` names and their exact manifest
-  hashes remain private compatibility aliases for reviewed schema-2 artifacts;
-  arbitrary name, manifest, package-source, or dependency mismatches still
-  reject.
+- **Done — minimal current bundle interface:** coordinate schema 2 and the
+  rigid-motion-quotient measure remain unchanged. A bundle now contains exactly
+  `manifest.json`, `system.json`, `coordinates.json`, `validation.json`,
+  `system.xml`, and `reference.pdb`. The loader accepts only this current
+  structure and coordinate measure; it does not translate another bundle or
+  completed-run format.
 - Bundle data remains deliberately outside the Python import package. Editable
   source checkouts support short-name lookup; built wheels are code-only and
-  require an explicit external bundle path. `/mnt/projects/jflows_md/bundles`
-  and `Molecular_BG/bundles` are byte-identical 50-file trees. Their provenance
-  contains no Conda, username, workstation, temporary, or absolute installation
-  path: Amber locations are normalized to `<AMBERHOME>` before hashing.
+  require an explicit external bundle path. The three public package bundles
+  and the active methane/ethane experiment bundles use the same minimal
+  six-file contract and contain no copied topology, construction transcript,
+  or environment record.
 - The optional public extra `jflows_md[bundles]` installs OpenMM, ParmEd, and
-  `ambertools-unofficial`. Frozen 24.8 verification remains exact and
-  non-destructive; the explicit `--name`/`--output` builder mode creates a new
-  externally stored bundle with the active toolchain. Real AmberTools 26 runs
-  successfully produced and verified both glycerol and diethanolamine
-  candidates with clean provenance; disposable candidates were removed.
-- **Verification passed:** `jflows/smoke/test_flow.py` and the complete
-  `jflows_md/smoke/run_all.py` suite passed on `cuda:0`; after strengthening
-  the controller coverage, `smoke/test_boltzmann_checkpoints.py` passed again.
+  `ambertools-unofficial`. The public builder takes a target, Amber topology,
+  matching coordinate input, and output directory and writes only the six
+  current runtime files. AmberTools is a preparation dependency, not a
+  training dependency.
+- **Verification passed:** the complete `jflows_md/smoke/run_all.py` suite
+  passed from a fresh source copy on `cuda:0`; the focused API and checkpoint
+  tests passed again after the final documentation/style edits.
   Coverage includes all three OpenMM/JAX parity tests (maximum energy
   discrepancy `5.04e-8 kJ/mol`, maximum force RMSE `4.48e-8 kJ/mol/nm`),
   quotient Jacobians, ADP chirality, float32 execution, Mixed_NSF, MALA, SMC,
-  score-free AIS, a tiny BG training stage, chunking, strict bundle closure,
-  legacy artifact migration, wheel/external-data behavior, and the glycerol
-  compile path (`2.45 s` energy+gradient, `5.06 s` one-step MALA in the latest
-  13-module smoke). Two independent final checkpoint/API reviewers
-  returned PASS with no remaining high- or medium-severity issue; a separate
-  gradient audit found no
-  deterministic potential, ESS, clipping, or spline-gradient cause for the
-  observed ESS decline. The complete 14-module `jflows` smoke suite and focused
-  `jflows_md` compatibility/artifact tests also pass with the circular-RQS
-  correction; a final independent compatibility review found no high- or
+  score-free AIS, a tiny BG training stage, chunking, exact six-file bundle
+  structure, current individual-flow persistence, and the glycerol compile path
+  (`2.56 s` energy+gradient, `5.32 s` one-step MALA). The complete
+  `jflows` smoke suite also passes; a final independent compatibility review
+  found no high- or
   medium-severity issue.
 - **Done — standard optimized-XLA 36D training smoke:** an isolated invocation
   of `Molecular_BG/glycerol_36d/train.py --smoke` ran on `cuda:0` without
@@ -310,23 +293,29 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
   `jflows`; CNF, LU-mixing, one-dimensional NSF, and hard-box issues are not
   duplicated in the molecular companion. Neither package nor the active
   glycerol driver enables JAX x64 or constructs float64 JAX training arrays.
-  Float64 remains only as explicit legacy-artifact compatibility and a
-  host-side NumPy Boolean-mask calculation; offline diagnostic recomputation
-  is separate from training. The stale design-plan sentence naming float64 as
-  primary was corrected to the implemented default-float32 policy.
+  The active alkane drivers, OpenMM references, saved samples, ESS histories,
+  energies, and flow parameters use float32. Offline diagnostic recomputation
+  is separate from training.
 
 ## Pending
 
-- **Pending — public `jflows` 0.2.1 cleanup:** later remove the deliberately
-  retained legacy-compatibility support from the public `jflows` interface,
-  perform the required compatibility and smoke review, and bump `jflows` to
-  version 0.2.1. This is not part of the locked numerical checkpoint, and no
-  public-package source is changed here.
-- **Pending — all Molecular_BG work:** treat every current molecular source,
-  bundle, validation report, diagnostic run, and incomplete run as work in
-  progress. Complete the methane/ethane/propane reconciliation and the planned
-  glycerol, ADP, and diethanolamine work only under separately authorized
-  experiments; do not promote the present diagnostics as final BG results.
+- **Pending — remaining private molecular API rewrite:** the shared
+  `Molecular_BG/alkane_bg.py` and the methane/ethane entry points now use the
+  current 0.2.1 API. Unfinished callers still need cleanup, notably
+  `Molecular_BG/glycerol_36d/train.py`,
+  `Molecular_BG/glycerol_36d/dihedrals.py`, and scripts below
+  `Molecular_BG/training_diagnostics/`. Before molecular work resumes, rewrite
+  these private callers to the canonical 0.2.1 names and stage-record fields.
+  This is an interface-only follow-up; it does not itself authorize or require
+  a scientific rerun.
+- **Done — first two alkane gates:** methane 9D c50 and ethane 18D c50 are
+  complete full-size KLXX results with tracked ESS tables and visually audited
+  OpenMM marginal comparisons. Their ignored raw trajectories, samples, logs,
+  and flow checkpoints are recovery-critical in the ext4 mirror.
+- **Pending — higher-dimensional molecule gates:** do not advance beyond
+  ethane without a new instruction. Propane and larger molecules must address
+  declining validation ESS and physical-target singularity. Controlled
+  sharpening is a candidate but remains entirely untested.
 - **Pending — `zflows_md` compilation engineering:** the archived PyTorch
   molecular implementation still has unresolved excessive compile latency and
   memory growth at realistic molecular sizes. Compare compilation boundaries,
@@ -335,28 +324,24 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
 - **Pending — new molecular targets:** every AmberTools-26 or otherwise changed
   small-molecule model must use a new descriptive bundle name and receive an
   explicit scientific/provenance review before promotion to the frozen registry.
-- **Pending — alkane training diagnosis (primary):** independently review the
-  predeclared plan, build and validate only CH4 first, audit a single KL/KLXX
-  loss and gradient outside the packed scan, and require finite committed
-  updates plus saved held-out ESS before advancing to ethane, propane, or
-  n-butane. Do not infer scientific ESS from smoke-sized populations.
+- **Pending — alkane scaling diagnosis:** CH4 and ethane have passed full-size
+  c50 KLXX tests. The next authorized work starts at propane and must retain the
+  full validation population, ESS-only gate, and independent OpenMM marginal
+  comparison. Do not infer scientific ESS from smoke-sized populations.
 - **Pending — original-style vacuum glycerol (secondary):** extract the exact
   archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
   and hyperparameters; build a discrepancy ledger and run the same minimal
   diagnostic only after the CH4 gate is understood.
-- **Pending — ESS degeneration and identity selection:** the
-  standard-compiler smoke proved that the complete 36D pipeline runs quickly
-  enough, but identity won every accepted level and the production-size bare-KL
-  diagnostic peaked early before overfitting its fixed 200000-particle pool.
-  This remains the primary unresolved molecular-training problem. The next
-  authorized experiment should compare only final flow and identity on the full
-  validation set, report independent holdout ESS, and compare KL+X or KLXX
-  against bare KL before increasing step count. A run must select trained stages and
-  achieve materially nonzero direct proposal ESS before it can be treated as a
-  successful Boltzmann generator.
+- **Pending — high-dimensional ESS and singularity:** methane selected trained
+  maps at all three levels; ethane selected trained maps through `t=0.95` and
+  identity only for the final incremental level. The earlier 36D collapse
+  remains unresolved. Future work must compare only final flow and identity on
+  the full validation set and determine whether a gradual sharpening schedule
+  can preserve modes without restoring the earlier unstable behavior.
 - **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
-  MALA and optimizer-only finite-safe `e_clip`; retain honest unclipped target
-  values for MCMC, SMC, ESS, and evaluation, and do not restore sharpening.
+  MALA and optimizer-only finite-safe `e_clip`; retain honest physical target
+  values for MCMC, SMC, ESS, and evaluation. Any sharpening bridge must first
+  be specified and validated separately from the unchanged physical target.
 - **Pending:** establish matched reference diagnostics for glycerol and neutral
   diethanolamine after the first production pipeline passes.
 - **Pending:** decide whether the ignored FAB HDF5/NPZ reference data and ignored `Codes/` arrays/checkpoints need an external release artifact in addition to the mirror backup.
@@ -842,3 +827,57 @@ Last updated: 2026-07-13T12:16:43-04:00 (America/New_York)
   compatibility followed by its 0.2.1 release, and every Molecular_BG test
   and production result. Neither is included in this numerical-results
   checkpoint.
+
+### 2026-07-13T13:36:42-04:00 — Public 0.2.1 API cleanup completed
+
+- Preserved the exact `jflows_md` compatibility baseline as annotated tag
+  `0.2.0` at `5db285664e32be4ece6e603ec0aad5b3ba18fe64`, then released and pushed
+  version 0.2.1 at `220adaba22023fec9f9036fcc45049008f1d9070`.
+- Removed retired callable wrappers, keyword translations, source-sampling
+  aliases, stage-record aliases, and ordinary old-name bundle lookup. The
+  package source, README, and metadata contain no retired-interface keywords;
+  only private hash-gated historical-artifact readers remain. `smc` and `ais`
+  are intentional current short names, not compatibility shims.
+- Verified exact canonical numerical behavior against 0.2.0 over 128 saved
+  arrays, passed the complete isolated GPU smoke suite and all three molecular
+  OpenMM/JAX energy-force parity checks, and built a code-only wheel requiring
+  `jflows>=0.2.1`. Three independent reviewers returned PASS for removal,
+  cross-package consistency, smoke coverage, and equivalence.
+- Verified local `main`, `origin/main`, GitHub, and the ext4 mirror at the same
+  0.2.1 commit. No experiment or molecular training run was launched. Private
+  unfinished molecular drivers require a canonical-name rewrite before their
+  next authorized run.
+
+### 2026-07-13T23:05:53-04:00 — Minimal bundle format and first two c50 alkane gates completed
+
+- Simplified `jflows_md` to one current molecular bundle and flow-artifact
+  format. Each bundle contains exactly six files; copied Amber topology,
+  construction records, digest tables, completed-run readers, coordinate
+  measure fallbacks, and migration paths are absent. The isolated 13-module GPU
+  smoke suite passes, including all three OpenMM/JAX energy-force comparisons
+  and the real float32 glycerol compile path. Public `jflows` remained frozen
+  and clean at `21c5ad696211b54752792e771c2bb1ad2e7f3943`.
+- Published the corresponding `jflows_md` cleanup at
+  `2d015e16b4b0cad8e90df09e7da690480af40a94` (`Simplify molecular bundles and
+  artifacts`); local `main`, `origin/main`, and GitHub agree.
+- Completed the full methane 9D c50 KLXX run in three accepted levels. At
+  `t=0.3/0.75/1.0`, full-200000-sample validation ESS is
+  `0.958769/0.993007/0.990689`; the trained map wins every level. A 50000-frame
+  single-precision OpenMM reference expanded to 1.2 million symmetry-equivalent
+  torsion observations. The two marginal JS divergences are `0.013397` and
+  `0.002313` bits.
+- Completed the full ethane 18D c50 KLXX run in four accepted levels. At
+  `t=0.2/0.5/0.95/1.0`, full-200000-sample validation ESS is
+  `0.437133/0.735735/0.924835/0.992622`. The first three levels select trained
+  maps; the final incremental level correctly selects identity (`0.992622`
+  versus trained `0.972800`). A 50000-frame single-precision OpenMM reference
+  expanded to 1.8 million five-torsion observations. Marginal JS divergences
+  range from `0.018163` to `0.023436` bits.
+- Both experiment folders now expose only `results/ess.md` and
+  `results/dihedrals.png` as final tracked outputs. Raw trajectories, flow
+  samples, per-attempt checkpoints, and logs live below ignored `artifacts/`
+  and must remain in the ext4 mirror. Every saved floating array is float32;
+  both figures were visually inspected.
+- Stopped at ethane as instructed. Propane and all higher-dimensional molecule
+  tests remain pending because validation ESS degradation and potential
+  singularity are unresolved. A sharpening schedule has not been tested.
