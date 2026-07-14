@@ -108,7 +108,7 @@ def quench_and_temper_torus(target: Potential, n: int, d: int, lim: float,
 def adaptive_step(pool: torch.Tensor, u0: Potential, u: Potential, t_prev: float,
                   *, tau: float, shrink_factor: float, rungs: int, rung_iters: int,
                   mc_step: float, wrap, status=print, max_shrinks: int = 60,
-                  t_init: float = 1.0):
+                  t_init: float = 1.0, taming: float = 0.0):
     """Largest admissible t_k below t_init (the safe start t_safe on stage 1,
     thereafter the enlarge-factor extrapolation min(3 t_{k-1} - 2 t_{k-2}, 1),
     Gamma = 2): run M-rung classical SMC from mu_{k-1} to mu_k, accept when
@@ -119,7 +119,7 @@ def adaptive_step(pool: torch.Tensor, u0: Potential, u: Potential, t_prev: float
         u_prev, u_next = bridge(u0, u, t_prev), bridge(u0, u, t_k)
         _, ess = sequential_monte_carlo(wrap(pool.clone()), u_prev, u_next,
                                         ladder=rungs, step=mc_step,
-                                        iters=rung_iters)
+                                        iters=rung_iters, taming=taming)
         ess_min, n_low = min(ess), sum(1 for e in ess if e < tau)
         status(f"    [select] t_k={t_k:.4f}  SMC ESS_min={ess_min:.3f} "
                f"rungs<{tau}: {n_low}/{len(ess)} "
@@ -303,6 +303,59 @@ def validation_update(F_inv, y_valid: torch.Tensor, u_prev: Potential,
     return y_tilde, logw, compute_ESS_log(logw, drop=drop).item()
 
 
+def _initial_validation_population(
+    u0: Potential,
+    n_valid: int,
+    device,
+    initial_validation: torch.Tensor | None,
+) -> torch.Tensor:
+    """Return the BG validation population without changing the legacy path.
+
+    ``None`` executes the historical source draw verbatim.  An explicit tensor
+    is a reproducibility control for frozen experiments: it is validated before
+    any flow is constructed/compiled, cloned so the caller cannot be mutated,
+    and moved without changing dtype.  The explicit branch performs no random
+    draw and therefore consumes no source-sampling RNG.
+    """
+
+    if initial_validation is None:
+        return u0.samples(n_valid).to(device)
+    if not isinstance(initial_validation, torch.Tensor):
+        raise TypeError("initial_validation must be a torch.Tensor or None")
+    if initial_validation.ndim != 2:
+        raise ValueError("initial_validation must have shape (n_valid, dimension)")
+    if initial_validation.shape[0] != n_valid:
+        raise ValueError(
+            "initial_validation sample count "
+            f"{initial_validation.shape[0]} != n_valid {n_valid}"
+        )
+    expected_dimension = None
+    if hasattr(u0, "n_white") and hasattr(u0, "n_tor"):
+        expected_dimension = int(u0.n_white) + int(u0.n_tor)
+    if (
+        expected_dimension is not None
+        and initial_validation.shape[1] != expected_dimension
+    ):
+        raise ValueError(
+            "initial_validation dimension "
+            f"{initial_validation.shape[1]} != source dimension {expected_dimension}"
+        )
+    if not torch.is_floating_point(initial_validation):
+        raise TypeError("initial_validation must have a floating-point dtype")
+    expected_dtype = next(
+        (buffer.dtype for buffer in u0.buffers() if torch.is_floating_point(buffer)),
+        None,
+    )
+    if expected_dtype is not None and initial_validation.dtype != expected_dtype:
+        raise TypeError(
+            "initial_validation dtype "
+            f"{initial_validation.dtype} != source dtype {expected_dtype}"
+        )
+    if not bool(torch.isfinite(initial_validation).all().item()):
+        raise ValueError("initial_validation must contain only finite values")
+    return initial_validation.detach().clone().to(device)
+
+
 # ---------------------------------------------------------------------------
 # main training loop
 # ---------------------------------------------------------------------------
@@ -319,14 +372,17 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
                   lr_warmup: int = 0, e_min=None, e_max=None, r_min=None, r_max=None, drop: float = 0.0,
                   compile_inv: bool = True, ess_gate=None, release_cache: bool = False,
                   resume_stages=None, checkpoint_fn=None, fail_checkpoint_fn=None,
-                  mode_check_fn=None, gate_snapshot: bool = False, anneal_mode: str = "geometric"):
+                  mode_check_fn=None, gate_snapshot: bool = False,
+                  anneal_mode: str = "geometric", initial_validation=None):
     """Returns (stages, Y, complete, flow, F_inv) -- per-stage records (t_k,
     diagnostics, state_dict), the final validation set, whether the ladder
     reached t = 1 (False = INCOMPLETE: a stage failed its gate or max_stages
     hit; final metrics are then NOT target-faithful), and the run's shared
     flow + compiled inverse (for compose_pushforward). `qt_fn(u_next)` must
     return the wide-coverage set on the stage target (step (iii))."""
-    Y = u0.samples(n_valid).to(device)
+    Y = _initial_validation_population(
+        u0, n_valid, device, initial_validation
+    )
     t_prev, stages, d = 0.0, [], Y.shape[1]
     # Compile-once discipline (verified by zeros_sanity.py): ONE flow for the
     # whole run (reset to identity with flow.zeros() before every attempt --
@@ -412,7 +468,7 @@ def run_boltzmann(u0: Potential, u: Potential, flow_factory, *, n_valid: int,
         t_k, smc_ess, n_shrink = adaptive_step(
             pool, u0, u, t_prev, tau=adaptive_tau, shrink_factor=shrink_factor,
             rungs=smc_rungs, rung_iters=smc_rung_iters, mc_step=mc_step,
-            wrap=wrap, status=status, t_init=t_init)
+            wrap=wrap, status=status, t_init=t_init, taming=taming)
         if 1.0 - t_k < t_tol:
             t_k = 1.0
         status(f"[stage {k}] t_{{k-1}}={t_prev:.4f} -> t_k={t_k:.4f} "
@@ -541,7 +597,8 @@ def run_asmc(u0: Potential, u: Potential, *, n_valid: int, n_pool: int,
              device, status=print, enlarge_factor: float = 2.0, max_stages: int = 30,
              max_retry: int = 6, t_tol: float = 0.1, t_safe: float = 0.25,
              e_min=None, e_max=None, r_min=None, r_max=None, drop: float = 0.0,
-             anneal_mode: str = "geometric", resume_stages=None, checkpoint_fn=None):
+             anneal_mode: str = "geometric", resume_stages=None,
+             checkpoint_fn=None):
     """Returns (stages, Y, complete). Each stage record: t, smc_ess, n_shrink,
     val_ess (the DIRECT bridge reweight ESS = the accept standard), sharpen_ess,
     attempts. NO state_dict (there is no flow)."""
@@ -653,10 +710,27 @@ def compose_pushforward(flow, F_inv, state_dicts, u0: Potential, u: Potential,
 # ── assembly: build the BG problem from the package modules (was pdb_potential.build) ──
 import math
 import numpy as np
+from openmm import unit
 from .potential import Uniform
-from .forcefield import build_system, Amber_Force_Field, R_FLOOR, E_CAP0, E_CAP_SCALE
+from .forcefield import (
+    Amber_Force_Field,
+    Amber_OBC_Force_Field,
+    C_CUT0,
+    C_SCALE,
+    C_TAIL_FRACTION,
+    E_CAP0,
+    E_CAP_SCALE,
+    R_FLOOR,
+    build_system,
+)
 from .coords import Internal_Coordinates
-from .potential import Source, PDB_Potential, Torsion_Target
+from .potential import (
+    C_PDB_Potential,
+    C_Torsion_Target,
+    PDB_Potential,
+    Source,
+    Torsion_Target,
+)
 # ──────────────────────────────────────────────────────────────────────
 # domain wrap for the mixed (Euclidean bond/angle + periodic torsion) box
 # ──────────────────────────────────────────────────────────────────────
@@ -682,21 +756,58 @@ def build(prmtop: str = None, crd: str = None, md_frames: np.ndarray = None,
           T: float = 300.0, box_be: float = 8.0, device="cpu",
           dtype: torch.dtype = torch.float32, system=None, bonds=None,
           r_floor: float = R_FLOOR, e_cap: float = E_CAP0,
-          e_cap_scale: float = E_CAP_SCALE):
+          e_cap_scale: float = E_CAP_SCALE, environment: str = "vacuum",
+          regularization: str = "er", reference_positions=None,
+          c: float = C_CUT0, c_scale: float = C_SCALE,
+          c_tail_fraction: float = C_TAIL_FRACTION,
+          distance_floor: float | None = None):
     """Assemble a molecule's BG problem in whitened internal coordinates.
 
     Returns a dict with: ff, ic, u (target PDB_Potential), u0 (Source), the flow
     box (a, b), torsion-dim start index, the domain wrap, whitening stats, and
     sizes. Whitening (mu, sigma for bonds/angles) is estimated from md_frames.
     """
+    if environment not in {"vacuum", "implicit"}:
+        raise ValueError("environment must be 'vacuum' or 'implicit'")
+    if regularization not in {"er", "c"}:
+        raise ValueError("regularization must be 'er' or 'c'")
+
     # Molecule source: either a prmtop/crd pair (ADP) or a pre-built OpenMM
     # System + bond list (e.g. butane built in molecules.py). Both feed the same
     # validated Amber_Force_Field / BAT / Torsion_Target machinery.
     if system is None:
-        struct, system = build_system(prmtop, crd)
+        struct, system = build_system(prmtop, crd, environment=environment)
         bonds = [(b.atom1.idx, b.atom2.idx) for b in struct.bonds]
+        if reference_positions is None:
+            reference_positions = np.asarray(
+                struct.positions.value_in_unit(unit.nanometer)
+            )
     M = system.getNumParticles()
-    ff = Amber_Force_Field(system, dtype=dtype, r_floor=r_floor).to(device)
+    has_obc = any(
+        force.__class__.__name__ == "CustomGBForce"
+        for force in system.getForces()
+    )
+    if environment == "implicit" and not has_obc:
+        raise ValueError("implicit environment requires an OBC CustomGBForce")
+    if environment == "vacuum" and has_obc:
+        raise ValueError("vacuum environment cannot contain a CustomGBForce")
+    forcefield_type = Amber_OBC_Force_Field if has_obc else Amber_Force_Field
+    # c/r is the common family: r_floor=0 is pure c and a positive value adds
+    # the hard pair-distance floor.  ``distance_floor`` remains an explicit
+    # experiment override for the hash-frozen Gate-B runner; ordinary callers
+    # should use r_floor directly for either energy-map family.
+    if distance_floor is not None and (
+        not math.isfinite(float(distance_floor)) or float(distance_floor) < 0.0
+    ):
+        raise ValueError("distance_floor must be finite and nonnegative")
+    effective_r_floor = (
+        float(distance_floor)
+        if distance_floor is not None
+        else float(r_floor)
+    )
+    ff = forcefield_type(
+        system, dtype=dtype, r_floor=effective_r_floor
+    ).to(device)
     ic = Internal_Coordinates(bonds, M).to(device)
 
     # whitening stats from MD frames (bonds/angles only; torsions stay raw)
@@ -708,9 +819,44 @@ def build(prmtop: str = None, crd: str = None, md_frames: np.ndarray = None,
     mu_b, sig_b = bd.mean(0), bd.std(0).clamp_min(1e-6)
     mu_a, sig_a = ang.mean(0), ang.std(0).clamp_min(1e-6)
 
-    # full-dimensional pieces (used for the FINE reweight against the full target)
-    u = PDB_Potential(ff, ic, mu_b, sig_b, mu_a, sig_a, T=T,
-                      e_cap=e_cap, e_cap_scale=e_cap_scale).to(device)
+    reference_energy = None
+    if regularization == "c":
+        if reference_positions is None:
+            raise ValueError("c regularization requires reference_positions")
+        reference = torch.as_tensor(
+            np.asarray(reference_positions), dtype=dtype, device=device
+        )
+        if reference.shape != (M, 3):
+            raise ValueError(
+                f"reference_positions must have shape {(M, 3)}, got {reference.shape}"
+            )
+        with torch.no_grad():
+            reference_energy = ff(reference.unsqueeze(0))[0]
+        u = C_PDB_Potential(
+            ff,
+            ic,
+            mu_b,
+            sig_b,
+            mu_a,
+            sig_a,
+            reference_energy,
+            T=T,
+            c=c,
+            c_scale=c_scale,
+            tail_fraction=c_tail_fraction,
+        ).to(device)
+    else:
+        u = PDB_Potential(
+            ff,
+            ic,
+            mu_b,
+            sig_b,
+            mu_a,
+            sig_a,
+            T=T,
+            e_cap=e_cap,
+            e_cap_scale=e_cap_scale,
+        ).to(device)
     u0 = Source(n_white=nb_ + na_, n_tor=M - 3, box_be=box_be).to(device)
 
     tor_start = nb_ + na_
@@ -723,14 +869,38 @@ def build(prmtop: str = None, crd: str = None, md_frames: np.ndarray = None,
 
     # torsion-only TORUS BG problem (the soft block the flow is trained on)
     n_tor = M - 3
-    u_L = Torsion_Target(ff, ic, mu_b, mu_a, T=T,
-                        e_cap=e_cap, e_cap_scale=e_cap_scale).to(device)
+    if regularization == "c":
+        u_L = C_Torsion_Target(
+            ff,
+            ic,
+            mu_b,
+            mu_a,
+            reference_energy,
+            T=T,
+            c=c,
+            c_scale=c_scale,
+            tail_fraction=c_tail_fraction,
+        ).to(device)
+    else:
+        u_L = Torsion_Target(
+            ff,
+            ic,
+            mu_b,
+            mu_a,
+            T=T,
+            e_cap=e_cap,
+            e_cap_scale=e_cap_scale,
+        ).to(device)
     u0_tor = Uniform([-math.pi] * n_tor, [math.pi] * n_tor, device=device)
     a_tor = torch.full((n_tor,), -math.pi).to(device)
     b_tor = torch.full((n_tor,), math.pi).to(device)
 
     return dict(ff=ff, ic=ic, u=u, u0=u0, a=a, b=b, wrap=wrap,
                 tor_start=tor_start, M=M, n_internal=n_internal, T=T,
+                environment=environment, regularization=regularization,
+                r_floor=effective_r_floor,
+                distance_floor=effective_r_floor,
+                reference_energy=reference_energy,
                 # torus BG problem
                 u_L=u_L, u0_tor=u0_tor, a_tor=a_tor, b_tor=b_tor,
                 n_tor=n_tor, lim=math.pi,

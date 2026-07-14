@@ -56,7 +56,7 @@ stages, Y, complete, flow, F_inv = run_boltzmann(
 
 The headline metric is `F = ∏_k (1/ESS_val_k)(1/ESS_sharp_k)` — the Monte-Carlo error-propagation factor through both per-stage importance reweights (smaller is better; `F = 1` is ideal). `run_asmc(...)` runs the same ladder with the flow set to the identity at every stage, the no-flow reference.
 
-**Soft-core regularity for singular targets.** The Lennard-Jones `r → 0` clash makes `U` singular and destabilizes training at high dimension; `build(..., r_floor=, e_cap=, e_cap_scale=)` exposes a soft-core distance floor and a smooth energy cap. In the *sharpening* schedule these are annealed from soft to sharp along the ladder, with a per-stage Monte-Carlo reweight removing the bias; the defaults reproduce the bare Amber energy, so an un-annealed run is unchanged.
+**Regularity for singular targets.** The Lennard-Jones `r → 0` clash makes `U` singular and destabilizes training. The common `c/r` family uses the reference-shifted `c` energy map together with a nonnegative pair-distance floor: `r_floor=0` is pure `c`, while a positive value adds the hard floor. A schedule such as `0.20 → 0.10 → 0 nm` sharpens back to raw distances. The floor changes the surrogate wherever it is active, so a raw-target claim requires the final zero-floor step or an audited correction. Historical absolute `e_cap/r_floor` construction remains available for reproduction.
 
 **Per-molecule runs.** A full Boltzmann-generator run is driven by a small, self-contained **`train.py`** that reads a per-molecule, read-only `config.json` directly — no central driver, no template indirection. The molecule's `prmtop` / `rst7` load from the shared `zflows_md/data` folder; start from the copy-ready example in `template/`:
 

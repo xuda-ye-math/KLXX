@@ -577,9 +577,8 @@ class Gaussian_Mixture(Potential):
 # pyright: reportArgumentType=false, reportCallIssue=false, reportAttributeAccessIssue=false
 """Public molecular potentials on WHITENED INTERNAL coordinates (the BG targets).
 
-  PDB_Potential  — the full Boltzmann target mu ~ exp(-U) pulled back to whitened
-                   internal coords. THE public `PDB_Potential`: accepts only
-                   internal coordinates, never raw Cartesian.
+  PDB_Potential    — the historical e_cap/r_floor molecular surrogate.
+  C_PDB_Potential  — the reference-shifted c molecular surrogate.
   Torsion_Target — the torsion-only soft-block target (bonds/angles at the mean).
   Source         — Gaussian bond/angle + uniform torsion prior.
 
@@ -588,7 +587,17 @@ All are zflows `Potential`s. The Cartesian FF energy is the internal
 """
 import math
 import torch
-from .forcefield import Amber_Force_Field, softcap_energy, E_CAP0, E_CAP_SCALE, KB_KJ
+from .forcefield import (
+    Amber_Force_Field,
+    C_CUT0,
+    C_SCALE,
+    C_TAIL_FRACTION,
+    E_CAP0,
+    E_CAP_SCALE,
+    KB_KJ,
+    c_regularize_energy,
+    softcap_energy,
+)
 from .coords import Internal_Coordinates
 # ──────────────────────────────────────────────────────────────────────
 # Source prior + PDB_Potential on whitened internal coordinates
@@ -688,6 +697,112 @@ class PDB_Potential(Potential):
         return x
 
 
+class C_PDB_Potential(Potential):
+    """Reference-shifted c-regularized molecular target.
+
+    This class deliberately coexists with :class:`PDB_Potential`; it does not
+    reinterpret ``e_cap`` or ``r_floor``.  Its Cartesian energy is unchanged
+    through ``c`` kJ/mol above the energy of one declared reference geometry,
+    then follows the C1 lin-log map implemented by
+    :func:`c_regularize_energy`.  The internal-coordinate and whitening
+    Jacobians remain exact.
+    """
+
+    def __init__(
+        self,
+        ff: Amber_Force_Field,
+        ic: Internal_Coordinates,
+        mu_b,
+        sig_b,
+        mu_a,
+        sig_a,
+        reference_energy,
+        T: float = 300.0,
+        c: float = C_CUT0,
+        c_scale: float = C_SCALE,
+        tail_fraction: float = C_TAIL_FRACTION,
+    ):
+        super().__init__()
+        values = tuple(map(float, (T, c, c_scale, tail_fraction)))
+        if not all(math.isfinite(value) for value in values):
+            raise ValueError("c-regularized potential parameters must be finite")
+        if T <= 0.0 or c <= 0.0 or c_scale <= 0.0:
+            raise ValueError("temperature, c, and c_scale must be positive")
+        if not 0.0 <= tail_fraction <= 1.0:
+            raise ValueError("tail_fraction must lie in [0, 1]")
+        self.ff = ff
+        self.ic = ic
+        self.nb_ = ic.M - 1
+        self.na_ = ic.M - 2
+        self.nt_ = ic.M - 3
+        self.beta = 1.0 / (KB_KJ * T)
+        self.T = T
+        self.register_buffer("mu_b", mu_b)
+        self.register_buffer("sig_b", sig_b)
+        self.register_buffer("mu_a", mu_a)
+        self.register_buffer("sig_a", sig_a)
+        self.register_buffer(
+            "reference_energy",
+            torch.as_tensor(reference_energy, dtype=mu_b.dtype, device=mu_b.device),
+        )
+        self.register_buffer("c", torch.tensor(c, dtype=mu_b.dtype, device=mu_b.device))
+        self.register_buffer(
+            "c_scale", torch.tensor(c_scale, dtype=mu_b.dtype, device=mu_b.device)
+        )
+        self.register_buffer(
+            "tail_fraction",
+            torch.tensor(tail_fraction, dtype=mu_b.dtype, device=mu_b.device),
+        )
+        self.register_buffer(
+            "logdet_white", sig_b.log().sum() + sig_a.log().sum()
+        )
+
+    def unwhiten(self, xi: torch.Tensor) -> torch.Tensor:
+        bw = xi[:, : self.nb_]
+        aw = xi[:, self.nb_: self.nb_ + self.na_]
+        tor = xi[:, self.nb_ + self.na_:]
+        bonds = self.mu_b + self.sig_b * bw
+        angles = self.mu_a + self.sig_a * aw
+        return torch.cat([bonds, angles, tor], dim=-1)
+
+    def regularized_cartesian_energy(self, x: torch.Tensor) -> torch.Tensor:
+        return c_regularize_energy(
+            self.ff(x),
+            self.reference_energy,
+            self.c,
+            self.c_scale,
+            self.tail_fraction,
+        )
+
+    def forward(self, xi: torch.Tensor) -> torch.Tensor:
+        z = self.unwhiten(xi)
+        x, logdet_xyz_from_ic = self.ic.to_cartesian(z)
+        energy = self.regularized_cartesian_energy(x)
+        return self.beta * energy - logdet_xyz_from_ic - self.logdet_white
+
+    def set_c(self, c: float) -> None:
+        """Update only the reference-shifted cutoff, without touching e/r."""
+
+        if not math.isfinite(float(c)) or float(c) <= 0.0:
+            raise ValueError("c must be positive and finite")
+        self.c.fill_(float(c))
+
+    def set_r_floor(self, r_floor: float) -> None:
+        """Update the c/r pair-distance floor.
+
+        The reference-shifted energy map and the pair-distance treatment are
+        orthogonal controls.  ``r_floor=0`` is pure c on raw distances;
+        positive values select c/r and may be sharpened through, for example,
+        0.20 -> 0.10 -> 0 nm.
+        """
+
+        self.ff.set_r_floor(r_floor)
+
+    def xi_to_cartesian(self, xi: torch.Tensor) -> torch.Tensor:
+        x, _ = self.ic.to_cartesian(self.unwhiten(xi))
+        return x
+
+
 class Torsion_Target(Potential):
     """Soft-block target U_L(t) for the separation-trick BG: the molecular
     energy as a function of the M-3 torsions t (on the torus [-pi,pi]^{M-3}),
@@ -730,3 +845,60 @@ class Torsion_Target(Potential):
         return x
 
 
+class C_Torsion_Target(Potential):
+    """Torsion-only counterpart of :class:`C_PDB_Potential`."""
+
+    def __init__(
+        self,
+        ff: Amber_Force_Field,
+        ic: Internal_Coordinates,
+        mu_b,
+        mu_a,
+        reference_energy,
+        T: float = 300.0,
+        c: float = C_CUT0,
+        c_scale: float = C_SCALE,
+        tail_fraction: float = C_TAIL_FRACTION,
+    ):
+        super().__init__()
+        self.ff = ff
+        self.ic = ic
+        self.register_buffer("mu_b", mu_b)
+        self.register_buffer("mu_a", mu_a)
+        self.register_buffer(
+            "reference_energy",
+            torch.as_tensor(reference_energy, dtype=mu_b.dtype, device=mu_b.device),
+        )
+        self.register_buffer("c", torch.tensor(c, dtype=mu_b.dtype, device=mu_b.device))
+        self.register_buffer(
+            "c_scale", torch.tensor(c_scale, dtype=mu_b.dtype, device=mu_b.device)
+        )
+        self.register_buffer(
+            "tail_fraction",
+            torch.tensor(tail_fraction, dtype=mu_b.dtype, device=mu_b.device),
+        )
+        self.beta = 1.0 / (KB_KJ * T)
+        self.T = T
+        self.n_tor = ic.M - 3
+
+    def _z_from_torsions(self, t: torch.Tensor) -> torch.Tensor:
+        count = t.shape[0]
+        return torch.cat(
+            [self.mu_b.expand(count, -1), self.mu_a.expand(count, -1), t],
+            dim=-1,
+        )
+
+    def forward(self, t: torch.Tensor) -> torch.Tensor:
+        x, _ = self.ic.to_cartesian(self._z_from_torsions(t))
+        energy = c_regularize_energy(
+            self.ff(x),
+            self.reference_energy,
+            self.c,
+            self.c_scale,
+            self.tail_fraction,
+        )
+        return self.beta * energy
+
+    def t_to_cartesian(self, t: torch.Tensor) -> torch.Tensor:
+        x, _ = self.ic.to_cartesian(self._z_from_torsions(t))
+        return x

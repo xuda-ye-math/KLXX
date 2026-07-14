@@ -104,7 +104,15 @@ def main() -> None:
     method = p["method"]
     if method not in {"asmc", "kl", "klxx"}:
         raise ValueError("method must be one of: asmc, kl, klxx")
+    regularization = p.get("regularization", "er")
+    if regularization not in {"er", "c"}:
+        raise ValueError("regularization must be 'er' or 'c'")
+    c_value = float(p.get("c", 50.0))
+    c_scale = float(p.get("c_scale", 50.0))
+    c_tail_fraction = float(p.get("c_tail_fraction", 0.0))
     raw = bool(p["raw"])
+    if regularization == "c" and raw:
+        raise ValueError("raw is an e/r option and must be false for c regularization")
     delta = float(p["delta"])
     if method != "klxx" and delta != 0.0:
         raise ValueError("delta must be zero unless method='klxx'")
@@ -137,11 +145,18 @@ def main() -> None:
     ess_gate = {int(k): float(v) for k, v in p["ess_gate"].items()}
     chunk = int(p["qt_chunk"]) * int(p["qt_chunk_multiplier"])
 
-    tag = (
+    method_tag = (
         ("asmc_raw" if raw else "asmc")
         if method == "asmc"
-        else method + ("_delta" if delta > 0 else "") + ("_raw" if raw else "_sharpen")
+        else method + ("_delta" if delta > 0 else "")
     )
+    if regularization == "c":
+        c_label = f"{c_value:g}".replace(".", "p")
+        tag = f"{method_tag}_c{c_label}"
+    elif method == "asmc":
+        tag = method_tag
+    else:
+        tag = method_tag + ("_raw" if raw else "_sharpen")
     output = os.path.join(HERE, f"data_{tag}.pth")
     resume_keep = int(p["resume_keep"])
     if resume_keep < 0:
@@ -191,15 +206,22 @@ def main() -> None:
         f"method={tag}  pool={n_pool} batch={n_batch} valid={n_valid} "
         f"steps={steps} delta={delta} drop={p['drop']} device={device} #####"
     )
-    energy_status = (
-        f"RAW fixed-cap={p['e_max']} (no anneal/sharpen)"
-        if raw
-        else f"e_anneal={p['e_min']}->{p['e_max']} ({p['anneal_mode']})  "
-        f"r_anneal={p['r_max']}->{p['r_min']}"
-    )
+    if regularization == "c":
+        energy_status = (
+            f"reference-shifted c={c_value} scale={c_scale} "
+            f"tail={c_tail_fraction} (no e/r sharpening)"
+        )
+    else:
+        energy_status = (
+            f"RAW fixed-cap={p['e_max']} (no anneal/sharpen)"
+            if raw
+            else f"e_anneal={p['e_min']}->{p['e_max']} ({p['anneal_mode']})  "
+            f"r_anneal={p['r_max']}->{p['r_min']}"
+        )
     log(
         f"  config={config_path} prmtop={os.path.basename(prmtop)}  "
         f"{energy_status}  grad_clip={p['grad_clip']} "
+        f"mc_step={p['mc_step']} taming={p['taming']} "
         f"gate_snapshot={p['gate_snapshot']} compile_inv={p['compile_inv']}"
     )
     if resume_stages:
@@ -225,6 +247,11 @@ def main() -> None:
         dtype=torch_dtype(p["dtype"]),
         r_floor=float(p["r_floor"]),
         e_cap=float(p["e_cap"]),
+        environment=p["environment"],
+        regularization=regularization,
+        c=c_value,
+        c_scale=c_scale,
+        c_tail_fraction=c_tail_fraction,
     )
     target, source = problem["u"], problem["u0"]
     lower, upper, wrap = problem["a"], problem["b"], problem["wrap"]
@@ -233,10 +260,13 @@ def main() -> None:
         potential.enable_grad(mode=p["compile_mode"])
         potential.enable_eval(mode=p["compile_mode"])
 
-    e_min, e_max = float(p["e_min"]), float(p["e_max"])
-    r_min, r_max = p["r_min"], p["r_max"]
-    if raw:
+    if regularization == "c":
         e_min = e_max = r_min = r_max = None
+    else:
+        e_min, e_max = float(p["e_min"]), float(p["e_max"])
+        r_min, r_max = p["r_min"], p["r_max"]
+        if raw:
+            e_min = e_max = r_min = r_max = None
 
     def flow_factory():
         flow = NCSF(

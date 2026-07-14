@@ -636,7 +636,7 @@ def langevin(samples: torch.Tensor, potential: Potential, beta: float = 1.0, ste
 # alias: in SMC literature, Langevin steps are the standard "rejuvenation" move
 rejuvenation = langevin
 
-def sequential_monte_carlo(samples: torch.Tensor, source: Potential, target: Potential, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> tuple[torch.Tensor, list[float]]:
+def sequential_monte_carlo(samples: torch.Tensor, source: Potential, target: Potential, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1, taming: float = 0.0) -> tuple[torch.Tensor, list[float]]:
     """
     Sequential Monte Carlo (annealed Langevin) that transports the input
     particles from the source `mu_0 ~ exp(-beta_source * source)` to the target
@@ -689,6 +689,8 @@ def sequential_monte_carlo(samples: torch.Tensor, source: Potential, target: Pot
         chunk:       int                split along dim 0 into this many chunks inside
                                         each Langevin call to bound peak VRAM
                                         (statistically equivalent to chunk=1).
+        taming:      float              Langevin drift-taming coefficient. The default
+                                        zero preserves the historical SMC exactly.
     Output:
         samples:     Tensor [N, d]      particles approximating exp(-beta_target * target).
         ess:         list[float]        length-M list of the per-rung effective sample size
@@ -734,7 +736,7 @@ def sequential_monte_carlo(samples: torch.Tensor, source: Potential, target: Pot
         # (2) resample onto high-weight particles, then (3) Langevin-rejuvenate
         #     ON the bridge u_k to obtain fresh samples ~ exp(-u_k).
         x = resample(x, w)
-        x = langevin(x, u_curr, step=step, iters=iters, chunk=chunk)
+        x = langevin(x, u_curr, step=step, iters=iters, chunk=chunk, taming=taming)
     return x, ess
 
 def annealed_importance_sampling_F(samples: torch.Tensor, source: Potential, target: Potential, F: ComposedTransform, beta_source: float = 1.0, beta_target: float = 1.0, ladder: int = 1, step: float = 1e-3, iters: int = 100, chunk: int = 1) -> torch.Tensor:
