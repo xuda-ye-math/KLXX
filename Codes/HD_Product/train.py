@@ -22,7 +22,7 @@ saved, so coverage and imbalance are recomputable at any threshold).
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/HD_Product/train.py
 Writes temporary ``artifacts/k{k}/data.npz`` files (existing completed runs
 are skipped, so the sweep resumes). Final tables and figures are built by the

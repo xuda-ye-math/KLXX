@@ -17,7 +17,7 @@ flow importance-sampling ESS on the full fixed source set, and coverage
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/2D_Benchmark/Three-Well/train.py
 Writes final figures below ``results/`` and the temporary log below
 ``artifacts/``.

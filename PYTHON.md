@@ -7,8 +7,8 @@ The active local environment is the pip-only virtual environment
 
 The two live source packages remain outside the environment:
 
-- `/mnt/projects/jflows`
-- `/mnt/projects/jflows_md`
+- `/data/projects/jflows`
+- `/data/projects/jflows_md`
 
 Local runs select them explicitly with `PYTHONPATH`. Do not install either
 package into `~/.envs/jflows`, create a persistent `.pth` file, or use an
@@ -111,21 +111,22 @@ source "$HOME/.envs/jflows/bin/activate"
 For `jflows` experiments:
 
 ```bash
-cd /mnt/projects/X-regularization
-PYTHONPATH=/mnt/projects/jflows \
+cd /data/projects/X-regularization
+PYTHONPATH=/data/projects/jflows \
   python Codes/Lattice_Clock/train.py
 ```
 
 For molecular experiments:
 
 ```bash
-cd /mnt/projects/X-regularization
-PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md \
-  python Molecular_BG/glycerol_36d/train.py --smoke
+cd /data/projects/X-regularization
+PYTHONPATH=/data/projects/jflows:/data/projects/jflows_md \
+  python Molecular_BG/methane_9d/train.py
 ```
 
-Do not launch the production glycerol run until it is explicitly authorized.
-The smoke flag uses the same pipeline at bounded sizes.
+Every molecular driver is full-size. The current 9D--45D results are complete;
+do not rerun or overwrite them without explicit authorization. No smoke-sized
+ESS run is a substitute for these configurations.
 
 ## Isolated package smoke tests
 
@@ -136,11 +137,11 @@ trees. Copy the required trees to a temporary directory:
 tmp=$(mktemp -d /tmp/jflows-smoke.XXXXXX)
 mkdir -p "$tmp/jflows" "$tmp/jflows_md"
 rsync -a --exclude='.git/' --exclude='__pycache__/' \
-  /mnt/projects/jflows/jflows /mnt/projects/jflows/smoke \
-  /mnt/projects/jflows/pyproject.toml "$tmp/jflows/"
+  /data/projects/jflows/jflows /data/projects/jflows/smoke \
+  /data/projects/jflows/pyproject.toml "$tmp/jflows/"
 rsync -a --exclude='.git/' --exclude='__pycache__/' \
-  /mnt/projects/jflows_md/jflows_md /mnt/projects/jflows_md/smoke \
-  /mnt/projects/jflows_md/bundles /mnt/projects/jflows_md/pyproject.toml \
+  /data/projects/jflows_md/jflows_md /data/projects/jflows_md/smoke \
+  /data/projects/jflows_md/bundles /data/projects/jflows_md/pyproject.toml \
   "$tmp/jflows_md/"
 
 XLA_PYTHON_CLIENT_PREALLOCATE=false \
@@ -185,5 +186,5 @@ exact historical rebuild gate intentionally rejects version 26 output. ADP is
 independent of AmberTools; its regenerated Hamiltonian and molecular potential
 match the frozen FAB target.
 
-The archived `Molecular_BG_1/` and `Molecular_BG_2/` trees retain historical
-PyTorch/zflows instructions. They are not active environment documentation.
+The corresponding old molecular trees below `.archive/` retain historical
+JAX/PyTorch/zflows instructions. They are not active environment documentation.

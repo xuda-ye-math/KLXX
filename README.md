@@ -3,8 +3,8 @@
 Research code and numerical evidence for X-functional regularization of
 forward-KL normalizing-flow Boltzmann generators.
 
-- Paper: [`Paper_Arxiv/main.pdf`](Paper_Arxiv/main.pdf)
-- LaTeX source: [`Paper_Arxiv/main.tex`](Paper_Arxiv/main.tex)
+- Paper: [`Paper/main.pdf`](Paper/main.pdf)
+- LaTeX source: [`Paper/main.tex`](Paper/main.tex)
 - Current operational state: [`status.md`](status.md)
 - Python environment: [`PYTHON.md`](PYTHON.md)
 
@@ -13,8 +13,8 @@ forward-KL normalizing-flow Boltzmann generators.
 Current experiments use the public JAX packages in two neighboring source
 repositories:
 
-- `/mnt/projects/jflows`
-- `/mnt/projects/jflows_md`
+- `/data/projects/jflows`
+- `/data/projects/jflows_md`
 
 The local pip-only virtual environment is `~/.envs/jflows`. Neither package is
 installed into it; private runs select the live checkout explicitly through
@@ -28,15 +28,16 @@ source "$HOME/.envs/jflows/bin/activate"
 Run a `jflows` experiment from the repository root with:
 
 ```bash
-PYTHONPATH=/mnt/projects/jflows \
+PYTHONPATH=/data/projects/jflows \
   python Codes/Lattice_Clock/train.py
 ```
 
-Run the bounded molecular pipeline with:
+The molecular drivers are full-size and must not be launched without explicit
+authorization:
 
 ```bash
-PYTHONPATH=/mnt/projects/jflows:/mnt/projects/jflows_md \
-  python Molecular_BG/glycerol_36d/train.py --smoke
+PYTHONPATH=/data/projects/jflows:/data/projects/jflows_md \
+  python Molecular_BG/methane_9d/train.py
 ```
 
 Do not launch production molecular training without explicit authorization.
@@ -50,20 +51,21 @@ X-regularization/
 │   ├── HD_Product/         # high-dimensional product multi-well sweep
 │   ├── Lattice_Clock/      # periodic clock-model experiments
 │   └── Lattice_Phi4/       # L=6 and L=8 tilted phi-four experiments
-├── Molecular_BG/
-│   ├── bundles/            # three immutable schema-2 runtime targets
-│   ├── glycerol_36d/       # current molecular training driver
-│   ├── reference/          # FAB ground-truth reference artifacts
-│   └── JFLOWS_MD_PLAN.md
-├── Molecular_BG_1/         # archived paper-era PyTorch result tree
-├── Molecular_BG_2/         # archived abandoned PyTorch repair tree
-├── Paper_Arxiv/            # manuscript and tracked paper figures
+├── Molecular_BG/           # completed 9D--45D fixed-e/r alkane experiments
+│   ├── methane_9d/
+│   ├── ethane_18d/
+│   ├── propane_27d/
+│   ├── butane_36d/
+│   └── pentane_45d/
+├── .archive/               # ignored old molecular baselines and controls
+├── Paper/                  # manuscript and tracked paper figures
 ├── PYTHON.md               # authoritative pip-only environment guide
 └── status.md               # sole operational diary and handoff record
 ```
 
-`Molecular_BG_1/` and `Molecular_BG_2/` are historical evidence. Their old
-zflows/PyTorch environment instructions are intentionally not active guidance.
+The old JAX baseline and three `Molecular_BG_zflows_*` controls live below
+ignored `.archive/`. Their old zflows/PyTorch environment instructions are
+historical evidence, not active guidance; the ext4 mirror preserves them.
 
 ## Numerical suites
 
@@ -73,7 +75,8 @@ zflows/PyTorch environment instructions are intentionally not active guidance.
 | `Codes/HD_Product/` | Dimension scaling for product multi-well targets |
 | `Codes/Lattice_Phi4/` | Broken-phase lattice phi-four training and reference diagnostics |
 | `Codes/Lattice_Clock/` | Mixed periodic flow, adaptive ladder, and occupancy diagnostics |
-| `Molecular_BG/` | Bundle-driven molecular potentials and glycerol Boltzmann-generator work |
+| `Molecular_BG/` | Current energy/distance-regularized molecular experiments |
+| `.archive/` | Ignored historical molecular baselines and PyTorch controls |
 
 Every active driver documents its exact local invocation at the top of the
 file. Long runs save raw numerical arrays and checkpoints separately from
@@ -81,13 +84,15 @@ plotting so figures can be regenerated without retraining.
 
 ## Molecular boundary
 
-The molecular runtime consumes complete, hash-verified directories under
-`Molecular_BG/bundles/`, mirrored from `/mnt/projects/jflows_md/bundles/`.
-The current targets are:
+Each current experiment carries a complete six-file runtime bundle under its
+own `Molecular_BG/<molecule>_<dimension>d/bundle/` directory. The current
+targets are the GAFF2/AM1-BCC/OBC1 n-alkane series:
 
-- 60D L-alanine dipeptide, Amber ff96/OBC1;
-- 36D neutral glycerol, GAFF2/AM1-BCC/OBC1;
-- 48D neutral diethanolamine, GAFF2/AM1-BCC/OBC1.
+- 9D methane;
+- 18D ethane;
+- 27D propane;
+- 36D n-butane;
+- 45D n-pentane.
 
 Training uses the pure-JAX `Molecular_Potential` and does not reconstruct a
 Hamiltonian from a PDB. OpenMM/ParmEd are installed for validation and optional
@@ -103,5 +108,6 @@ environment.
 - MALA is the default Langevin kernel.
 - Molecular target energies and reported ESS values remain unclipped; `e_clip`
   is only an optimizer screen.
-- No sharpening is part of the current molecular target or training design.
+- The completed runs use fixed e/r surrogates. Later experiments will adapt
+  the separately audited sharpening technique from `../zflows_md`.
 - Package smokes run from temporary copies so public repositories stay clean.

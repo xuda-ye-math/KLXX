@@ -30,7 +30,7 @@ full target.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Clock/train.py
 Writes temporary run data below ``artifacts/<tag>``. The public ``flow_dir``
 interface saves every trained attempt below ``artifacts/<tag>/attempts``.

@@ -15,7 +15,7 @@ the barrier height read off the weighted magnetization histogram.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Phi4/L8/reference.py
 Writes temporary reference data and its log below ``artifacts/``.
 """

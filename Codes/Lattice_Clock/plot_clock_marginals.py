@@ -18,7 +18,7 @@ so reruns re-render the figure with no GPU work and no recomputation.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Clock/plot_clock_marginals.py
 Writes ``results/clock_marginals.png``; progress is recorded with the
 temporary artifacts.

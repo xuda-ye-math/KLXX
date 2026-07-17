@@ -26,11 +26,11 @@ corresponding ``flows.eqx`` files.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Clock/occupancy_bias_B2000.py --method kl
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Clock/occupancy_bias_B2000.py --method klxx
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Clock/occupancy_bias_B2000.py --merge
 """
 

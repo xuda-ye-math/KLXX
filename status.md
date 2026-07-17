@@ -1,25 +1,34 @@
 # Project status
 
-Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
+Last updated: 2026-07-17T16:59:19-04:00 (America/New_York)
 
 ## Current state
 
-- Repository: `/mnt/projects/X-regularization`, branch `main`; this checkpoint
-  is based on `fa0ce3612d9e5cd2ee31bb249d2788181dcfc7e3` (`Add molecular
-  controls and full-pool diagnostics`). The locked `Codes/` numerical outputs
-  are unchanged. The user's four molecular-workspace renames and the reviewed
-  reverified-control source/tests are included in this checkpoint.
-  Large NPZ/HDF5/EQX/log payloads remain excluded from Git but
+- Repository: `/data/projects/X-regularization`, branch `main`, tracking
+  `origin/main`; the committed baseline is
+  `1bd7b794509c58654dd7a3fb18429f207c8a7c98` (`Organize molecular workspaces
+  and regularization controls`). Before this backup/commit checkpoint, the
+  worktree has 15 modified tracked paths, 369 tracked deletions from the
+  user-owned archive/paper moves, and two untracked top-level trees:
+  `Molecular_BG/` and `Paper/`. The locked `Codes/` numerical outputs are
+  unchanged; their source changes are command-path corrections only. The four
+  old molecular test trees now live below ignored `.archive/` (5.6 GiB), and
+  `Paper_Arxiv/` was renamed to `Paper/`. Large NPZ/HDF5/EQX/log payloads and
+  the 932 MiB current molecular artifacts remain excluded from Git but
   recovery-critical in the ext4 mirror; ignored bytecode and LaTeX caches are
-  disposable.
-- **Public/private boundary:** `/mnt/projects/jflows` and
-  `/mnt/projects/jflows_md` remain the public package repositories. Their
+  disposable. All 365 files tracked at the old molecular paths are present in
+  the archive; 13 retain small pre-archive working-copy edits, chiefly the
+  already requested `/mnt/projects` to `/data/projects` path migration, and
+  therefore require exact mirror preservation rather than reconstruction from
+  the prior Git commit.
+- **Public/private boundary:** `/data/projects/jflows` and
+  `/data/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
   editable `pip install -e .` interface without workstation-specific paths.
   `X-regularization` remains the private experiment tree: every active command
   activates `/home/xuda/.envs/jflows`, then uses ordinary `python` plus explicit
-  live-source `PYTHONPATH=/mnt/projects/jflows` or
-  `/mnt/projects/jflows:/mnt/projects/jflows_md`. This is the sole project
+  live-source `PYTHONPATH=/data/projects/jflows` or
+  `/data/projects/jflows:/data/projects/jflows_md`. This is the sole project
   `status.md`; neither public package carries one.
 - Public `jflows` version 0.2.1 is clean and pushed at
   `21c5ad696211b54752792e771c2bb1ad2e7f3943` (`Release 0.2.1 without legacy
@@ -50,6 +59,23 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   boolean/nonscalar arguments, and zero-subgradient floored distances without
   silently changing the physical endpoint. This surrogate is a diagnostic or
   training bridge, not an automatic claim of a normalized physical density.
+- **Done — complete 9D--45D e/r-regularized KLXX alkane series:** the current
+  `Molecular_BG/` tree contains methane, ethane, propane, n-butane, and
+  n-pentane runs at dimensions 9/18/27/36/45. Every full run reached `t=1`,
+  saved every pre-update batch ESS, and exited normally. Their `(e [kJ/mol],
+  r [nm])` pairs and endpoint full-validation ESS are `(100, 0.1): 0.999992`,
+  `(100, 0.1): 0.998610`, `(50, 0.1): 0.996787`,
+  `(50, 0.15): 0.993094`, and `(50, 0.2): 0.829475`, respectively. Methane
+  and ethane used 200,000 validation particles with batch 10,000; the three
+  larger systems used 400,000 with batch 20,000. The complete run summaries
+  report 19,500 per-step ESS rows in total. No molecular process is running.
+- **Working scientific conclusion — e/r controls stability:** the user has
+  identified the main regularization pair, energy threshold `e` and pair
+  distance floor `r`, as the crucial factor governing molecular training
+  stability. Batch size and validation population size are secondary and were
+  not the decisive controls in this campaign. Keep optimizer `e_clip` separate
+  from physical-potential `e`; do not substitute population scaling for tuning
+  the e/r surrogate.
 - **Done — explicit molecular identity initialization:** direct
   `train_*` functions accept `initialize_from_identity=False`, preserving the
   supplied flow by default. Molecular `boltzmann_*` functions default to
@@ -71,17 +97,18 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   `9e1e42456f9cd9e8df488207d16a7708059e292a`, `origin/main`, and the peeled
   local/remote `v0.3.0` tag target agree exactly. No production molecular
   training was launched.
-- **Workspace rename ledger:** `Molecular_BG/` is now
-  `Molecular_BG_jflows_v1_nor/`; `Molecular_BG_1/` is now
-  `Molecular_BG_zflows_v1_original/`; `Molecular_BG_2/` is now
-  `Molecular_BG_zflows_v2_snapshot/`; and `Molecular_BG_zflows/` is now
-  `Molecular_BG_zflows_v3_reverify/`. The later JAX e/r experiments must live
-  in a new `Molecular_BG_jflows_v2_r/` workspace. That directory is deliberately
-  not created yet and must wait for an explicit experiment instruction.
+- **Workspace archive ledger:** the former baseline/control trees
+  `Molecular_BG_jflows_v1_nor/`, `Molecular_BG_zflows_v1_original/`,
+  `Molecular_BG_zflows_v2_snapshot/`, and
+  `Molecular_BG_zflows_v3_reverify/` now live below ignored `.archive/` as
+  historical evidence. Git records their old tracked locations as deletions;
+  the mirror backup, not Git, preserves the ignored archive payload. The active
+  e/r series remains under `Molecular_BG/`. The manuscript directory was
+  separately renamed from `Paper_Arxiv/` to `Paper/`.
 - **Verified — reverified PyTorch control tests:** the renamed
-  `Molecular_BG_zflows_v3_reverify/` suite now runs through pytest so fixtures
-  and parameterized validation cases are exercised rather than called as
-  zero-argument functions. All 31 tests pass in `1.38 s`, including both
+  `.archive/Molecular_BG_zflows_v3_reverify/` suite now runs through pytest so
+  fixtures and parameterized validation cases are exercised rather than
+  called as zero-argument functions. All 31 tests pass in `1.38 s`, including both
   historical and c/r potential families, collision stress, explicit validation
   populations, adaptive bridge/sharpen endpoints, and local package layout.
   Generated diagnostic candidates/runs remain mirror-only through rename-safe
@@ -115,7 +142,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   raw-artifact audits are complete. Do not rerun, reseed, regenerate, or alter
   these numerical results unless the user explicitly reopens them; subsequent
   package maintenance is not authorization to change this locked checkpoint.
-  The user's final `Paper_Arxiv/main.tex` layout adjustment is preserved, and
+  The user's final `Paper/main.tex` layout adjustment is preserved, and
   the corresponding PDF was generated afterward: 34 pages, 5,274,119 bytes,
   with no unresolved-reference, overfull-box, or fatal-build marker.
 - **Done — corrected Lattice Clock paired rerun and downstream rebuilds:** the
@@ -133,7 +160,8 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   method-split occupancy jobs took 4267 s and 4306 s, each below two hours.
   Raw values, figures, report, and paper claims passed a final independent audit.
 - **Done — c50 methane and ethane Boltzmann generators:** the canonical
-  `Molecular_BG_jflows_v1_nor/methane_9d_c50` and `ethane_18d_c50` tests have
+  `.archive/Molecular_BG_jflows_v1_nor/methane_9d_c50` and `ethane_18d_c50`
+  tests have
   minimal six-file bundles, one `parameters.py`, one `train.py`, ignored raw
   artifacts, and tracked `results/ess.md` plus `results/dihedrals.png`. Both
   full KLXX adaptive runs reached `t=1` using only full-validation ESS for
@@ -161,7 +189,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 - **🚨 DANGER — fifth severe accident: unauthorized public-package edit was
   started and immediately reverted:** while the authorized next comparison was
   confined to the local historical `Molecular_BG_zflows/zflows_md` control, an
-  AI edit briefly changed `/mnt/projects/jflows_md/jflows_md/core/forcefield.py`.
+  AI edit briefly changed `/data/projects/jflows_md/jflows_md/core/forcefield.py`.
   The edit was not requested, was never committed, and was reverted before any
   test or experiment. `git diff -- jflows_md/core/forcefield.py
   jflows_md/potential.py` was empty immediately after recovery. The five
@@ -192,7 +220,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 - **Active old-framework control environment:** `/home/xuda/.envs/zflows` is a
   separate pip-only Python 3.14.6 environment. It intentionally contains no
   installed `zflows`, `zflows_md`, `jflows`, or `jflows_md`; local tests use
-  `PYTHONPATH=/mnt/projects/X-regularization/Molecular_BG_zflows_v3_reverify`.
+  `PYTHONPATH=/data/projects/X-regularization/.archive/Molecular_BG_zflows_v3_reverify`.
   Its
   dependency stack includes PyTorch 2.12.1+cu130 (matching the extant archived
   Conda environment's PyTorch release), Triton 3.7.1, OpenMM/OpenMM-CUDA-13
@@ -230,7 +258,8 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   energy+gradient, `5.27 s` one-step MALA). Generic `jflows` remains at its
   previously verified clean 0.2.1 head.
 - **Done — standard optimized-XLA 36D training smoke:** an isolated invocation
-  of `Molecular_BG_jflows_v1_nor/glycerol_36d/train.py --smoke` ran on `cuda:0` without
+  of `.archive/Molecular_BG_jflows_v1_nor/glycerol_36d/train.py --smoke` ran
+  on `cuda:0` without
   `JAX_DISABLE_MOST_OPTIMIZATIONS` or another reduced-optimization setting. It
   completed 100-step mixed-flow training attempts over 14 accepted adaptive
   levels, reached `t=1`, promoted its checked artifacts, and exited zero in
@@ -418,31 +447,24 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 
 ## Pending
 
-- **Active scientific goal — resolve molecular singularity with `jflows_md`:**
-  use the new independent energy-threshold and pair-distance-floor controls to
-  identify a regularized bridge that is trainable, retains the relevant
-  molecular modes, and can be sharpened or reweighted honestly toward the raw
-  physical target. This is the main molecular task. Package smoke/parity passes
-  prove implementation consistency but do not establish BG efficacy or
-  normalizability of a chosen surrogate.
-- **Pending — diagnose post-level-1 molecular KLXX updates:** n-butane c20 and
-  c50 prove that cap strength does not explain the all-rejected optimizer path.
-  Identify which KLXX loss/gradient component becomes nonfinite before treating
-  a numerically identity stage as learned.
-- **Pending — first 0.3.0 JAX e/r experiment:** when explicitly instructed,
-  create `Molecular_BG_jflows_v2_r/` as the clean experiment workspace and use
-  the reconstructed live `jflows_md` source through explicit `PYTHONPATH`.
-  Do not reuse or overwrite `Molecular_BG_jflows_v1_nor/`; it remains the
-  no-distance-floor baseline. The first experiment must separately report the
-  raw physical target and the selected `(energy_threshold_kj_mol,
-  pair_distance_floor_nm)` surrogate, use full-validation ESS for scientific
-  decisions, and save sufficient samples/checkpoints for offline comparison.
-  No such run or workspace exists yet.
+- **Pending — apply controlled sharpening:** later experiments will adapt the
+  sharpening technique in `../zflows_md`, where the e/r surrogate is annealed
+  from soft to sharp and each stage records the Monte Carlo sharpening-reweight
+  ESS. Port and audit that logic against current `jflows_md` before launching;
+  preserve the raw physical target, per-step KLXX ESS, full-validation stage
+  ESS, and the separate sharpening ESS. No sharpening implementation or run is
+  authorized by this checkpoint.
+- **Decision — tune e/r before population sizes:** treat the energy threshold
+  and pair-distance floor as the primary stability parameters. Do not spend the
+  next experiment cycle on batch-size or validation-population scaling unless
+  an independent diagnostic specifically implicates finite-population error.
 - **Preserved old-framework controls:** the original, snapshot, and reverified
-  PyTorch workspaces now live under `Molecular_BG_zflows_v1_original/`,
-  `Molecular_BG_zflows_v2_snapshot/`, and
-  `Molecular_BG_zflows_v3_reverify/`. Their completed checkpoints/results are
-  controls only and must not be overwritten by the future JAX e/r campaign.
+  PyTorch workspaces now live under
+  `.archive/Molecular_BG_zflows_v1_original/`,
+  `.archive/Molecular_BG_zflows_v2_snapshot/`, and
+  `.archive/Molecular_BG_zflows_v3_reverify/`. Their completed
+  checkpoints/results are controls only and must not be overwritten by the
+  future JAX e/r campaign.
 - **Pending — generic `jflows` modernization after 0.2.1:** keep the current
   package and locked numerical results unchanged for now. A separate future
   design/reconstruction may add resumable Boltzmann runs, an explicit
@@ -451,20 +473,14 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   algorithm and Lattice Clock behavior before deciding exact stage warm-start
   semantics; none of these future features is part of `jflows_md` 0.3.0.
 
-- **Pending — fresh private 0.3.0 callers:** do not retrofit the renamed
-  `Molecular_BG_jflows_v1_nor/` baseline merely to exercise the new API. Build
-  minimal current callers directly in `Molecular_BG_jflows_v2_r/` when that
-  workspace is authorized, using the descriptive e/r names and explicit
-  initialization choice. This interface work does not itself establish a
-  scientific result.
-- **Done — first two alkane gates:** methane 9D c50 and ethane 18D c50 are
-  complete full-size KLXX results with tracked ESS tables and visually audited
-  OpenMM marginal comparisons. Their ignored raw trajectories, samples, logs,
-  and flow checkpoints are recovery-critical in the ext4 mirror.
-- **Pending — higher-dimensional molecule gates:** do not advance beyond
-  ethane without a new instruction. Propane and larger molecules must address
-  declining validation ESS and physical-target singularity. Controlled
-  sharpening is a candidate but remains entirely untested.
+- **Done — fresh private 0.3.0 callers:** the methane and ethane drivers use
+  descriptive e/r names and explicit identity initialization without
+  retrofitting `.archive/Molecular_BG_jflows_v1_nor/`. Both full runs and their
+  saved per-step ESS histories passed artifact-level consistency audits.
+- **Done — alkane dimensional gates:** the full methane-through-pentane series
+  is complete through 45D. Its tracked ESS tables/CSV histories and ignored raw
+  particles, logs, and flow checkpoints are recovery-critical; the ignored
+  payload must remain in the ext4 mirror.
 - **Pending — `zflows_md` compilation engineering:** the archived PyTorch
   molecular implementation still has unresolved excessive compile latency and
   memory growth at realistic molecular sizes. Compare compilation boundaries,
@@ -473,20 +489,18 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 - **Pending — new molecular targets:** every AmberTools-26 or otherwise changed
   small-molecule model must use a new descriptive bundle name and receive an
   explicit scientific/provenance review before promotion to the frozen registry.
-- **Pending — alkane scaling diagnosis:** CH4 and ethane have passed full-size
-  c50 KLXX tests. The next authorized work starts at propane and must retain the
-  full validation population, ESS-only gate, and independent OpenMM marginal
-  comparison. Do not infer scientific ESS from smoke-sized populations.
+- **Done — fixed-surrogate alkane scaling diagnosis:** CH4 through n-pentane
+  have completed full-size KLXX runs. Any next alkane comparison should add the
+  planned e/r sharpening path rather than repeat population-size scaling.
 - **Pending — original-style vacuum glycerol (secondary):** extract the exact
   archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
   and hyperparameters; build a discrepancy ledger and run the same minimal
   diagnostic only after the CH4 gate is understood.
-- **Pending — high-dimensional ESS and singularity:** methane selected trained
-  maps at all three levels; ethane selected trained maps through `t=0.95` and
-  identity only for the final incremental level. The earlier 36D collapse
-  remains unresolved. Future work must compare only final flow and identity on
-  the full validation set and determine whether a gradual sharpening schedule
-  can preserve modes without restoring the earlier unstable behavior.
+- **Done — high-dimensional fixed-surrogate stability gate:** choosing
+  `e=50, r=0.15` stabilized n-butane 36D through endpoint ESS `0.993094`, and
+  `e=50, r=0.2` carried n-pentane 45D through endpoint ESS `0.829475`. The next
+  question is honest sharpening toward the physical target, not whether these
+  fixed surrogates can finish training.
 - **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
   MALA and optimizer-only finite-safe `e_clip`; retain honest physical target
   values for MCMC, SMC, ESS, and evaluation. Any sharpening bridge must first
@@ -505,7 +519,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 
 ### 2026-07-10T22:16:00-04:00 — JAX numerical tests adopted
 
-- Copied `/mnt/projects/jflows/Codes` into the project as `Codes/` with matching checksums, 110 files, and 2,574,939,484 bytes.
+- Copied `/data/projects/jflows/Codes` into the project as `Codes/` with matching checksums, 110 files, and 2,574,939,484 bytes.
 - Confirmed the copied drivers use public `jflows` modules and contain no `zflows` imports.
 - Added `*.eqx` to `.gitignore` so large Equinox checkpoints stay local.
 
@@ -577,7 +591,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 ### 2026-07-11T20:58:39-04:00 — Public packages separated from private experiment runs
 
 - Kept `jflows` and `jflows_md` as standalone public repositories and removed
-  workstation-specific `PYTHONPATH=/mnt/projects/...` instructions from their
+  workstation-specific `PYTHONPATH=/data/projects/...` instructions from their
   public README, example, smoke, and bundle-builder interfaces. GitHub readers
   receive the conventional `pip install -e .` workflow.
 - Kept `X-regularization` as the private/local experiment layer. Its Codes and
@@ -591,7 +605,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
   (`jflows`) and `bab0f7edcc7e14855b848ef1b440f7323a18ae8d`
   (`jflows_md`).
 - Retired the ignored package-root status record. Operational handoff state is
-  maintained only in `/mnt/projects/X-regularization/status.md`.
+  maintained only in `/data/projects/X-regularization/status.md`.
 
 ### 2026-07-11T22:09:55-04:00 — Quotient target and persistence contracts corrected
 
@@ -1033,7 +1047,7 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 
 ### 2026-07-14T09:14:00-04:00 — 🚨 Molecular identity-reset omission found and repaired
 
-- Compared pure forward KL only against `/mnt/projects/zflows_md_backup`.
+- Compared pure forward KL only against `/data/projects/zflows_md_backup`.
   Archived molecular KL resets the incremental flow to exact identity before
   every stage and retry; live `jflows_md` had instead reused the preceding
   accepted increment. The saved stage-2 probe proves the resulting collapse
@@ -1180,3 +1194,67 @@ Last updated: 2026-07-14T19:34:44-04:00 (America/New_York)
 - Repaired the renamed reverified control's custom runner to honor pytest
   fixtures and parameterization. Its complete 31-test suite passes; rename-safe
   ignore rules keep generated candidate bundles and diagnostic runs out of Git.
+
+### 2026-07-17T11:30:38-04:00 — Data paths migrated and methane e/r caller prepared
+
+- Replaced active legacy-mount commands and provenance lookups with the live
+  `/data/projects` roots across project documentation, current drivers, ignored
+  operational configs, and the local `jflows` skill. Public `jflows` and
+  `jflows_md` package repositories remain unmodified; historical captured
+  stdout retains its original paths. The updated `jflows` skill passes its
+  structural validator.
+- Created `Molecular_BG/methane_9d/` without touching the successful
+  `Molecular_BG_jflows_v1_nor/` baseline. Its six physical bundle files are
+  byte-identical to the methane c50 source bundle, including matching SHA-256
+  hashes.
+- Added a standalone latest-interface full-size KLXX driver with primary
+  potential constants `e=50.0` kJ/mol and `r=0.1` nm. It is designed to save
+  every pre-update batch ESS by level, retry attempt, and optimizer step, plus
+  the full-validation stage ESS records. Both Python files pass AST parsing and
+  static live-signature checks. Per instruction, no training or other runtime
+  execution was launched, and no `artifacts/` or `results/` directory exists.
+
+### 2026-07-17T11:55:54-04:00 — Methane and ethane e/r KLXX runs completed
+
+- Updated the main molecular energy threshold from the initial prepared value
+  to the user-specified `e=100.0 kJ/mol`, retained `r=0.1 nm`, and completed the
+  full methane 9D KLXX run. Its four accepted levels at
+  `t=0.21/0.525/0.9975/1.0` have selected full-200000-particle ESS
+  `0.978385/0.994428/0.998197/0.999992`; the first three select trained flows
+  and the final endpoint selects identity.
+- Created `Molecular_BG/ethane_18d/` from the same driver and an exact
+  byte-for-byte copy of the legacy ethane six-file bundle. A machine comparison
+  verified that all methane settings are unchanged except molecule identity,
+  formula, dimension, bundle, and the requested smaller `t_safe`. The first
+  `t_safe=0.25` pass completed, then its generated outputs were removed and
+  overwritten as instructed by the final `t_safe=0.20` run.
+- The final ethane run completed on `cuda:0` in `289.673 s`. Its accepted levels
+  at `t=0.20/0.50/0.95/1.0` select trained flows with full-validation ESS
+  `0.826795/0.965812/0.960052/0.998610`. All 2,000 per-step ESS values are
+  finite and lie in `(0,1]`; 1,991 updates were applied and nine finite-safe
+  updates were rejected. The consolidated CSV/NPZ histories exactly match all
+  four monitor sidecars, all 200,000 x 18 final float32 particles are finite,
+  and the schema-2 flow manifest is complete. Public `jflows` and `jflows_md`
+  repositories remain clean and unmodified.
+
+### 2026-07-17T16:59:19-04:00 — Full e/r alkane series completed and old workspaces archived
+
+- Completed the current KLXX alkane sequence through propane 27D, n-butane
+  36D, and n-pentane 45D. All five methane-through-pentane runs reached `t=1`;
+  their endpoint full-validation ESS values are
+  `0.999992/0.998610/0.996787/0.993094/0.829475`. The saved summaries contain
+  19,500 per-step ESS rows in total, and no molecular training process remains.
+- Recorded the working conclusion that the main potential regularization pair
+  `(e, r)` is the crucial training-stability control, while optimizer batch
+  size and validation population size are not the primary factors. The
+  high-dimensional successful settings progressed from `e=50, r=0.1` at 27D
+  to `e=50, r=0.15` at 36D and `e=50, r=0.2` at 45D.
+- Set the next molecular direction: adapt and audit the per-stage e/r
+  sharpening/reweighting technique from `../zflows_md`, retaining a separate
+  sharpening ESS and the existing per-step/full-validation ESS records. No
+  sharpening code was changed or launched in this checkpoint.
+- Preserved the user's filesystem organization: the four old molecular test
+  trees were moved below ignored `.archive/`, and `Paper_Arxiv/` was renamed to
+  `Paper/`. The ignored archive and current molecular artifacts require the
+  ext4 mirror for recovery; Git intentionally records only the old-path
+  deletions and current tracked deliverables.

@@ -18,7 +18,7 @@ this script). All Langevin kernels run MALA (mc_adjust = True).
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/mnt/projects/jflows python \
+    PYTHONPATH=/data/projects/jflows python \
         Codes/Lattice_Phi4/L6/train.py
 Writes temporary arrays/logs below ``artifacts/`` and the final table below
 ``results/``; plotting is separate.
