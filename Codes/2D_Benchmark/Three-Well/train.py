@@ -64,8 +64,9 @@ TRANSFORMS: int = 6
 HIDDEN_FEATURES = (128, 128)
 
 # training parameters
-N_VALID: int = 80000  # the fixed source set (training pool + final ESS / coverage)
-BATCH_SIZE: int = 1000    # source samples per training step
+VALID_SZIE: int = 80000  # the fixed source set (training pool + final ESS / coverage)
+BATCH_SZIE: int = 1000    # source samples per training step
+POOL_SIZE: int = 0        # 0: quench the complete validation population
 TRAIN_STEPS: int = 500      # Adam optimization steps
 LR: float = 1e-3       # Adam learning rate
 
@@ -75,9 +76,9 @@ MC_DT: float = 2e-3  # Langevin step size
 MC_STEPS: int = 50     # Langevin steps per level / per hat_mu freshening
 
 # quench and temper (the wide-coverage measure hat_mu)
-POOL_SIZE: int = 4000     # quench-and-temper pool size
+REFER_SZIE: int = 4000    # coverage-reference population size
 MELT: float = 2.0      # melt scale (std of the Gaussian scatter)
-OPT_ALPHA: float = 0.5  # L-BFGS trial alpha (armijo)
+OPT_DT: float = 0.5  # L-BFGS initial trial step size (Armijo)
 OPT_STEPS: int = 200   # L-BFGS iterations
 QT_MC_STEPS: int = 1000  # temper length of the coverage-reference pool
 
@@ -135,10 +136,10 @@ def main() -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
     log(f"START Threewell | jax {jax.__version__} | backend {jax.default_backend()} | "
-        f"N_VALID={N_VALID} BATCH_SIZE={BATCH_SIZE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} "
+        f"VALID_SZIE={VALID_SZIE} BATCH_SZIE={BATCH_SZIE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} "
         f"MC={MC_DT}x{MC_STEPS} (MALA) ladder={LADDER} "
-        f"QT: POOL_SIZE={POOL_SIZE} melt={MELT} opt={OPT_ALPHA}x{OPT_STEPS}")
-    x_valid = u0.samples(jax.random.key(2), N_VALID)
+        f"QT: REFER_SZIE={REFER_SZIE} melt={MELT} opt={OPT_DT}x{OPT_STEPS}")
+    x_valid = u0.samples(jax.random.key(2), VALID_SZIE)
     flow0 = NSF(jax.random.key(0), a=[-NSF_LIM, -NSF_LIM], b=[NSF_LIM, NSF_LIM],
                 bins=BINS, transforms=TRANSFORMS,
                 hidden_features=HIDDEN_FEATURES).zeros()
@@ -146,12 +147,12 @@ def main() -> None:
     # coverage-reference pool: quench and temper on the target
     log("building the quench-and-temper coverage reference pool ...")
     y_hat_ref = quench_and_temper(
-        jax.random.key(1), u0.samples(jax.random.key(4), POOL_SIZE), u1,
-        melt=MELT, opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+        jax.random.key(1), u0.samples(jax.random.key(4), REFER_SZIE), u1,
+        melt=MELT, opt_dt=OPT_DT, opt_steps=OPT_STEPS,
         mc_dt=MC_DT, mc_steps=QT_MC_STEPS, mc_adjust=True,
     )
     y_hat_ref = jax.block_until_ready(y_hat_ref)
-    log(f"QT pool ready ({POOL_SIZE} particles)")
+    log(f"QT pool ready ({REFER_SZIE} particles)")
 
     runs = {}
     for name in METHODS:
@@ -160,30 +161,30 @@ def main() -> None:
         if name == "KL":
             flow, batch_ess_hist = train_forward_KLX_G(
                 x_valid, u0, u1, flow0,
-                batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                batch_size=BATCH_SZIE, train_steps=TRAIN_STEPS, lr=LR,
                 ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
                 coeff_lambda=0.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_mu":
             flow, batch_ess_hist = train_forward_KLX_G(
                 x_valid, u0, u1, flow0,
-                batch_size=BATCH_SIZE, train_steps=TRAIN_STEPS, lr=LR,
+                batch_size=BATCH_SZIE, train_steps=TRAIN_STEPS, lr=LR,
                 ladder=LADDER, mc_dt=MC_DT, mc_steps=MC_STEPS,
                 coeff_lambda=1.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_mu+X_hat_mu":
             flow, batch_ess_hist = train_forward_KLXX_G(
                 x_valid, u0, u1, flow0,
-                pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
-                train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                pool_size=POOL_SIZE,
+                batch_size=BATCH_SZIE, train_steps=TRAIN_STEPS, lr=LR,
+                ladder=LADDER, melt=MELT, opt_dt=OPT_DT, opt_steps=OPT_STEPS,
                 mc_dt=MC_DT, mc_steps=MC_STEPS,
                 coeff_lambda=1.0, coeff_alpha=1.0, coeff_beta=0.0,
                 mc_adjust=True, monitor=mon)
         else:  # KL+X_mu+X_mix
             flow, batch_ess_hist = train_forward_KLXX_G(
                 x_valid, u0, u1, flow0,
-                pool_size=POOL_SIZE, batch_size=BATCH_SIZE,
-                train_steps=TRAIN_STEPS, lr=LR, ladder=LADDER, melt=MELT,
-                opt_alpha=OPT_ALPHA, opt_steps=OPT_STEPS,
+                pool_size=POOL_SIZE,
+                batch_size=BATCH_SZIE, train_steps=TRAIN_STEPS, lr=LR,
+                ladder=LADDER, melt=MELT, opt_dt=OPT_DT, opt_steps=OPT_STEPS,
                 mc_dt=MC_DT, mc_steps=MC_STEPS,
                 coeff_lambda=1.0, coeff_alpha=0.5, coeff_beta=0.5,
                 mc_adjust=True, monitor=mon)
@@ -198,7 +199,7 @@ def main() -> None:
                       "batch_ess_hist": np.asarray(batch_ess_hist),
                       "final_ess": ess, "coverage": cov}
         log(f"[{name}] done in {time.time() - t0:.1f}s   final ESS = {ess:.4f}   "
-            f"coverage_k={COVERAGE_K} = {cov:.4f}   (N_VALID = {N_VALID})")
+            f"coverage_k={COVERAGE_K} = {cov:.4f}   (VALID_SZIE = {VALID_SZIE})")
 
     # ── samples.png: pushforward panels over the target energy ──
     log("rendering samples.png + ess.png ...")
