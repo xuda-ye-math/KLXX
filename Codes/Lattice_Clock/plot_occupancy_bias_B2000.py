@@ -45,12 +45,12 @@ def main() -> None:
     from matplotlib.ticker import FixedFormatter, FixedLocator, NullLocator
 
     plt.rcParams.update({
-        "font.size": 10, "axes.labelsize": 11, "axes.titlesize": 11,
+        "font.size": 10, "axes.labelsize": 10, "axes.titlesize": 11,
         "legend.fontsize": 9, "xtick.labelsize": 9, "ytick.labelsize": 9,
         "mathtext.fontset": "cm", "font.family": "serif",
     })
 
-    fig, ax = plt.subplots(1, 1, figsize=(4.6, 3.4))
+    fig, ax = plt.subplots(1, 1, figsize=(4.0, 3.0))
     for m in METHODS:
         bias = np.array([d[f"bias_{m}_k{k}"].mean() for k in ks])
         sem = np.array([d[f"bias_{m}_k{k}"].std(ddof=1)

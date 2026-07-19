@@ -1,30 +1,51 @@
 # Project status
 
-Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
+Last updated: 2026-07-19T10:35:41-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/data/projects/X-regularization`, branch `main`, tracking
-  `origin/main`. The completed 2D rerun is committed and pushed as
-  `c1f4efe5f2c21f8b54bf495317e4c356cf2ac6c8`
-  (`Rerun 2D benchmarks with jflows 0.5.0`); local and remote `main` agree at
-  that boundary. Before this status-only follow-up, the preserved unrelated
-  worktree state consists of 24 unstaged modified tracked paths, seven
-  unstaged tracked deletions, and two untracked paths,
-  `Codes/HD_Product_old/` and `status.md`; no path is staged. The unrelated
-  changes remain under `.gitignore`, HD Product, Lattice Clock, and Lattice
-  Phi4 and were excluded from the 2D commit. A Phi4 audit accidentally
-  generated four
-  ignored `__pycache__/*.pyc` files at `2026-07-18 02:41:26 -0400`; they are
-  inventoried in the timeline below and remain present because deletion was
-  not authorized.
-  Ignored `.archive/`, molecular artifacts, NPZ/HDF5/EQX/log payloads, and
-  `Codes/` run artifacts remain recovery-critical outside Git.
-  The complete project state before this status entry was copied to
-  `/data/games/X-regularization_071826`; its 2,295 included files and
-  14,801,767,739 regular-file bytes matched the source, its HEAD matched this
-  commit, `git fsck --full --no-dangling` passed, and a checksum dry run found
-  no payload difference.
+  `origin/main`. Local and remote `main` agree at
+  `9e29ea71341ff6ef079a92906eccd18162f7ab1c` (`Complete Lattice Clock
+  rerun`). The preserved worktree has no staged paths and contains six
+  modified tracked paths, 52 tracked deletions, and 52 untracked files. The
+  modified paths are `.gitignore`, the Clock occupancy plot source and PNG,
+  `Paper/main.tex`, the rebuilt `Paper/main.pdf`, and this status file. The
+  deletions and untracked files are the preserved molecular workspace
+  relocation. Ignored `.archive/`, molecular artifacts,
+  NPZ/HDF5/EQX/log payloads, and `Codes/` run artifacts, including the Clock
+  training and occupancy archives, remain recovery-critical outside Git.
+- **Done — Sections 1--2 and appendix consistency pass:** the requested
+  manuscript scope now identifies QT rejuvenation as MALA, states the
+  biased-surrogate Fisher--Rao theorem through its explicit appendix loss, and
+  identifies the clock evidence as trained-flow, full-validation ESS at each
+  level. A direct scope search found no stale pool-size, identity-proposal,
+  delta-reweighting, or generic QT-Langevin wording. The remaining derivations
+  and theorem statements are internally consistent. Molecular BG results were
+  deliberately ignored. `latexmk -pdf -interaction=nonstopmode
+  -halt-on-error main.tex` exited zero and produced a 33-page, 5,653,888-byte
+  `Paper/main.pdf`; the final log contains no undefined reference/citation,
+  overfull box, fatal error, or emergency stop.
+- **🚨 SEVERE WARNING — ambiguous and incorrect chunk explanation:** two
+  earlier responses made a simple caller-controlled rule nearly unreadable.
+  First, “it uses one chunking layer” named neither the component nor the
+  comparison, so the reader could not tell what was being contrasted with
+  what. The exact statement should have been: the jflows Boltzmann validation
+  evaluator partitions the complete validation population once, and each
+  resulting part is evaluated directly rather than subdivided again. Second,
+  “the jflows Boltzmann generator splits the full validation set into 16
+  parts” incorrectly presented an experiment value as package behavior.
+  jflows never hard-codes 16: the caller supplies `chunks`, whose default is
+  `1`; if the experiment passes `chunks=CHUNKS`, the population is split into
+  the current value of `CHUNKS` parts. For KLXX, the same caller-provided value
+  is applied independently to the QT population and to the validation
+  log-weight population; neither operation applies a second nested split.
+  Hard communication rule: every chunk explanation must name the component,
+  the population, the caller-provided value and default, and whether any split
+  is nested. The active HD Product driver now passes its sole `CHUNKS=16`
+  value to both direct KLXX/QT training and one full-population
+  `importance_weights_log(..., chunks=CHUNKS)` call. Its separate sample-write
+  loop does not recompute weights. No HD run was launched by this correction.
 - **🚨 SEVERE ACCIDENT — unauthorized JAX memory-allocation overrides:** the
   agent launched the rewritten HD Product sweep with
   `TF_FORCE_UNIFIED_MEMORY=1` and
@@ -124,40 +145,27 @@ Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
   manually construct QT with the sole public `chunks` control and provide the
   resulting wide-coverage population to the direct trainer; no private-global
   patch or Boltzmann-controller substitution is acceptable.
-- **Stopped — corrected HD Product linear-dimension sweep:** the four 2D
-  benchmarks, both Phi4 sizes, and the Lattice Clock production rebuild are
-  complete. The former HD Product folder is preserved as
-  `Codes/HD_Product_old/`; the new `Codes/HD_Product/` benchmark uses dimensions
-  `256, 240, ..., 16`, the potential
-  `0.5*|x|^2 + 12*sum_{i<=floor(log2(d))} exp(-x_i^2)`, and
-  `N_VALID(d)=10000*d`. It runs the methods in reverse order:
-  KL+X_mu+X_mix, KL+X_mu+X_hat_mu, KL+X_mu, then KL. At the user's explicit
-  direction, PID 124451 was terminated during d=256 KL step 1200. Direct
-  verification found no matching process or GPU compute allocation. This
-  attempt saved no NPZ. The later incorrect Boltzmann-controller attempt also
-  saved no NPZ, and its complete `artifacts/` directory is now in system trash.
-  The corrected source uses direct `train_forward_KLXX_G` and
-  `train_forward_KLX_G`, manually binds public `quench_and_temper` with the
-  sole `CHUNKS=16` control, explicitly sets
-  `XLA_PYTHON_CLIENT_PREALLOCATE=false` and `checkpoint=False`, and retains
-  `jax.clear_caches()` after each dimension. No process is active and no
-  corrected relaunch has occurred.
-  These runs use the clean live `jflows` 0.4.1 tagged source at
-  `7bda6ead0a42f6f08106ab3f576c0e69e1490283`. The model-driver migration
-  deliberately removes the former pool-size control and explicitly starts
-  each compared trainer from identity. Identity initialization is part of the
-  comparison design because it gives the different methods the same starting
-  map. It does not in general guarantee higher ESS or better training quality;
-  its purpose here is to improve stability, especially for singular
-  potentials, and to keep the comparison fair across methods. The changed
-  optimization path from this common identity start is therefore a plausible
-  explanation for the fresh Lattice Phi4 ESS being slightly below the backup;
-  that difference should not be interpreted as evidence that identity starts
-  must improve ESS. All other mathematical and experimental settings are
-  checked against
-  `/data/games/X-regularization_071826` before each model run; each completed
-  run must update its `results.md` immediately from fresh raw artifacts and
-  then pass an independent report audit.
+- **Done — HD Product linear-dimension rerun:** the public `jflows` 0.5.0
+  direct trainers completed all four methods at the 16 dimensions
+  `256, 240, ..., 16`. Direct artifact inspection found 64/64 finite final ESS
+  values and 64/64 finite 2,000-step batch-ESS histories. The run uses
+  `VALID_SIZE(d)=5000*d`, `POOL_SIZE(d)=1000*d`,
+  `EVAL_SIZE(d)=max(200*d,80000)`, and `CHUNKS=10`; the final log ends in the
+  all-16-tests `DONE` marker. The report now uses one combined two-panel
+  `results/ess.png`: validation ESS over dimension on the left and batch ESS at
+  `d=256` on the right. At `d=256`, final ESS is `0.4322/0.5608/0.5979/0.5687`
+  for KL/KL+X_mu/KLXX-hat/KLXX-mix. All X-regularized methods visibly improve
+  on forward KL, while the two KLXX variants remain close. The retired table,
+  coverage table, and separate old ESS figures are no longer part of the
+  active result presentation.
+- **Done — Lattice Phi4 rerun published:** all 24 L=6/L=8 production runs use
+  the public `jflows` 0.5.0 direct trainers, the same explicit identity NSF,
+  `N_POOL=0`, and no chunk argument. Both CSV tables and density figures were
+  regenerated. All 12 KL/KL+Xμ runs collapse onto one vacuum, while all 12
+  KLXX runs cover both vacua near the saved reference occupancies. Mean ESS for
+  KLXX-hat/KLXX-mix is `0.8730/0.8887` at L=6 and `0.6449/0.6823` at L=8.
+  The committed report and tracked Phi4 scope are published at
+  `c71e6eda66961f25682b8cf8c54fb70a529b242f`.
 - **Public/private boundary:** `/data/projects/jflows` and
   `/data/projects/jflows_md` remain the public package repositories. Their
   READMEs present a conventional pip-created `.venv`, `source` activation, and
@@ -286,20 +294,20 @@ Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
   The user's final `Paper/main.tex` layout adjustment is preserved, and
   the corresponding PDF was generated afterward: 34 pages, 5,274,119 bytes,
   with no unresolved-reference, overfull-box, or fatal-build marker.
-- **Done — corrected Lattice Clock paired rerun and downstream rebuilds:** the
-  repaired driver defines `t_hist` as the accepted KL level history, stores
-  rejected trials only in `attempt_t_hist`, and enforces exact KL/KLXX schedule
-  equality. At batch sizes 2000, 1000, 500, 250, and 125, KLXX improves the
-  full-validation stage ESS on 36 of 37 shared levels and reduces
-  $F=\prod_k\mathrm{ESS}_k^{-1}$ from
-  `26.8707/53.2909/119.9999/342.3248/1058.3636` to
-  `9.4661/20.0376/38.0382/90.7354/251.3791`. Direct composed-map and minibatch
-  ESS are not presented as Clock results. A two-million-sample KLXX rebuild
-  shows all six sectors. Fresh equal-work occupancy scaling gives slopes
-  `-0.492` for KL and `-0.505` for KLXX; KLXX has lower mean bias at all nine
-  particle counts, including `0.00106` versus `0.00161` at 2.56 million. The
-  method-split occupancy jobs took 4267 s and 4306 s, each below two hours.
-  Raw values, figures, report, and paper claims passed a final independent audit.
+- **Done — Lattice Clock rerun published:** the public `jflows` 0.5.0
+  Boltzmann generators completed all five exact-schedule KL/KLXX pairs with
+  `POOL_SIZE=0`. The accepted histories match exactly within every pair. The
+  final report deliberately stops at batch size 250: B=125 is retained only in
+  ignored raw artifacts because that batch is too small for the presentation.
+  Across the four reported batches 2000, 1000, 500, and 250, KLXX improves all
+  28 shared stage ESS values and reduces
+  $F=\prod_k\mathrm{ESS}_k^{-1}$ by factors 2.87--3.70. The two-million-sample
+  KLXX marginal rebuild and every reported occupancy rebuild retain all six
+  sectors. Equal-work occupancy scaling is reported only through k=6
+  (`N=640000`); its seven-point slopes are `-0.459` for KL and `-0.479` for
+  KLXX, with lower KLXX bias at every reported population. The method jobs took
+  3843 s and 3789 s. The complete tracked Clock scope is committed and pushed
+  at `9e29ea71341ff6ef079a92906eccd18162f7ab1c`.
 - **Done — c50 methane and ethane Boltzmann generators:** the canonical
   `.archive/Molecular_BG_jflows_v1_nor/methane_9d_c50` and `ethane_18d_c50`
   tests have
@@ -585,19 +593,6 @@ Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
 
 ## Pending
 
-- **Pending — finish the corrected HD Product sweep:** run all 16 dimensions
-  from 256 down to 16 with all four methods, preserving each completed method
-  and dimension artifact. Then generate the continuous 16-row tables and
-  figures, update `Codes/HD_Product/results.md` from the new raw values, and
-  directly audit every reported number and claim. Do not reintroduce
-  `TF_FORCE_UNIFIED_MEMORY`, `XLA_PYTHON_CLIENT_MEM_FRACTION`, or a private
-  training-chunk override. The now-authorized clean driver must use the direct
-  `train_forward_KLXX_G`/`train_forward_KLX_G` series, keep only the canonical
-  `chunks=16` control where supported, explicitly set
-  `XLA_PYTHON_CLIENT_PREALLOCATE=false`, explicitly pass `checkpoint=False`,
-  run KLXX through KL in reverse order, clear JAX caches after every dimension,
-  and launch the full production sweep directly from d=256 with no smoke or
-  alternate-dimension diagnostic.
 - **Pending — apply controlled sharpening:** later experiments will adapt the
   sharpening technique in `../zflows_md`, where the e/r surrogate is annealed
   from soft to sharp and each stage records the Monte Carlo sharpening-reweight
@@ -659,6 +654,10 @@ Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
 - **Pending:** establish matched reference diagnostics for glycerol and neutral
   diethanolamine after the first production pipeline passes.
 - **Pending:** decide whether the ignored FAB HDF5/NPZ reference data and ignored `Codes/` arrays/checkpoints need an external release artifact in addition to the mirror backup.
+- **Pending — headline clock counts outside the requested edit scope:** the
+  abstract and conclusion still say `36/37` clock levels from the earlier
+  presentation, while the current Section 5 reports `28/28` after excluding
+  `B=125`. They were not changed in the Sections 1--2/appendix-only pass.
 - **Pending:** integrate the completed JAX molecular backend into the paper only after BG sampling results pass the planned physical and distributional gates; then perform the final full-paper consistency audit.
 
 ## Timeline
@@ -1949,3 +1948,93 @@ Last updated: 2026-07-18T18:11:04-04:00 (America/New_York)
   `c1f4efe5f2c21f8b54bf495317e4c356cf2ac6c8`
   (`Rerun 2D benchmarks with jflows 0.5.0`). Local and remote `main` agree at
   that commit. The required pre-commit rsync mirror completed successfully.
+
+### 2026-07-18T18:31:34-04:00 — 🚨 Severe ambiguous chunk explanation warning
+
+- Recorded that “it uses one chunking layer” was unreadable because it named
+  neither the component nor the comparison. The clear statement is that the
+  jflows Boltzmann validation evaluator partitions its complete validation
+  population once and evaluates each part directly, without subdividing a
+  part again.
+- Recorded that describing the partition count as 16 was incorrect. The
+  package does not hard-code 16: its caller-provided `chunks` argument defaults
+  to 1, and `chunks=CHUNKS` means the current value of `CHUNKS` determines the
+  number of parts.
+- For KLXX, QT and validation log-weight evaluation apply the same canonical
+  caller-provided value independently to their respective populations. The
+  active HD Product source now passes `CHUNKS=16` to direct KLXX/QT training
+  and to one full-validation `importance_weights_log` call; no run was
+  launched by this correction.
+
+### 2026-07-18T21:49:42-04:00 — HD Product rerun completed and published
+
+- Completed the fresh 16-dimension sweep with all four methods under public
+  `jflows` 0.5.0. The final log ends in `DONE`; direct inspection verified 64
+  method--dimension NPZ artifacts, 64 finite final ESS values, and 64 finite
+  2,000-step batch-ESS histories.
+- Replaced the old table-based presentation with one directly inspected
+  two-panel `Codes/HD_Product/results/ess.png`. The left panel reports
+  validation ESS over all dimensions and the right panel reports batch ESS at
+  `d=256`. The report records that every X-regularized method clearly exceeds
+  forward KL and that the two KLXX trajectories are close.
+- The required `/data/projects/backup.sh` rsync mirror exited successfully.
+  Committed exactly the active `Codes/HD_Product/` scope as
+  `529569ebfffe83c95a559ae6a5267b212ac44bf9` (`Complete HD Product rerun`) and
+  pushed `main`; local and remote hashes agree. Unrelated Clock, Phi4,
+  molecular, ignore-file, and pre-existing status changes remain preserved and
+  unstaged.
+
+### 2026-07-18T22:26:26-04:00 — Lattice Phi4 rerun completed and published
+
+- Completed all 24 L=6/L=8 production runs with public `jflows` 0.5.0. Every
+  method starts from the same identity NSF; both KLXX methods use `N_POOL=0`,
+  and neither driver specifies a chunk size. Both run logs contain 12 completed
+  method records and end in `DONE`.
+- Regenerated both 12-row CSV tables and both magnetization-density figures,
+  then updated `Codes/Lattice_Phi4/results.md`. All 48 saved weight and
+  magnetization arrays are finite with 100000 entries; every normalized weight
+  vector is nonnegative, and all 24 reported ESS/occupancy pairs reproduce
+  directly from the saved arrays. Both PNGs were directly inspected.
+- The required `/data/projects/backup.sh` rsync mirror exited successfully.
+  Committed exactly `Codes/Lattice_Phi4/` as
+  `c71e6eda66961f25682b8cf8c54fb70a529b242f` (`Complete Lattice Phi4
+  rerun`) and pushed `main`; local and remote hashes agree. Lattice Clock,
+  molecular relocation, `.gitignore`, and this diary update remain preserved
+  and unstaged.
+
+### 2026-07-19T09:54:35-04:00 — Lattice Clock rerun completed and published
+
+- Completed all five B=2000/1000/500/250/125 KL/KLXX pairs with public
+  `jflows` 0.5.0, `POOL_SIZE=0`, and exact accepted-schedule matching. All ten
+  saved training artifacts are complete and finite. The final presentation
+  excludes B=125 and reports only B=2000, 1000, 500, and 250, for which KLXX
+  improves all 28 shared validation-ESS stages and reduces the propagation
+  factor by 2.87--3.70.
+- Rebuilt the two-million-sample KLXX marginals and the B=2000 equal-work
+  occupancy study. All reported rebuilds retain all six sectors. The occupancy
+  table and figure stop at k=6 (`N=640000`); KLXX has lower mean bias at each
+  of the seven displayed populations, with fitted slopes `-0.459` and `-0.479`
+  for KL and KLXX.
+- The required `/data/projects/backup.sh` rsync mirror exited successfully.
+  Committed exactly the 13 tracked paths under `Codes/Lattice_Clock/` as
+  `9e29ea71341ff6ef079a92906eccd18162f7ab1c` (`Complete Lattice Clock
+  rerun`) and pushed `main`; local and remote hashes agree. The Clock scope is
+  clean. `.gitignore`, the molecular workspace relocation, and this diary
+  update remain preserved and unstaged.
+
+### 2026-07-19T10:35:41-04:00 — Sections 1--2 and appendix synchronized
+
+- Audited only Sections 1--2 and the Fisher--Rao appendix, leaving the pending
+  molecular BG material untouched. Replaced the last generic QT “Langevin
+  chain” description by MALA, linked the main-text accuracy theorem to the
+  explicit biased-surrogate loss, and clarified that the clock comparison uses
+  trained-flow, full-validation ESS at each accepted level.
+- Verified the final scoped text and diff directly. No stale pool-size,
+  identity-proposal, delta-reweighting, or generic QT-Langevin statement
+  remains in the reviewed scope; no additional core mathematical correction
+  was identified.
+- Rebuilt `Paper/main.pdf` with `latexmk`; the command exited zero and produced
+  33 pages and 5,653,888 bytes. The final log has no undefined
+  reference/citation, overfull box, fatal error, or emergency stop. The stale
+  `36/37` clock headline outside this edit scope remains explicitly pending in
+  the abstract and conclusion.
