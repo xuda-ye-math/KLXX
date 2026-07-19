@@ -90,12 +90,15 @@ def _load(path: Path) -> Run:
 
 def load_pairs() -> list[tuple[Run, Run]]:
     runs: dict[tuple[int, str], Run] = {}
-    for path in sorted(ARTIFACTS.glob("*_B*/data.npz")):
-        run = _load(path)
-        key = (run.batch_size, run.method)
-        if key in runs:
-            raise ValueError(f"duplicate artifact for B={run.batch_size}, {run.method}")
-        runs[key] = run
+    for method in METHOD_LABELS:
+        for path in sorted(ARTIFACTS.glob(f"{method}_B*/data.npz")):
+            run = _load(path)
+            key = (run.batch_size, run.method)
+            if key in runs:
+                raise ValueError(
+                    f"duplicate artifact for B={run.batch_size}, {run.method}"
+                )
+            runs[key] = run
 
     if not runs:
         raise FileNotFoundError(f"no completed run artifacts below {ARTIFACTS}")
@@ -169,7 +172,7 @@ def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
 
 def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
     with (RESULTS / "per_level_ess.csv").open("w", newline="") as handle:
-        writer = csv.writer(handle)
+        writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(["batch_size", "level", "t", "kl_ess", "klxx_ess"])
         for kl, klxx in pairs:
             for level, (t, ess_kl, ess_klxx) in enumerate(
@@ -181,7 +184,7 @@ def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
                 )
 
     with (RESULTS / "factors.csv").open("w", newline="") as handle:
-        writer = csv.writer(handle)
+        writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(["batch_size", "method", "levels", "geometric_mean_ess", "F"])
         for kl, klxx in pairs:
             for run in (kl, klxx):

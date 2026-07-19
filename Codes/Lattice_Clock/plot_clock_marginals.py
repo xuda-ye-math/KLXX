@@ -9,12 +9,10 @@ all centered at theta = 0 on [-pi, pi):
 The densities are reconstructed from N = 2,000,000 fresh source draws
 advanced through the trained klxx B=2000 schedule by the FULL staged sampler
 (map -> reweight -> resample -> MALA at every level). Both expensive
-run-scoped artifacts are saved and reused:
+run-scoped artifacts are overwritten with the fresh rebuild:
 
     artifacts/klxx_B2000/marginals/rebuild_N2000000.npz
     artifacts/klxx_B2000/marginals/densities_N2000000.npz
-
-so reruns re-render the figure with no GPU work and no recomputation.
 
 Run from the repo root:
     source ~/.envs/jflows/bin/activate
@@ -37,10 +35,10 @@ RUN_DIR = ARTIFACTS / "klxx_B2000"
 DATA = RUN_DIR / "data.npz"
 FLOWS = RUN_DIR / "flows.eqx"
 ANALYSIS = RUN_DIR / "marginals"
-N_REBUILD = 2000000
+REBUILD_SZIE = 2000000
 REBUILD_SEED = 202
-REBUILD = ANALYSIS / f"rebuild_N{N_REBUILD}.npz"
-DENS = ANALYSIS / f"densities_N{N_REBUILD}.npz"
+REBUILD = ANALYSIS / f"rebuild_N{REBUILD_SZIE}.npz"
+DENS = ANALYSIS / f"densities_N{REBUILD_SZIE}.npz"
 STATUS = ANALYSIS / "status.log"
 BINS = 241
 CHUNK_SIZE = 160000     # one compiled shape for the staged rebuild
@@ -96,7 +94,7 @@ def staged_rebuild() -> np.ndarray:
     assert len(flows) == len(t_hist)
 
     key = jax.random.key(REBUILD_SEED)
-    y = u0.samples(jax.random.fold_in(key, 0), N_REBUILD)
+    y = u0.samples(jax.random.fold_in(key, 0), REBUILD_SZIE)
     t_prev = 0.0
     t0 = time.time()
     for k, (flow, t_k) in enumerate(zip(flows, t_hist), start=1):
@@ -104,7 +102,7 @@ def staged_rebuild() -> np.ndarray:
         u_k = linear_combination([u1, u0], [t_k, 1.0 - t_k])
         key_k = jax.random.fold_in(key, k)
         outs, lws = [], []
-        for i in range(0, N_REBUILD, CHUNK_SIZE):
+        for i in range(0, REBUILD_SZIE, CHUNK_SIZE):
             xb = y[i:i + CHUNK_SIZE]
             nb = xb.shape[0]
             if nb < CHUNK_SIZE:
@@ -120,7 +118,7 @@ def staged_rebuild() -> np.ndarray:
                      jnp.exp(logw - logw.max()))
         del y_push, logw
         rejuv = []
-        for j, i in enumerate(range(0, N_REBUILD, CHUNK_SIZE)):
+        for j, i in enumerate(range(0, REBUILD_SZIE, CHUNK_SIZE)):
             xb = y[i:i + CHUNK_SIZE]
             nb = xb.shape[0]
             if nb < CHUNK_SIZE:
@@ -142,11 +140,7 @@ def staged_rebuild() -> np.ndarray:
 
 
 def get_rebuild() -> np.ndarray:
-    if REBUILD.exists():
-        with np.load(REBUILD, allow_pickle=False) as data:
-            log(f"rebuild found: {REBUILD.name} (no GPU work)")
-            return data["y"]
-    log(f"rebuild missing — running the staged sampler at N={N_REBUILD} ...")
+    log(f"running the staged sampler at N={REBUILD_SZIE} ...")
     t0 = time.time()
     y = staged_rebuild()
     np.savez_compressed(REBUILD, y=y, seed=REBUILD_SEED)
@@ -155,14 +149,7 @@ def get_rebuild() -> np.ndarray:
 
 
 def densities() -> dict:
-    """The three angle densities (computed once, then loaded)."""
-    if DENS.exists():
-        with np.load(DENS, allow_pickle=False) as data:
-            d = dict(data)
-        if "distance2" in d and "sitemean" in d:
-            log(f"densities found: {DENS.name} (no recomputation)")
-            return d
-        log(f"{DENS.name} lacks a curve — rebuilding from saved samples")
+    """The three angle densities from a fresh staged rebuild."""
     y = get_rebuild()
     log(f"accumulating histograms over {y.shape[0]} samples ...")
     edges = np.linspace(-np.pi, np.pi, BINS + 1)
@@ -201,7 +188,7 @@ def densities() -> dict:
 def main() -> None:
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(parents=True, exist_ok=True)
-    open(STATUS, "a").close()
+    open(STATUS, "w").close()
     d = densities()
 
     import matplotlib

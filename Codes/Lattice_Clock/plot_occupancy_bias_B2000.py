@@ -22,6 +22,7 @@ ANALYSIS = ARTIFACTS / "occupancy_bias_B2000"
 DATA = ANALYSIS / "data.npz"
 
 METHODS = ("kl", "klxx")
+MAX_REPORT_K = 6
 LABEL = {"kl": "forward KL",
          "klxx": r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$"}
 COLOR = {"kl": "tab:blue", "klxx": "tab:red"}
@@ -34,13 +35,14 @@ def log(msg: str) -> None:
 def main() -> None:
     with np.load(DATA, allow_pickle=False) as data:
         d = dict(data)
-    ks = [int(k) for k in d["ks"]]
-    n_base = int(d["N_BASE"])
+    ks = [int(k) for k in d["ks"] if int(k) <= MAX_REPORT_K]
+    n_base = int(d["BASE_SZIE"])
     Ns = np.array([n_base * 2 ** k for k in ks], dtype=float)
 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    from matplotlib.ticker import FixedFormatter, FixedLocator, NullLocator
 
     plt.rcParams.update({
         "font.size": 10, "axes.labelsize": 11, "axes.titlesize": 11,
@@ -63,6 +65,21 @@ def main() -> None:
             label=r"$N^{-1/2}$ reference")
     ax.set_xscale("log")
     ax.set_yscale("log")
+    ax.xaxis.set_major_locator(FixedLocator(Ns))
+    ax.xaxis.set_major_formatter(FixedFormatter([
+        r"$10^4$", r"$2\!\times\!10^4$", r"$4\!\times\!10^4$",
+        r"$8\!\times\!10^4$", r"$1.6\!\times\!10^5$",
+        r"$3.2\!\times\!10^5$", r"$6.4\!\times\!10^5$",
+    ]))
+    ax.xaxis.set_minor_locator(NullLocator())
+    ax.yaxis.set_major_locator(FixedLocator([2e-3, 5e-3, 1e-2, 2e-2, 4e-2]))
+    ax.yaxis.set_major_formatter(FixedFormatter([
+        r"$2\!\times\!10^{-3}$", r"$5\!\times\!10^{-3}$", r"$10^{-2}$",
+        r"$2\!\times\!10^{-2}$", r"$4\!\times\!10^{-2}$",
+    ]))
+    ax.yaxis.set_minor_locator(NullLocator())
+    plt.setp(ax.get_xticklabels(), rotation=25, ha="right",
+             rotation_mode="anchor", fontsize=7.5)
     ax.set_xlabel(r"particle count $N$")
     ax.set_ylabel("occupancy bias")
     ax.legend(fontsize=8)

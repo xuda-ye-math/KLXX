@@ -4,7 +4,7 @@ Runs the exact staged sampler of each trained B=2000 schedule — kl and klxx,
 per stage: load the stage flow G_k (artifacts/<method>_B2000/flows.eqx, no
 retraining), push the chunked compiled inverse, logw = U_{k-1}(x) - U_k(y)
 + ladj, multinomial resample PER TEST BLOCK, MALA rejuvenation on U_k — at
-N = 10000 * 2^k for k = 0..8 with 2^(8-k) independent tests (equal total
+N = 10000 * 2^k for k = 0..6 with 2^(8-k) independent tests (equal total
 work 2.56M particles per row), and reports the mean occupancy bias
 
     err = (1/6) * sum_s |p_s - 1/6|
@@ -85,8 +85,9 @@ with np.load(ARTIFACTS / "kl_B2000" / "data.npz", allow_pickle=False) as _kl:
 NSF_LIM = math.pi
 BINS, TRANSFORMS, HIDDEN_FEATURES = 16, 6, (256, 256)
 
-N_BASE = 10000
-KS = list(range(9))                      # N = N_BASE * 2^k, k = 0..8
+BASE_SZIE = 10000
+MAX_REPORT_K = 6
+KS = list(range(MAX_REPORT_K + 1))       # N = BASE_SZIE * 2^k, k = 0..6
 REPS = {k: 2 ** (8 - k) for k in KS}     # equal total work per row
 CHUNK_SIZE = 160000                      # one compiled shape for the heavy ops (200k OOMs the compiled inverse)
 
@@ -208,7 +209,7 @@ def scaling_rows(method: str, raw: dict) -> list[dict]:
     raw[f"t_hist_{method}"] = np.asarray(t_hist, dtype=np.float64)
     rows = []
     for k in KS:
-        n, reps = N_BASE * 2 ** k, REPS[k]
+        n, reps = BASE_SZIE * 2 ** k, REPS[k]
         G = max(1, min(reps, CHUNK_SIZE // n))   # tests stacked per GPU pass
         G = 2 ** int(math.log2(G))               # power of two: reps % G == 0
         assert reps % G == 0, f"{method} k={k}: reps={reps} not divisible by G={G}"
@@ -244,7 +245,7 @@ def scaling_rows(method: str, raw: dict) -> list[dict]:
 
 def rows_from_raw(method: str, raw: dict) -> list[dict]:
     """Reconstruct summary rows from one method's saved per-test arrays."""
-    n_base = int(raw["N_BASE"])
+    n_base = int(raw["BASE_SZIE"])
     ks = [int(k) for k in raw["ks"]]
     reps_by_k = {
         k: int(reps) for k, reps in zip(ks, np.asarray(raw["reps"]))
@@ -278,30 +279,32 @@ def write_summary(raw: dict, rows: dict[str, list[dict]], suffix: str) -> None:
     data_out = ANALYSIS / f"data{suffix}.npz"
     csv_out = RESULTS / f"occupancy_bias_B2000{suffix}.csv"
     md_out = RESULTS / f"occupancy_bias_B2000{suffix}.md"
-    existing = [path for path in (data_out, csv_out, md_out) if path.exists()]
-    if existing:
-        raise FileExistsError(f"refusing to overwrite occupancy outputs: {existing}")
-
     np.savez_compressed(data_out, **raw)
     log(f"raw per-test data saved: {data_out} ({len(raw)} arrays)")
+    report_rows = {
+        method: [row for row in rows[method] if row["k"] <= MAX_REPORT_K]
+        for method in METHODS
+    }
 
     import csv
     with open(csv_out, "w", newline="") as f:
         w = csv.DictWriter(
-            f, fieldnames=["method", "k", "N", "reps", "bias", "sem"]
+            f, fieldnames=["method", "k", "N", "reps", "bias", "sem"],
+            lineterminator="\n",
         )
         w.writeheader()
         for method in METHODS:
-            w.writerows(rows[method])
+            w.writerows(report_rows[method])
 
     slopes = {}
     with open(md_out, "w") as f:
         f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
                 "sampler, B=2000, kl and klxx)\n\nerr = (1/6) sum_s "
                 "|p_s - 1/6|; equal total work per row (10000*256 "
-                "particles); 2^(8-k) independent tests at N=10000*2^k.\n")
+                "particles); 2^(8-k) independent tests at N=10000*2^k; "
+                "k=0,...,6.\n")
         for method in METHODS:
-            r = rows[method]
+            r = report_rows[method]
             ratios = [r[i]["bias"] / r[i + 1]["bias"]
                       for i in range(len(r) - 1)]
             slopes[method] = np.polyfit(
@@ -325,7 +328,7 @@ def write_summary(raw: dict, rows: dict[str, list[dict]], suffix: str) -> None:
 
     log("##### OCC-BIAS-B2000 MERGED "
         + " ".join(
-            f"{method}: biases={['%.5f' % x['bias'] for x in rows[method]]} "
+            f"{method}: biases={['%.5f' % x['bias'] for x in report_rows[method]]} "
             f"slope={slopes[method]:.3f}" for method in METHODS
         ) + " #####")
 
@@ -342,20 +345,20 @@ def main() -> None:
         help="merge the two completed method archives without GPU work",
     )
     ap.add_argument("--smoke", action="store_true",
-                    help="tiny sanity run: N_BASE=2000, k in {0,1}, 2/1 reps")
+                    help="tiny sanity run: BASE_SZIE=2000, k in {0,1}, 2/1 reps")
     args = ap.parse_args()
 
     if not args.smoke and args.method is None and not args.merge:
         ap.error("production runs require --method kl, --method klxx, then --merge")
 
-    global N_BASE, KS, REPS
+    global BASE_SZIE, KS, REPS
     suffix = "_smoke" if args.smoke else ""
     if args.smoke:
-        N_BASE, KS, REPS = 2000, [0, 1], {0: 2, 1: 1}
+        BASE_SZIE, KS, REPS = 2000, [0, 1], {0: 2, 1: 1}
 
     ANALYSIS.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(parents=True, exist_ok=True)
-    open(STATUS, "a").close()
+    open(STATUS, "w" if args.method == METHODS[0] and not args.smoke else "a").close()
 
     if args.merge:
         raw = {}
@@ -363,12 +366,12 @@ def main() -> None:
             part = ANALYSIS / f"data{suffix}_{method}.npz"
             with np.load(part, allow_pickle=False) as data:
                 current = dict(data)
-            for key in ("N_BASE", "ks", "reps"):
+            for key in ("BASE_SZIE", "ks", "reps"):
                 if key in raw and not np.array_equal(raw[key], current[key]):
                     raise ValueError(f"{part}: incompatible {key}")
                 raw[key] = current[key]
             for key, value in current.items():
-                if key not in {"N_BASE", "ks", "reps"}:
+                if key not in {"BASE_SZIE", "ks", "reps"}:
                     if key in raw:
                         raise ValueError(f"{part}: duplicate key {key}")
                     raw[key] = value
@@ -379,16 +382,14 @@ def main() -> None:
     methods = (args.method,) if args.method is not None else METHODS
     part_suffix = f"{suffix}_{args.method}" if args.method is not None else suffix
     data_out = ANALYSIS / f"data{part_suffix}.npz"
-    if data_out.exists():
-        raise FileExistsError(f"refusing to overwrite occupancy output: {data_out}")
 
     log(f"##### OCC-BIAS-B2000 START | jax {jax.__version__} | "
         f"backend {jax.default_backend()} | L={L} D={D} P={P} J={J} H={H} | "
         f"MC={MC_DT}x{MC_STEPS} (MALA) | methods={methods} "
-        f"N_BASE={N_BASE} ks={KS} reps={REPS} chunk={CHUNK_SIZE} #####")
+        f"BASE_SZIE={BASE_SZIE} ks={KS} reps={REPS} chunk={CHUNK_SIZE} #####")
     t0 = time.perf_counter()
     raw = {
-        "N_BASE": N_BASE,
+        "BASE_SZIE": BASE_SZIE,
         "ks": np.asarray(KS),
         "reps": np.asarray([REPS[k] for k in KS]),
     }
