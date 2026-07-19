@@ -45,16 +45,20 @@ with the full traces.
 Every run uses an identity-initialized NSF with 16 bins, 6 transforms, and
 $(256,256)$ hidden features; 100,000 fixed source particles; batch size 500;
 2,000 optimizer steps; learning rate $10^{-3}$; single-level AIS with MALA
-$2\times10^{-3}\times50$; and three seeds. Each cell lists seeds 0/1/2.
+$2\times10^{-3}\times50$; and three seeds. Every objective starts from the
+same identity map. The quench-and-temper objectives use $N_{\rm pool}=0$, so
+$\hat\mu$ is constructed directly from the full fixed source population rather
+than from a separately resampled pool. No chunk size is specified. Each cell
+lists seeds 0/1/2.
 
 <div align="center">
 
 | Method | L=6, h=0.0257 ESS | L=6, h=0.0257 p₊ | L=8, h=0.0144 ESS | L=8, h=0.0144 p₊ |
 |:---|:---:|:---:|:---:|:---:|
-| forward KL | 0.7749 / 0.8232 / 0.8306 | 1 / 1 / 0 | 0.6417 / 0.6921 / 0.6629 | 1 / 0 / 1 |
-| KL + X_μ | 0.9334 / 0.9336 / 0.9345 | 1 / 1 / 0 | 0.8034 / 0.8016 / 0.8182 | 1 / 0 / 0 |
-| KL + X_μ + X_μ̂ | **0.8848** / 0.8704 / 0.8829 | 0.1265 / 0.1275 / 0.1263 | 0.6291 / 0.6390 / 0.6280 | 0.1258 / 0.1264 / 0.1256 |
-| KL + X_μ + X_(μ̂+ν̄)/2 | 0.8844 / **0.8822 / 0.8988** | 0.1286 / 0.1281 / 0.1278 | **0.7025 / 0.6810 / 0.7042** | 0.1290 / 0.1273 / 0.1307 |
+| forward KL | 0.7937 / 0.8397 / 0.8264 | 1 / 1 / 0 | 0.6222 / 0.6858 / 0.6836 | 1 / 0 / 1 |
+| KL + X_μ | 0.9351 / 0.9332 / 0.9454 | 1 / 1 / 0 | 0.8038 / 0.8236 / 0.8207 | 1 / 0 / 0 |
+| KL + X_μ + X_μ̂ | 0.8751 / 0.8726 / 0.8714 | 0.1273 / 0.1275 / 0.1272 | 0.6355 / 0.6452 / 0.6541 | 0.1251 / 0.1238 / 0.1242 |
+| KL + X_μ + X_(μ̂+ν̄)/2 | **0.8958 / 0.8765 / 0.8939** | 0.1274 / 0.1277 / 0.1273 | **0.6902 / 0.6756 / 0.6811** | 0.1312 / 0.1295 / 0.1293 |
 | PT reference | — | 0.1251 ± 0.0009 | — | 0.1284 ± 0.0014 |
 
 </div>
@@ -66,8 +70,8 @@ never eligible for emphasis, regardless of support-local ESS.*
 
 All 12 KL/KL+Xμ runs collapse to exactly one vacuum despite their high ESS.
 All 12 quench-and-temper runs cover both vacua and recover the reference
-minority weight. At L=8, the equal-weight objective retains a mean ESS of
-0.6959 while covering both phases, compared with 0.6320 for Xμ̂ alone.
+minority weight. The equal-weight objective has a mean ESS of 0.8887 at L=6
+and 0.6823 at L=8, compared with 0.8730 and 0.6449 for Xμ̂ alone.
 
 ## Magnetization densities
 
@@ -79,15 +83,14 @@ for both quench-and-temper losses track the two-peak reference.
 <p align="center"><img src="L8/results/fig_methods.png" alt="φ⁴ L=8 magnetization densities" width="1000px"></p>
 
 The higher L=8 barrier sharpens the distinction. KL+Xμ has the highest ESS
-but zero support on one phase, while both coverage-pool objectives reproduce
-the minority peak. The equal-weight variant reduces the low-target-density
-bridge and recovers part of the ESS cost of covering both vacua.
+but zero support on one phase, while both quench-and-temper objectives
+reproduce the minority peak. The equal-weight variant reduces the
+low-target-density bridge and recovers part of the ESS cost of covering both
+vacua.
 
 ## Verification summary
 
-- Both 300,000-step mirror-MALA references, all 24 full training runs, both
-  plotting scripts, and the two-size parallel-tempering cross-check exited
-  successfully.
+- All 24 full training runs and both plotting scripts exited successfully.
 - All 48 saved magnetization/weight arrays have 100,000 finite entries. Every
   normalized weight vector is nonnegative and sums to one within float32
   tolerance.
@@ -95,6 +98,8 @@ bridge and recovers part of the ESS cost of covering both vacua.
   stored configuration sets have the expected shape.
 - The two regenerated PNG files were visually inspected; no panel is blank,
   clipped, or malformed.
+- Every saved ESS and $p_+$ value was independently reproduced from its
+  corresponding weight and magnetization arrays.
 - Importance-sampling ESS alone can prefer a collapsed flow, whereas
   quench-and-temper coverage terms recover both phases and the correct
   minority weight.

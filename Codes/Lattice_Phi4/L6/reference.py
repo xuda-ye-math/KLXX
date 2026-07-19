@@ -55,8 +55,8 @@ KEEP_EVERY: int = 200    # steps between kept states
 MC_DT: float = 1e-3   # MALA step size
 
 # stored ensemble
-N_TRACE: int = 1000000  # unweighted magnetization trace length (resampled)
-N_SNAP: int = 256       # stored configurations (vacuum heatmaps)
+TRACE_SZIE: int = 1000000  # unweighted magnetization trace length (resampled)
+SNAP_SZIE: int = 256       # stored configurations (vacuum heatmaps)
 HIST_BINS: int = 81     # magnetization histogram bins on (-PLT_LIM, PLT_LIM)
 PLT_LIM = 1.6           # half-width of the magnetization histogram window
 
@@ -122,14 +122,14 @@ def main() -> None:
     log(f"reweighted occupancy: p(m>0) = {p_plus:.4f}   Delta F = {dF:.3f} kT")
 
     m_all = np.concatenate([flat.mean(axis=1), -flat.mean(axis=1)])
-    key_m, key_s = jax.random.split(jax.random.fold_in(key, 10_000))
+    key_m, key_s = jax.random.split(jax.random.fold_in(key, 10000))
     m_trace = np.asarray(resample(key_m, jnp.asarray(m_all)[:, None],
-                                  jnp.asarray(w), N=N_TRACE)).ravel()
+                                  jnp.asarray(w), N=TRACE_SZIE)).ravel()
 
     # configurations for the vacuum heatmaps (resampled from the mirror pair)
     cfg_all = np.concatenate([flat, -flat], axis=0)
     samples_t1 = np.asarray(resample(key_s, jnp.asarray(cfg_all),
-                                     jnp.asarray(w), N=N_SNAP))
+                                     jnp.asarray(w), N=SNAP_SZIE))
 
     # barrier height from the weighted magnetization histogram
     h_w, e = np.histogram(m_all, bins=HIST_BINS, range=(-PLT_LIM, PLT_LIM),
