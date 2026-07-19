@@ -1,0 +1,125 @@
+{
+  "artifact_phase": "pilot_extended",
+  "block_length": 4,
+  "candidate_js_bits": [
+    0.001152831282564297,
+    0.002903971120467623,
+    0.006548474581538195
+  ],
+  "candidate_mixing": {
+    "max_half_rotamer_tv": 0.19984490971529856,
+    "max_split_rhat": 1.0094387470978676,
+    "min_markov_ess": 197.30760259343123,
+    "min_swap_acceptance": 0.6476,
+    "pass": false
+  },
+  "candidate_occupancy_error": [
+    0.00733272227314391,
+    0.03444157431325168,
+    0.07521595422603672
+  ],
+  "dihedral_block_length": 66,
+  "dimension": 54,
+  "e_kj_mol": 100.0,
+  "eligible": false,
+  "energy_crosscheck_max_abs_kj_mol": 1.5729372535133734e-05,
+  "energy_difference_quantiles": [
+    -0.00014209747314453125,
+    -3.62396240234375e-05,
+    1.1920928955078125e-05,
+    1.1023349309696562,
+    66.17640830706816
+  ],
+  "importance_ess": 0.9942520503899764,
+  "importance_ess_ci_high": 0.9952101360013458,
+  "importance_ess_ci_low": 0.9932410420679905,
+  "joint_rotamer_tv": 0.10708635190273962,
+  "joint_rotamer_tv_ci_high": 0.1441155244677603,
+  "materially_modified_fraction": 0.019666666666666666,
+  "max_js_bits": 0.006548474581538195,
+  "max_js_ci_high": 0.01222279370985785,
+  "max_occupancy_error": 0.07521595422603672,
+  "molecule": "hexane",
+  "per_seed": [
+    {
+      "importance_ess": 0.9937790377880604,
+      "joint_rotamer_tv": 0.13568536084761745,
+      "max_js_bits": 0.01101008196802812,
+      "max_occupancy_error": 0.07587624284841415,
+      "seed": 2401
+    },
+    {
+      "importance_ess": 0.9947251747019057,
+      "joint_rotamer_tv": 0.10206911854440562,
+      "max_js_bits": 0.007516033900276765,
+      "max_occupancy_error": 0.0802088540798756,
+      "seed": 2402
+    }
+  ],
+  "r_nm": 0.15,
+  "raw_baseline_js_bits": [
+    0.004516480611576512,
+    0.01393195788846193,
+    0.00863674088181882
+  ],
+  "raw_baseline_occupancy_error": [
+    0.05099150141643061,
+    0.07965339110148309,
+    0.08431928011997997
+  ],
+  "raw_force_quantiles": [
+    3015.5179197880843,
+    4346.898930473949,
+    5010.3178780227145,
+    5757.591829318519
+  ],
+  "raw_joint_rotamer_tv": 0.13690575248238754,
+  "raw_max_js_bits": 0.01393195788846193,
+  "raw_max_occupancy_error": 0.08431928011997997,
+  "raw_mixing": {
+    "max_half_rotamer_tv": 0.18566522654259443,
+    "max_split_rhat": 1.0149581367702154,
+    "min_markov_ess": 177.839224287673,
+    "min_swap_acceptance": 0.8214,
+    "pass": false
+  },
+  "regularized_force_quantiles": [
+    2992.4557198907423,
+    4296.6871996203345,
+    5181.133757542251,
+    6285.588319735502
+  ],
+  "reverse_importance_ess": 0.3793409496617849,
+  "stress_attenuation_log10": 6.079614065469766,
+  "stress_distance_nm": [
+    0.2,
+    0.15,
+    0.12,
+    0.1,
+    0.08,
+    0.06,
+    0.04
+  ],
+  "stress_pair": [
+    6,
+    17
+  ],
+  "stress_raw_force": [
+    3037000489.2282968,
+    15533340.071866043,
+    1116903.2021860364,
+    5349930.680828435,
+    75382581.6472865,
+    2554410675.6285586,
+    3037000478.9832563
+  ],
+  "stress_regularized_force": [
+    421.6000641153483,
+    716.3640966354712,
+    336.47129880501757,
+    346.25202440435413,
+    365.1354393842843,
+    365.493459419727,
+    357.86661334126444
+  ]
+}

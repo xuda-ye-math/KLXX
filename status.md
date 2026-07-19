@@ -1,20 +1,33 @@
 # Project status
 
-Last updated: 2026-07-19T10:35:41-04:00 (America/New_York)
+Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
 
 ## Current state
 
 - Repository: `/data/projects/X-regularization`, branch `main`, tracking
-  `origin/main`. Local and remote `main` agree at
-  `9e29ea71341ff6ef079a92906eccd18162f7ab1c` (`Complete Lattice Clock
-  rerun`). The preserved worktree has no staged paths and contains six
-  modified tracked paths, 52 tracked deletions, and 52 untracked files. The
-  modified paths are `.gitignore`, the Clock occupancy plot source and PNG,
-  `Paper/main.tex`, the rebuilt `Paper/main.pdf`, and this status file. The
-  deletions and untracked files are the preserved molecular workspace
-  relocation. Ignored `.archive/`, molecular artifacts,
-  NPZ/HDF5/EQX/log payloads, and `Codes/` run artifacts, including the Clock
-  training and occupancy archives, remain recovery-critical outside Git.
+  `origin/main`. Immediately before the authorized alkane-study publication,
+  local `HEAD` and the local upstream reference agreed at
+  `b547ab3c402e46497737cf29b2675b35566c5563` (`Finalize manuscript and
+  project layout`). The publication scope is this status update and exactly 25
+  public paths under `Codes/Molecular_BG/alkane_family/`: source, the n-hexane
+  bundle/provenance, report, metrics, and figures. Its ignored `.aris/`
+  research ledger contains eight files/22,046 bytes, and ignored `data/`
+  contains 21 files/368,634,308 bytes. Those ignored artifacts are
+  recovery-critical and are mirrored at
+  `/data/games/projects/X-regularization/` rather than tracked by Git.
+- **Done with explicit limitations — n-alkane OpenMM regularization choice:**
+  [`Codes/Molecular_BG/alkane_family/REPORT.md`](Codes/Molecular_BG/alkane_family/REPORT.md)
+  recommends `rg_param=(100.0,0.15)` as the working default through the tested
+  54D n-hexane target and `(100.0,0.12)` as the closer-to-singular reserve.
+  The matched two-seed 5000-round comparison gives normalized raw-target ESS
+  `0.994852/0.994852/0.995229` for `r=0.10/0.12/0.15`; the 10000-round default
+  confirmation gives pooled ESS `0.994252` with 95% lower bound `0.993241`.
+  All three carbon-backbone mode families remain visible. The formal frozen
+  mixing gate is not declared passed: raw/default half-window joint-state TV
+  remains `0.1857/0.1998`, and methane through pentane were not newly sampled.
+  The interrupted `r=0.12` extension saved no artifact or temporary file; its
+  reserve evidence is the two complete 5000-round seeds. No alkane sampling
+  process remains.
 - **Done — Sections 1--2 and appendix consistency pass:** the requested
   manuscript scope now identifies QT rejuvenation as MALA, states the
   biased-surrogate Fisher--Rao theorem through its explicit appendix loss, and
@@ -593,6 +606,12 @@ Last updated: 2026-07-19T10:35:41-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — optional formal alkane-family validation:** the working default
+  is selected, but a formal all-gates family-wide claim would still require
+  direct raw/default trajectories for methane through pentane and resolution
+  of the preregistered half-window joint-rotamer TV diagnostic. Do not present
+  `results/selection.json` as a formal pass: it correctly records no eligible
+  candidate under the unchanged strict mixing gate.
 - **Pending — apply controlled sharpening:** later experiments will adapt the
   sharpening technique in `../zflows_md`, where the e/r surrogate is annealed
   from soft to sharp and each stage records the Monte Carlo sharpening-reweight
@@ -2038,3 +2057,34 @@ Last updated: 2026-07-19T10:35:41-04:00 (America/New_York)
   reference/citation, overfull box, fatal error, or emergency stop. The stale
   `36/37` clock headline outside this edit scope remains explicitly pending in
   the abstract and conclusion.
+
+### 2026-07-19T18:01:53-04:00 — 54D alkane regularization target selected and mirrored
+
+- Built and verified the native-OpenMM n-hexane 54D target, then completed two
+  independent 5000-round raw and candidate simulations at `e=100 kJ/mol` for
+  `r=0.10`, `0.12`, and `0.15 nm`. The `0.10` and `0.12` trajectories are
+  bit-for-bit identical; `0.12` provides stronger controlled short-distance
+  attenuation. The `0.15` target has the best matched-checkpoint ESS lower
+  bound, marginal JS, and occupancy error without clipping any saved 300 K
+  active pair.
+- Completed fresh 10000-round raw and `r=0.15` runs for both seeds. Pooled
+  raw-target importance ESS is `0.994252` (95% block-bootstrap interval
+  `[0.993241,0.995210]`), maximum marginal JS is `0.006548 bits`, and every
+  saved/recomputed regularized energy agrees within `1.573e-5 kJ/mol`. Raw and
+  default Markov ESS, split-R-hat, and replica-swap gates pass; their strict
+  half-window joint-state TVs remain above `0.10` and are reported unresolved.
+- Stopped the first 10000-round `r=0.12` candidate seed at the user's request.
+  The process exited by `KeyboardInterrupt` before atomic save; direct checks
+  found no matching process, no extension artifact, and no `.tmp`. The four
+  complete raw/default extension artifacts remain intact.
+- Wrote and numerically cross-checked the final report, extended metrics JSON,
+  and visually inspected 2760-by-780 dihedral figure. The evidence-bounded
+  recommendation is `(100.0,0.15)` by default and `(100.0,0.12)` as the
+  closer-to-singular reserve; it is not mislabeled as an all-family formal gate
+  pass.
+- Ran `bash /data/projects/backup.sh`; the rsync mirror exited zero. Source and
+  `/data/games/projects/X-regularization/` SHA-256 values match for the report,
+  extended metrics, and dihedral PNG. A subsequent user request explicitly
+  authorized tracking the 25 public alkane-study paths, committing this status
+  update with them, and pushing `main`; ignored trajectories and `.aris`
+  records remain mirror-only. No tag or release was requested.
