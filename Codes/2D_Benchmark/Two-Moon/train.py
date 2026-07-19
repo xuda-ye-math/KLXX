@@ -67,15 +67,15 @@ HIDDEN_FEATURES = (128, 128)
 
 # training parameters
 VALID_SZIE: int = 50000   # the fixed source set (training pool + final ESS / coverage)
-BATCH_SZIE: int = 200     # source samples per training step
+BATCH_SZIE: int = 500     # source samples per training step
 POOL_SIZE: int = 0        # 0: quench the complete validation population
-TRAIN_STEPS: int = 500      # Adam optimization steps
-LR: float = 2e-3       # Adam learning rate
+TRAIN_STEPS: int = 200      # Adam optimization steps
+LR: float = 1e-3       # Adam learning rate
 
 # data pipeline (single-hop AIS + MALA rejuvenation)
 LADDER: int = 1        # AIS levels per manufactured target batch
-MC_DT: float = 2e-3  # Langevin step size
-MC_STEPS: int = 40     # Langevin steps per level / per hat_mu freshening
+MC_DT: float = 1e-3  # Langevin step size
+MC_STEPS: int = 100     # Langevin steps per level / per hat_mu freshening
 
 # quench and temper (the wide-coverage measure hat_mu)
 REFER_SZIE: int = 1000    # coverage-reference population size

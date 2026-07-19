@@ -14,9 +14,9 @@ the sample panels.
 
 ## Two-Moon
 
-All methods cover both moons with measured coverage 1.000. KL + X_μ gives the
-highest final ESS, while the equal-weight mixture is within 0.001 and remains
-cleaner than the X_μ̂-only pushforward.
+All methods cover both moons with measured coverage 1.000. The equal-weight
+mixture gives the highest final ESS at 0.924, ahead of KL + X_μ at 0.911,
+and remains cleaner than the X_μ̂-only pushforward.
 
 ![Two-Moon samples](Two-Moon/results/samples.png)
 
@@ -56,7 +56,7 @@ leakage seen in the X_μ̂-only pushforward and increases ESS from 0.826 to
 
 | Target | forward KL | KL + X_μ | KL + X_μ + X_μ̂ | KL + X_μ + X_(μ̂+ν̄)/2 |
 |:---|---:|---:|---:|---:|
-| Two-Moon | 0.845 (1.000) | **0.934** (1.000) | 0.927 (1.000) | 0.933 (1.000) |
+| Two-Moon | 0.836 (1.000) | 0.911 (1.000) | 0.835 (1.000) | **0.924** (1.000) |
 | Three-Well | 0.988 (0.760) | 0.990 (0.760) | 0.961 (0.978) | **0.989** (0.977) |
 | Himmelblau | 0.932 (0.516) | 0.981 (0.516) | 0.956 (1.000) | **0.974** (1.000) |
 | Sparse | 0.912 (0.534) | 0.927 (0.534) | 0.826 (1.000) | **0.956** (1.000) |
@@ -68,12 +68,15 @@ setting among methods whose sample panel covers every target mode. All methods
 cover Two-Moon; for the other targets, a larger support-local ESS does not
 override visibly missing modes.*
 
-On Two-Moon, Three-Well, and Himmelblau, the two quench-and-temper objectives
-remain in the same high-ESS range. Their sample quality differs more clearly:
-the equal-weight $\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ objective produces cleaner
-pushforwards with less over-coverage of individual modes than the
-$\mathrm{X}_{\hat\mu}$-only objective. Sparse strengthens rather than weakens
-that comparison: the cleaner mixture also has substantially higher ESS.
+The sample panels separate the two roles of the wide-coverage objective.
+Although $\mathrm{X}_{\hat\mu}$ enables the flow to discover modes unseen by
+the target-only objectives, the equal-weight
+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ objective produces substantially cleaner
+pushforwards: the $\bar\nu$ component curbs spurious coverage of intermodal and
+off-target regions without sacrificing the discovered modes. On Two-Moon,
+Three-Well, and Himmelblau, the two quench-and-temper objectives remain in the
+same high-ESS range; Sparse strengthens that comparison because the cleaner
+mixture also has substantially higher ESS.
 
 ## Verification summary
 
@@ -86,11 +89,6 @@ that comparison: the cleaner mixture also has substantially higher ESS.
   visually inspected; no panel is blank or malformed. The figures confirm
   complete mode coverage for all KLXX runs, including the Three-Well runs
   whose approximate scalar coverage is slightly below one.
-- The regenerated figures were compared with the backup under
-  `/data/games/X-regularization_071826`; their qualitative mode-coverage
-  patterns are unchanged. Fourteen of 16 coverage values match the backup
-  exactly; the two Three-Well KLXX estimates changed from 0.9750 and 0.9855 to
-  0.9783 and 0.9768.
 - The figures and paired metrics separate calibration from discovery: a high
   ESS on reached support does not certify that every mode was found.
 - Per-run logs and temporary data live below each target's `artifacts/`
