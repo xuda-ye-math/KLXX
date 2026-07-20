@@ -1,22 +1,45 @@
 # Project status
 
-Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
+Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
 
 ## Current state
 
+- **Done — stable `jflows` and `jflows_md` 0.5.1 installations:** the editable
+  environment resolves `jflows==0.5.1` from `/data/projects/jflows` and
+  `jflows_md==0.5.1` from `/data/projects/jflows_md`. Both authoritative
+  `pyproject.toml` and package version declarations report 0.5.1. The clean
+  public repositories are on `main`, agree with their upstream branches, and
+  are at `00ac10bfa427e6678de56d13710b0707bf0be414` for `jflows` and
+  `8953ba6eb87bbf2365c8afe62bc711d2e62559d9` for `jflows_md`.
+- **Done — methane 9D and ethane 18D alkane generators:** fresh, logged,
+  non-resumed KL and KLXX runs use fixed `rg_param=(100.0,0.15)`, no
+  sharpening, and three accepted stages at `t=0.25/0.625/1.0`. Methane
+  validation ESS is `0.844430/0.911030/0.917989` for KL and
+  `0.955816/0.994939/0.998919` for KLXX; the corresponding propagation factors
+  are `1.41601` and `1.05269`. Ethane validation ESS is
+  `0.440145/0.556554/0.642979` for KL and
+  `0.761640/0.950338/0.970828` for KLXX; its factors are `6.34893` and
+  `1.42308`. Ethane KL selected identity at the final stage because its ESS
+  exceeded the trained increment. All four final logs are finite and every run
+  is complete. Ignored logs, samples, and checkpoints remain recovery-critical
+  in the rsync mirror.
+- **Done — alkane-family tracked presentation:** commit
+  `37f5fbffc10062f13ef645511012c3bc95bb471c` (`Update alkane family
+  results`) is pushed to `origin/main`. It relocates the methane and ethane
+  bundles into `Codes/Molecular_BG/alkane_family/`, publishes both KL/KLXX
+  reports, moves the n-hexane study under `regularization/`, and adds the global
+  `build_table.py`/`tables.md` factor report. No sharpening rows are printed
+  when regularization does not change.
 - Repository: `/data/projects/X-regularization`, branch `main`, tracking
-  `origin/main`. Immediately before the authorized alkane-study publication,
-  local `HEAD` and the local upstream reference agreed at
-  `b547ab3c402e46497737cf29b2675b35566c5563` (`Finalize manuscript and
-  project layout`). The publication scope is this status update and exactly 25
-  public paths under `Codes/Molecular_BG/alkane_family/`: source, the n-hexane
-  bundle/provenance, report, metrics, and figures. Its ignored `.aris/`
-  research ledger contains eight files/22,046 bytes, and ignored `data/`
-  contains 21 files/368,634,308 bytes. Those ignored artifacts are
-  recovery-critical and are mirrored at
-  `/data/games/projects/X-regularization/` rather than tracked by Git.
+  `origin/main`. At this diary-update boundary, local `HEAD` and the upstream
+  branch agree at `37f5fbffc10062f13ef645511012c3bc95bb471c` (`Update alkane
+  family results`). Aside from this `status.md` edit, 30 tracked deletions and
+  30 untracked relocation paths for propane 27D, n-butane 36D, and n-pentane
+  45D remain deliberately unstaged; no staged change is present. Ignored
+  research data and run artifacts remain outside Git and are covered by the
+  `/data/games/projects/` mirror.
 - **Done with explicit limitations — n-alkane OpenMM regularization choice:**
-  [`Codes/Molecular_BG/alkane_family/REPORT.md`](Codes/Molecular_BG/alkane_family/REPORT.md)
+  [`Codes/Molecular_BG/alkane_family/regularization/REPORT.md`](Codes/Molecular_BG/alkane_family/regularization/REPORT.md)
   recommends `rg_param=(100.0,0.15)` as the working default through the tested
   54D n-hexane target and `(100.0,0.12)` as the closer-to-singular reserve.
   The matched two-seed 5000-round comparison gives normalized raw-target ESS
@@ -606,6 +629,14 @@ Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — higher-dimensional alkane generators:** refresh propane 27D,
+  n-butane 36D, n-pentane 45D, and later alkane dimensions with the stable
+  0.5.1 interface. Their relocated legacy files remain deliberately unstaged
+  and are not current-run results.
+- **Pending — original `zflows_md` molecular targets:** after the alkane
+  sequence, revisit the other established molecular systems, including
+  glycerol, ADP, and diethanolamine, using the stable `jflows_md` 0.5.1
+  computation and persistence conventions.
 - **Pending — optional formal alkane-family validation:** the working default
   is selected, but a formal all-gates family-wide claim would still require
   direct raw/default trajectories for methane through pentane and resolution
@@ -630,22 +661,6 @@ Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
   `.archive/Molecular_BG_zflows_v3_reverify/`. Their completed
   checkpoints/results are controls only and must not be overwritten by the
   future JAX e/r campaign.
-- **Pending — generic `jflows` modernization after 0.2.1:** keep the current
-  package and locked numerical results unchanged for now. A separate future
-  design/reconstruction may add resumable Boltzmann runs, an explicit
-  initialize-from-identity choice, and a simpler full-validation population
-  interface that removes the present pool-size control. Audit the paper
-  algorithm and Lattice Clock behavior before deciding exact stage warm-start
-  semantics; none of these future features is part of `jflows_md` 0.3.0.
-
-- **Done — fresh private 0.3.0 callers:** the methane and ethane drivers use
-  descriptive e/r names and explicit identity initialization without
-  retrofitting `.archive/Molecular_BG_jflows_v1_nor/`. Both full runs and their
-  saved per-step ESS histories passed artifact-level consistency audits.
-- **Done — alkane dimensional gates:** the full methane-through-pentane series
-  is complete through 45D. Its tracked ESS tables/CSV histories and ignored raw
-  particles, logs, and flow checkpoints are recovery-critical; the ignored
-  payload must remain in the ext4 mirror.
 - **Pending — `zflows_md` compilation engineering:** the archived PyTorch
   molecular implementation still has unresolved excessive compile latency and
   memory growth at realistic molecular sizes. Compare compilation boundaries,
@@ -654,20 +669,12 @@ Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
 - **Pending — new molecular targets:** every AmberTools-26 or otherwise changed
   small-molecule model must use a new descriptive bundle name and receive an
   explicit scientific/provenance review before promotion to the frozen registry.
-- **Done — fixed-surrogate alkane scaling diagnosis:** CH4 through n-pentane
-  have completed full-size KLXX runs. Any next alkane comparison should add the
-  planned e/r sharpening path rather than repeat population-size scaling.
 - **Pending — original-style vacuum glycerol (secondary):** extract the exact
   archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
   and hyperparameters; build a discrepancy ledger and run the same minimal
   diagnostic only after the CH4 gate is understood.
-- **Done — high-dimensional fixed-surrogate stability gate:** choosing
-  `e=50, r=0.15` stabilized n-butane 36D through endpoint ESS `0.993094`, and
-  `e=50, r=0.2` carried n-pentane 45D through endpoint ESS `0.829475`. The next
-  question is honest sharpening toward the physical target, not whether these
-  fixed surrogates can finish training.
 - **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
-  MALA and optimizer-only finite-safe `e_clip`; retain honest physical target
+  MALA and optimizer-only finite-safe `u_clip`; retain honest physical target
   values for MCMC, SMC, ESS, and evaluation. Any sharpening bridge must first
   be specified and validated separately from the unchanged physical target.
 - **Pending:** establish matched reference diagnostics for glycerol and neutral
@@ -2088,3 +2095,76 @@ Last updated: 2026-07-19T18:01:53-04:00 (America/New_York)
   authorized tracking the 25 public alkane-study paths, committing this status
   update with them, and pushing `main`; ignored trajectories and `.aris`
   records remain mirror-only. No tag or release was requested.
+
+### 2026-07-19T19:49:12-04:00 — 🚨 Formal-run logging and resume accidents corrected
+
+- The initial methane 9D KLXX formal run was launched without a separate
+  clean log. Because its full history was not retained, that launch is marked
+  a severe accident and is not treated as scientific evidence. It was stopped
+  before an accepted stage was saved, and the interrupted artifact directory
+  is absent.
+- The same driver automatically enabled resume whenever `run.json` existed.
+  That behavior was unauthorized and is marked a medium accident. Automatic
+  resume was removed; `resume=False` is explicit, and resume is forbidden
+  without direct user permission.
+- A fresh stage-zero KLXX run was launched with a newly truncated,
+  method-specific `artifacts/klxx.log`. Completion remains pending and will
+  not be claimed until the final artifact and log are directly verified.
+
+### 2026-07-19T19:54:51-04:00 — 🚨 Severe `jflows_md` NaN regression confirmed
+
+- The first logged methane KLXX run became nonfinite at reported step 140 for
+  endpoint `t=0.147`; its full log is preserved separately. The fresh run with
+  the user's updated controller parameters reproduced the failure at reported
+  step 380 for `t=0.200`, step 70 for `t=0.140`, and step 180 for `t=0.098`.
+- Source comparison identified a critical regression in the new molecular
+  direct trainers: guarded Adam commit, nonfinite rejection, gradient clipping,
+  energy screening, and learning-rate warmup from the successful baseline are
+  absent. The current unconditional Adam update lets one nonfinite batch poison
+  every later parameter, loss, and ESS. A direct `train_forward_KLXX_G` probe
+  and package repair remain pending.
+
+### 2026-07-19T20:04:56-04:00 — 🚨 Severe invalid direct-probe bridge
+
+- The first guarded direct probe reversed the stage-source coefficients at
+  `t_start=0`, using `[1,0]` where the exact package bridge requires `[0,1]`.
+  Its minimum SMC ESS was therefore the abnormal `0.041421`, not the verified
+  replay value `0.535021`.
+- The invalid process was stopped immediately. Its only output is a 59-byte
+  log explicitly renamed with `invalid_bridge`; it supports no scientific or
+  package conclusion. No molecular process remained at the verification
+  boundary. Future direct probes must reproduce `0.535021` before training.
+
+### 2026-07-19T20:45:14-04:00 — `jflows` 0.5.1 safeguard tag created locally
+
+- Created annotated local tag `0.5.1` at the already-pushed repair commit
+  `9de630444e332577a24c7f16a67b6dff97e8b4fd`; its tag object is
+  `dd678f9de5c1debf601e6d397d9a217715032ba0`. The remote `main` branch points
+  to the same repair commit, while a direct remote-tag query confirms that
+  `origin` does not yet contain `0.5.1`.
+- The tagged repair adds computation-preserving nonfinite guards for MALA,
+  spline inversion, L-BFGS and AdamW state updates, resampling, and Boltzmann
+  post-stage populations. All 20 real smoke modules passed in an isolated GPU
+  source copy, and the full 4D Boltzmann rerun preserved its reverse and
+  forward accepted ladders. No numerical benchmark rerun is required by these
+  rejection-only safeguards.
+- No jflows source, package-version declaration, commit, remote tag, or GitHub
+  release was changed during this tagging step. X-regularization received only
+  this targeted operational status update; its pre-existing alkane relocation
+  and other dirty-worktree state remain unstaged and preserved.
+
+### 2026-07-19T23:17:50-04:00 — Stable 0.5.1 alkane baseline published
+
+- Verified editable `jflows` and `jflows_md` installations at version 0.5.1;
+  both clean public repositories agree with their upstream `main` branches.
+- Completed fresh, logged, non-resumed KL and KLXX runs for methane 9D and
+  ethane 18D. Every method reached `t=1` in three accepted stages with finite
+  output. The global factor table reports KL/KLXX totals `1.41601/1.05269` for
+  methane and `6.34893/1.42308` for ethane.
+- Ran the shared rsync mirror successfully, then committed and pushed the
+  methane/ethane relocation and reports, n-hexane regularization-study
+  relocation, and global table generator/report as
+  `37f5fbffc10062f13ef645511012c3bc95bb471c`.
+- Higher-dimensional alkanes and the other molecular targets represented by
+  the original `zflows_md` tests remain pending. Their old run files were not
+  updated by this milestone.
