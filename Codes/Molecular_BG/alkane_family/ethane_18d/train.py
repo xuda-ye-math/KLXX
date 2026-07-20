@@ -43,7 +43,7 @@ def main():
 
     log(
         f"START ethane 18D {args.method} | rg_param={P.RG_PARAM} | "
-        f"N_VALID={P.N_VALID} POOL_SIZE={P.POOL_SIZE} "
+        f"VALID_SIZE={P.VALID_SIZE} POOL_SIZE={P.POOL_SIZE} "
         f"BATCH_SIZE={P.BATCH_SIZE} TRAIN_STEPS={P.TRAIN_STEPS} "
         f"U_CLIP={P.U_CLIP} G_CLIP={P.G_CLIP} LR_WARMUP={P.LR_WARMUP}"
     )
@@ -53,7 +53,7 @@ def main():
     )
     source = target.source()
     source_key, flow_key = jax.random.split(jax.random.key(P.SEED))
-    x_valid = source.samples(source_key, N=P.N_VALID)
+    x_valid = source.samples(source_key, N=P.VALID_SIZE)
     flow = Mixed_NSF(
         flow_key,
         target.domain,

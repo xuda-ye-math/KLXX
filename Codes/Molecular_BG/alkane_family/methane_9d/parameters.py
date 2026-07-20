@@ -16,7 +16,7 @@ HIDDEN_FEATURES = (256, 256)
 SLOPE = 1e-3
 
 # Full methane configuration inherited from the successful 9D c50 baseline.
-N_VALID = 100000
+VALID_SIZE = 100000
 POOL_SIZE = 0
 BATCH_SIZE = 5000
 TRAIN_STEPS = 500
