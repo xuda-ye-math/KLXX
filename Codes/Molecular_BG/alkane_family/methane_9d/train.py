@@ -98,6 +98,7 @@ def main():
     }
     config = {
         "method": args.method,
+        "valid_size": P.VALID_SIZE,
         "rg_param_0": P.RG_PARAM,
         "rg_param_1": P.RG_PARAM,
         **{key: value for key, value in controls.items() if key != "monitor"},
