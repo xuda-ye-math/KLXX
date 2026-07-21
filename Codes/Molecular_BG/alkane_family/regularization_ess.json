@@ -1,0 +1,68 @@
+{
+  "9": {
+    "molecule": "Methane",
+    "dimension": 9,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "methane_9d_raw",
+    "sample_count": 100000,
+    "ess": 1.0
+  },
+  "18": {
+    "molecule": "Ethane",
+    "dimension": 18,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "ethane_18d_raw",
+    "sample_count": 120000,
+    "ess": 1.0
+  },
+  "27": {
+    "molecule": "Propane",
+    "dimension": 27,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "propane_27d_raw",
+    "sample_count": 160000,
+    "ess": 1.0
+  },
+  "36": {
+    "molecule": "Butane",
+    "dimension": 36,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "butane_36d",
+    "sample_count": 200000,
+    "ess": 1.0
+  },
+  "45": {
+    "molecule": "Pentane",
+    "dimension": 45,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "pentane_45d",
+    "sample_count": 200000,
+    "ess": 0.9999904632568359
+  },
+  "54": {
+    "molecule": "Hexane",
+    "dimension": 54,
+    "rg_param": [
+      100.0,
+      0.15
+    ],
+    "source": "hexane_54d",
+    "sample_count": 200000,
+    "ess": 0.999977171421051
+  }
+}

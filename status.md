@@ -1,9 +1,38 @@
 # Project status
 
-Last updated: 2026-07-21T09:35:50-04:00 (America/New_York)
+Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
 
 ## Current state
 
+- **Done — alkane-family computation and OpenMM macroscopic benchmark:** the
+  raw/sharpened KL, KLXX, and identity records through hexane 54D are saved.
+  The independent raw-potential benchmark uses two seeds and a 0.25 fs
+  timestep: 300 K native OpenMM Langevin for methane through propane and
+  300--800 K native OpenMM replica exchange for butane through hexane. The
+  torsional runs retained 3200 cold-slot frames per molecule after burn-in and
+  maintained adjacent-swap acceptance from `0.557` to `0.699`. Against these
+  references, KLXX physical-energy means differ by at most `0.644%`, and its
+  carbon radius/end-to-end means differ by at most `1.058%`; the replica-
+  exchange rotamer populations are also close at the pooled-observable level.
+  [`macroscopic.png`](Codes/Molecular_BG/alkane_family/results/macroscopic.png)
+  now presents energy, carbon geometry, and paired KLXX/OpenMM rotamer results;
+  two independent final visual reviews found no remaining material issue. The
+  earlier exploratory 1 fs replica-exchange energies remain preserved but are
+  not used because their unconstrained-bond timestep bias was directly
+  diagnosed. The repository is on `main` at
+  `bca2be5621e358a6301dc86cbbe76dc99eb48a18` (`Complete alkane family
+  training`), tracking `origin/main`; the current tree has no staged or deleted
+  paths, 13 tracked modifications, and 23 untracked paths. Ignored OpenMM logs
+  and trajectory NPZs are recovery-critical.
+- **Done — molecular alkane-family results report:** the canonical
+  [`Codes/Molecular_BG/results.md`](Codes/Molecular_BG/results.md) is complete.
+  It presents the GAFF2/AM1-BCC/OBC1 model, a centered grouped ID/KL/KLXX table
+  with separate factor, stage, and time columns, the regularization evidence,
+  and the independently benchmarked macroscopic figure. Direct audits matched
+  all 90 numeric table fields to the 30 complete run manifests, matched all six
+  reported regularization-ESS sources to their selected KLXX populations, and
+  verified the report links and current figure labels. Integration of this
+  completed report into the manuscript remains pending.
 - **Done — stable `jflows` and `jflows_md` 0.5.1 installations:** the editable
   environment resolves `jflows==0.5.1` from `/data/projects/jflows` and
   `jflows_md==0.5.1` from `/data/projects/jflows_md`. Both authoritative
@@ -659,6 +688,26 @@ Last updated: 2026-07-21T09:35:50-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — integrate molecular results into the manuscript:** integrate the
+  verified `Codes/Molecular_BG/results.md` summary table, conclusions, and
+  `Codes/Molecular_BG/alkane_family/results/macroscopic.png` into the molecular
+  section of `Paper/main.tex`. The main conclusion is that both sharpening and
+  KLXX materially reduce the total propagation factor, while forward KL
+  degrades toward identity-flow performance for large molecules.
+- **Pending — manuscript naming and positioning:** retire the “balanced
+  hyperparameters” notion and use **KLXX** as the formal method name throughout
+  the introduction and molecular section, presenting it as the primary tested
+  method with premium performance. Sections 3--5 retain the explicit
+  `KL + X_μ + X_(μ̂ + ν̄)/2` name where it must be distinguished from
+  `KL + X_μ + X_μ̂`. Apply this terminology consistently across the
+  complete `Paper/main.tex`.
+- **Pending — jflows accelerator report:** add a public `jflows` feature that
+  reports GPU specifications and clearly reports the selected and available
+  JAX backends, including CPU, CUDA, and ROCm where supported. Design it from
+  current JAX backend-support documentation before editing the package.
+- **Pending — graphical abstract:** add an abstract graphic that displays the
+  KLXX structure directly: forward KL plus log-ratio variation, and its
+  relationship to `KL + X_μ + X_(μ̂ + ν̄)/2`.
 - **Pending — original `zflows_md` molecular targets:** after the alkane
   sequence, revisit the other established molecular systems, including
   glycerol, ADP, and diethanolamine, using the stable `jflows_md` 0.5.1
@@ -2280,3 +2329,41 @@ Last updated: 2026-07-21T09:35:50-04:00 (America/New_York)
   large-molecule method by total factor, although it takes approximately
   `3.10`, `2.24`, and `2.65` times as long as sharpened KL at 36D, 45D, and
   54D.
+
+### 2026-07-21T13:40:17-04:00 — Alkane OpenMM benchmark and figure completed
+
+- Completed a two-seed, raw-potential native OpenMM benchmark at 0.25 fs.
+  Methane through propane use 300 K Langevin production; butane through hexane
+  use 300--800 K replica exchange, retain 3200 pooled post-burn cold-slot
+  frames per molecule, and maintain adjacent-swap acceptance from `0.557` to
+  `0.699`. The earlier 1 fs replica-exchange pass remains diagnostic-only
+  because unconstrained bond modes produced a measurable energy bias.
+- Recomputed the final KLXX populations under the raw physical energy and
+  compared like-for-like observables. Across C1--C6, the maximum relative
+  difference in physical-energy means is `0.644%`; the maximum relative
+  difference among nonzero carbon-radius and terminal-carbon-distance means is
+  `1.058%`. The pooled butane/pentane/hexane OpenMM trans populations are
+  `0.503750`, `0.558281`, and `0.538854`, versus KLXX `0.453155`, `0.532738`,
+  and `0.555537`.
+- Regenerated `results/macroscopic.png` as a 4213-by-1193 three-panel comparison
+  of physical energy, carbon-skeleton size, and paired stacked rotamer
+  populations. Continuous-observable OpenMM error bars span the two seed
+  means; the rotamer bars pool the two replica-exchange seeds. Three independent
+  science/data reviews confirmed the provenance and calculation, and two
+  independent final visual reviews passed the unobscured figure with no
+  remaining material issue. Regenerated `tables.md` from its source generator;
+  every HTML table now contains lowercase visible text.
+
+### 2026-07-21T14:01:46-04:00 — Molecular results report completed
+
+- Completed the canonical `Codes/Molecular_BG/results.md` presentation with
+  the centered grouped ID/KL/KLXX factor-stage-time table, the explicit
+  GAFF2/AM1-BCC/OBC1 potential and solvent model, regularization-ESS evidence,
+  and links to the detailed alkane tables and macroscopic comparison figure.
+- Direct post-edit audits matched all 90 displayed numeric fields to the 30
+  complete run manifests, matched all six regularization-ESS sources to the
+  selected KLXX populations, and verified both report links. Three independent
+  numerical, algorithmic, and presentation reviews found no remaining material
+  discrepancy.
+- Manuscript integration is deliberately still pending: `Paper/main.tex` has
+  not yet been updated from this molecular report.
