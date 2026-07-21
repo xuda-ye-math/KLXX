@@ -12,6 +12,10 @@ def number(value):
     return f"{value:.6g}"
 
 
+def duration(seconds):
+    return f"{seconds / 60:.2f} min"
+
+
 def uses_sharpening(stage):
     return stage["rg_start"] != stage["rg_end"]
 
@@ -19,13 +23,18 @@ def uses_sharpening(stage):
 def collect():
     runs = []
     for molecule_dir in ROOT.iterdir():
-        match = re.fullmatch(r"(.+)_([0-9]+)d", molecule_dir.name)
+        match = re.fullmatch(
+            r"(.+)_([0-9]+)d(?:_(?:raw|sharpening))?",
+            molecule_dir.name,
+        )
         if not match:
             continue
         molecule = match.group(1).replace("_", " ").title()
         dimension = int(match.group(2))
         for run_file in (molecule_dir / "artifacts").glob("*/run.json"):
             run = json.loads(run_file.read_text())
+            if run["status"] != "complete":
+                continue
             method = run["config"].get("method", run_file.parent.name)
             stages = []
             for stage_file in run_file.parent.glob("stages/stage_*/stage.json"):
@@ -35,13 +44,20 @@ def collect():
                 runs.append({
                     "molecule": molecule,
                     "dimension": dimension,
+                    "variant": (
+                        "Sharpening" if any(uses_sharpening(stage) for stage in stages)
+                        else "Raw"
+                    ),
                     "method": method.upper(),
-                    "status": run["status"],
                     "stages": stages,
                 })
     return sorted(
         runs,
-        key=lambda run: (run["dimension"], run["method"]),
+        key=lambda run: (
+            run["dimension"],
+            run["variant"] == "Sharpening",
+            run["method"],
+        ),
     )
 
 
@@ -63,7 +79,7 @@ def build(runs):
         "each molecule's `artifacts` directory.",
         "",
         "Each stage contributes a flow ESS. A sharpening ESS is included only "
-        "when that stage changes the regularization parameters. The cumulative "
+        "when that stage changes the regularization parameters. The total "
         "factor is",
         "",
         r"$$\prod_s \frac{1}{\operatorname{ESS}_s},$$",
@@ -73,18 +89,64 @@ def build(runs):
         "",
         "## Summary",
         "",
-        "| Molecule | Dimension | Method | Status | Stages | Flow factor | "
-        "Sharpening factor | Total factor |",
-        "|:---|---:|:---:|:---:|---:|---:|---:|---:|",
+        '<div align="left">',
+        "",
+        "<table>",
+        "<thead>",
+        "<tr><th>Molecule</th><th>Regularization</th><th>Method</th><th>Stages</th>"
+        "<th>Total factor</th><th>Total training time</th></tr>",
+        "</thead>",
+        "<tbody>",
     ]
+    molecule_groups = {}
+    variant_groups = {}
+    methods = {}
+    best_total = {}
     for run in runs:
-        flow, sharpening, total = factors(run["stages"])
-        sharpening_text = number(sharpening) if sharpening is not None else "—"
+        molecule_key = (run["molecule"], run["dimension"])
+        variant_key = (*molecule_key, run["variant"])
+        molecule_groups[molecule_key] = molecule_groups.get(molecule_key, 0) + 1
+        variant_groups[variant_key] = variant_groups.get(variant_key, 0) + 1
+        methods.setdefault(variant_key, set()).add(run["method"])
+        total = factors(run["stages"])[2]
+        best_total[variant_key] = min(best_total.get(variant_key, total), total)
+    current_summary = None
+    current_variant = None
+    for run in runs:
+        key = (run["molecule"], run["dimension"])
+        variant_key = (*key, run["variant"])
+        _, _, total = factors(run["stages"])
+        total_text = number(total)
+        if methods[variant_key] >= {"KL", "KLXX"} and total == best_total[variant_key]:
+            total_text = f"<strong>{total_text}</strong>"
+        molecule = ""
+        if key != current_summary:
+            molecule = (
+                f'<td rowspan="{molecule_groups[key]}">'
+                f"{run['molecule']} ({run['dimension']}d)</td>"
+            )
+            current_summary = key
+        variant = ""
+        if variant_key != current_variant:
+            variant = (
+                f'<td rowspan="{variant_groups[variant_key]}">'
+                f"{run['variant']}</td>"
+            )
+            current_variant = variant_key
         lines.append(
-            f"| {run['molecule']} | {run['dimension']} | {run['method']} | "
-            f"{run['status']} | {len(run['stages'])} | {number(flow)} | "
-            f"{sharpening_text} | {number(total)} |"
+            f"<tr>{molecule}{variant}<td>{run['method']}</td>"
+            f"<td>{len(run['stages'])}</td><td>{total_text}</td>"
+            f"<td>{duration(sum(stage['elapsed_seconds'] for stage in run['stages']))}</td>"
+            "</tr>"
         )
+    if not runs:
+        lines.append('<tr><td colspan="6">No completed stages found.</td></tr>')
+    lines.extend([
+        "</tbody>",
+        "</table>",
+        "",
+        "</div>",
+    ])
 
     current_molecule = None
     for run in runs:
@@ -96,12 +158,17 @@ def build(runs):
             ])
         lines.extend([
             "",
-            f"### {run['method']}",
+            f"### {run['variant']} — {run['method']}",
             "",
-            "| Stage | Interval | Step | ESS | 1/ESS | Cumulative factor |",
-            "|---:|:---:|:---|---:|---:|---:|",
+            '<div align="left">',
+            "",
+            "<table>",
+            "<thead>",
+            "<tr><th>Stage</th><th>Interval</th><th>Step</th>"
+            "<th>ESS</th><th>1/ESS</th></tr>",
+            "</thead>",
+            "<tbody>",
         ])
-        cumulative = 1.0
         for stage in run["stages"]:
             interval = f"{stage['t_start']:.6f} → {stage['t']:.6f}"
             steps = [("Flow", "valid_selected_ess")]
@@ -110,14 +177,17 @@ def build(runs):
             for step, key in steps:
                 ess = stage[key]
                 inverse = 1.0 / ess
-                cumulative *= inverse
                 lines.append(
-                    f"| {stage['stage']} | {interval} | {step} | "
-                    f"{number(ess)} | {number(inverse)} | "
-                    f"{number(cumulative)} |"
+                    f"<tr><td>{stage['stage']}</td><td>{interval}</td>"
+                    f"<td>{step}</td><td>{number(ess)}</td>"
+                    f"<td>{number(inverse)}</td></tr>"
                 )
-    if not runs:
-        lines.append("| - | - | - | - | - | - | - | - |")
+        lines.extend([
+            "</tbody>",
+            "</table>",
+            "",
+            "</div>",
+        ])
     return "\n".join(lines) + "\n"
 
 

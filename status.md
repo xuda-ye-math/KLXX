@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
+Last updated: 2026-07-21T09:35:50-04:00 (America/New_York)
 
 ## Current state
 
@@ -9,8 +9,35 @@ Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
   `jflows_md==0.5.1` from `/data/projects/jflows_md`. Both authoritative
   `pyproject.toml` and package version declarations report 0.5.1. The clean
   public repositories are on `main`, agree with their upstream branches, and
-  are at `00ac10bfa427e6678de56d13710b0707bf0be414` for `jflows` and
-  `8953ba6eb87bbf2365c8afe62bc711d2e62559d9` for `jflows_md`.
+  are at `493d08f0e9d10c67dab930f56610ae823be4809a` for `jflows` and
+  `7b53a0e9b93cecf21907670f5a271b79e8992fd6` for `jflows_md`.
+- **Done — identity-only Boltzmann generators:** both public packages expose
+  `boltzmann_identity` without a flow, optimizer, batch size, learning rate, or
+  training-step argument. Generic `jflows` advances the adaptive ladder by
+  identity transport plus MALA/SMC population updates. `jflows_md` retains the
+  same flow-free contract while supporting the molecular regularization path,
+  including active sharpening between `rg_param_0` and `rg_param_1`. Their
+  identity persistence paths save stage/population metadata without flow
+  artifacts. The clean package heads above are both titled `Add identity
+  Boltzmann generator`; the public signatures and documentation were inspected
+  directly from the editable 0.5.1 installations.
+- **Done — raw/sharpening alkane campaign through 54D:** the reordered queue
+  completed raw propane 27D, raw butane 36D, sharpened hexane 54D, raw pentane
+  45D, and raw hexane 54D, with KLXX followed by KL for each target. The final
+  raw 54D pair reached `t=1`: KLXX has `F=1026.11` over 12 stages and 69.87 min,
+  while KL has `F=2077.39` over 13 stages and 29.03 min. All persisted accepted
+  ESS values and final log records are finite. The complete matched evidence
+  refines the earlier conjecture: sharpening consistently reduces stages or
+  time, but its factor benefit grows materially with dimension rather than
+  remaining small. For KLXX, raw/sharpened `F` is `7.73844/7.7776` at 27D,
+  `28.0598/14.9132` at 36D, `82.7064/48.8331` at 45D, and
+  `1026.11/201.457` at 54D. The core alkane-family training campaign is now
+  complete. For the larger 36D, 45D, and 54D molecules, KLXX plus sharpening
+  has the smallest total factor among the four matched raw/sharpened KL/KLXX
+  choices. Its total training time is approximately `3.10`, `2.24`, and
+  `2.65` times the corresponding sharpening-plus-KL time, so it is the best
+  observed propagation method despite requiring roughly two to three times
+  longer training.
 - **Done — methane 9D and ethane 18D alkane generators:** fresh, logged,
   non-resumed KL and KLXX runs use fixed `rg_param=(100.0,0.15)`, no
   sharpening, and three accepted stages at `t=0.25/0.625/1.0`. Methane
@@ -31,13 +58,16 @@ Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
   `build_table.py`/`tables.md` factor report. No sharpening rows are printed
   when regularization does not change.
 - Repository: `/data/projects/X-regularization`, branch `main`, tracking
-  `origin/main`. At this diary-update boundary, local `HEAD` and the upstream
-  branch agree at `37f5fbffc10062f13ef645511012c3bc95bb471c` (`Update alkane
-  family results`). Aside from this `status.md` edit, 30 tracked deletions and
-  30 untracked relocation paths for propane 27D, n-butane 36D, and n-pentane
-  45D remain deliberately unstaged; no staged change is present. Ignored
-  research data and run artifacts remain outside Git and are covered by the
-  `/data/games/projects/` mirror.
+  `origin/main`. At the pre-publication inspection for this milestone, local
+  `HEAD` and `origin/main` both equal
+  `d9d2e72dd9e6c7819885cdc9bd6ff1e602579280` (`Add pentane 45D results`). The
+  authorized publication scope contains 5 tracked modifications, 24 tracked
+  deletions representing the methane/ethane raw-folder relocations, and 58
+  untracked result/source/bundle files; no change is staged. It includes all
+  requested raw 9D--54D and sharpened 54D presentation files, the table
+  generator/report, paper edits, and this diary. Ignored formal logs,
+  populations, and checkpoints remain recovery-critical and are preserved by
+  the `/data/backup/projects` mirror rather than Git.
 - **Done with explicit limitations — n-alkane OpenMM regularization choice:**
   [`Codes/Molecular_BG/alkane_family/regularization/REPORT.md`](Codes/Molecular_BG/alkane_family/regularization/REPORT.md)
   recommends `rg_param=(100.0,0.15)` as the working default through the tested
@@ -629,10 +659,6 @@ Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
 
 ## Pending
 
-- **Pending — higher-dimensional alkane generators:** refresh propane 27D,
-  n-butane 36D, n-pentane 45D, and later alkane dimensions with the stable
-  0.5.1 interface. Their relocated legacy files remain deliberately unstaged
-  and are not current-run results.
 - **Pending — original `zflows_md` molecular targets:** after the alkane
   sequence, revisit the other established molecular systems, including
   glycerol, ADP, and diethanolamine, using the stable `jflows_md` 0.5.1
@@ -643,13 +669,6 @@ Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
   of the preregistered half-window joint-rotamer TV diagnostic. Do not present
   `results/selection.json` as a formal pass: it correctly records no eligible
   candidate under the unchanged strict mixing gate.
-- **Pending — apply controlled sharpening:** later experiments will adapt the
-  sharpening technique in `../zflows_md`, where the e/r surrogate is annealed
-  from soft to sharp and each stage records the Monte Carlo sharpening-reweight
-  ESS. Port and audit that logic against current `jflows_md` before launching;
-  preserve the raw physical target, per-step KLXX ESS, full-validation stage
-  ESS, and the separate sharpening ESS. No sharpening implementation or run is
-  authorized by this checkpoint.
 - **Decision — tune e/r before population sizes:** treat the energy threshold
   and pair-distance floor as the primary stability parameters. Do not spend the
   next experiment cycle on batch-size or validation-population scaling unless
@@ -2168,3 +2187,96 @@ Last updated: 2026-07-19T23:17:50-04:00 (America/New_York)
 - Higher-dimensional alkanes and the other molecular targets represented by
   the original `zflows_md` tests remain pending. Their old run files were not
   updated by this milestone.
+
+### 2026-07-20T21:38:26-04:00 — Identity baseline and raw/sharpening campaign recorded
+
+- Verified the clean, upstream-matched `jflows` and `jflows_md` heads that add
+  `boltzmann_identity`. The generic function advances adaptive stages without
+  flow training; the molecular function preserves that contract while allowing
+  e/r sharpening. Identity-only persistence stores no flow artifacts.
+- Completed raw propane KLXX directly at `(100.0,0.15)`: seven accepted stages
+  reach `t=1`, `F=7.73844`, and saved stage time totals 23.01 min. The matched
+  sharpened result has `F=7.7776`, six stages, and 18.29 min. This is preliminary
+  support for, not proof of, the conjecture that sharpening mainly smooths the
+  early continuation and lowers stage/time cost without greatly changing the
+  final factor. Raw propane KL remains active.
+- Renamed the completed fixed-target folders to `methane_9d_raw` and
+  `ethane_18d_raw`; no sharpened 9D/18D rerun is planned. Regenerated the
+  left-aligned HTML tables with explicit Raw/Sharpening grouping, variant-local
+  KL/KLXX bolding, final factor, and saved total training time in minutes.
+- Recorded the ordered production queue: finish raw propane KL; run raw butane
+  36D KLXX/KL at fixed `(100.0,0.15)`; run sharpened hexane 54D KLXX/KL from
+  `(50.0,0.25)` to `(100.0,0.15)`; then run raw 48D and raw 54D KLXX/KL. The
+  raw 54D experiment is the maximal alkane-family test. The requested raw 48D
+  target remains undefined because the current alkane tree has dimensions
+  9/18/27/36/45/54 only.
+
+### 2026-07-20T22:30:34-04:00 — Alkane production queue reordered
+
+- Completed raw propane KL at fixed `(100.0,0.15)` in 11 accepted stages with
+  `F=181.849` and 13.44 min saved stage time. Raw propane KLXX remains the
+  stronger result at `F=7.73844`.
+- Raw n-butane 36D KLXX is active; raw KL remains next for the same fixed
+  target. The subsequent order is sharpened n-hexane 54D KLXX/KL, then raw
+  n-pentane 45D KLXX/KL, then raw n-hexane 54D KLXX/KL. This order change does
+  not alter the active process or any numerical configuration.
+
+### 2026-07-20T23:01:00-04:00 — Raw butane completed; sharpened hexane started
+
+- Completed the fixed-target n-butane 36D pair. KLXX reached `t=1` in 10
+  trained-selected stages with `F=28.0598` and 49.01 min saved stage time. KL
+  reached `t=1` in 12 stages with `F=367.102` and 20.34 min; every accepted KL
+  stage selected identity over the trained flow.
+- Regenerated `tables.md` from the saved stage metadata; its raw 36D summary
+  reports both methods and bolds the smaller KLXX factor. Launched fresh,
+  non-resumed sharpened n-hexane 54D KLXX next, preserving the recorded
+  `(50.0,0.25) -> (100.0,0.15)` configuration and separate full log.
+
+### 2026-07-21T00:25:07-04:00 — Sharpened hexane completed; raw pentane started
+
+- Completed the sharpening-enabled n-hexane 54D pair at
+  `(50.0,0.25) -> (100.0,0.15)`. KLXX reached `t=1` in 10 stages with
+  `F=201.457` and 60.06 min saved stage time; KL reached `t=1` in 10 stages
+  with `F=891.504` and 22.69 min. KL selected identity at every accepted
+  stage, while KLXX selected the trained flow for stages 1--8 and identity for
+  stages 9--10. Both final logs and all accepted-stage ESS values are finite.
+- Regenerated `tables.md` from the persisted stage records and verified the
+  new 54D summary. Created the raw n-pentane 45D configuration by changing only
+  `RG_PARAM_0` from `(50.0,0.2)` to `(100.0,0.15)` relative to its sharpened
+  numerical parameters; the bundle is byte-identical. Launched its fresh,
+  non-resumed KLXX run with a separate clean log. Raw KL remains next, followed
+  by raw n-hexane 54D KLXX/KL.
+
+### 2026-07-21T01:52:36-04:00 — Raw pentane completed; raw hexane started
+
+- Completed the fixed-target n-pentane 45D pair at `(100.0,0.15)`. KLXX
+  reached `t=1` in 12 trained-selected stages with `F=82.7064` and 60.42 min
+  saved stage time. KL reached `t=1` in 13 identity-selected stages with
+  `F=754.697` and 24.64 min. Both final logs and every accepted-stage ESS are
+  finite.
+- Regenerated `tables.md`; the 45D summary now contains raw and sharpening
+  KL/KLXX pairs and bolds the smaller factor within each variant. Created the
+  raw n-hexane 54D configuration by changing only `RG_PARAM_0` from
+  `(50.0,0.25)` to `(100.0,0.15)` relative to the sharpening-enabled numerical
+  parameters. It uses the same verified central bundle. Launched fresh,
+  non-resumed raw 54D KLXX with a separate clean log; raw 54D KL remains last.
+
+### 2026-07-21T03:32:39-04:00 — Raw hexane and reordered alkane queue completed
+
+- Completed fixed-target n-hexane 54D at `(100.0,0.15)`. KLXX reached `t=1`
+  in 12 stages with `F=1026.11` and 69.87 min saved stage time; KL reached
+  `t=1` in 13 identity-selected stages with `F=2077.39` and 29.03 min. Every
+  accepted-stage ESS and both final log records are finite.
+- Regenerated `tables.md` from the persisted records. It now reports complete
+  raw and sharpening KL/KLXX pairs at 27D, 36D, 45D, and 54D, plus the raw 9D
+  and 18D baselines. The requested reordered sequence placed sharpened 54D
+  before raw 45D, and the entire defined 9D--54D alkane queue is now complete.
+- The full data contradicts the strong form of the preliminary conjecture that
+  sharpening changes the final factor only slightly. The KLXX factor is nearly
+  unchanged at 27D, but sharpening improves it by factors of approximately
+  `1.88`, `1.69`, and `5.09` at 36D, 45D, and 54D respectively, while also
+  smoothing or shortening continuation in the matched runs. This completes the
+  core alkane-family training phase. KLXX plus sharpening is the best observed
+  large-molecule method by total factor, although it takes approximately
+  `3.10`, `2.24`, and `2.65` times as long as sharpened KL at 36D, 45D, and
+  54D.
