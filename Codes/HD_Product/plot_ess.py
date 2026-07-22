@@ -70,6 +70,7 @@ def plot_dimension(ax):
             label=label,
         )
 
+    ax.set_title("(a) Validation ESS", loc="left")
     ax.set_xlabel(r"dimension $d$")
     ax.set_ylabel("validation ESS")
     ax.set_xticks(DIMENSIONS)
@@ -97,6 +98,7 @@ def plot_training(ax):
             label=label,
         )
 
+    ax.set_title(r"(b) Batch ESS at $d=256$", loc="left")
     ax.set_xlabel("step")
     ax.set_ylabel("batch ESS")
     ax.set_xlim(0, train_steps)
@@ -109,7 +111,7 @@ RESULTS.mkdir(exist_ok=True)
 fig, axes = plt.subplots(
     1,
     2,
-    figsize=(9.6, 3.4),
+    figsize=(9.0, 3.4),
     gridspec_kw={"width_ratios": (5.4, 4.2)},
 )
 plot_dimension(axes[0])

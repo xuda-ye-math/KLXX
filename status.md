@@ -1,9 +1,27 @@
 # Project status
 
-Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
+Last updated: 2026-07-22T09:19:09-04:00 (America/New_York)
 
 ## Current state
 
+- **Done — current project mirror refreshed:**
+  `bash /data/projects/backup.sh` exited zero and refreshed
+  `/data/backup/projects/X-regularization`. Exact byte comparisons passed for
+  the current `Paper/main.tex`, `Paper/main.pdf`, HD Product ESS figure,
+  combined Clock occupancy figure, and pre-update `status.md`. This status-only
+  diary edit follows that verified mirror; no source, result, figure, or PDF
+  mutation intervened.
+- **Done — main manuscript rewrite and style polishing basically complete:**
+  the current [`Paper/main.tex`](Paper/main.tex) integrates the molecular
+  alkane results, uses the combined batch-size/particle-count occupancy figure,
+  and gives the HD Product panels explicit subfigure titles. The reviewed prose
+  follows the established forms “forward KL,” “FR gradient,” “normalizing
+  flow,” and “mini-batch.” The molecular regularized potential now uses the
+  superscripted literal-brace form \(U^{\{\rho\}}\) consistently. The current
+  [`Paper/main.pdf`](Paper/main.pdf) is a verified 34-page, 5,982,658-byte
+  build whose log records only the known 1.83437 pt Table 3 overfull box.
+  Further scientific work is separated below from this basically complete
+  main-text and style pass.
 - **Done — alkane-family computation and OpenMM macroscopic benchmark:** the
   raw/sharpened KL, KLXX, and identity records through hexane 54D are saved.
   The independent raw-potential benchmark uses two seeds and a 0.25 fs
@@ -20,10 +38,12 @@ Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
   earlier exploratory 1 fs replica-exchange energies remain preserved but are
   not used because their unconstrained-bond timestep bias was directly
   diagnosed. The repository is on `main` at
-  `bca2be5621e358a6301dc86cbbe76dc99eb48a18` (`Complete alkane family
-  training`), tracking `origin/main`; the current tree has no staged or deleted
-  paths, 13 tracked modifications, and 23 untracked paths. Ignored OpenMM logs
-  and trajectory NPZs are recovery-critical.
+  `2cd47f35e475937c44686005d8d044b5de69bdf0` (`Complete molecular alkane
+  results`), tracking `origin/main`. At this checkpoint no path is staged; the
+  working tree contains 16 modified tracked paths, one tracked deletion, and
+  seven untracked paths. These pre-existing manuscript, code, figure, and
+  result changes remain unstaged and preserved. Ignored OpenMM logs and
+  trajectory NPZs are recovery-critical.
 - **Done — molecular alkane-family results report:** the canonical
   [`Codes/Molecular_BG/results.md`](Codes/Molecular_BG/results.md) is complete.
   It presents the GAFF2/AM1-BCC/OBC1 model, a centered grouped ID/KL/KLXX table
@@ -31,15 +51,36 @@ Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
   and the independently benchmarked macroscopic figure. Direct audits matched
   all 90 numeric table fields to the 30 complete run manifests, matched all six
   reported regularization-ESS sources to their selected KLXX populations, and
-  verified the report links and current figure labels. Integration of this
-  completed report into the manuscript remains pending.
+  verified the report links and current figure labels. This completed report
+  is now integrated into the rewritten manuscript.
 - **Done — stable `jflows` and `jflows_md` 0.5.1 installations:** the editable
   environment resolves `jflows==0.5.1` from `/data/projects/jflows` and
   `jflows_md==0.5.1` from `/data/projects/jflows_md`. Both authoritative
-  `pyproject.toml` and package version declarations report 0.5.1. The clean
-  public repositories are on `main`, agree with their upstream branches, and
-  are at `493d08f0e9d10c67dab930f56610ae823be4809a` for `jflows` and
-  `7b53a0e9b93cecf21907670f5a271b79e8992fd6` for `jflows_md`.
+  `pyproject.toml` and package version declarations report 0.5.1. The public
+  repository bases remain at `493d08f0e9d10c67dab930f56610ae823be4809a`
+  for `jflows` and `7b53a0e9b93cecf21907670f5a271b79e8992fd6` for
+  `jflows_md`. The latter remains clean; the former now has the verified,
+  unstaged accelerator-report source, documentation, and smoke-test edits
+  described below.
+- **Done — lightweight `jflows` accelerator report:** the public
+  `jflows.backend()` function lives directly in `jflows/__init__.py`. It
+  inspects installed accelerator plugins and platform hardware without
+  creating a JAX backend client or performing device computation. A fresh
+  isolated process importing only `jflows` printed plain multiline output for
+  JAX 0.11.0 and Equinox 0.13.8, selected CUDA, listed CPU and CUDA, and
+  identified the NVIDIA GeForce RTX 5090 while the GPU was occupied. The
+  package prose retains only factual zuko provenance; `jflows_md` contains no
+  zflows or zuko comparison prose and required no edit.
+- **🚨 Severe accident — the initial backend reporter allocated GPU memory:**
+  the first implementation called a scalar operation on every JAX backend;
+  this triggered CUDA preallocation attempts from 15.45 GiB downward and a
+  sequence of out-of-memory diagnostics. An intermediate implementation that
+  removed the scalar still called JAX's backend-client registry and failed to
+  create the CUDA client when memory was exhausted. Both designs violated the
+  requirement that a reporting helper be lightweight and read-only. They were
+  removed before any commit or push. The final implementation performs only
+  package-entry-point and platform-metadata inspection; its exact caller test
+  imports `jflows` alone and produced no allocator diagnostic.
 - **Done — identity-only Boltzmann generators:** both public packages expose
   `boltzmann_identity` without a flow, optimizer, batch size, learning rate, or
   training-step argument. Generic `jflows` advances the adaptive ladder by
@@ -688,71 +729,18 @@ Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
 
 ## Pending
 
-- **Pending — integrate molecular results into the manuscript:** integrate the
-  verified `Codes/Molecular_BG/results.md` summary table, conclusions, and
-  `Codes/Molecular_BG/alkane_family/results/macroscopic.png` into the molecular
-  section of `Paper/main.tex`. The main conclusion is that both sharpening and
-  KLXX materially reduce the total propagation factor, while forward KL
-  degrades toward identity-flow performance for large molecules.
-- **Pending — manuscript naming and positioning:** retire the “balanced
-  hyperparameters” notion and use **KLXX** as the formal method name throughout
-  the introduction and molecular section, presenting it as the primary tested
-  method with premium performance. Sections 3--5 retain the explicit
-  `KL + X_μ + X_(μ̂ + ν̄)/2` name where it must be distinguished from
-  `KL + X_μ + X_μ̂`. Apply this terminology consistently across the
-  complete `Paper/main.tex`.
-- **Pending — jflows accelerator report:** add a public `jflows` feature that
-  reports GPU specifications and clearly reports the selected and available
-  JAX backends, including CPU, CUDA, and ROCm where supported. Design it from
-  current JAX backend-support documentation before editing the package.
 - **Pending — graphical abstract:** add an abstract graphic that displays the
   KLXX structure directly: forward KL plus log-ratio variation, and its
   relationship to `KL + X_μ + X_(μ̂ + ν̄)/2`.
-- **Pending — original `zflows_md` molecular targets:** after the alkane
-  sequence, revisit the other established molecular systems, including
-  glycerol, ADP, and diethanolamine, using the stable `jflows_md` 0.5.1
-  computation and persistence conventions.
-- **Pending — optional formal alkane-family validation:** the working default
-  is selected, but a formal all-gates family-wide claim would still require
-  direct raw/default trajectories for methane through pentane and resolution
-  of the preregistered half-window joint-rotamer TV diagnostic. Do not present
-  `results/selection.json` as a formal pass: it correctly records no eligible
-  candidate under the unchanged strict mixing gate.
-- **Decision — tune e/r before population sizes:** treat the energy threshold
-  and pair-distance floor as the primary stability parameters. Do not spend the
-  next experiment cycle on batch-size or validation-population scaling unless
-  an independent diagnostic specifically implicates finite-population error.
-- **Preserved old-framework controls:** the original, snapshot, and reverified
-  PyTorch workspaces now live under
-  `.archive/Molecular_BG_zflows_v1_original/`,
-  `.archive/Molecular_BG_zflows_v2_snapshot/`, and
-  `.archive/Molecular_BG_zflows_v3_reverify/`. Their completed
-  checkpoints/results are controls only and must not be overwritten by the
-  future JAX e/r campaign.
-- **Pending — `zflows_md` compilation engineering:** the archived PyTorch
-  molecular implementation still has unresolved excessive compile latency and
-  memory growth at realistic molecular sizes. Compare compilation boundaries,
-  chunking, and wrapper granularity before any attempt to revive it; the
-  successful `jflows_md` smoke compile does not resolve this separate issue.
-- **Pending — new molecular targets:** every AmberTools-26 or otherwise changed
-  small-molecule model must use a new descriptive bundle name and receive an
-  explicit scientific/provenance review before promotion to the frozen registry.
-- **Pending — original-style vacuum glycerol (secondary):** extract the exact
-  archived topology, `NoCutoff` Hamiltonian, coordinate convention, cap/floor,
-  and hyperparameters; build a discrepancy ledger and run the same minimal
-  diagnostic only after the CH4 gate is understood.
-- **Pending:** train and evaluate ADP against the exact ff96/OBC1 bundle using
-  MALA and optimizer-only finite-safe `u_clip`; retain honest physical target
-  values for MCMC, SMC, ESS, and evaluation. Any sharpening bridge must first
-  be specified and validated separately from the unchanged physical target.
-- **Pending:** establish matched reference diagnostics for glycerol and neutral
-  diethanolamine after the first production pipeline passes.
-- **Pending:** decide whether the ignored FAB HDF5/NPZ reference data and ignored `Codes/` arrays/checkpoints need an external release artifact in addition to the mirror backup.
-- **Pending — headline clock counts outside the requested edit scope:** the
-  abstract and conclusion still say `36/37` clock levels from the earlier
-  presentation, while the current Section 5 reports `28/28` after excluding
-  `B=125`. They were not changed in the Sections 1--2/appendix-only pass.
-- **Pending:** integrate the completed JAX molecular backend into the paper only after BG sampling results pass the planned physical and distributional gates; then perform the final full-paper consistency audit.
+- **Pending — other molecular tests:** complete generator runs and matched
+  physical-potential references for glycerol, neutral diethanolamine, and
+  alanine dipeptide. The alanine test should use the exact ff96/OBC1/ACE
+  Hamiltonian and will permit direct comparison with FAB; glycerol and
+  diethanolamine require their joint conformational and signed-volume checks.
+  Larger molecules and explicit solvent remain outside the present results.
+- **Pending — external research artifacts:** decide whether the ignored FAB
+  HDF5/NPZ reference data and ignored `Codes/` arrays/checkpoints need an
+  external release artifact in addition to the mirror backup.
 
 ## Timeline
 
@@ -2367,3 +2355,79 @@ Last updated: 2026-07-21T14:01:46-04:00 (America/New_York)
   discrepancy.
 - Manuscript integration is deliberately still pending: `Paper/main.tex` has
   not yet been updated from this molecular report.
+
+### 2026-07-21T19:48:56-04:00 — Backend-report allocation accident corrected
+
+- Added the public `jflows.backend()` function directly to the package root,
+  documented it in the existing README and low-level guide, and extended the
+  existing public-API smoke without introducing a backend module or separate
+  smoke file.
+- 🚨 The first version performed a scalar operation through each JAX backend
+  and triggered repeated CUDA preallocation/OOM diagnostics. Removing only the
+  scalar was insufficient: JAX backend-client creation itself then failed while
+  GPU memory was exhausted. Neither unsafe implementation was committed or
+  pushed.
+- Replaced all JAX client/device access with installed-plugin and platform-
+  metadata inspection. The final exact test used only `import jflows` followed
+  by `jflows.backend()` in a fresh process with no allocator override. It
+  completed without an allocator diagnostic and printed JAX 0.11.0, Equinox
+  0.13.8, selected CUDA, CPU/CUDA availability, and the NVIDIA GeForce RTX 5090
+  model. The README Minimal setup now contains that exact two-line call.
+- Removed stale divergence/comparison prose from the package-root docstring
+  while retaining the factual zuko core attribution. A read-only audit found
+  no analogous zflows/zuko comparison prose in `jflows_md`; its clean worktree
+  was not changed.
+
+### 2026-07-21T22:57:37-04:00 — 🚨 Severe ambiguous table shorthand corrected
+
+- A manuscript edit replaced the explicit `GAFF2/AM1-BCC; OBC1/ACE` model in
+  the glycerol and neutral-diethanolamine rows of Table 5 with `same`. This
+  made those rows non-self-contained and ambiguous and is recorded as a severe
+  accident.
+- Restored the full model text in both rows and removed the remaining shorthand
+  from a table caption. A direct source search found no occurrence of `same`
+  in any table environment, and `Paper/main.pdf` rebuilt successfully.
+  The only remaining layout warning is the user-authorized 1.83437 pt Table 3
+  overflow required to keep the full method name on one line.
+- Hard rule: every table row and caption must state its model, configuration,
+  or comparison explicitly. Never use `same`, `as above`, or equivalent
+  shorthand in a table.
+
+### 2026-07-22T09:14:37-04:00 — Project mirrored; manuscript rewrite recorded
+
+- Ran the shared `/data/projects/backup.sh` mirror successfully. The complete
+  project is present at `/data/backup/projects/X-regularization`; exact
+  comparisons passed for `Paper/main.tex`, `Paper/main.pdf`, the HD Product ESS
+  figure, the combined Clock occupancy figure, and the pre-edit `status.md`.
+- Recorded the rewritten main text and basically complete style polishing. The
+  manuscript now integrates the molecular alkane results and the revised
+  two-panel HD Product and Clock occupancy presentations. A final notation-only
+  edit writes the regularized molecular potential as \(U^{\{\rho\}}\),
+  including the sharpening bridge and endpoint reweighting expressions. The
+  rebuilt 34-page PDF succeeded, and rendered page 23 was inspected directly.
+- Kept the remaining scientific boundary explicit: glycerol, neutral
+  diethanolamine, and alanine dipeptide still need generator runs and matched
+  references. The alanine result will also enable direct comparison with FAB.
+- The mirror preceded the `status.md` update, notation-only `Paper/main.tex`
+  edit, and final PDF rebuild, so it contains the immediately preceding
+  versions of those files. The local repository remains on `main` at
+  `2cd47f35e475937c44686005d8d044b5de69bdf0`, equal to `origin/main`, with no
+  staged path; all existing dirty-worktree changes were preserved.
+
+### 2026-07-22T09:19:09-04:00 — Current manuscript and project state mirrored
+
+- Ran `bash /data/projects/backup.sh` again; it exited zero and refreshed the
+  complete project mirror at `/data/backup/projects/X-regularization`.
+- Post-backup byte comparisons passed for `Paper/main.tex`, `Paper/main.pdf`,
+  `Codes/HD_Product/results/ess.png`,
+  `Codes/Lattice_Clock/results/occupancy_bias.png`, and the pre-update
+  `status.md`. The refreshed mirror therefore includes the current
+  superscripted literal-brace molecular notation, rebuilt 34-page manuscript,
+  and current two-panel figures.
+- The repository remained on `main` at
+  `2cd47f35e475937c44686005d8d044b5de69bdf0`, exactly equal to `origin/main`.
+  The index remained clean; the preserved working tree contained 16 modified
+  tracked paths, one tracked deletion, and seven untracked paths.
+- This status-only diary entry follows the verified mirror, so the mirrored
+  `status.md` is the immediately preceding version. No other project file was
+  changed after the backup.

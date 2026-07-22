@@ -218,7 +218,7 @@ def build(runs):
             "<table>",
             "<thead>",
             "<tr><th>molecule</th><th>benchmark</th><th>n</th>"
-            "<th>u (kj/mol)</th>"
+            "<th>energy (kj/mol)</th>"
             "<th>r<sub>g,c</sub> (nm)</th><th>r<sub>ee,c</sub> (nm)</th>"
             "<th>backbone φ</th><th>trans</th><th>gauche+</th>"
             "<th>gauche−</th></tr>",

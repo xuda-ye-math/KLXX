@@ -66,7 +66,7 @@ The independent benchmark uses the native OpenMM backend on the raw potential wi
 
 <table>
 <thead>
-<tr><th>molecule</th><th>benchmark</th><th>n</th><th>u (kj/mol)</th><th>r<sub>g,c</sub> (nm)</th><th>r<sub>ee,c</sub> (nm)</th><th>backbone φ</th><th>trans</th><th>gauche+</th><th>gauche−</th></tr>
+<tr><th>molecule</th><th>benchmark</th><th>n</th><th>energy (kj/mol)</th><th>r<sub>g,c</sub> (nm)</th><th>r<sub>ee,c</sub> (nm)</th><th>backbone φ</th><th>trans</th><th>gauche+</th><th>gauche−</th></tr>
 </thead>
 <tbody>
 <tr><td>methane (9d)</td><td>raw klxx</td><td>100000</td><td>19.4 ± 5.3</td><td>0.0000 ± 0.0000</td><td>0.0000 ± 0.0000</td><td>0</td><td>—</td><td>—</td><td>—</td></tr>

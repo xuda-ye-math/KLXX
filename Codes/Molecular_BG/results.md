@@ -19,11 +19,12 @@ We compare three adaptive generators. **ID** uses identity transport at every
 stage and therefore performs no flow training. **KL** trains the forward-KL
 objective. **KLXX** augments forward KL with both log-ratio variation terms and
 uses quench-and-temper samples in the second term. The trained generators start
-each stage from the identity map and select the trained or identity proposal by
-full-validation ESS. All three methods retain the same SMC endpoint selection,
+    each stage from the identity map and select the trained or identity proposal by
+    ESS over the complete validation population. All three methods retain the same SMC endpoint selection,
 resampling, and MALA population updates; ID also retains sharpening when the
-two regularization endpoints differ. KLXX uses `pool_size=0`, so its
-quench-and-temper population is the complete validation population.
+    two regularization endpoints differ. KLXX uses `pool_size=0`, so its
+    quench-and-temper population starts from `VALID_SIZE` fresh source draws
+    rather than from a separately sized pool.
 
 ## Propagation factors
 

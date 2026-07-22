@@ -122,7 +122,7 @@ def main():
     )
     ax.set_title("(a) Physical energy", loc="left")
     ax.set_xlabel(r"carbon count $n_{\mathrm{C}}$")
-    ax.set_ylabel(r"$U$ (kJ mol$^{-1}$)")
+    ax.set_ylabel(r"$E$ (kJ mol$^{-1}$)")
     ax.set_xticks(carbon_count)
     ax.set_xlim(0.7, 6.3)
     ax.set_ylim(bottom=0)

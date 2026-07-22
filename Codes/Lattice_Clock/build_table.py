@@ -2,7 +2,7 @@
 
 The Clock comparison is defined by the full-validation ESS at every accepted
 KL level.  KLXX must use the exact same accepted ``t_hist``.  The aggregate
-reported by the original experiment is the error-propagation factor
+reported by the experiment is the propagation factor
 
     F = product_k ESS_k**(-1),
 
@@ -29,6 +29,7 @@ HERE = Path(__file__).resolve().parent
 ARTIFACTS = HERE / "artifacts"
 RESULTS = HERE / "results"
 SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+MIN_BATCH_SIZE = 250
 METHOD_LABELS = {
     "kl": "forward KL",
     "klxx": (
@@ -47,7 +48,7 @@ class Run:
 
     @property
     def factor(self) -> float:
-        """Error-propagation factor ``prod_k 1 / ESS_k``."""
+        """Propagation factor ``prod_k 1 / ESS_k``."""
         return float(np.prod(1.0 / self.ess))
 
     @property
@@ -195,14 +196,19 @@ def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
 
 
 def main() -> None:
-    pairs = load_pairs()
+    pairs = [
+        pair for pair in load_pairs()
+        if pair[0].batch_size >= MIN_BATCH_SIZE
+    ]
     RESULTS.mkdir(parents=True, exist_ok=True)
     table = _markdown_table(pairs)
     (RESULTS / "tables.md").write_text(
         "# p-state clock — per-level ESS on a shared history\n\n"
-        "The final column is the error-propagation factor "
-        "$F = \\prod_k \\mathrm{ESS}_k^{-1}$; smaller is better.  Every "
-        "ESS is the full-validation stage-gate value.\n\n"
+        "The final column is the propagation factor "
+        "$F = \\prod_k \\mathrm{ESS}_k^{-1}$; smaller is better. It "
+        "summarizes stagewise weight degeneracy and is not a full-chain "
+        "ESS or endpoint error estimate. Every ESS is the full-validation "
+        "stage-gate value.\n\n"
         + table
     )
     _write_csv(pairs)
