@@ -1,16 +1,51 @@
 # Project status
 
-Last updated: 2026-07-22T09:19:09-04:00 (America/New_York)
+Last updated: 2026-07-22T12:29:35-04:00 (America/New_York)
 
 ## Current state
 
-- **Done — current project mirror refreshed:**
+- **Done — Sections 3–4 generalized for flexible Boltzmann-generator loss
+  weights:** Equations (14) and (20) and Algorithm 4 now accept arbitrary
+  nonnegative `λ`, `α`, and `β`. With `s = α + β`, the unnormalized mixture
+  is represented by the normalized `ξ` or `ξ_k` and its pairwise estimate is
+  multiplied by `s²`; the term is omitted when `s = 0`. The introduction keeps
+  `α + β = 1` only for simplicity. KLXX is the special choice
+  `(λ, α, β) = (1, 1/2, 1/2)`, while forward KL and the target-only
+  regularizer are also recovered by their stated parameter choices. Algorithm
+  4 gives the hatted empirical loss explicitly, constructs QT samples only
+  when `α > 0`, and uses the same `ξ_k` notation as the stage loss.
+- **Done — molecular force-field and stereochemistry audit:** the frozen
+  glycerol and neutral-diethanolamine bundles use the tabled
+  GAFF2/AM1-BCC/OBC1/ACE Hamiltonian, while the alanine-dipeptide bundle uses
+  the exact FAB-lineage ff96/OBC1/ACE Hamiltonian. The atom counts and mixed
+  dimensions agree with the manuscript: glycerol `14/36`, neutral
+  diethanolamine `18/48`, and alanine dipeptide `22/60`. Linear alkanes,
+  glycerol, and neutral diethanolamine have no fixed configurational
+  stereocenter in the selected molecular definitions, so both signs of their
+  diagnostic mirror/pyramidal coordinates belong to the target. The FAB
+  alanine target is different: its alanine alpha carbon is configurationally
+  chiral and the million-frame reference occupies only the L component.
+  Current `jflows_md` 0.5.2 enforces that component with one half-torsion
+  chart, giving `R^42 x T^18`, plus a signed-volume support check. The shipped
+  stereochemical-support smoke test passed from temporary source and bundle
+  copies: all 512 ADP samples had the selected sign, the mirrored ADP frame was
+  rejected, and glycerol and diethanolamine produced both signs and accepted
+  their mirrors. The ADP mirror-energy parity error was `4.88e-06` in the
+  test's energy units. The temporary copy was removed afterward.
+- **Current repository boundary:** X-regularization is on `main` at
+  `b593985a1f172a3c1621bcff00a99598ff724de0` (`Define default KLXX
+  objective`), exactly equal to `origin/main`. The working tree has exactly
+  three unstaged modified tracked paths: `Paper/main.tex`, `Paper/main.pdf`,
+  and `status.md`. The index is clean, with no untracked or deleted path. No
+  staging, commit, or push was performed for this milestone.
+- **Done — current project mirror refreshed after the final terminology
+  edit:** the requested second invocation of
   `bash /data/projects/backup.sh` exited zero and refreshed
   `/data/backup/projects/X-regularization`. Exact byte comparisons passed for
-  the current `Paper/main.tex`, `Paper/main.pdf`, HD Product ESS figure,
-  combined Clock occupancy figure, and pre-update `status.md`. This status-only
-  diary edit follows that verified mirror; no source, result, figure, or PDF
-  mutation intervened.
+  the current `Paper/main.tex`, `Paper/main.pdf`, and pre-update `status.md`.
+  This diary edit follows that verified mirror, so the mirrored `status.md` is
+  the immediately preceding version while the mirrored paper source and PDF
+  are current.
 - **Done — main manuscript rewrite and style polishing basically complete:**
   the current [`Paper/main.tex`](Paper/main.tex) integrates the molecular
   alkane results, uses the combined batch-size/particle-count occupancy figure,
@@ -18,10 +53,13 @@ Last updated: 2026-07-22T09:19:09-04:00 (America/New_York)
   follows the established forms “forward KL,” “FR gradient,” “normalizing
   flow,” and “mini-batch.” The molecular regularized potential now uses the
   superscripted literal-brace form \(U^{\{\rho\}}\) consistently. The current
-  [`Paper/main.pdf`](Paper/main.pdf) is a verified 34-page, 5,982,658-byte
-  build whose log records only the known 1.83437 pt Table 3 overfull box.
-  Further scientific work is separated below from this basically complete
-  main-text and style pass.
+  [`Paper/main.pdf`](Paper/main.pdf) is a verified 34-page, 5,989,492-byte
+  build. Its log records the accepted 7.28761 pt Algorithm 4 float-height
+  warning and the known 1.83437 pt Table 3 overfull box, with no undefined
+  reference, undefined citation, or fatal error. Final rendered checks show
+  Algorithm 4 remaining above the page number and the two corrected
+  “alanine dipeptide” passages rendering cleanly. Further scientific work is
+  separated below from this basically complete main-text and style pass.
 - **Done — alkane-family computation and OpenMM macroscopic benchmark:** the
   raw/sharpened KL, KLXX, and identity records through hexane 54D are saved.
   The independent raw-potential benchmark uses two seeds and a 0.25 fs
@@ -732,6 +770,26 @@ Last updated: 2026-07-22T09:19:09-04:00 (America/New_York)
 - **Pending — graphical abstract:** add an abstract graphic that displays the
   KLXX structure directly: forward KL plus log-ratio variation, and its
   relationship to `KL + X_μ + X_(μ̂ + ν̄)/2`.
+- **Decision needed — generic fixed stereochemistry in `jflows_md`:** the
+  runtime coordinate specification currently contains one singular
+  `chiral_torsion_index`/signed-volume constraint, and bundle construction
+  enables it through an ADP-specific branch. The recommended repair is a new
+  coordinate schema with an ordered list of explicit fixed tetrahedral-center
+  constraints and a separate list of unrestricted signed-volume diagnostics.
+  Each fixed center should store its controlling torsion index and half-chart
+  sign, its ordered four atoms and required signed-volume sign, and a readable
+  label. Runtime encoding/decoding and the exact Jacobian should vectorize over
+  all fixed centers; support should be the conjunction of their signed-volume
+  tests. The builder should consume explicit preset or user-supplied
+  constraints, validate indices, uniqueness, reference handedness, chart
+  boundaries, and Z-matrix realizability, and never infer a fixed center from
+  topology alone. Required regression evidence includes zero-, one-, and
+  two-center coordinate round trips and Jacobians; preserved current ADP,
+  glycerol, and diethanolamine behavior; mirror and single-center-flip tests;
+  mixed-flow/MALA support preservation; invalid-spec rejection; and the full
+  molecular smoke suite. Axial chirality, E/Z constraints, and mixtures of
+  selected stereoisomers remain separate future features. No public-package or
+  bundle mutation is authorized by this status entry.
 - **Pending — other molecular tests:** complete generator runs and matched
   physical-potential references for glycerol, neutral diethanolamine, and
   alanine dipeptide. The alanine test should use the exact ff96/OBC1/ACE
@@ -2431,3 +2489,66 @@ Last updated: 2026-07-22T09:19:09-04:00 (America/New_York)
 - This status-only diary entry follows the verified mirror, so the mirrored
   `status.md` is the immediately preceding version. No other project file was
   changed after the backup.
+
+### 2026-07-22T11:39:03-04:00 — Molecular stereochemistry support audited
+
+- Verified the manuscript's three pending molecular rows against the frozen
+  bundle manifests and coordinate specifications. Glycerol and neutral
+  diethanolamine use GAFF2/AM1-BCC/OBC1/ACE; alanine dipeptide uses the
+  FAB-lineage ff96/OBC1/ACE target. Formula-derived atom counts and the stored
+  mixed-coordinate dimensions agree with the table.
+- Classified the stereochemical supports from their actual structures and
+  bundle definitions. The linear alkanes and glycerol have no fixed
+  configurational center. Neutral diethanolamine has two identical
+  hydroxyethyl arms, so its monitored nitrogen-pyramidal sign is unrestricted.
+  Alanine dipeptide has one fixed alanine-center handedness and the FAB
+  reference contains only its L component.
+- Inspected the live `jflows_md` coordinate kernel, potential facade, bundle
+  builder, ADP/glycerol/diethanolamine coordinate specifications, and matching
+  smoke test. The ADP bundle replaces one periodic torsion by a logistic
+  half-chart coordinate and checks the selected Cartesian signed volume;
+  glycerol and diethanolamine retain full support.
+- Ran `smoke/test_support_and_utils.py` from temporary copies of the live
+  package sources and three bundles; it exited zero. ADP generation stayed on
+  the selected component and rejected its mirror, while glycerol and
+  diethanolamine sampled both diagnostic signs and accepted their mirrors.
+  Removed the exact temporary copy and verified it absent. No project or public
+  package file was changed by the audit.
+- Identified the remaining package limitation precisely: runtime fields are
+  singular and the builder's constraint is hard-coded to `target == "adp"`.
+  Recorded a schema-and-test design for an explicit list of fixed tetrahedral
+  centers. Implementation remains a separate, not-yet-authorized public
+  `jflows_md` change.
+
+### 2026-07-22T12:29:35-04:00 — Sections 3–4 generalized for flexible BG loss weights
+
+- Generalized Equations (14) and (20) from the default KLXX setting to
+  arbitrary nonnegative `λ`, `α`, and `β`. The sections now define
+  `s = α + β`, normalize the mixture through `ξ` or `ξ_k`, multiply its
+  pairwise contribution by `s²`, and omit it at `s = 0`. The introduction
+  retains `α + β = 1` for simplicity, and KLXX is stated as
+  `(λ, α, β) = (1, 1/2, 1/2)`.
+- Updated Algorithm 4 to accept the three loss weights, construct the QT batch
+  only when `α > 0`, sample the empirical mixture with probabilities `α/s`
+  and `β/s`, and display the full one-line hatted empirical counterpart of
+  Equation (20). The stage normalizing constant remains in the mathematical
+  definition and is omitted only where it cannot affect gradients or pairwise
+  differences.
+- Completed three independent read-only reviews of the new mathematics,
+  prose, and algorithm, followed by post-fix consistency passes. The main text
+  uses “forward KL” without a hyphen, the molecular inverse temperature uses
+  `β_T`, and every occurrence of “alanine dipeptide” in `Paper/main.tex` now
+  uses a space, including the pending-result sentence and Acknowledgments.
+- Rebuilt `Paper/main.pdf` in place with `latexmk`; it is 34 pages and
+  5,989,492 bytes. The log has no undefined reference, undefined citation, or
+  fatal error. It retains the accepted 7.28761 pt Algorithm 4 float-height
+  warning and known 1.83437 pt Table 3 overfull box. Rendered pages 13 and 26
+  were inspected after the final build; Algorithm 4 stays above page number
+  13 and the terminology edits render cleanly.
+- Ran `bash /data/projects/backup.sh` after the final source and PDF edits; it
+  exited zero and refreshed `/data/backup/projects/X-regularization`. Exact
+  byte comparisons passed for `Paper/main.tex`, `Paper/main.pdf`, and the
+  pre-update `status.md`. At this diary update, local `main` and `origin/main`
+  remain at `b593985a1f172a3c1621bcff00a99598ff724de0`; the three tracked files
+  `Paper/main.tex`, `Paper/main.pdf`, and `status.md` are modified and
+  unstaged, with no staged, untracked, or deleted path.

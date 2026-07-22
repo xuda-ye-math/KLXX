@@ -92,7 +92,7 @@ We use three weights. The target weight $\omega=\mu$ makes $\X_\mu$ control vari
     \mathcal{L}[\nu] = \KL(\mu\|\nu) + \lambda\, \X_\mu(\mu\|\nu) + \X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu),
     \label{eq: total-loss}
 \end{equation}
-where $\lambda\Ge 0$ controls the target-weighted term and $\alpha,\beta\Ge0$ weight the QT and detached-model measures. Expanding the product measure in the last term gives self-comparisons within $\hat\mu$ and $\bar\nu$ and a cross-comparison between them. The cross-comparison ties the log-ratio scale on QT configurations to that on model configurations; this information would be absent if the two variations were added separately. For the flow convention above, change of variables evaluates the same log-ratio as
+where $\lambda\Ge 0$ controls the target-weighted term and $\alpha,\beta\Ge0$ weight the QT and detached-model measures. For simplicity, the introduction restricts these mixture weights to $\alpha+\beta=1$; Section~\ref{subsec: total-loss} allows arbitrary nonnegative $\alpha$ and $\beta$. Expanding the product measure in the last term gives self-comparisons within $\hat\mu$ and $\bar\nu$ and a cross-comparison between them. The cross-comparison ties the log-ratio scale on QT configurations to that on model configurations; this information would be absent if the two variations were added separately. For the flow convention above, change of variables evaluates the same log-ratio as
 \begin{equation}
     z(y) = U_0(G(y)) - U(y) - \log|\det J_G(y)| + C,
     \label{eq: logratio-z}
@@ -190,15 +190,15 @@ This section turns the abstract loss of the introduction into a training algorit
 \subsection{Training loss with log-ratio variation}
 \label{subsec: total-loss}
 
-By change of variables, the model density is $\nu(y)=\mu_0(G(y))|\det J_G(y)|$, so every term is a functional of the scalar field $z(y)$ in \eqref{eq: logratio-z}. The forward KL is its mean under the target, $\KL(\mu\|\nu)=\mathbb E_{y\sim\mu}[z(y)]$. When $\omega$ is normalized, $\X_\omega$ is the mean absolute difference $\mathbb E_{y,y'\sim\omega}|z(y)-z(y')|$; for a general weight it is the double integral in \eqref{eq: X}. The map-level loss is
+By change of variables, the model density is $\nu(y)=\mu_0(G(y))|\det J_G(y)|$, so every term is a functional of the scalar field $z(y)$ in \eqref{eq: logratio-z}. The forward KL is its mean under the target, $\KL(\mu\|\nu)=\mathbb E_{y\sim\mu}[z(y)]$. When $\omega$ is normalized, $\X_\omega$ is the mean absolute difference $\mathbb E_{y,y'\sim\omega}|z(y)-z(y')|$; for a general weight it is the double integral in \eqref{eq: X}. Set $s:=\alpha+\beta$. For $s>0$, let $\xi:=(\alpha\hat\mu+\beta\bar\nu)/s$ be the normalized mixture, with any zero-weight component omitted. The map-level loss is
 \begin{align}
     \mathcal{L}[G]
     &= \underbrace{\mathbb{E}_{y \sim \mu}\bigl[z(y)\bigr]}_{\KL(\mu\|\nu)}
      + \lambda \underbrace{\mathbb{E}_{y, y' \sim \mu}\bigl[|z(y) - z(y')|\bigr]}_{\X_\mu(\mu\|\nu)}
-     + \underbrace{\mathbb{E}_{y, y' \sim \alpha\hat\mu + \beta\bar\nu}\bigl[|z(y) - z(y')|\bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)} .
+     + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi}\bigl[|z(y) - z(y')|\bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)} .
     \label{eq: total-loss-G}
 \end{align}
-Equation~\eqref{eq: total-loss-G} is the map form of \eqref{eq: total-loss}. The default $\lambda=1$ and $\alpha=\beta=\frac12$ is KLXX. The model distribution $\nu=(G^{-1})_{\#}\mu_0$ depends on the trainable parameters of $G$. The barred measure $\bar\nu$ is the same distribution frozen at the current parameters: samples are drawn through $G^{-1}$, but their sampling path is detached before the loss is differentiated.
+When $s=0$, the last term is omitted. Equation~\eqref{eq: total-loss-G} is the map form of \eqref{eq: total-loss} after removing the introductory restriction $s=1$; the factor $s^2$ follows from the double integral in \eqref{eq: X} and is required when $\alpha+\beta\ne1$. The default choice $\lambda=1$ and $\alpha=\beta=\frac12$ defines KLXX. The model distribution $\nu=(G^{-1})_{\#}\mu_0$ depends on the trainable parameters of $G$. The barred measure $\bar\nu$ is the same distribution frozen at the current parameters: samples are drawn through $G^{-1}$, but their sampling path is detached before the loss is differentiated.
 
 The three sampling measures entering \eqref{eq: total-loss-G} address complementary failure modes of the bare forward KL:
 \begin{itemize}
@@ -213,11 +213,11 @@ Adding these nonnegative terms to the exact-target forward KL preserves $\nu=\mu
 The exponential bound \eqref{eq: KL-exponential} concerns the idealized FR flow. It gives no speed or stability guarantee for Adam, and the biased-surrogate theorem does not cover the experimental value $\lambda=1$. The numerical sections therefore treat finite-training gains as empirical results. The clock experiment uses a schedule-matched comparison to separate the loss from the choice of bridge increments.
 \end{remark}
 
-The forward KL and $\X_\mu$ share one target batch: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$. Thus $\X_\mu$ adds only a permutation and pairwise difference to the same differentiation graph. The equal-weight mixture evaluates one additional batch drawn from $(\hat\mu+\bar\nu)/2$ and applies the same randomized pairwise estimator.
+The forward KL and $\X_\mu$ share one target batch: evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$, take $\mathrm{mean}(\mathbf z)$ for the forward KL, and $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for a random permutation $\sigma$. Thus $\X_\mu$ adds only a permutation and pairwise difference to the same differentiation graph. When $s>0$, the last term evaluates one additional batch drawn from $\xi$, applies the same randomized pairwise estimator, and multiplies it by $s^2$. At the KLXX setting, $s=1$ and the batch is split equally between $\hat\mu$ and $\bar\nu$.
 
-The loss draws on three measures, of which only two must be built. The $\bar\nu$ batch is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$, taken with the gradient through $G$ detached. This avoids differentiating through the sampled pushforward. The other two require construction: an approximation of the target $\mu$ for the forward KL and $\X_\mu$ terms, supplied by the annealing procedure of Section~\ref{subsec: ais}, and samples of the wide-coverage measure $\hat\mu$ for the mixture term, supplied by quench and temper (Section~\ref{subsec: QT}). With equal target and mixture batch sizes, $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ evaluates about twice as many samples per optimizer iteration as forward KL. This does not imply twice the total training time: constructing $\hat\mu$ also applies quench and temper to the complete validation population and adds a problem- and stage-dependent cost. Inference uses the same flow architecture for both methods.
+The loss draws on three measures, of which at most two must be built. The $\bar\nu$ batch is the raw pushforward $\bar y_i = G^{-1}(x_i)$ of source samples $x_i \sim \mu_0$, taken with the gradient through $G$ detached. This avoids differentiating through the sampled pushforward. An approximation of the target $\mu$ for the forward KL and $\X_\mu$ terms is supplied by the annealing procedure of Section~\ref{subsec: ais}. When $\alpha>0$, a second construction supplies samples of the wide-coverage measure $\hat\mu$ by quench and temper (Section~\ref{subsec: QT}). With equal target and mixture batch sizes, $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ evaluates about twice as many samples per optimizer iteration as forward KL. This does not imply twice the total training time: constructing $\hat\mu$ also applies quench and temper to the complete validation population and adds a problem- and stage-dependent cost. Inference uses the same flow architecture for both methods.
 
-We use two fixed settings. The \emph{$\X_\mu$-only setting} has $\lambda=1$ and $\alpha=\beta=0$; it adds no sampling measure beyond the target batch. KLXX has $\lambda=1$ and $\alpha=\beta=\frac12$; its second batch is split equally between $\hat\mu$ and $\bar\nu$. We report the full loss as $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ when it must be distinguished from the other ablations.
+Two recurring settings are the \emph{$\X_\mu$-only setting}, with $\lambda=1$ and $\alpha=\beta=0$, and KLXX, with $\lambda=1$ and $\alpha=\beta=\frac12$. The first adds no sampling measure beyond the target batch, while the second splits its mixture batch equally between $\hat\mu$ and $\bar\nu$. We report the full KLXX loss as $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ when it must be distinguished from the other ablations.
 
 \subsection{Approximating \texorpdfstring{$\mu$}{mu} by score-free annealing}
 \label{subsec: ais}
@@ -274,7 +274,7 @@ carries the positional gradient of the pushforward density at every MCMC step. T
 \subsection{Constructing \texorpdfstring{$\hat\mu$}{mu-hat} by quench and temper}
 \label{subsec: QT}
 
-The mixture term needs samples from the wide-coverage measure $\hat\mu$. Algorithms~\ref{alg: QT} and~\ref{alg: boltzmann} use the staged full-population convention: $\mathcal Y=\{x_1,\dots,x_N\}$ is the complete validation population drawn from the source measure for the stage, and QT acts on all $N$ particles once per stage attempt. The resulting set is held fixed during optimization. At each training step a mini-batch of $B$ samples is drawn from it and refreshed by a short MALA chain before entering the $\X_\omega$ computation. Standalone one-flow ablations may instead report a separately sized QT population; this does not alter the two-size staged algorithm, whose only sample sizes are $N$ and $B$. Quench and temper (QT) is the map
+When $\alpha>0$, the last term needs samples from the wide-coverage measure $\hat\mu$. Algorithms~\ref{alg: QT} and~\ref{alg: boltzmann} use the staged full-population convention: $\mathcal Y=\{x_1,\dots,x_N\}$ is the complete validation population drawn from the source measure for the stage, and QT acts on all $N$ particles once per stage attempt. The resulting set is held fixed during optimization. At each training step a mini-batch of $B$ samples is drawn from it and refreshed by a short MALA chain before entering the $\X_\omega$ computation. Standalone one-flow ablations may instead report a separately sized QT population; this does not alter the two-size staged algorithm, whose only sample sizes are $N$ and $B$. Quench and temper (QT) is the map
 \begin{equation*}
     \hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)
 \end{equation*}
@@ -329,7 +329,7 @@ i.e., the fraction of points in $\hat{\mathbf y}$ whose $\kappa$-nearest-neighbo
 \section{Adaptive-temperature Boltzmann generator}
 \label{sec: boltzmann}
 
-Section~\ref{sec: training} described one flow between a source and target. When that change is too large for one map, we divide it into stages along a temperature ladder. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}. Sampling diagnostics determine the ladder.
+Section~\ref{sec: training} described one flow between a source and target. When that change is too large for one map, we divide it into stages along a temperature ladder. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}, using user-chosen weights $\lambda,\alpha,\beta\Ge0$. The KLXX Boltzmann generator is the special case $(\lambda,\alpha,\beta)=(1,\frac12,\frac12)$; the construction below also permits other choices. Sampling diagnostics determine the ladder.
 
 \subsection{Construction of temperature ladder}
 
@@ -374,34 +374,38 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 \mbox{}\\
-When enabled, these SMC runs involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-step ESS can overlook a mode the SMC population never reaches. We therefore use this ESS only to screen an increment; it is a heuristic measure of bridge difficulty, not a coverage certificate. The selected-proposal validation in step~(v) supplies the acceptance gate, while QT supplies the independent wide-coverage set. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the bridge becomes trivial and its population ESS approaches $1$; in finite samples we also impose the outer loop's retry and stage limits.
+When enabled, these SMC runs involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-step ESS can overlook a mode the SMC population never reaches. We therefore use this ESS only to screen an increment; it is a heuristic measure of bridge difficulty, not a coverage certificate. The selected-proposal validation in step~(v) supplies the acceptance gate, while QT supplies the independent wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the bridge becomes trivial and its population ESS approaches $1$; in finite samples we also impose the outer loop's retry and stage limits.
 
 \FloatBarrier
 
 \subsection{The full training procedure}
 
-Algorithm~\ref{alg: boltzmann} combines the ladder rule with the training procedure. It carries a fixed-size validation population $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set, trains a flow, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}$, the algorithm shrinks the increment and retries. It stops at $t_K=1$.
+Algorithm~\ref{alg: boltzmann} combines the ladder rule with the training procedure. It carries a fixed-size validation population $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}$, the algorithm shrinks the increment and retries. It stops at $t_K=1$.
 
 \begin{enumerate}[(i)]
-\item \emph{Source population.} Stage $k$ uses two sample sizes: the \emph{validation size} $N$ and the \emph{batch size} $B$. The complete population $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. A working copy of all $N$ particles supplies the SMC calculation in step~(ii), and all $N$ particles initialize QT in step~(iii). Neither operation first draws a separately sized subset. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
+\item \emph{Source population.} Stage $k$ uses two sample sizes: the \emph{validation size} $N$ and the \emph{batch size} $B$. The complete population $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. A working copy of all $N$ particles supplies the SMC calculation in step~(ii), and, when $\alpha>0$, all $N$ particles initialize QT in step~(iii). Neither operation first draws a separately sized subset. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
 
 \item \emph{Adaptive step.} Algorithm~\ref{alg: step} selects $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. The default $\tau_{\mathrm{SMC}}=0$ accepts this initial guess without the optional SMC screen. If a positive floor is supplied, the algorithm shrinks the increment until the classical SMC ESS on all $N$ particles clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
 
-\item \emph{Wide-coverage set.} Quench and temper (Algorithm~\ref{alg: QT}) acts on the complete validation population $\mathcal Y_{k-1}$ under $U_{t_k}$. The empirical distribution of the resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ defines $\hat\mu_k$ and supplies the wide-coverage half of the mixture term.
+\item \emph{Wide-coverage set.} When $\alpha>0$, quench and temper (Algorithm~\ref{alg: QT}) acts on the complete validation population $\mathcal Y_{k-1}$ under $U_{t_k}$. The empirical distribution of the resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ defines $\hat\mu_k$ and supplies the wide-coverage component of the last term in \eqref{eq: stage-loss}. When $\alpha=0$, that component vanishes and the QT construction is omitted.
 
-\item \emph{Training loss.} The flow $G_k$ is trained by $\KL$+$\X_{\mu_k}$+$\X_{(\hat\mu_k+\bar\nu_k)/2}$, the default loss of Section~\ref{subsec: total-loss} specialized to the stage $\mu_{k-1}\to\mu_k$. With model $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its stop-gradient copy $\bar\nu_k$, the stage log-ratio is
+\item \emph{Training loss.} The flow $G_k$ is trained by the general loss \eqref{eq: total-loss-G} specialized to the stage $\mu_{k-1}\to\mu_k$. With model $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its stop-gradient copy $\bar\nu_k$, the stage log-ratio is
 \begin{equation*}
-    z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)| ,
+    z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)| + C_k ,
 \end{equation*}
-and the loss reads
+where the unknown stage normalizing constant $C_k$ is independent of $G_k$ and omitted in computation because it does not affect gradients or pairwise differences. Let $s=\alpha+\beta$. For $s>0$, define the stage specialization of the normalized mixture $\xi$, with any zero-weight component omitted,
+\begin{equation*}
+    \xi_k:=\frac{\alpha\hat\mu_k+\beta\bar\nu_k}{s}.
+\end{equation*}
+The stage loss then reads
 \begin{align}
     \mathcal{L}[G_k]
     &= \underbrace{\mathbb{E}_{y \sim \mu_k}\bigl[z_k(y)\bigr]}_{\KL(\mu_k\|\nu_k)}
      + \lambda\underbrace{\mathbb{E}_{y, y' \sim \mu_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\mu_k}(\mu_k\|\nu_k)}
-     + \underbrace{\mathbb{E}_{y, y' \sim (\hat\mu_k + \bar\nu_k)/2}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{(\hat\mu_k+\bar\nu_k)/2}(\mu_k\|\nu_k)} ,
+     + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\alpha\hat\mu_k+\beta\bar\nu_k}(\mu_k\|\nu_k)} ,
     \label{eq: stage-loss}
 \end{align}
-where the omitted stage normalizing constant is independent of $G_k$. Its $\mu_k$-expectations are estimated from the biased score-free annealing surrogate: the level-$(k-1)$ batch $\mathcal X$ is pushed to $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, distributed as $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$. The wide-coverage measure $\hat\mu_k$ is realized by the set $\hat{\mathcal Y}_k$ of step~(iii).
+When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased score-free annealing surrogate: the level-$(k-1)$ batch $\mathcal X$ is pushed to $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the randomized pairwise estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and the $\X_{\mu_k}$-only loss, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
 
 \item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained proposal population $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with the importance weights
 \begin{equation*}
@@ -412,11 +416,11 @@ The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\
 \end{enumerate}
 
 \begin{algorithm}[p]
-    \setstretch{1.15}
+    \setstretch{1.1}
 \caption{Adaptive-temperature Boltzmann generator training}
 \label{alg: boltzmann}
 \small
-\KwInput{potentials $U_0, U$, validation size $N$, batch size $B$, annealing and SMC ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, validation ESS floor $\tau_{\mathrm v} = 0.6$, shrink factor $\gamma = 0.7$, enlarge factor $\Gamma = 1.5$, safe start $t_{\mathrm{safe}} = 0.2$}
+\KwInput{potentials $U_0, U$, validation size $N$, batch size $B$, loss weights $\lambda,\alpha,\beta\Ge0$ (KLXX: $\lambda=1$, $\alpha=\beta=\frac12$), annealing and SMC ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, validation ESS floor $\tau_{\mathrm v} = 0.6$, shrink factor $\gamma = 0.7$, enlarge factor $\Gamma = 1.5$, safe start $t_{\mathrm{safe}} = 0.2$}
 \KwOutput{ladder $0 = t_0 < \cdots < t_K = 1$ and flow maps $\{G_k\}_{k=1}^{K}$ with $(G_k^{-1})_{\#}\mu_{k-1} \approx \mu_k$}
 
 \tcp{validation population, $\mathcal Y_k \approx \mu_k$}
@@ -425,7 +429,7 @@ $\mathcal Y_0 \gets N$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets
     $k \gets k + 1$\;
     Form the stage source potential, $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
     \tcp{(i) complete source population}
-    Use all $N$ particles in $\mathcal Y_{k-1}$ for stage selection, QT, and validation\;
+    Use all $N$ particles in $\mathcal Y_{k-1}$ for stage selection and validation, and for QT when $\alpha>0$\;
     \tcp{(ii) adaptive temperature selection}
     \eIf{$k=1$}{
         Set $t_{\mathrm{init}} = t_{\mathrm{safe}}$\;
@@ -437,15 +441,19 @@ $\mathcal Y_0 \gets N$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets
     Form the target potential $U_{t_k} \gets (1-t_k) U_0 + t_k U$\;
     \Repeat{$\ESS(w_k) \Ge \tau_{\mathrm v}$}{
         Initialize $G_k$ to the identity map\;
-        \tcp{(iii) wide-coverage set}
-        Apply quench and temper to all $N$ validation particles, $\hat{\mathcal Y}_k \gets \mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ (Algorithm~\ref{alg: QT})\;
-        \tcp{(iv) default log-ratio-variation loss}
+        \tcp{(iii) optional wide-coverage set}
+        If $\alpha>0$, apply quench and temper to all $N$ validation particles, $\hat{\mathcal Y}_k \gets \mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ (Algorithm~\ref{alg: QT})\;
+        \tcp{(iv) general log-ratio-variation loss}
         \For{each gradient step}{
             Draw a training batch of $B$ samples $\mathcal X$ from the validation set $\mathcal Y_{k-1}$\;
-            Form the detached model batch, $\bar{\mathcal X}_\nu \gets G_k^{-1}(\mathcal X)$, distributed as $\nu_k = (G_k^{-1})_{\#}\, \mu_{k-1}$\;
+            Form the detached model batch, $\bar{\mathcal X}_\nu \gets G_k^{-1}(\mathcal X)$, approximating $\nu_k = (G_k^{-1})_{\#}\, \mu_{k-1}$\;
             Form the biased target surrogate $\mathcal X_\mu$ by score-free annealing (Algorithm~\ref{alg: AIS}, from $\nu_k$ toward $\mu_k$)\;
-            Draw a wide-coverage batch $\hat{\mathcal X}_\mu \subset \hat{\mathcal Y}_k$ and rejuvenate, $\hat{\mathcal X}_\mu \gets \mathrm{MALA}(\hat{\mathcal X}_\mu, U_{t_k})$\;
-            Update $G_k$ by a gradient step on $\KL$+$\X_{\mu_k}$+$\X_{(\hat\mu_k+\bar\nu_k)/2}$ in \eqref{eq: stage-loss}, from $\mathcal X_\mu$ and the equal mixture of $\hat{\mathcal X}_\mu$ and $\bar{\mathcal X}_\nu$\;
+            If $\alpha>0$, draw a wide-coverage batch $\hat{\mathcal X}_\mu \subset \hat{\mathcal Y}_k$ and rejuvenate, $\hat{\mathcal X}_\mu \gets \mathrm{MALA}(\hat{\mathcal X}_\mu, U_{t_k})$\;
+            If $s=\alpha+\beta>0$, draw $\mathcal X_{\xi_k}$ from $\hat{\mathcal X}_\mu$ (when $\alpha>0$) and $\bar{\mathcal X}_\nu$ with probabilities $\alpha/s,\beta/s$; otherwise omit the last term\;
+            Update $G_k$ with the empirical loss below, using a random permutation in each pairwise term:
+            \[
+                \widehat{\mathcal L}[G_k]=\widehat{\mathbb E}_{y\in\mathcal X_\mu}\bigl[z_k(y)\bigr]+\lambda\widehat{\mathbb E}_{y,y'\in\mathcal X_\mu}\bigl[|z_k(y)-z_k(y')|\bigr]+s^2\widehat{\mathbb E}_{y,y'\in\mathcal X_{\xi_k}}\bigl[|z_k(y)-z_k(y')|\bigr].
+            \]
         }
         \tcp{(v) validation set update}
         Form the trained pair $(\tilde{\mathcal Y}_k^{\mathrm{tr}},w_k^{\mathrm{tr}})$ and identity pair $(\mathcal Y_{k-1},w_k^{\mathrm{id}})$ as in step~(v)\;
@@ -758,9 +766,9 @@ A nonlinear molecule with \(A\) atoms has \(d=3A-6\) internal degrees of freedom
 \qquad d_{\mathrm E}+d_{\mathrm T}=3A-6,
 \label{eq: mixed-molecular-domain}
 \end{equation}
-and the physical reduced potential at inverse temperature \(\beta=(k_BT)^{-1}\) is
+and the physical reduced potential at inverse temperature \(\beta_{\mathrm T}=(k_BT)^{-1}\) is
 \begin{equation}
-U(q)=\beta E(x(q))-\log J(q),
+U(q)=\beta_{\mathrm T} E(x(q))-\log J(q),
 \label{eq: molecular-reduced-potential}
 \end{equation}
 where \(J(q)\) is the Cartesian volume Jacobian of the reconstruction, including the whitening maps. The source is Gaussian on the Euclidean block and uniform on the torus. The mixed spline flow uses ordinary rational-quadratic splines on the Euclidean coordinates and circular splines on the torsions.
@@ -807,7 +815,7 @@ e\bigl[1+\log(\Delta E/e)\bigr], & \Delta E>e,
 and collect the two regularization parameters in \(\rho=(e,r)\). The corresponding reduced potential is
 \begin{equation}
 U^{\{\rho\}}(q)
-=\beta\!\left[E_r^\star
+=\beta_{\mathrm T}\!\left[E_r^\star
 +\mathcal C_e\bigl(\Delta E_r(x(q))\bigr)\right]-\log J(q).
 \label{eq: regularized-molecular-potential}
 \end{equation}
@@ -959,7 +967,7 @@ The glycerol and neutral diethanolamine bundles use the same GAFF2/AM1-BCC and O
 \subsection{Alanine dipeptide: pending}
 \label{sec: mol-adp-pending}
 
-Alanine dipeptide provides a higher-dimensional, named-stereoisomer benchmark with a published reference. Its mixed domain is \(\mathbb R^{42}\times\mathbb T^{18}\), restricted to the \(\mathrm L\)-alanine component represented by the FAB million-frame trajectory. The intended comparison uses the exact ff96/OBC1/ACE Hamiltonian and reports the Ramachandran \((\phi,\psi)\) distribution together with full-energy reweighting and the remaining torsions. The trained generator remains pending, so no alanine-dipeptide sampling result enters this revision.
+Alanine dipeptide provides a higher-dimensional, named-stereoisomer benchmark with a published reference. Its mixed domain is \(\mathbb R^{42}\times\mathbb T^{18}\), restricted to the \(\mathrm L\)-alanine component represented by the FAB million-frame trajectory. The intended comparison uses the exact ff96/OBC1/ACE Hamiltonian and reports the Ramachandran \((\phi,\psi)\) distribution together with full-energy reweighting and the remaining torsions. The trained generator remains pending, so no alanine dipeptide sampling result enters this revision.
 
 % ===================== Section 7: Conclusions + Acknowledgement =====================
 \section{Conclusions}
@@ -976,7 +984,7 @@ The clock and alkane configurations require additional training seeds to measure
 
 \section*{Acknowledgments}
 
-The normalizing flow computations use \texttt{jflows} and \texttt{jflows\_md}. Molecular benchmark data were generated with OpenMM and AmberTools, and the alanine-dipeptide reference data were taken from the FAB study \citep{midgley2022flow}. The experiment sources and software repositories are available at:
+The normalizing flow computations use \texttt{jflows} and \texttt{jflows\_md}. Molecular benchmark data were generated with OpenMM and AmberTools, and the alanine dipeptide reference data were taken from the FAB study \citep{midgley2022flow}. The experiment sources and software repositories are available at:
 \begin{tcolorbox}[colback=gray!12,boxrule=0pt,arc=2pt,left=6pt,right=6pt,top=4pt,bottom=4pt]
 \url{https://github.com/xuda-ye-math/X-regularization}\\
 \url{https://github.com/xuda-ye-math/jflows}\\
