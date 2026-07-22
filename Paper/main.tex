@@ -66,7 +66,7 @@ forward KL & $\KL(\mu\|\nu)$ & annealed target surrogate in this work \\
 FAB & order-$2$ R\'enyi & AIS on $\mu^2/\nu$; flow-score MCMC; replay buffer \\
 iDEM & energy matching & iterative sampler; stochastic transport; replay buffer \\
 \multirow{2}{*}{KLXX} &
-\multirow{2}{*}{$\KL(\mu\|\nu)$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$} &
+\multirow{2}{*}{$\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$} &
 target annealing, QT, and detached model samples \\
 & & no flow-score MCMC or replay buffer \\
 \bottomrule
@@ -92,7 +92,7 @@ We use three weights. The target weight $\omega=\mu$ makes $\X_\mu$ control vari
     \mathcal{L}[\nu] = \KL(\mu\|\nu) + \lambda\, \X_\mu(\mu\|\nu) + \X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu),
     \label{eq: total-loss}
 \end{equation}
-where $\lambda\Ge 0$ controls the target-weighted term and, when the mixture is used, $\alpha,\beta\Ge0$ with $\alpha+\beta=1$. Expanding the product measure in the last term gives self-comparisons within $\hat\mu$ and $\bar\nu$ and a cross-comparison between them. The cross-comparison ties the log-ratio scale on QT configurations to that on model configurations; this information would be absent if the two variations were added separately. For the flow convention above, change of variables evaluates the same log-ratio as
+where $\lambda\Ge 0$ controls the target-weighted term and $\alpha,\beta\Ge0$ weight the QT and detached-model measures. Expanding the product measure in the last term gives self-comparisons within $\hat\mu$ and $\bar\nu$ and a cross-comparison between them. The cross-comparison ties the log-ratio scale on QT configurations to that on model configurations; this information would be absent if the two variations were added separately. For the flow convention above, change of variables evaluates the same log-ratio as
 \begin{equation}
     z(y) = U_0(G(y)) - U(y) - \log|\det J_G(y)| + C,
     \label{eq: logratio-z}
@@ -104,6 +104,14 @@ where $J_G(y)$ is the Jacobian matrix of $G$ at $y$, and the unknown constant $C
      + \lambda \underbrace{\mathbb{E}_{y, y' \sim \mu}\bigl[|z(y) - z(y')|\bigr]}_{\X_\mu(\mu\|\nu)}
      + \underbrace{\mathbb{E}_{y, y' \sim \alpha\hat\mu + \beta\bar\nu}\bigl[|z(y) - z(y')|\bigr]}_{\X_{\alpha\hat\mu + \beta\bar\nu}(\mu\|\nu)} .
     \label{eq: total-loss-G-intro}
+\end{align}
+The default KLXX choice is the special case
+\begin{align}
+    \mathrm{KLXX}[G]
+    &= \underbrace{\mathbb{E}_{y \sim \mu}\bigl[z(y)\bigr]}_{\KL(\mu\|\nu)}
+     + \underbrace{\mathbb{E}_{y, y' \sim \mu}\bigl[|z(y) - z(y')|\bigr]}_{\X_\mu(\mu\|\nu)}
+     + \underbrace{\mathbb{E}_{y, y' \sim (\hat\mu + \bar\nu)/2}\bigl[|z(y) - z(y')|\bigr]}_{\X_{(\hat\mu + \bar\nu)/2}(\mu\|\nu)} .
+    \label{eq: KLXX-G-intro}
 \end{align}
 The $\X_\mu$ term reuses the target batch and log-ratio evaluations of the forward KL. The mixture term evaluates one additional batch, split equally between QT and detached model samples at the default setting. We refer to the choice $\lambda=1$ and $\alpha=\beta=\frac12$ as KLXX; its full objective is $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Compared with a forward KL iteration at the same batch size, KLXX evaluates about twice as many samples and also pays the cost of constructing the QT population.
 
