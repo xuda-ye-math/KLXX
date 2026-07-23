@@ -1,0 +1,32 @@
+{
+  "bundles": {
+    "diethanolamine": {
+      "coordinates.json": "f527e67b990f9de66bef618c6b5c81bbec5764b66a9b7dfccf8e1d908818107b",
+      "manifest.json": "bf7f960d92439f55dd99afcd764d98315b14494438f3018a66ddfe5162d3b911",
+      "reference.pdb": "bb02069cc7873c4f1e71ad07ef46e3f3040a25d2804a4f5d4872415142dd8387",
+      "system.json": "972d78eee3da935b2c806cfb8d84c86106126e4e47334e833e3fbfad08db60b6",
+      "system.xml": "3c5b3d1b220759906afc8d2ea80b0f4774cb78bd0ef4819f107814d5c509eb28",
+      "validation.json": "3bbe5aed2d2f3a09b8f840aeffefc66aad879c7b1645c88ebe87b7970439d55f"
+    },
+    "glycerol": {
+      "coordinates.json": "d56e7e9becc881f8d864a7d65ca9d2bd7f1e1e87db619cbafc5dea9da7f162fc",
+      "manifest.json": "35f17dd93268cc1b2c588f6c1cc4e09c2a664c89d9be75ad5a13c8ea57a5f223",
+      "reference.pdb": "30b304c8fd9d6aa6be4b6b8e35e088e5daf60f856f159ef445460f179bdeffed",
+      "system.json": "251075734d185793e5b57e9bc51bcdbd1a4345b0f882bebae21ff410e53c7375",
+      "system.xml": "76f3c370001a1de77e021625402ebbf0e56f54d0c4841a46d1969a131e4bd570",
+      "validation.json": "939bb5070648faa45f0a0f30f922bceaecdc38e373c027ec0b24d0bb01a7735c"
+    },
+    "nma": {
+      "coordinates.json": "8b53d98c331f51f9596146e9227b1b92885e1db0123b456c995844cfefa647d0",
+      "manifest.json": "69ce0572a451bd9ce0a907aa6c44a81f783d0b3ed67897d864a9feb23e3b68e9",
+      "reference.pdb": "85a0df8b19febeb4eedad3d12f394190fd321507c4f86152c4ecca14aded5a40",
+      "system.json": "e0aa728cefbc222c7c28f712b02ba22622e50d2e06ebc9addd9686f63fab420d",
+      "system.xml": "d7181e5013c44fce3cd9abedcf30cfe52b673fbbb058c4b0616553f4163e2e9e",
+      "validation.json": "fd0e6ff0e108f819ee65f55424fb3f5cfeede3303cceac874dc1925d869b1bf5"
+    }
+  },
+  "config_sha256": "4f534f3c02c14083b2a6915145a143fa98988167bd9bd4596b2e46317226e4b1",
+  "jflows_md_commit": "fae4961db4026749bcc6e57e166785219e57f428",
+  "openmm_version": "8.5.2.dev-36a30cb",
+  "phase": "production"
+}

@@ -1,0 +1,41 @@
+{
+  "base_config_sha256": "4f534f3c02c14083b2a6915145a143fa98988167bd9bd4596b2e46317226e4b1",
+  "candidate_config_sha256": "6b5baba5b29a3cdd20c16cf6ffcc4b4a3b35b4d51a98a9be712750fd70a66c1c",
+  "decision": "user-selected after candidate pilot",
+  "molecules": {
+    "diethanolamine": {
+      "primary_overlap_pass": true,
+      "rg_param": [
+        150.0,
+        0.1
+      ],
+      "verification_seeds": [
+        3401
+      ]
+    },
+    "glycerol": {
+      "primary_overlap_pass": true,
+      "rg_param": [
+        100.0,
+        0.1
+      ],
+      "verification_seeds": [
+        3401,
+        3402
+      ]
+    },
+    "nma": {
+      "primary_overlap_pass": true,
+      "rg_param": [
+        100.0,
+        0.15
+      ],
+      "verification_seeds": [
+        3401,
+        3402
+      ]
+    }
+  },
+  "primary_metric": "candidate-to-raw normalized importance ESS",
+  "reverse_ess_role": "machine-readable audit diagnostic only"
+}

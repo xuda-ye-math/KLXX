@@ -1,0 +1,149 @@
+[
+  {
+    "dimension": 30,
+    "display_name": "NMA",
+    "e_kj_mol": 100.0,
+    "energy_crosscheck_max_abs_kj_mol": 0.0,
+    "evidence_scope": "two 5000-round verification seeds",
+    "floor_frame_fraction_300K": 0.0,
+    "floor_frame_fraction_all_replicas": 0.0,
+    "joint_state_tv": 0.004499156408173444,
+    "materially_modified_fraction": 0.000375,
+    "max_js_bits": 0.0013492997539468253,
+    "max_occupancy_error": 0.004499156408173444,
+    "molecule": "nma",
+    "per_seed_raw_target_ress": [
+      0.9996094170437724,
+      0.9999999997771559
+    ],
+    "post_burnin_candidate_frames": 8000,
+    "primary_overlap_pass": true,
+    "r_nm": 0.15,
+    "raw_target_ress": 0.9998047034871075,
+    "raw_target_ress_ci_high": 0.9999996251647358,
+    "raw_target_ress_ci_low": 0.9995085526368018,
+    "reverse_ress_audit": 0.9997721652417527,
+    "reverse_ress_ci_high_audit": 0.999999999777117,
+    "reverse_ress_ci_low_audit": 0.9993184758875092,
+    "selected_mixing": {
+      "max_half_joint_tv": 0.02947789158131403,
+      "max_half_marginal_tv": 0.02947789158131403,
+      "max_split_rhat": 1.622224545258245,
+      "min_markov_ess": 1667.6418626279917,
+      "min_swap_acceptance": 0.8492,
+      "pass": false
+    },
+    "signed_volume": null,
+    "tail_exponent_at_top_replica": 60.136177521363024,
+    "tail_proper": true,
+    "verification_seeds": [
+      3401,
+      3402
+    ]
+  },
+  {
+    "dimension": 36,
+    "display_name": "glycerol",
+    "e_kj_mol": 100.0,
+    "energy_crosscheck_max_abs_kj_mol": 0.00022040517069399357,
+    "evidence_scope": "2 completed 5000-round verification seeds",
+    "floor_frame_fraction_300K": 0.0,
+    "floor_frame_fraction_all_replicas": 0.0,
+    "joint_state_tv": 0.1015785861358957,
+    "materially_modified_fraction": 0.006875,
+    "max_js_bits": 0.00838380214528769,
+    "max_occupancy_error": 0.08860838592763853,
+    "molecule": "glycerol",
+    "per_seed_raw_target_ress": [
+      0.99880931276466,
+      0.9992903161863002
+    ],
+    "post_burnin_candidate_frames": 8000,
+    "primary_overlap_pass": true,
+    "r_nm": 0.1,
+    "raw_target_ress": 0.9990497501474569,
+    "raw_target_ress_ci_high": 0.9995081478922697,
+    "raw_target_ress_ci_low": 0.9985251595821205,
+    "reverse_ress_audit": 0.9640451024263402,
+    "reverse_ress_ci_high_audit": 0.9971629181827736,
+    "reverse_ress_ci_low_audit": 0.919316568654612,
+    "selected_mixing": {
+      "max_half_joint_tv": 0.3342438539855972,
+      "max_half_marginal_tv": 0.28828378715963027,
+      "max_split_rhat": 1.0565520448892605,
+      "min_markov_ess": 30.283756690421367,
+      "min_swap_acceptance": 0.852,
+      "pass": false
+    },
+    "signed_volume": {
+      "candidate_positive_fraction_per_seed": [
+        0.0,
+        0.0
+      ],
+      "pass": true,
+      "pooled_positive_fraction_shift": 0.0,
+      "raw_positive_fraction_per_seed": [
+        0.0,
+        0.0
+      ],
+      "raw_seed_difference": 0.0
+    },
+    "tail_exponent_at_top_replica": 60.136177521363024,
+    "tail_proper": true,
+    "verification_seeds": [
+      3401,
+      3402
+    ]
+  },
+  {
+    "dimension": 48,
+    "display_name": "neutral diethanolamine",
+    "e_kj_mol": 150.0,
+    "energy_crosscheck_max_abs_kj_mol": 0.00029615609673783183,
+    "evidence_scope": "1 completed 5000-round verification seed",
+    "floor_frame_fraction_300K": 0.0,
+    "floor_frame_fraction_all_replicas": 0.0,
+    "joint_state_tv": 0.11098859357752214,
+    "materially_modified_fraction": 0.0,
+    "max_js_bits": 0.008916516185297312,
+    "max_occupancy_error": 0.0655792164547056,
+    "molecule": "diethanolamine",
+    "per_seed_raw_target_ress": [
+      0.9999999969119721
+    ],
+    "post_burnin_candidate_frames": 4000,
+    "primary_overlap_pass": true,
+    "r_nm": 0.1,
+    "raw_target_ress": 0.9999999969119721,
+    "raw_target_ress_ci_high": 0.9999999970439286,
+    "raw_target_ress_ci_low": 0.99999999678635,
+    "reverse_ress_audit": 0.9999999967694618,
+    "reverse_ress_ci_high_audit": 0.9999999968652472,
+    "reverse_ress_ci_low_audit": 0.9999999966702242,
+    "selected_mixing": {
+      "max_half_joint_tv": 0.23131585395736337,
+      "max_half_marginal_tv": 0.2,
+      "max_split_rhat": 1.0406103141322538,
+      "min_markov_ess": 146.02837679484495,
+      "min_swap_acceptance": 0.81,
+      "pass": false
+    },
+    "signed_volume": {
+      "candidate_positive_fraction_per_seed": [
+        0.515
+      ],
+      "pass": true,
+      "pooled_positive_fraction_shift": 0.01287499999999997,
+      "raw_positive_fraction_per_seed": [
+        0.53475,
+        0.521
+      ],
+      "raw_seed_difference": 0.013749999999999929
+    },
+    "tail_exponent_at_top_replica": 90.20426628204453,
+    "tail_proper": true,
+    "verification_seeds": [
+      3401
+    ]
+  }
+]

@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "bundle_root": "/data/projects/jflows_md/bundles",
+  "jflows_md_commit": "fae4961db4026749bcc6e57e166785219e57f428",
+  "regularization": [100.0, 0.15],
+  "temperature_kelvin": 300.0,
+  "temperatures_kelvin": [
+    300.0,
+    312.58608823116265,
+    325.70020851886716,
+    339.36451372328884,
+    353.6020860974454,
+    368.43697627859734,
+    383.8942439154812,
+    400.0
+  ],
+  "timestep_fs": 1.0,
+  "friction_per_ps": 1.0,
+  "rounds": 5000,
+  "extension_rounds": 10000,
+  "burnin_rounds": 1000,
+  "steps_per_round": 100,
+  "seed_steps": 200000,
+  "seed_sample_interval": 25000,
+  "seed_temperature_kelvin": 900.0,
+  "seeds": [3401, 3402],
+  "platform": "CUDA",
+  "precision": "mixed",
+  "histogram_bins": 72,
+  "bootstrap_replicates": 2000,
+  "force_frames": 500,
+  "importance_ess_min": 0.8,
+  "energy_crosscheck_atol_kj_mol": 0.0005,
+  "mixing": {
+    "min_markov_ess": 100.0,
+    "max_split_rhat": 1.05,
+    "max_half_marginal_tv": 0.10,
+    "min_swap_acceptance": 0.10
+  },
+  "molecules": {
+    "nma": {
+      "display_name": "NMA",
+      "bundle": "nma_ff96_obc1",
+      "dimension": 30,
+      "torsions": [[1, 4, 6, 8]],
+      "torsion_labels": ["C-C(O)-N-C"]
+    },
+    "glycerol": {
+      "display_name": "glycerol",
+      "bundle": "glycerol_gaff2_am1bcc_obc1",
+      "dimension": 36,
+      "torsions": [[0, 1, 2, 3], [0, 1, 2, 4], [1, 2, 4, 5]],
+      "torsion_labels": ["O1-C1-C2-O2", "O1-C1-C2-C3", "C1-C2-C3-O3"],
+      "signed_volume_atoms": [2, 1, 3, 4],
+      "signed_volume_label": "central-carbon pseudochirality"
+    },
+    "diethanolamine": {
+      "display_name": "neutral diethanolamine",
+      "bundle": "diethanolamine_gaff2_am1bcc_obc1",
+      "dimension": 48,
+      "torsions": [[0, 1, 2, 3], [1, 2, 3, 4], [2, 3, 4, 5], [3, 4, 5, 6]],
+      "torsion_labels": ["O1-C1-C2-N", "C1-C2-N-C3", "C2-N-C3-C4", "N-C3-C4-O2"],
+      "signed_volume_atoms": [3, 2, 4, 12],
+      "signed_volume_label": "nitrogen pyramidal inversion"
+    }
+  }
+}

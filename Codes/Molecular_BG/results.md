@@ -1,4 +1,4 @@
-# Molecular Boltzmann generators: alkane family
+# Molecular Boltzmann generators
 
 This benchmark follows the homologous series from methane to n-hexane, with
 mixed-coordinate dimensions 9, 18, …, 54. Every reported run uses seed 0 and
@@ -16,7 +16,7 @@ The mixed-coordinate target is the corresponding Boltzmann density on the
 rigid-motion quotient, including its coordinate-measure Jacobian.
 
 We compare three adaptive generators. **ID** uses identity transport at every
-stage and therefore performs no flow training. **KL** trains the forward-KL
+stage and therefore performs no flow training. **KL** trains the forward KL
 objective. **KLXX** augments forward KL with both log-ratio variation terms and
 uses quench-and-temper samples in the second term. The trained generators start
     each stage from the identity map and select the trained or identity proposal by
@@ -136,3 +136,64 @@ measured `1-RESS` is numerically zero from methane through butane,
   unconstrained bond modes.
 - OpenMM frames are correlated. Seed ranges in the figure are descriptive and
   are not framewise confidence intervals.
+
+## Additional achiral molecules
+
+We next test N-methylacetamide (NMA), glycerol, and neutral diethanolamine at
+300 K. Every reported run uses seed 0, reaches the final bridge coefficient
+$t=1$, and sharpens from `(50, 0.20)` to the molecule-specific endpoint shown
+in the table. We compare $\mathrm{KL}+\mathrm{X}_{\mu}$ with
+$\mathrm{KL}+\mathrm{X}_{\mu}+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ (KLXX).
+The factor and recorded time use the same definitions as in the alkane-family
+table above. Bold marks the smaller factor for each molecule.
+
+### Propagation factors
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th rowspan="2">molecule</th><th rowspan="2">start ρ<sub>0</sub></th><th rowspan="2">end ρ<sub>1</sub></th><th colspan="3">KL+X<sub>μ</sub></th><th colspan="3">KL+X<sub>μ</sub>+X<sub>(μ̂+ν̄)/2</sub></th></tr>
+<tr><th>factor</th><th>stages</th><th>time (min)</th><th>factor</th><th>stages</th><th>time (min)</th></tr>
+</thead>
+<tbody>
+<tr><td>NMA (30d)</td><td>(50, 0.20)</td><td>(100, 0.15)</td><td>8.86089</td><td>6</td><td>6.0</td><td><strong>4.76274</strong></td><td>5</td><td>12.1</td></tr>
+<tr><td>glycerol (36d)</td><td>(50, 0.20)</td><td>(100, 0.10)</td><td>604.852</td><td>9</td><td>16.5</td><td><strong>67.6897</strong></td><td>8</td><td>35.8</td></tr>
+<tr><td>neutral diethanolamine (48d)</td><td>(50, 0.20)</td><td>(100, 0.10)</td><td>1422.98</td><td>12</td><td>23.1</td><td><strong>471.384</strong></td><td>9</td><td>43.1</td></tr>
+</tbody>
+</table>
+
+</div>
+
+KLXX reduces the propagation factor by factors of 1.86, 8.94, and 3.02 for
+NMA, glycerol, and neutral diethanolamine, respectively. It also reaches
+$t=1$ in fewer accepted stages for all three molecules, while requiring about
+1.9--2.2 times the recorded time of $\mathrm{KL}+\mathrm{X}_{\mu}$.
+
+### Per-stage flow and sharpening ESS
+
+Each annotation reports `flow ESS / sharpening ESS`. Blue upper arcs show
+$\mathrm{KL}+\mathrm{X}_{\mu}$, and red lower arcs show
+$\mathrm{KL}+\mathrm{X}_{\mu}+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$.
+
+<p align="center"><img src="achiral/nma_30d/results/stage_ess.png" alt="NMA per-stage flow and sharpening ESS" width="1200px"></p>
+
+<p align="center"><img src="achiral/glycerol_36d/results/stage_ess.png" alt="Glycerol per-stage flow and sharpening ESS" width="1200px"></p>
+
+<p align="center"><img src="achiral/diethanolamine_48d/results/stage_ess.png" alt="Neutral diethanolamine per-stage flow and sharpening ESS" width="1200px"></p>
+
+### Dihedral marginals
+
+<p align="center"><img src="achiral/results/dihedrals.png" alt="Selected dihedral marginals for NMA, glycerol, and neutral diethanolamine" width="1100px"></p>
+
+<p align="center"><em>One selected dihedral for each molecule. Gray denotes
+the OpenMM reference; dashed blue and solid red denote samples from
+$\mathrm{KL}+\mathrm{X}_{\mu}$ and
+$\mathrm{KL}+\mathrm{X}_{\mu}+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$,
+respectively. The small upper-left insets show representative trans
+conformers.</em></p>
+
+The BG curves use the final samples under each molecule's regularized endpoint.
+The OpenMM curves use saved 300 K trajectories, so replots do not rerun
+OpenMM. The NMA reference shown here is initialized in the trans basin; the
+glycerol and neutral-diethanolamine references pool two seeds.
