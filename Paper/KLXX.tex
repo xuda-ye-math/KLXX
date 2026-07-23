@@ -1,0 +1,162 @@
+\ifdefined\KLXXEmbedded
+    \def\KLXXBeginDocument{}
+    \def\KLXXEndDocument{}
+\else
+\documentclass[tikz,border=5pt]{standalone}
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,calc,fit,positioning}
+
+    \def\KLXXBeginDocument{\begin{document}}
+    \def\KLXXEndDocument{\end{document}}
+\fi
+
+\definecolor{ink}{HTML}{26333F}
+\definecolor{line}{HTML}{7A8793}
+\definecolor{neutral}{HTML}{F5F7F8}
+\definecolor{target}{HTML}{3B78A7}
+\definecolor{targetfill}{HTML}{EAF2F8}
+\definecolor{coverage}{HTML}{C98B32}
+\definecolor{coveragefill}{HTML}{FCF4E8}
+\definecolor{proposal}{HTML}{4E8878}
+\definecolor{proposalfill}{HTML}{EBF4F1}
+
+\tikzset{
+    >={Stealth[length=2.1mm,width=1.5mm]},
+    flow/.style={->, draw=line, line width=0.85pt},
+    panel/.style={
+        draw=line,
+        fill=white,
+        rounded corners=2mm,
+        line width=0.7pt,
+        inner sep=2.5mm,
+        align=center,
+        text=ink
+    },
+    support/.style={panel, text width=3.65cm, minimum height=1cm},
+    ratio/.style={panel, fill=neutral, text width=8.7cm, minimum height=3.55cm},
+    term/.style={panel, minimum height=2.65cm, inner sep=2.2mm},
+    output/.style={
+        panel,
+        fill=neutral,
+        text width=11.4cm,
+        minimum height=0.85cm,
+        inner sep=1.8mm
+    },
+    stage/.style={
+        panel,
+        fill=white,
+        font=\small\bfseries,
+        inner xsep=4mm,
+        inner ysep=1.1mm
+    },
+    note/.style={font=\scriptsize, text=line, fill=white, inner sep=0.5pt}
+}
+
+\KLXXBeginDocument
+\begin{tikzpicture}[font=\small]
+    \node[font=\Large\bfseries, text=ink] at (0,4.15)
+        {KLXX: one log-ratio (KL), two log-ratio variations (XX)};
+
+    \node[support, draw=target, fill=targetfill] (targetbatch) at (-5.33,2.50) {%
+        \textbf{Target samples $\mu$}\\[0.8mm]
+        {\scriptsize annealed importance\\[-0.2mm] sampling}
+    };
+
+    \node[support, draw=coverage, fill=coveragefill] (qtbatch) at (-5.33,1.08) {%
+        \textbf{QT coverage $\hat\mu$}\\[0.8mm]
+        {\scriptsize candidate modes}
+    };
+
+    \node[support, draw=proposal, fill=proposalfill, inner ysep=1.5mm] (modelbatch) at (-5.33,-0.34) {%
+        \textbf{Pushforward $\bar\nu$}\\[0.6mm]
+        {\scriptsize $x\sim\mu_0\xrightarrow{\;G^{-1}\;}y\sim\nu$}\\[-0.2mm]
+        {\scriptsize detached from autograd}
+    };
+
+    \node[ratio] (ratio) at (2.81,1.08) {%
+    	\textbf{Pushforward density} \\[5pt]
+        $\displaystyle
+        \nu=(G^{-1})_{\#}\mu_0
+        \quad\Longrightarrow\quad
+        \nu(y)=\mu_0\bigl(G(y)\bigr)\,\lvert\det J_G(y)\rvert
+        $ \\[7pt]
+        \textbf{Log-ratio term} \\[5pt]
+        $\displaystyle
+            z(y):=\log\frac{\mu(y)}{\nu(y)}
+            =U_0\bigl(G(y)\bigr)-U(y)-\log\lvert\det J_G(y)\rvert$
+    };
+
+    \draw[flow, draw=target]
+        (targetbatch.east) -- ([yshift=14.2mm]ratio.west);
+    \draw[flow, draw=coverage]
+        (qtbatch.east) -- (ratio.west);
+    \draw[flow, draw=proposal]
+        (modelbatch.east) -- ([yshift=-14.2mm]ratio.west);
+
+    \node[stage] (losslabel) at (0,-1.45)
+        {KLXX objective};
+    \coordinate (ratioout) at ($(ratio.south)+(0,-3mm)$);
+    \coordinate (ratioturn) at (losslabel.north |- ratioout);
+    \draw[draw=line, line width=0.85pt] (ratio.south) --
+        node[right=1mm,note] {evaluate $z$ on each batch} (ratioout);
+    \draw[draw=line, line width=0.85pt] (ratioout) -- (ratioturn);
+    \draw[flow] (ratioturn) -- (losslabel.north);
+
+    \node[term, draw=target, fill=targetfill, text width=3.20cm]
+        (meanterm) at (-5.59,-3.45) {%
+        \textbf{Target mean}\\[1.2mm]
+        $\displaystyle \mathbb E_{y\sim\mu}[z(y)]$\\[1.2mm]
+        {\scriptsize forward KL $\cdot$ target fit}
+    };
+
+    \node[font=\Large, text=line] at (-3.51,-3.45) {$+$};
+
+    \node[term, draw=target, fill=targetfill, text width=3.90cm]
+        (targetterm) at (-1.09,-3.45) {%
+        \textbf{Target variation}\\[1.1mm]
+        $\displaystyle
+        \mathbb E_{y,y'\sim\mu}
+        \!\left[\lvert z(y)-z(y')\rvert\right]
+        $\\[1.1mm]
+        {\scriptsize $\mathrm X_\mu$ $\cdot$ target-ratio variation}
+    };
+
+    \node[font=\Large, text=line] at (1.35,-3.45) {$+$};
+
+    \node[term, text width=5.35cm] (mixterm) at (4.51,-3.45) {%
+        \textbf{Mixture variation: \textcolor{coverage}{QT}
+        $+$ \textcolor{proposal}{model}}\\[0.7mm]
+        $\displaystyle
+        \xi=\frac{\textcolor{coverage}{\hat\mu}
+        +\textcolor{proposal}{\bar\nu}}{2}
+        $\\[0.5mm]
+        $\displaystyle
+        \mathbb E_{y,y'\sim\xi}
+        \!\left[\lvert z(y)-z(y')\rvert\right]
+        $\\[0.9mm]
+        {\scriptsize mode coverage vs proposal support}
+    };
+
+    \node[fit=(meanterm)(targetterm)(mixterm), inner sep=0pt] (lossrow) {};
+    \coordinate (lossbus) at ($(lossrow.north)+(0,2.2mm)$);
+    \draw[draw=line, line width=0.75pt] (losslabel.south) -- (lossbus);
+    \draw[draw=line, line width=0.75pt]
+        (meanterm.north |- lossbus) -- (mixterm.north |- lossbus);
+    \draw[flow] (meanterm.north |- lossbus) -- (meanterm.north);
+    \draw[flow] (targetterm.north |- lossbus) -- (targetterm.north);
+    \draw[flow] (mixterm.north |- lossbus) -- (mixterm.north);
+    \node[output] (output) at ($(lossrow.south)+(0,-0.92)$) {%
+        \textbf{Training aim}
+        \quad $\displaystyle \nu=(G^{-1})_{\#}\mu_0\approx\mu$\\[0.5mm]
+        {approximate target distribution with pushforward samples}
+    };
+    \draw[flow] (lossrow.south) --
+        node[right,note] {train $G$}
+        (output.north);
+\end{tikzpicture}
+\KLXXEndDocument
