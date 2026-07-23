@@ -14,7 +14,7 @@
 \maketitle
 
 \begin{abstract}
-Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can then miss target mass while its observed importance weights give a high effective sample size. We introduce log-ratio variation, a pairwise regularizer of the exact target-to-model log-density ratio, and use it to define KLXX. Its three weighting measures provide signals for target fitting, candidate mode coverage, and leakage control without changing the exact-target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted term, then place KLXX in an adaptive Boltzmann generator with exact importance reweighting and sharpening of the molecular potential. In the reported model and molecular tests, KLXX improves coverage-aware or stagewise diagnostics, and selected molecular observables agree with independent OpenMM simulations. Log-ratio variation thus supplies information that a sampled forward KL objective can omit.
+Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can then miss target mass while its observed importance weights give a high effective sample size. We introduce log-ratio variation, a pairwise regularizer of the exact target-to-model log-density ratio, and use it to define KLXX. Its three weighting measures provide signals for target fitting, candidate mode coverage, and leakage control without changing the exact-target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted term, then place KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the molecular potential. In the reported model and molecular tests, KLXX improves coverage-aware or stagewise diagnostics, and selected molecular observables agree with independent OpenMM simulations. Log-ratio variation thus supplies information that a sampled forward KL objective can omit.
 \end{abstract}
 
 % ===================== Graphical abstract =====================
@@ -41,7 +41,7 @@ Drawing samples from a target distribution $\mu \propto \exp(-U)$ on $\mathbb R^
 
 Tempering and particle methods address this problem by connecting a tractable distribution to $\mu$ through intermediate distributions. Parallel tempering (PT) and replica exchange run copies of the system at several temperatures and exchange neighboring configurations, so a basin reached at high temperature can enter the low-temperature ensemble \citep{swendsen1986replica,geyer1991markov,hukushima1996exchange}. Annealed importance sampling (AIS) moves along a bridge of intermediate distributions while accumulating importance weights \citep{neal2001annealed}. Sequential Monte Carlo (SMC) uses a similar bridge but resamples and rejuvenates a weighted particle set at each step \citep{doucet2001introduction,delmoral2006sequential}. For a specified chemical process, umbrella sampling biases selected reaction coordinates to cross relevant barriers and reweights the biased samples to recover a free-energy profile \citep{torrie1977umbrella,kastner2011umbrella}. Nested sampling instead rewrites the normalizing integral as a one-dimensional quadrature over a likelihood threshold \citep{skilling2006nested}.
 
-Recent work improves PT through three distinct mechanisms. Nonreversible swap schedules and ladder tuning accelerate round trips \citep{syed2022nonreversible}; variational-reference methods adapt the reference endpoint and its connecting path \citep{surjanovic2022variational}; and neural transports improve communication between adjacent distributions with limited overlap \citep{zhang2025accelerated}. All three strengthen movement along the ladder, but none removes the dependence on local exploration: a basin not reached by any chain cannot be passed to the target ensemble \citep{woodard2009conditions,chehab2024provable}. Improving ladder communication therefore does not by itself resolve missing-mode coverage. This gap motivates a learned proposal with a tractable density whose training draws information from more than one sampling measure.
+Recent work improves PT through three distinct mechanisms. Nonreversible swap schedules and tuned temperature grids accelerate round trips \citep{syed2022nonreversible}; variational-reference methods adapt the reference endpoint and its connecting path \citep{surjanovic2022variational}; and neural transports improve communication between adjacent distributions with limited overlap \citep{zhang2025accelerated}. All three strengthen communication between neighboring distributions, but none removes the dependence on local exploration: a basin not reached by any chain cannot be passed to the target ensemble \citep{woodard2009conditions,chehab2024provable}. Improving this communication therefore does not by itself resolve missing-mode coverage. This gap motivates a learned proposal with a tractable density whose training draws information from more than one sampling measure.
 
 Boltzmann generators provide a complementary route through a learned transport map \citep{noe2019boltzmann}. Let $\mu_0\propto\exp(-U_0)$ be an easily sampled reference distribution, usually Gaussian, and let $G:\mathbb R^d\to\mathbb R^d$ be an invertible normalizing flow \citep{rezende2015variational,papamakarios2017masked,kingma2018glow}. We use the target-to-source convention $G_{\#}\mu\approx\mu_0$. The inverse map then sends independent source draws toward the target, and their pushforward distribution is $\nu:=(G^{-1})_{\#}\mu_0$. Its density function is
 \begin{equation}
@@ -143,12 +143,12 @@ Our contributions are described as follows. First, we introduce the KLXX objecti
 
 Second, we analyze forward KL with $\X_\mu$ in Fisher--Rao geometry. The regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed biased target surrogate and regularization strength below the stated threshold, it also improves the stationary-error bound by a nonnegative discrepancy term. These results do not cover the full KLXX loss, the changing empirical surrogate used in training, or discrete neural-network optimization.
 
-Third, we build an adaptive Boltzmann generator that uses neither external target data nor a replay buffer. AIS and QT generate the required samples on the fly, and the MCMC transitions use only derivatives of $U$ without differentiating the flow density. Each stage compares its trained proposal with the identity on the complete validation set, retains the proposal with higher ESS, and shrinks rejected temperature increments. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the reported endpoint.
+Third, we build an adaptive-staging Boltzmann generator that uses neither external target data nor a replay buffer. AIS and QT generate the required samples on the fly, and the MCMC transitions use only derivatives of $U$ without differentiating the flow density. Each stage compares its trained proposal with the identity on the complete validation set, retains the proposal with higher ESS, and shrinks rejected stage increments. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the reported endpoint.
 
-Fourth, we isolate the roles of the target and QT distributions, probe the mixture of QT and pushforward samples, and apply KLXX to staged lattice and molecular targets. In the mode-coverage ablations, KLXX recovers modes missed by $\KL$+$\X_\mu$ and attains higher coverage; this comparison evaluates the complete mixture variation and does not isolate the detached pushforward component. ESS is paired with coverage or a problem-specific mode diagnostic, so weight uniformity is not treated as evidence of mode coverage. The clock comparisons use shared schedules, while the molecular ladders are method-specific and single-seed; the results support the proposed mechanism but do not establish universal or fixed-compute dominance over forward KL.
+Fourth, we isolate the roles of the target and QT distributions, probe the mixture of QT and pushforward samples, and apply KLXX to staged lattice and molecular targets. In the mode-coverage ablations, KLXX recovers modes missed by $\KL$+$\X_\mu$ and attains higher coverage; this comparison evaluates the complete mixture variation and does not isolate the detached pushforward component. ESS is paired with coverage or a problem-specific mode diagnostic, so weight uniformity is not treated as evidence of mode coverage. The clock comparisons use shared stage schedules, while the molecular stage schedules are method-specific and single-seed; the results support the proposed mechanism but do not establish universal or fixed-compute dominance over forward KL.
 
 \paragraph{Organization.}
-Section~\ref{sec: FR} analyzes the target-weighted regularizer, and Appendix~\ref{sec: appendix-FR} gives the proofs. Section~\ref{sec: training} turns the loss into a flow-training procedure and defines its samplers and diagnostics. Section~\ref{sec: boltzmann} uses that procedure at each stage of an adaptive Boltzmann generator. Sections~\ref{sec: experiments} and~\ref{sec: molecular} then test the method on model and molecular targets; Section~\ref{sec: conclusions} concludes.
+Section~\ref{sec: FR} analyzes the target-weighted regularizer, and Appendix~\ref{sec: appendix-FR} gives the proofs. Section~\ref{sec: training} turns the loss into a flow-training procedure and defines its samplers and diagnostics. Section~\ref{sec: boltzmann} uses that procedure at each stage of an adaptive-staging Boltzmann generator. Sections~\ref{sec: experiments} and~\ref{sec: molecular} then test the method on model and molecular targets; Section~\ref{sec: conclusions} concludes.
 
 
 \section{Fisher--Rao gradient flow analysis}
@@ -262,7 +262,7 @@ so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each step reweights by only $\widetilde
 \setstretch{1.2}
 \caption{Annealed importance sampling with pushforward proposals toward $\mu$}
 \label{alg: AIS}
-\KwInput{Monte Carlo proposals $y_1,\dots,y_B$ from $(G^{-1})_{\#}\mu_0$, ladder length $M$, intermediate distributions $\pi_m$ \eqref{eq: pi-m}}
+\KwInput{Monte Carlo proposals $y_1,\dots,y_B$ from $(G^{-1})_{\#}\mu_0$, AIS ladder length $M$, intermediate distributions $\pi_m$ \eqref{eq: pi-m}}
 \KwOutput{biased target-surrogate batch $y_1,\dots,y_B$ approximating $\mu$}
 
 \For{$m = 1,\dots,M$}{
@@ -276,7 +276,7 @@ so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each step reweights by only $\widetilde
 \mbox{} \\
 An exact SMC sampler on the path \eqref{eq: pi-m} would rejuvenate at step $m$ with a Markov kernel invariant for $\pi_m$. A MALA kernel for $\pi_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$. Algorithm~\ref{alg: AIS} instead applies MALA directly under $\mu$, using only $-\nabla U$ in its proposal. MALA preserves $\mu$, but not the intermediate $\pi_m$, so the output is a biased target surrogate rather than exact samples from $\mu$. The construction trades intermediate invariance for a sampler that moves resampled particles under the final target. Section~\ref{sec: FR} studies a fixed smooth surrogate as a density-space idealization; it does not model the changing empirical output of Algorithm~\ref{alg: AIS} exactly. Evaluation therefore uses fresh importance weights and coverage diagnostics.
 
-\begin{remark}[Choosing the ladder length $M$]
+\begin{remark}[Choosing the SMC/AIS ladder length $M$]
 \label{rem: ladder-length}
 For a target close to the source, $M=1$ can suffice. When the change is distributed across many coordinates, the log-weight increment accumulates their contributions, so $M$ should grow with the effective dimension of the deformation. The choice $M=d$ is a conservative default when all $d$ coordinates change; a shorter ladder is appropriate when only a few directions differ.
 \end{remark}
@@ -345,12 +345,12 @@ i.e., the distance from $\hat y_i$ to its $\kappa$-th nearest neighbor in $\hat{
 \end{equation}
 i.e., the fraction of points in $\hat{\mathbf y}$ whose $\kappa$-nearest-neighbor ball contains at least one pushforward sample. A coverage close to $1$ indicates that the finite QT reference set is well covered by the flow, while a coverage well below $1$ exposes missing regions that the ESS alone cannot see. Because the reference reservoir is itself produced by QT, the diagnostic checks only modes found by that reference construction; it cannot reveal a mode absent from the reference set.
 
-\section{Adaptive-temperature Boltzmann generator}
+\section{Adaptive-staging Boltzmann generator}
 \label{sec: boltzmann}
 
-A single flow can be inadequate when the source-to-target change is too large, so we divide it into stages along a temperature ladder. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}, using user-chosen weights $\lambda,\alpha,\beta\Ge0$. The KLXX Boltzmann generator is the special case $(\lambda,\alpha,\beta)=(1,\frac12,\frac12)$; the construction below also permits other choices. Sampling diagnostics determine the ladder.
+A single flow can be inadequate when the source-to-target change is too large, so we divide the interpolation into stages. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}, using user-chosen weights $\lambda,\alpha,\beta\Ge0$. The KLXX Boltzmann generator is the special case $(\lambda,\alpha,\beta)=(1,\frac12,\frac12)$; the construction below also permits other choices. Sampling diagnostics determine the stage schedule.
 
-\subsection{Construction of temperature ladder}
+\subsection{Construction of the adaptive stage schedule}
 
 To bridge the simple source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propto \exp(-U)$, we seek an increasing sequence
 \begin{equation*}
@@ -362,16 +362,16 @@ defining the interpolating potential and measure
 \qquad \mu_t(x)\propto\exp(-U_t(x)),
     \qquad t\in[0,1].
 \end{equation*}
-At the accepted levels, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. Its central choice is the increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
+Here $t$ is a dimensionless interpolation parameter, not a thermodynamic temperature. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. Its central choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
 
-Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: ais}. Before training, an optional classical SMC calculation can screen the proposed increment $\Delta t_k$. Its smallest incremental ESS measures overlap along that candidate bridge for the current particle set. This is a difficulty diagnostic, not a mode-coverage guarantee. Its floor lies in $[0,1)$, and setting it to zero disables the screen.
+Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: ais}. Before training, an optional classical SMC calculation can screen the proposed stage increment $\Delta t_k$. Its smallest incremental ESS measures overlap along that candidate stage for the current particle set. This is a difficulty diagnostic, not a mode-coverage guarantee. Its floor lies in $[0,1)$, and setting it to zero disables the screen.
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
-\caption{Adaptive selection of the temperature step $\Delta t_k$}
+\caption{Adaptive selection of the stage increment $\Delta t_k$}
 \label{alg: step}
-\KwInput{potentials $U_0, U$, previous level $t_{k-1}$, validation set $\mathcal Y_{k-1} = \{y_1,\dots,y_N\}$ approximating $\mu_{k-1}$, ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
-\KwOutput{next level $t_{k}$, giving the step $\Delta t_k = t_k - t_{k-1}$}
+\KwInput{potentials $U_0, U$, previous stage point $t_{k-1}$, validation set $\mathcal Y_{k-1} = \{y_1,\dots,y_N\}$ approximating $\mu_{k-1}$, SMC ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
+\KwOutput{next stage point $t_{k}$, giving the stage increment $\Delta t_k = t_k - t_{k-1}$}
 
 $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
 \tcp{start from the supplied initial guess}
@@ -380,31 +380,31 @@ $t_k \gets t_{\mathrm{init}}$\;
     \Return $t_k$\;
 }
 \While{true}{
-    \tcp{run classical SMC across the candidate step}
-    Run $M$-step classical SMC on a working copy of all $N$ particles in $\mathcal Y_{k-1}$, using the linear potential bridge from $U_{t_{k-1}}$ to $U_{t_k}$ and a MALA kernel invariant for each intermediate distribution ($M$ as in Remark~\ref{rem: ladder-length})\;
-    \tcp{evaluate the step by its worst per-step ESS}
-    Record $\ESS_{\min}$, the smallest per-step ESS over the $M$ steps\;
+    \tcp{run a classical SMC ladder across the candidate stage}
+    Run an $M$-step classical SMC ladder on a working copy of all $N$ particles in $\mathcal Y_{k-1}$, using the linear potential bridge from $U_{t_{k-1}}$ to $U_{t_k}$ and a MALA kernel invariant for each intermediate distribution ($M$ as in Remark~\ref{rem: ladder-length})\;
+    \tcp{evaluate the ladder by its worst per-step ESS}
+    Record $\ESS_{\min}$, the smallest per-step ESS over the $M$ ladder steps\;
     \eIf{$\ESS_{\min} \Ge \tau_{\mathrm{SMC}}$}{
         \Return $t_k$\;
     }{
-        \tcp{shrink the step toward $t_{k-1}$}
+        \tcp{shrink the stage increment toward $t_{k-1}$}
         $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$\;
     }
 }
 \end{algorithm}
 \mbox{}\\
-When enabled, these SMC runs involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-step ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen an increment; it is a heuristic measure of bridge difficulty, not a coverage certificate. The selected-proposal validation in step~(v) supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the bridge becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
+When enabled, these SMC ladders involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-step ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
 
 \FloatBarrier
 
 \subsection{The full training procedure}
 
-Algorithm~\ref{alg: boltzmann} combines the ladder rule with the training procedure. It carries a fixed-size validation set $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}\in[0,1)$, the algorithm shrinks the increment and retries. The displayed loop ends when $t_K=1$. Practical implementations use an endpoint tolerance and finite caps on retries and stages; reaching a cap returns an incomplete ladder.
+Algorithm~\ref{alg: boltzmann} combines the stage-selection rule with the training procedure. It carries a fixed-size validation set $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}\in[0,1)$, the algorithm shrinks the stage increment and retries. The displayed loop ends when $t_K=1$. Practical implementations use an endpoint tolerance and finite caps on retries and stages; reaching a cap returns an incomplete stage schedule.
 
 \begin{enumerate}[(i)]
 \item \emph{Validation set.} Stage $k$ uses the \emph{validation set size} $N$ and the \emph{batch size} $B$. The validation set $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. A working copy of all $N$ samples supplies the SMC calculation in step~(ii), and, when $\alpha>0$, all $N$ samples initialize QT in step~(iii). Neither operation first draws a separately sized subset. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
 
-\item \emph{Adaptive step.} Algorithm~\ref{alg: step} selects $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. The default $\tau_{\mathrm{SMC}}=0$ accepts this initial guess without the optional SMC screen. If a positive floor is supplied, the algorithm shrinks the increment until the classical SMC ESS on all $N$ particles clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
+\item \emph{Adaptive stage selection.} Algorithm~\ref{alg: step} selects the next stage point $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted stage increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. The default $\tau_{\mathrm{SMC}}=0$ accepts this initial guess without the optional SMC screen. If a positive floor is supplied, the algorithm shrinks the stage increment until the classical SMC ESS on all $N$ particles clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
 
 \item \emph{Wide-coverage set.} When $\alpha>0$, quench and temper (Algorithm~\ref{alg: QT}) acts on the complete validation set $\mathcal Y_{k-1}$ under $U_{t_k}$. The resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ form the fixed stage reservoir. The measure $\hat\mu_k$ is the law obtained by drawing uniformly from this reservoir and applying the short MALA refresh used at each gradient step; it supplies the wide-coverage component of the last term in \eqref{eq: stage-loss}. When $\alpha=0$, that component vanishes and the QT construction is omitted.
 
@@ -424,23 +424,23 @@ The stage loss then reads
      + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\alpha\hat\mu_k+\beta\bar\nu_k}(\mu_k\|\nu_k)} ,
     \label{eq: stage-loss}
 \end{align}
-When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased AIS surrogate: the level-$(k-1)$ batch $\mathcal X$ is pushed to the proposal batch $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the randomized pairwise estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and the $\X_{\mu_k}$-only loss, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
+When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased AIS surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is pushed to the proposal batch $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: AIS} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the randomized pairwise estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and the $\X_{\mu_k}$-only loss, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
 
 \item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained proposal set $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with proportional importance weights represented by
 \begin{equation*}
     w_k^{\mathrm{tr}}(\tilde y) := \exp\bigl(z_k(\tilde y)\bigr),
     \qquad \tilde y \in \tilde{\mathcal Y}_k^{\mathrm{tr}} .
 \end{equation*}
-The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\mathrm{id}}(y)=\exp[U_{t_{k-1}}(y)-U_{t_k}(y)]$. We select the pair with the larger ESS over the complete validation set and denote it by $(\tilde{\mathcal Y}_k,w_k)$, taking the stage map to be $G_k$ or the identity accordingly. If $\ESS(w_k) < \tau_{\mathrm v}$, with default $\tau_{\mathrm v} = 0.6$, we discard the candidate, shrink to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced step. Otherwise we advance the validation set to $\mathcal Y_k = \mathrm{MALA}\bigl(\mathrm{resample}(\tilde{\mathcal Y}_k, w_k;N),\, U_{t_k}\bigr) \approx \mu_k$.
+The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\mathrm{id}}(y)=\exp[U_{t_{k-1}}(y)-U_{t_k}(y)]$. We select the pair with the larger ESS over the complete validation set and denote it by $(\tilde{\mathcal Y}_k,w_k)$, taking the stage map to be $G_k$ or the identity accordingly. If $\ESS(w_k) < \tau_{\mathrm v}$, with default $\tau_{\mathrm v} = 0.6$, we discard the candidate, shrink to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced stage increment. Otherwise we advance the validation set to $\mathcal Y_k = \mathrm{MALA}\bigl(\mathrm{resample}(\tilde{\mathcal Y}_k, w_k;N),\, U_{t_k}\bigr) \approx \mu_k$.
 \end{enumerate}
 
 \begin{algorithm}[p]
     \setstretch{1.1}
-\caption{Adaptive-temperature Boltzmann generator training}
+\caption{Adaptive-staging Boltzmann generator training}
 \label{alg: boltzmann}
 \small
-\KwInput{potentials $U_0,U$; sizes $N,B\Ge2$; loss weights $\lambda,\alpha,\beta\Ge0$; ladder length $M$; ESS floors $\tau_{\mathrm{SMC}}=0$, $\tau_{\mathrm v}=0.6$; factors $\gamma=0.7$, $\Gamma=1.5$; safe start $t_{\mathrm{safe}}=0.2$}
-\KwOutput{completed ladder $0=t_0<\cdots<t_K=1$ and selected stage maps $\{G_k\}_{k=1}^{K}$}
+\KwInput{potentials $U_0,U$; sizes $N,B\Ge2$; loss weights $\lambda,\alpha,\beta\Ge0$; SMC/AIS ladder length $M$; ESS floors $\tau_{\mathrm{SMC}}=0$, $\tau_{\mathrm v}=0.6$; factors $\gamma=0.7$, $\Gamma=1.5$; safe start $t_{\mathrm{safe}}=0.2$}
+\KwOutput{completed stage schedule $0=t_0<\cdots<t_K=1$ and selected stage maps $\{G_k\}_{k=1}^{K}$}
 
 \tcp{validation set, $\mathcal Y_k \approx \mu_k$}
 $\mathcal Y_0 \gets N$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets 0$\;
@@ -449,7 +449,7 @@ $\mathcal Y_0 \gets N$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets
     Set $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
     \tcp{(i) validation set}
     Use $\mathcal Y_{k-1}$ for stage selection, validation, and QT when $\alpha>0$\;
-    \tcp{(ii) adaptive temperature selection}
+    \tcp{(ii) adaptive stage selection}
     \eIf{$k=1$}{
         Set $t_{\mathrm{init}} = t_{\mathrm{safe}}$\;
     }
@@ -478,7 +478,7 @@ $\mathcal Y_0 \gets N$ samples from $\mu_0$, \quad $t_0 \gets 0$, \quad $k \gets
         Form the trained and identity pairs as in step~(v)\;
         Keep the larger-ESS pair as $(\tilde{\mathcal Y}_k,w_k)$ and set $G_k$ to the corresponding map\;
         \eIf{$\ESS(w_k) < \tau_{\mathrm v}$}{
-            \tcp{abort the step and shrink toward $t_{k-1}$}
+            \tcp{reject the stage and shrink toward $t_{k-1}$}
             $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, then update $U_{t_k} \gets (1-t_k) U_0 + t_k U$\;
         }{
             $\mathcal Y_k \gets \mathrm{MALA}\bigl(\mathrm{resample}(\tilde{\mathcal Y}_k,w_k;N),U_{t_k}\bigr)$\;
@@ -489,7 +489,7 @@ $K \gets k$\;
 \Return $\{t_k\}_{k=0}^{K}$ and $\{G_k\}_{k=1}^{K}$\;
 \end{algorithm}
 \mbox{}\\
-The accepted ladder defines a Boltzmann generator for $\mu$. Starting with samples from $\mu_0$, stage $k$ applies the selected inverse map or identity, computes $w_k$, resamples, and rejuvenates under $U_{t_k}$. The resulting validation set supplies stage $k+1$.
+The accepted stage schedule defines a Boltzmann generator for $\mu$. Starting with samples from $\mu_0$, stage $k$ applies the selected inverse map or identity, computes $w_k$, resamples, and rejuvenates under $U_{t_k}$. The resulting validation set supplies stage $k+1$.
 
 The accepted-stage weights also define the propagation factor used below:
 \begin{equation}
@@ -676,11 +676,11 @@ U(\boldsymbol\theta)
 \end{equation}
 where $\langle jl\rangle$ runs over nearest-neighbor pairs. The source is uniform on the torus and the bridge is $U_t=tU$. At low temperature, the target separates into six symmetry-related clock sectors.
 
-Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ particles, and both SMC and quench and temper act directly on this complete set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$, a four-level AIS surrogate with $100$ MALA steps of size $10^{-3}$, energy clipping at $10^3$, and gradient clipping at $10^2$. For KLXX, QT uses wrapped-Gaussian melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock ladder starts from $t_{\mathrm{safe}}=0.25$, uses enlarge factor $\Gamma=2$, and applies the nondefault gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$. An additional completed run lies below this reporting cutoff and is excluded from the table and all aggregate clock claims.
+Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ particles, and both SMC and quench and temper act directly on this complete set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$, a four-level AIS surrogate with $100$ MALA steps of size $10^{-3}$, energy clipping at $10^3$, and gradient clipping at $10^2$. For KLXX, QT uses wrapped-Gaussian melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule starts from $t_{\mathrm{safe}}=0.25$, uses enlarge factor $\Gamma=2$, and applies the nondefault gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$. An additional completed run lies below this reporting cutoff and is excluded from the table and all aggregate clock claims.
 
-The comparison is schedule-matched. Forward KL first constructs an adaptive ladder using SMC preselection and an ESS acceptance gate. The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is then trained on the identical accepted values of $t$, without a second gate. Hence the two methods see the same bridge increments within each batch-size pair. Every configuration is a single run, so individual stage values carry single-run fluctuation.
+The comparison is schedule-matched. Forward KL first constructs an adaptive stage schedule using SMC preselection and an ESS acceptance gate. The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is then trained on the identical accepted values of $t$, without a second gate. Hence the two methods see the same stage increments within each batch-size pair. Every configuration is a single run, so individual stage ESS values carry single-run fluctuation.
 
-The principal metric is the selected-proposal validation ESS of each accepted increment. The propagation factor in \eqref{eq: propagation-factor} summarizes stagewise weight degeneracy across the ladder; smaller is better. It is not a full-chain ESS or an endpoint error estimate. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting factor.
+The principal metric is the selected-proposal validation ESS of each accepted stage. The propagation factor in \eqref{eq: propagation-factor} summarizes stagewise weight degeneracy across the stage sequence; smaller is better. It is not a full-chain ESS or an endpoint error estimate. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting factor.
 
 \begin{table}[htb]
     \centering
@@ -705,18 +705,18 @@ The principal metric is the selected-proposal validation ESS of each accepted in
         $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & $\mathbf{0.659}$ & $\mathbf{0.586}$ & $\mathbf{0.601}$ & $\mathbf{0.480}$ & $\mathbf{0.563}$ & $\mathbf{0.536}$ & $\mathbf{0.564}$ & $\mathbf{0.464}$ & $\mathbf{113.8}$ \\
         \bottomrule
     \end{tabular}
-    \caption{Selected-proposal validation ESS on every accepted stage of the schedule-matched clock-model comparison between forward KL and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Within each batch-size block, both losses traverse the listed ladder. The final column is the propagation factor in \eqref{eq: propagation-factor}; bold marks the better loss at each stage and the smaller propagation factor.}
+    \caption{Selected-proposal validation ESS on every accepted stage of the schedule-matched clock-model comparison between forward KL and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Within each batch-size block, both losses traverse the listed stage schedule. The final column is the propagation factor in \eqref{eq: propagation-factor}; bold marks the better loss at each stage and the smaller propagation factor.}
     \label{tab: clock-summary}
 \end{table}
 
 The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ raises the geometric mean stage ESS at every reported batch size: from $0.556$ to $0.665$ at $B=2000$, from $0.553$ to $0.643$ at $B=1000$, from $0.487$ to $0.571$ at $B=500$, and from $0.470$ to $0.553$ at $B=250$. Correspondingly, it reduces the factor by ratios between $2.87$ and $3.70$. The gain is not confined to the small-batch regime: at the largest batch, the factor falls from $33.9$ to $11.6$.
 
-The comparison is also consistent level by level. The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ has higher validation ESS on all $28$ shared increments, including every increment in the large-batch runs. As the batch shrinks, the adaptive forward KL schedule lengthens from six to eight reported levels and both propagation factors grow. KLXX nevertheless accumulates less stagewise weight degeneracy before the final target is reached.
+The comparison is also consistent stage by stage. The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ has higher validation ESS on all $28$ shared stages, including every stage in the large-batch runs. As the batch shrinks, the adaptive forward KL schedule lengthens from six to eight reported stages and both propagation factors grow. KLXX nevertheless accumulates less stagewise weight degeneracy before the final target is reached.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.7\textwidth]{../Codes/Lattice_Clock/results/clock_marginals.png}
-    \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ ladder by map, reweighting, resampling, and MALA. The upper panel is the single-site marginal. The lower panel gives pair differences at offsets $(0,1)$, $(1,1)$, and $(0,2)$; dots and the inset resolve the one-clock-step angle $\pi/3$. Dashed lines show the uniform density.}
+    \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ stage sequence by map, reweighting, resampling, and MALA. The upper panel is the single-site marginal. The lower panel gives pair differences at offsets $(0,1)$, $(1,1)$, and $(0,2)$; dots and the inset resolve the one-clock-step angle $\pi/3$. Dashed lines show the uniform density.}
     \label{fig: clock-marginals}
 \end{figure}
 
@@ -724,7 +724,7 @@ The comparison is also consistent level by level. The loss $\KL$+$\X_\mu$+$\X_{(
 
 The single-site marginal exhibits all six clock wells with nearly equal peak heights. Pair differences are most concentrated at zero for nearest neighbors; as the lattice separation increases, the alignment peak falls and the shoulders near $\pm\pi/3$ gain mass. This is the expected decay of local angular order with distance and confirms that the staged sampler is not confined to a single global sector.
 
-To quantify whether staged resampling preserves the sixfold symmetry, we perform two fresh-rebuild tests through the trained ladders. The batch-size test fixes $N=6.4\times10^5$, uses $B\in\{2000,1000,500,250\}$, and averages over four matched sampling seeds for each method and batch size. The particle-count test fixes $B=2000$ and uses $N=10^4\,2^k$, $k=0,\ldots,6$, with $2^{8-k}$ independent rebuilds at each size so every particle-count value has equal total work of $2.56\times10^6$ particles. For each sample, let $s$ be the clock sector nearest to the argument of the complex magnetization $d^{-1}\sum_{j=1}^d e^{\mathrm i\theta_j}$, and let $p_s$ be the empirical fraction assigned to sector $s$. We define
+To quantify whether staged resampling preserves the sixfold symmetry, we perform two fresh-rebuild tests through the trained stage sequences. The batch-size test fixes $N=6.4\times10^5$, uses $B\in\{2000,1000,500,250\}$, and averages over four matched sampling seeds for each method and batch size. The particle-count test fixes $B=2000$ and uses $N=10^4\,2^k$, $k=0,\ldots,6$, with $2^{8-k}$ independent rebuilds at each size so every particle-count value has equal total work of $2.56\times10^6$ particles. For each sample, let $s$ be the clock sector nearest to the argument of the complex magnetization $d^{-1}\sum_{j=1}^d e^{\mathrm i\theta_j}$, and let $p_s$ be the empirical fraction assigned to sector $s$. We define
 \[
 \operatorname{occupancy\ bias}:=\frac16\sum_{s=0}^{5}\left|p_s-\frac16\right|.
 \]
@@ -740,7 +740,7 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 
 At fixed $N$, panel (a) shows that the mean occupancy bias increases as the training batch shrinks for both methods. KLXX has the lower mean at $B=2000$, $1000$, and $250$. At those batch sizes, the forward KL means are $0.00573$, $0.00888$, and $0.02760$, while the KLXX means are $0.00235$, $0.00517$, and $0.01506$. At $B=500$ the ordering reverses slightly, from $0.00963$ for forward KL to $0.01082$ for KLXX, and the intervals defined by $\pm2$ standard errors overlap.
 
-At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.459$ for forward KL and $-0.479$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00552$ to $0.00358$ at $N=6.4\times10^5$. Every reported rebuild in both panels retains all six sectors. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each ladder for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
+At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.459$ for forward KL and $-0.479$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00552$ to $0.00358$ at $N=6.4\times10^5$. Every reported rebuild in both panels retains all six sectors. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each stage schedule for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
 
 \FloatBarrier
 
@@ -860,7 +860,7 @@ The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor
 \subsection{Boltzmann generators with sharpening}
 \label{sec: mol-sharpening}
 
-A softer molecular potential can make early stages easier in a given adaptive run. After each flow stage, \emph{sharpening} reweights the complete validation set toward a stricter regularization setting, resamples it, and applies MALA under the stricter potential. This is a stochastic potential update, not an additional flow-training loss. To write it with the temperature bridge of Section~\ref{sec: boltzmann}, let $\rho_0=(e_0,r_0)$ and $\rho_1=(e_1,r_1)$ be the soft and final settings and interpolate them by
+A softer molecular potential can make early stages easier in a given adaptive-staging run. After each flow stage, \emph{sharpening} reweights the complete validation set toward a stricter regularization setting, resamples it, and applies MALA under the stricter potential. This is a stochastic potential update, not an additional flow-training loss. To extend the source-to-target interpolation of Section~\ref{sec: boltzmann}, let $\rho_0=(e_0,r_0)$ and $\rho_1=(e_1,r_1)$ be the soft and final settings and interpolate them by
 \begin{equation}
 \rho_s=(1-s)\rho_0+s\rho_1,
 \qquad s\in[0,1].
@@ -873,7 +873,7 @@ U_{t,s}(q)=(1-t)U_0(q)+tU^{\{\rho_s\}}(q),
 \mu_{t,s}\propto\exp(-U_{t,s}).
 \label{eq: molecular-two-coordinate-bridge}
 \end{equation}
-Thus \(t\) retains its Section~\ref{sec: boltzmann} meaning, moving from the source to the molecular target, while \(s\) changes only the regularization setting. If \(s\) is fixed, suppressing the second index recovers the notation \(U_t,\mu_t\) of Section~\ref{sec: boltzmann}.
+Thus \(t\) remains the source-to-target interpolation parameter defined in Section~\ref{sec: boltzmann}, while \(s\) changes only the regularization setting. If \(s\) is fixed, suppressing the second index recovers the notation \(U_t,\mu_t\) of Section~\ref{sec: boltzmann}.
 
 Accepted sample sets lie on the diagonal $s=t$, but one stage advances the two coordinates in sequence:
 \begin{equation}
@@ -888,7 +888,7 @@ Accepted sample sets lie on the diagonal $s=t$, but one stage advances the two c
 \mathcal Y_k\approx\mu_{t_k,t_k}.
 \label{eq: molecular-stage-arrows}
 \end{equation}
-The first arrow holds $s=t_{k-1}$ fixed and advances $t$ from $t_{k-1}$ to $t_k$. Potential-space SMC and mixed-domain MALA carry a copy of all $N$ particles along this bridge. The resulting sample set is held fixed and subsampled during flow training; its smallest incremental ESS also screens the proposed $t_k$. In KLXX, a second sample set is built by applying QT under $U_{t_k,t_{k-1}}$ to $N$ fresh source draws. Thus the molecular implementation uses a fixed SMC target set and a fresh-source QT set, rather than the per-step target surrogate and validation-seeded QT in Section~\ref{sec: boltzmann}.
+The first arrow holds $s=t_{k-1}$ fixed and advances $t$ from $t_{k-1}$ to $t_k$. Potential-space SMC and mixed-domain MALA carry a copy of all $N$ particles along this bridge. The resulting sample set is held fixed and subsampled during flow training; its smallest incremental ESS also screens the proposed $t_k$. In KLXX, a second sample set is built by applying QT under $U_{t_k,t_{k-1}}$ to $N$ fresh source draws. Thus the molecular implementation uses a fixed SMC target set and a fresh-source QT set, rather than the per-stage target surrogate and validation-seeded QT in Section~\ref{sec: boltzmann}.
 
 After training, the candidate flow and identity proposals are evaluated on the complete carried set $\mathcal Y_{k-1}$. The pair with larger ESS over the complete validation set is denoted by $(\tilde{\mathcal Y}_k,w_k)$; ties retain the identity. Reweighting, resampling, and MALA under $U_{t_k,t_{k-1}}$ produce $\mathcal Y_k^-$. The second arrow holds $t=t_k$ fixed and advances the regularization coordinate from $t_{k-1}$ to $t_k$. Its exact log weight is
 \begin{equation}
@@ -913,7 +913,7 @@ where \(w_k^{\mathrm{sharp}}\equiv1\) on a fixed regularization path. As in \eqr
 \subsection{Alkane family results}
 \label{sec: alkane-results}
 
-We test methane through \(n\)-hexane at \(300\,\mathrm K\), with mixed-coordinate dimensions \(9,18,\ldots,54\). Every configuration uses one seed and reaches \(t=1\). All endpoint sample sets target \((e,r)=(100,0.15)\). Direct runs start and remain at this endpoint. Sharpening runs begin at \((50,0.15)\) for propane, \((50,0.20)\) for butane and pentane, and \((50,0.25)\) for hexane, then advance linearly to the common endpoint. The three methods use method-specific adaptive ladders, so stage counts and recorded wall times are descriptive rather than fixed-compute comparisons. The reported molecular wall times were recorded on a single NVIDIA GeForce RTX 5090 GPU.
+We test methane through \(n\)-hexane at \(300\,\mathrm K\), with mixed-coordinate dimensions \(9,18,\ldots,54\). Every configuration uses one seed and reaches \(t=1\). All endpoint sample sets target \((e,r)=(100,0.15)\). Direct runs start and remain at this endpoint. Sharpening runs begin at \((50,0.15)\) for propane, \((50,0.20)\) for butane and pentane, and \((50,0.25)\) for hexane, then advance linearly to the common endpoint. The three methods use method-specific adaptive stage schedules, so stage counts and recorded wall times are descriptive rather than fixed-compute comparisons. The reported molecular wall times were recorded on a single NVIDIA GeForce RTX 5090 GPU.
 
 All molecular flows use six mixed spline transforms, $32$ bins, conditioner widths $(256,256)$, spline bound $8$, and minimum slope $10^{-3}$, and are initialized at the identity. The validation and batch sizes $(N,B)$ are $(100000,5000)$ for methane, $(120000,6000)$ for ethane, $(160000,8000)$ for propane, and $(200000,10000)$ for butane through hexane. Each accepted flow stage uses $500$ Adam steps for methane through propane, $400$ for butane, and $300$ for pentane and hexane, with learning rate $10^{-3}$ and $25$ warmup steps. Potential-space SMC uses eight intermediate levels; mixed-domain MALA uses $100$ steps of size $10^{-3}$. QT uses melt scale $1$, $200$ L-BFGS steps with initial step $10^{-2}$, and the complete molecular QT set. The safe start is $0.25$ for methane and ethane and $0.1$ for the larger molecules. The validation gate is $0.4$ throughout; the SMC gate is $0.3$ for methane and ethane, $0.5$ for propane, and $0.8$ for butane through hexane.
 
@@ -1015,7 +1015,7 @@ Forward KL is mass-covering for exact distributions, but its sampled loss sees o
 
 The theory establishes a narrower statement. For the selected Fisher--Rao subgradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also improves the stationary-error bound by a nonnegative discrepancy term. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
 
-The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock schedules, KLXX has higher validation ESS on all $28$ reported increments and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. Selected energy, size, and rotamer summaries agree with independent physical-potential simulations. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
+The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ reported stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. Selected energy, size, and rotamer summaries agree with independent physical-potential simulations. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
 
 The clock and alkane configurations require additional training seeds to measure run-to-run variation. The finite molecular endpoint has nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The molecular targets marked pending in Table~\ref{tab: molecular-targets} still require generator runs and matched references; the alanine study will also permit a direct comparison with FAB \citep{midgley2022flow}. Larger molecules and explicit solvent remain outside the present results.
 
@@ -1182,7 +1182,7 @@ The uniform convergence rate \eqref{eq: appendix-KL-exponential} should \emph{no
 
 A naive comparison of dissipation rates between the unregularized $\KL$ loss and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: the pure forward KL term depends locally on the value of $\mu(x)/\nu_t(x)$, whereas the rank field $S_t$ compares that value with the complete distribution of importance weights under $\mu$. The regularized flow \eqref{eq: appendix-FR-L-flow} therefore couples the update at $x$ to global rank information that the local forward KL term does not contain.
 
-Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a density-space statement, while each gradient step uses a finite, generally biased sample estimate. The staged clock experiment examines this finite-batch setting with a schedule-matched comparison: its quantitative claims use the selected-proposal ESS over the complete validation set at each level, not a composed endpoint estimate or a diagnostic computed on a training mini-batch.
+Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a density-space statement, while each gradient step uses a finite, generally biased sample estimate. The staged clock experiment examines this finite-batch setting with a schedule-matched comparison: its quantitative claims use the selected-proposal ESS over the complete validation set at each stage, not a composed endpoint estimate or a diagnostic computed on a training mini-batch.
 
 \begin{remark}[Monotone decay of $\X_\mu$]
 The regularizer $\X_\mu$ also decreases monotonically along the selected regularized flow: pairing the selected subvariation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: appendix-var-X} against the flow \eqref{eq: appendix-FR-L-flow} gives

@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-22T21:49:20-04:00 (America/New_York)
+Last updated: 2026-07-22T23:04:56-04:00 (America/New_York)
 
 ## Current state
 
@@ -45,17 +45,29 @@ Last updated: 2026-07-22T21:49:20-04:00 (America/New_York)
   supporting checks only; they do not establish author approval or
   paper-wide writing correctness. Isolated passages previously approved by
   the user, including the abstract, do not change this broader boundary.
-- **Current repository boundary:** X-regularization is on `main` at
-  `b11be624af096d3e6e5906d1ad8a7ec87fd454c4` (`Generalize Boltzmann
-  generator loss`), exactly equal to `origin/main`. The index is clean. The
-  six modified tracked paths are `.gitignore`, `Paper/main.pdf`,
-  `Paper/main.tex`, `Paper/preamble.tex`, `Paper/references.bib`, and
-  `status.md`. There are 23 untracked files: `Paper/KLXX.tex` and 22 files
-  below `Codes/Molecular_BG/achiral/regularization/`. No X-regularization path
-  is staged or deleted. The present `Paper/main.pdf` is a 37-page,
-  6,006,948-byte build newer than the source. Its log has only the known
-  1.83437 pt table overflow. No X-regularization commit or push is claimed for
-  the current working-tree changes.
+- **Current repository boundary — naming-change publication prepared:**
+  X-regularization is on `main` at
+  `aafb6b4bc8544e34e099261b283ce2ff1fe25ce1` (`Revise manuscript and
+  graphical abstract`), exactly equal to `origin/main` at the pre-publication
+  inspection. The index is clean. The authorized publication scope is the
+  modified `Paper/main.tex`, the corresponding user-compiled
+  `Paper/main.pdf`, and this status update. There are 47 unrelated untracked
+  files below `Codes/Molecular_BG/achiral/`; they remain excluded. No path is
+  staged or deleted at this boundary. The required shared backup refreshed
+  `/data/backup/projects`, where both paper files are byte-identical to the
+  working-tree copies.
+- **Done — adaptive-staging terminology and ladder/stage separation:** the
+  method is now named the “adaptive-staging Boltzmann generator” throughout
+  `Paper/main.tex`. The manuscript explicitly defines `t` as a dimensionless
+  interpolation parameter rather than a thermodynamic temperature, calls the
+  values `t_k` stage points, and calls each `t_{k-1} -> t_k` transition a
+  stage. “Ladder” is reserved for the inner SMC/AIS sequence of `M`
+  intermediate distributions. Direct source searches find no
+  “adaptive-temperature Boltzmann generator,” “temperature ladder,”
+  “adaptive ladder,” “stage ladder,” or “staging ladder.” All 11 remaining
+  source lines containing “ladder” refer to SMC/AIS, while all five
+  method-name occurrences use “adaptive-staging Boltzmann generator.” The
+  user-compiled 37-page PDF has the same terminology in extracted text.
 - **User-approved abstract:** the user marked the current text abstract concise
   and accurate, with one requested qualifier. `Paper/main.tex` now says that
   selected molecular observables agree with independent OpenMM simulations;
@@ -2883,3 +2895,22 @@ Last updated: 2026-07-22T21:49:20-04:00 (America/New_York)
 - Updated only `status.md`, including the live repository and PDF boundary. No
   project path was staged, committed, pushed, deleted, or backed up in this
   status-only update.
+
+### 2026-07-22T23:04:56-04:00 — Adaptive-staging naming finalized
+
+- Renamed the method throughout `Paper/main.tex` to “adaptive-staging
+  Boltzmann generator” and clarified that `t` is a dimensionless
+  interpolation parameter. The values `t_k` are stage points, and each
+  transition `t_{k-1} -> t_k` is a stage.
+- Reserved “ladder” for the inner SMC/AIS sequence indexed by `M`. Direct
+  searches found no adaptive-temperature method name, temperature ladder,
+  adaptive ladder, stage ladder, or staging ladder; every remaining ladder
+  reference is SMC/AIS-specific.
+- Inspected the user-compiled `Paper/main.pdf`: it has 37 pages, and extracted
+  text contains the adaptive-staging method name, the interpolation-parameter
+  clarification, and the SMC/AIS ladder terminology. `git diff --check` passed
+  for the paper source before this diary edit.
+- Ran the required shared backup before publication. The mirror at
+  `/data/backup/projects/X-regularization` contains byte-identical copies of
+  `Paper/main.tex` and `Paper/main.pdf`. The unrelated 47 untracked files below
+  `Codes/Molecular_BG/achiral/` remain outside the publication scope.
