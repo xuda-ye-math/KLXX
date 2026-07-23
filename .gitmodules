@@ -1,0 +1,6 @@
+[submodule "External/jflows"]
+	path = External/jflows
+	url = https://github.com/xuda-ye-math/jflows.git
+[submodule "External/jflows_md"]
+	path = External/jflows_md
+	url = https://github.com/xuda-ye-math/jflows_md.git
