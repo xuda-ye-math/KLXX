@@ -1,4 +1,0 @@
-interface:
-  display_name: "JFlows"
-  short_description: "Build JAX molecular and Boltzmann workflows"
-  default_prompt: "Use $jflows to build and validate an energy-based sampling workflow with the live jflows or jflows_md package."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "Backup, Commit, Push"
-  short_description: "Directly copy, commit, push, and tag"
-  default_prompt: "Use $bcp to copy the named project first, then commit, push, or tag only as requested."
