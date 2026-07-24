@@ -1,5 +1,6 @@
 # Hidden files (except .gitignore)
 .*
+/AGENTS.md
 Molecular_BG*/training_diagnostics/candidates/
 Molecular_BG*/training_diagnostics/runs/
 !.gitignore
