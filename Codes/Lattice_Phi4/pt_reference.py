@@ -23,7 +23,8 @@ Robustness (per MC review): walkers are started SPLIT between the +1 and -1
 wells so the estimate cannot inherit a single-well bias and burn-in becomes
 self-checking. The run logs the guards that must hold to trust the number:
 running p_+ flat, mean/min barrier crossings per walker, and the WORST adjacent
-swap acceptance (a single dead level would break the ladder).
+swap acceptance (one adjacent pair with negligible acceptance would break
+communication across the temperature grid).
 
 The phi^4 action is written out here directly (not imported) so this is a true
 independent cross-check of reference.py's energy and of the trained flow.

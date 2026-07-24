@@ -12,7 +12,7 @@ $h=0.0257$ at $L=6$ and $h=0.0144$ at $L=8$. This approximately holds the
 extensive tilt fixed: $hL^2=0.9252$ and $0.9216$, respectively. Its two ordered
 vacua are separated by a collective barrier. The minority-phase weight
 $p_+=\mathbb P(m>0)$, where $m$ is the lattice magnetization, exposes mode
-collapse that a support-local importance-sampling ESS can miss.
+collapse that an importance sampling ESS evaluated on reached support can miss.
 
 ## Reference ensembles
 
@@ -43,11 +43,11 @@ with the full traces.
 ## Training results
 
 Every run uses an identity-initialized NSF with 16 bins, 6 transforms, and
-$(256,256)$ hidden features; 100,000 fixed source particles; batch size 500;
-2,000 optimizer steps; learning rate $10^{-3}$; single-level AIS with MALA
+$(256,256)$ hidden features; a validation set of 100,000 samples; batch size 500;
+2,000 optimizer steps; learning rate $10^{-3}$; a single annealing level with MALA
 $2\times10^{-3}\times50$; and three seeds. Every objective starts from the
-same identity map. The quench-and-temper objectives use $N_{\rm pool}=0$, so
-$\hat\mu$ is constructed directly from the full fixed source population rather
+same identity map. The quench and temper objectives use $N_{\rm pool}=0$, so
+$\hat\mu$ is constructed directly from the complete validation set rather
 than from a separately resampled pool. No chunk size is specified. Each cell
 lists seeds 0/1/2.
 
@@ -66,10 +66,10 @@ lists seeds 0/1/2.
 *Final ESS and reweighted minority-phase weight $p_+$ for seeds 0/1/2. Integer
 values 0 and 1 indicate collapse onto one vacuum. Bold ESS values are the
 per-seed maxima among objectives that recover both phases; collapsed runs are
-never eligible for emphasis, regardless of support-local ESS.*
+never eligible for emphasis, regardless of ESS on reached support.*
 
 All 12 KL/KL+Xμ runs collapse to exactly one vacuum despite their high ESS.
-All 12 quench-and-temper runs cover both vacua and recover the reference
+All 12 quench and temper runs cover both vacua and recover the reference
 minority weight. The equal-weight objective has a mean ESS of 0.8887 at L=6
 and 0.6823 at L=8, compared with 0.8730 and 0.6449 for Xμ̂ alone.
 
@@ -78,14 +78,14 @@ and 0.6823 at L=8, compared with 0.8730 and 0.6449 for Xμ̂ alone.
 <p align="center"><img src="L6/results/fig_methods.png" alt="φ⁴ L=6 magnetization densities" width="1000px"></p>
 
 At L=6, the first two objectives model only one vacuum. The reweighted curves
-for both quench-and-temper losses track the two-peak reference.
+for both quench and temper losses track the two-peak reference.
 
 <p align="center"><img src="L8/results/fig_methods.png" alt="φ⁴ L=8 magnetization densities" width="1000px"></p>
 
 The higher L=8 barrier sharpens the distinction. KL+Xμ has the highest ESS
-but zero support on one phase, while both quench-and-temper objectives
+but zero support on one phase, while both quench and temper objectives
 reproduce the minority peak. The equal-weight variant reduces the
-low-target-density bridge and recovers part of the ESS cost of covering both
+low-target-density intermodal region and recovers part of the ESS cost of covering both
 vacua.
 
 ## Verification summary
@@ -100,6 +100,6 @@ vacua.
   clipped, or malformed.
 - Every saved ESS and $p_+$ value was independently reproduced from its
   corresponding weight and magnetization arrays.
-- Importance-sampling ESS alone can prefer a collapsed flow, whereas
-  quench-and-temper coverage terms recover both phases and the correct
+- Importance sampling ESS alone can prefer a collapsed flow, whereas
+  quench and temper coverage terms recover both phases and the correct
   minority weight.
