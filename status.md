@@ -1,16 +1,26 @@
 # Project status
 
-Last updated: 2026-07-24T14:24:10-04:00 (America/New_York)
+Last updated: 2026-07-24T18:07:07-04:00 (America/New_York)
 
 ## Current state
 
-- **Human-inspection gate for every remaining unstaged path:** only
-  `PYTHON.md` and `status.md` are authorized for the present publication
-  commit. Every other modified, deleted, or untracked path must remain
-  unstaged and receive human inspection before any later staging, commit, or
-  push. Blanket staging is not authorized. The repository-local `AGENTS.md`
-  remains present in the working tree, is not tracked, and is covered by an
-  unstaged root `.gitignore` rule.
+- **Manuscript polish status — Sections 1--2 and Appendix A basically done:**
+  the Introduction, the Fisher--Rao analysis, and its proof appendix have had
+  their language pass and are considered basically complete. Sections 3--7
+  remain pending human inspection. Agent builds, searches, and reviews are
+  supporting checks only and do not substitute for that inspection.
+- **Publication state — everything outside `Paper/` is committed and pushed:**
+  the former human-inspection gate is discharged. `Codes/`, `Skills/`,
+  `README.md`, and `PYTHON.md` were inspected folder by folder and published
+  in nine commits; `main` and `origin/main` agree. The only tracked paths that
+  remain unstaged are the four under `Paper/`.
+- **Local agent rules moved into the repository `.claude` directory:** the
+  project-wide writing rules now live in the ignored `.claude/CLAUDE.md`, not
+  in a root `AGENTS.md`. They fix the strict two-level vocabulary (stage,
+  interpolation, intermediate for the Boltzmann generator; ladder, level,
+  bridging for SMC/AIS), require abbreviations to be expanded once at first
+  use, bind those rules to `Paper/main.tex` and `Paper/KLXX.tex`, and forbid
+  editing or reasoning from build artifacts.
 - **🚨🚨 CRITICAL SEVERE ACCIDENT — the mandated `$jflows` environment was
   refused and system Python was used:** the `$jflows` skill explicitly names
   `/home/xuda/.envs/jflows` as the default and only Python environment. The
@@ -155,10 +165,12 @@ Last updated: 2026-07-24T14:24:10-04:00 (America/New_York)
   independent copy exists to prove byte-identical recovery of the user's lost
   edit. Exact content recovery is therefore **unverified and unresolved**.
   Do not edit the QT algorithm block again without explicit user direction.
-- **Done — Sections 1--2 and Appendix A human-inspected:** the author has
-  explicitly marked the Introduction, the Fisher--Rao analysis, and its proof
-  appendix as human-inspected. This author verification supersedes the earlier
-  agent-only review status for those parts of the manuscript.
+- **Done — Sections 1--2 and Appendix A human-inspected and polished:** the
+  author has explicitly marked the Introduction, the Fisher--Rao analysis, and
+  its proof appendix as human-inspected. This author verification supersedes
+  the earlier agent-only review status for those parts of the manuscript. A
+  subsequent author-directed language pass over the Introduction and the
+  Fisher--Rao appendix is also complete, so these parts are basically done.
 - **Review boundary — Sections 3--7 are not fully verified by the author:**
   those sections remain mainly agent-generated or agent-edited and have not
   received a complete human review. Recorded builds, source searches,
@@ -1005,16 +1017,16 @@ Last updated: 2026-07-24T14:24:10-04:00 (America/New_York)
 
 ## Pending
 
-- **Pending — human inspection of every remaining unstaged path:** after the
-  narrow `PYTHON.md` and `status.md` publication, inspect each remaining
-  modified, deleted, and untracked path before authorizing any further Git
-  mutation. The unstaged `.gitignore` edit also requires that inspection; do
-  not infer staging authority from the ignore request.
+- **Done — human inspection of the formerly unstaged paths:** every modified,
+  deleted, and untracked path outside `Paper/` was inspected folder by folder
+  and published. Only the four `Paper/` paths remain unstaged.
 - **Blocked pending user direction — QT working-tree recovery:** do not edit
   the QT algorithm block. The agent's four-line overwrite was reversed, but
   the user's pre-overwrite bytes were not captured, so exact recovery cannot
   be verified from Git or a hash.
-- **Pending — full author verification of Sections 3--7:** the remaining
+- **Pending — human inspection of Sections 3--7:** Sections 1--2 and
+  Appendix A are basically done, so this is the sole remaining manuscript
+  review boundary. The remaining
   methods, algorithms, tables, figures, captions, and cross-section
   consistency require a complete human review. Existing agent reviews and
   successful builds are not substitutes for that verification. Resume only
@@ -3235,3 +3247,49 @@ Last updated: 2026-07-24T14:24:10-04:00 (America/New_York)
 - Added `/AGENTS.md` to the root ignore rules while preserving the local file.
   The file was already untracked, so no index removal was needed. The
   `.gitignore` change remains outside the authorized two-file publication.
+
+### 2026-07-24T18:07:07-04:00 — Repository published folder by folder; Sections 1--2 and Appendix A polished
+
+- Discharged the human-inspection gate by inspecting and publishing each
+  scope separately: 2D Benchmark (`f9acac3`), HD Product (`e1a032d`), Lattice
+  Clock (`2acf362`), Lattice Phi4 (`910d702`, `f564c8a`), alkane family
+  (`53fe882`), chiral (`528ec2c`), achiral (`33a4397`), the Ac-Pro-NHMe
+  multimodality probe (`a206856`), `Skills/` removal (`5284808`),
+  `Codes/Molecular_BG/results.md` (`e6b155c`), and `README.md` plus
+  `PYTHON.md` (`6f57435`). Local `HEAD`, `origin/main`, and the remote branch
+  agree at `6f57435`. Only the four `Paper/` paths remain unstaged.
+- Verified before each commit that the source changes were text-only: masked
+  AST, token-stream, and bytecode comparisons showed the seven Lattice Clock
+  Python files structurally identical to their previous commit, and the eight
+  structurally changed alkane drivers differ only inside the `BUNDLE`
+  expression. Every modified Python file kept an identical numeric-literal
+  sequence, and the reported numbers in `results.md`, `tables.md`, and the
+  three OpenMM reference JSONs are unchanged.
+- Consolidated the molecular bundles so only `*_raw` runs carry a copy, as
+  `PYTHON.md` requires. Git recorded the hexane bundle as six `R100` renames,
+  the local diethanolamine bundle matches the packaged
+  `diethanolamine_gaff2_am1bcc_obc1` bundle in all six files, and all 16
+  molecular drivers resolve to a complete six-file bundle.
+- Repaired one stale generated artifact:
+  `Codes/Lattice_Clock/results/occupancy_bias_B2000.md` again matches the
+  header its generator writes. Removing the `chiral/regularization/` tree had
+  orphaned `probe_openmm.py`, which loaded its `run.py` dynamically; the
+  author then deleted that probe, and no tracked file under `Codes/` now
+  loads a missing file.
+- Removed machine-specific paths and environment names from every tracked
+  driver docstring and from `README.md`: run instructions are now plain
+  `python Codes/.../<script>.py`, and `PYTHON.md` gained a remark that the
+  environment is pip-only or uv-only and Linux with CUDA only.
+- Polished the Introduction under author direction: corrected the forward KL
+  circularity sentence, replaced the vague exact-distribution referent, made
+  the ordinal terms point at equation (8), defined `\bar\nu` as a
+  stop-gradient copy of `\nu`, merged a redundant PT sentence, and added the
+  explicit equation and theorem references to the Fisher--Rao contribution.
+  `fake ESS` is an approved term, is now introduced directly, and is used in
+  the conclusion as well.
+- Removed the duplicated appendix theorem and its labels so the appendix
+  proves Section 2's Theorem 1 rather than restating it. `main.tex` now has
+  exactly one theorem environment.
+- Moved the local agent rules from the root `AGENTS.md` into the ignored
+  `.claude/CLAUDE.md` and added the two-level vocabulary rule, the
+  abbreviation rule, and the build-artifact rule.
