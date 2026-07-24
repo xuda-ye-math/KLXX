@@ -1,7 +1,7 @@
-"""2D Threewell benchmark — X-regularized forward KL on a three-well target.
+"""2D Three-Well benchmark — X-regularized forward KL on a three-well target.
 
 Four objectives, all trained by the packed jflows drivers from the same
-identity-initialized NSF on the same source pool:
+identity-initialized NSF on the same validation set:
 
     KL                :  train_forward_KLX_G,  coeff_lambda = 0
     KL+X_mu           :  train_forward_KLX_G,  coeff_lambda = 1
@@ -9,16 +9,14 @@ identity-initialized NSF on the same source pool:
     KL+X_mu+X_mix     :  train_forward_KLXX_G, (alpha, beta) = (1/2, 1/2)
 
 The source is a narrow Gaussian (sigma = 0.25) covering none of the three
-wells, so the bare forward KL trains on whatever its AIS chain reaches; the
-X_hat_mu / X_mix objectives draw mode discovery from the quench-and-temper
-measure. All Langevin kernels run MALA (mc_adjust = True). Final ESS is the
-flow importance-sampling ESS on the full fixed source set, and coverage
-(k = 5) is measured against a quench-and-temper reference pool.
+wells, so forward KL trains on whatever its annealing procedure
+reaches; the objectives weighted by hat_mu obtain comparisons from the quench
+and temper measure. All Langevin kernels run MALA (mc_adjust = True). Final ESS is the
+flow importance sampling ESS on the complete validation set, and coverage
+(k = 5) is measured against a quench and temper reference sample set.
 
 Run from the repo root:
-    source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/2D_Benchmark/Three-Well/train.py
+    python Codes/2D_Benchmark/Three-Well/train.py
 Writes final figures below ``results/`` and the temporary log below
 ``artifacts/``.
 """
@@ -64,23 +62,23 @@ TRANSFORMS: int = 6
 HIDDEN_FEATURES = (128, 128)
 
 # training parameters
-VALID_SZIE: int = 80000  # the fixed source set (training pool + final ESS / coverage)
+VALID_SZIE: int = 80000  # complete validation set used for training and final ESS/coverage
 BATCH_SZIE: int = 1000    # source samples per training step
-POOL_SIZE: int = 0        # 0: quench the complete validation population
+POOL_SIZE: int = 0        # 0: quench the complete validation set
 TRAIN_STEPS: int = 500      # Adam optimization steps
 LR: float = 1e-3       # Adam learning rate
 
-# data pipeline (single-hop AIS + MALA rejuvenation)
-LADDER: int = 1        # AIS levels per manufactured target batch
+# data pipeline (annealing + MALA rejuvenation)
+LADDER: int = 1        # annealing levels per target batch
 MC_DT: float = 2e-3  # Langevin step size
-MC_STEPS: int = 50     # Langevin steps per level / per hat_mu freshening
+MC_STEPS: int = 50     # Langevin steps per level / per hat_mu MALA refresh
 
 # quench and temper (the wide-coverage measure hat_mu)
-REFER_SZIE: int = 4000    # coverage-reference population size
+REFER_SZIE: int = 4000    # coverage reference sample count
 MELT: float = 2.0      # melt scale (std of the Gaussian scatter)
 OPT_DT: float = 0.5  # L-BFGS initial trial step size (Armijo)
 OPT_STEPS: int = 200   # L-BFGS iterations
-QT_MC_STEPS: int = 1000  # temper length of the coverage-reference pool
+QT_MC_STEPS: int = 1000  # temper length for the coverage reference set
 
 COVERAGE_K: int = 5    # k-NN ball of the coverage metric
 
@@ -115,7 +113,7 @@ CMAP = LinearSegmentedColormap.from_list("light_yellow_red", ["#fffefa", "#ffe5e
 u0 = Nlog_Gaussian(mean=[0.0, 0.0], variance=[SIGMA**2, SIGMA**2])
 
 
-# target: Threewell potential U(x) = 6 ((x1^2-1)^2 + (x2^2-1)^2 + sin(x1 + 2 x2))
+# target: Three-Well potential U(x) = 6 ((x1^2-1)^2 + (x2^2-1)^2 + sin(x1 + 2 x2))
 def threewell_energy(x):
     x1, x2 = x[..., 0], x[..., 1]
     return 6.0 * ((x1**2 - 1.0) ** 2 + (x2**2 - 1.0) ** 2 + jnp.sin(x1 + 2.0 * x2))
@@ -135,7 +133,7 @@ def main() -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
     RESULTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
-    log(f"START Threewell | jax {jax.__version__} | backend {jax.default_backend()} | "
+    log(f"START Three-Well | jax {jax.__version__} | backend {jax.default_backend()} | "
         f"VALID_SZIE={VALID_SZIE} BATCH_SZIE={BATCH_SZIE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} "
         f"MC={MC_DT}x{MC_STEPS} (MALA) ladder={LADDER} "
         f"QT: REFER_SZIE={REFER_SZIE} melt={MELT} opt={OPT_DT}x{OPT_STEPS}")
@@ -144,15 +142,15 @@ def main() -> None:
                 bins=BINS, transforms=TRANSFORMS,
                 hidden_features=HIDDEN_FEATURES).zeros()
 
-    # coverage-reference pool: quench and temper on the target
-    log("building the quench-and-temper coverage reference pool ...")
+    # independent coverage reference set: quench and temper on the target
+    log("building the quench and temper coverage reference sample set ...")
     y_hat_ref = quench_and_temper(
         jax.random.key(1), u0.samples(jax.random.key(4), REFER_SZIE), u1,
         melt=MELT, opt_dt=OPT_DT, opt_steps=OPT_STEPS,
         mc_dt=MC_DT, mc_steps=QT_MC_STEPS, mc_adjust=True,
     )
     y_hat_ref = jax.block_until_ready(y_hat_ref)
-    log(f"QT pool ready ({REFER_SZIE} particles)")
+    log(f"QT reference set ready ({REFER_SZIE} samples)")
 
     runs = {}
     for name in METHODS:
@@ -201,7 +199,7 @@ def main() -> None:
         log(f"[{name}] done in {time.time() - t0:.1f}s   final ESS = {ess:.4f}   "
             f"coverage_k={COVERAGE_K} = {cov:.4f}   (VALID_SZIE = {VALID_SZIE})")
 
-    # ── samples.png: pushforward panels over the target energy ──
+    # ── samples.png: panels of pushforward samples over the target energy ──
     log("rendering samples.png + ess.png ...")
     n = 300
     xs = np.linspace(-PLT_LIM, PLT_LIM, n)

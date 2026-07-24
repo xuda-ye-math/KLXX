@@ -1,7 +1,7 @@
 """2D Sparse benchmark — X-regularized forward KL on a sparse Gaussian mixture.
 
 Four objectives, all trained by the packed jflows drivers from the same
-identity-initialized NSF on the same source pool:
+identity-initialized NSF on the same validation set:
 
     KL                :  train_forward_KLX_G,  coeff_lambda = 0
     KL+X_mu           :  train_forward_KLX_G,  coeff_lambda = 1
@@ -11,16 +11,14 @@ identity-initialized NSF on the same source pool:
 The target is a four-mode Gaussian mixture: a dense pair sits at the source
 center and is easy to hit, while two isolated modes sit in opposite corners,
 many source standard deviations away — the source tail never reaches them,
-so the bare forward KL gets no training signal there; the X_hat_mu / X_mix
-objectives draw mode discovery from the quench-and-temper measure. All
+so forward KL receives no target samples there; the objectives
+weighted by hat_mu obtain comparisons from the quench and temper measure. All
 Langevin kernels run MALA (mc_adjust = True). Final ESS is the flow
-importance-sampling ESS on the full fixed source set, and coverage (k = 5)
-is measured against a quench-and-temper reference pool.
+importance sampling ESS on the complete validation set, and coverage (k = 5)
+is measured against a quench and temper reference sample set.
 
 Run from the repo root:
-    source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/2D_Benchmark/Sparse/train.py
+    python Codes/2D_Benchmark/Sparse/train.py
 Writes final figures below ``results/`` and the temporary log below
 ``artifacts/``.
 """
@@ -66,23 +64,23 @@ TRANSFORMS: int = 6
 HIDDEN_FEATURES = (128, 128)
 
 # training parameters
-VALID_SZIE: int = 80000   # the fixed source set (training pool + final ESS / coverage)
+VALID_SZIE: int = 80000   # complete validation set used for training and final ESS/coverage
 BATCH_SZIE: int = 1000    # source samples per training step
-POOL_SIZE: int = 0        # 0: quench the complete validation population
+POOL_SIZE: int = 0        # 0: quench the complete validation set
 TRAIN_STEPS: int = 1000      # Adam optimization steps
 LR: float = 5e-3       # Adam learning rate
 
-# data pipeline (single-hop AIS + MALA rejuvenation)
-LADDER: int = 1        # AIS levels per manufactured target batch
+# data pipeline (annealing + MALA rejuvenation)
+LADDER: int = 1        # annealing levels per target batch
 MC_DT: float = 2e-3  # Langevin step size
-MC_STEPS: int = 50     # Langevin steps per level / per hat_mu freshening
+MC_STEPS: int = 50     # Langevin steps per level / per hat_mu MALA refresh
 
 # quench and temper (the wide-coverage measure hat_mu)
-REFER_SZIE: int = 4000    # coverage-reference population size
+REFER_SZIE: int = 4000    # coverage reference sample count
 MELT: float = 2.0      # melt scale (std of the Gaussian scatter)
 OPT_DT: float = 0.5  # L-BFGS initial trial step size (Armijo)
 OPT_STEPS: int = 200   # L-BFGS iterations
-QT_MC_STEPS: int = 1000  # temper length of the coverage-reference pool
+QT_MC_STEPS: int = 1000  # temper length for the coverage reference set
 
 COVERAGE_K: int = 5    # k-NN ball of the coverage metric
 
@@ -153,15 +151,15 @@ def main() -> None:
                 bins=BINS, transforms=TRANSFORMS,
                 hidden_features=HIDDEN_FEATURES).zeros()
 
-    # coverage-reference pool: quench and temper on the target
-    log("building the quench-and-temper coverage reference pool ...")
+    # independent coverage reference set: quench and temper on the target
+    log("building the quench and temper coverage reference sample set ...")
     y_hat_ref = quench_and_temper(
         jax.random.key(1), u0.samples(jax.random.key(4), REFER_SZIE), u1,
         melt=MELT, opt_dt=OPT_DT, opt_steps=OPT_STEPS,
         mc_dt=MC_DT, mc_steps=QT_MC_STEPS, mc_adjust=True,
     )
     y_hat_ref = jax.block_until_ready(y_hat_ref)
-    log(f"QT pool ready ({REFER_SZIE} particles)")
+    log(f"QT reference set ready ({REFER_SZIE} samples)")
 
     runs = {}
     for name in METHODS:
@@ -210,7 +208,7 @@ def main() -> None:
         log(f"[{name}] done in {time.time() - t0:.1f}s   final ESS = {ess:.4f}   "
             f"coverage_k={COVERAGE_K} = {cov:.4f}   (VALID_SZIE = {VALID_SZIE})")
 
-    # ── samples.png: pushforward panels over the target energy ──
+    # ── samples.png: panels of pushforward samples over the target energy ──
     log("rendering samples.png + ess.png ...")
     n = 300
     xs = np.linspace(-PLT_LIM, PLT_LIM, n)
