@@ -94,7 +94,7 @@ MOLECULES = (
         folder="diethanolamine_48d",
         display_name="neutral diethanolamine",
         dimension=48,
-        bundle="diethanolamine_gaff2_am1bcc_obc1",
+        bundle=HERE / "diethanolamine_48d" / "bundle",
         atoms=(1, 2, 3, 4),
         dihedral_label="C-C-N-C",
         reference_seeds=(3401, 3402),
@@ -298,13 +298,13 @@ def final_population(
     with run_path.open(encoding="utf-8") as stream:
         run = json.load(stream)
     if run.get("status") != "complete":
-        raise ValueError(f"BG run is not complete: {run_path}")
+        raise ValueError(f"Boltzmann generator run is not complete: {run_path}")
     config = run.get("config", {})
     if config.get("objective") != METHODS[method]:
         raise ValueError(f"unexpected objective in {run_path}")
     stages = run.get("stages", [])
     if not stages or not math.isclose(float(stages[-1]["t"]), 1.0):
-        raise ValueError(f"BG run does not reach t=1: {run_path}")
+        raise ValueError(f"Boltzmann generator run does not reach t=1: {run_path}")
     sample_path = artifact_dir / stages[-1]["path"] / "samples.npy"
     return sample_path, config, stages[-1]
 
@@ -818,7 +818,7 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
             color=BLUE,
             linewidth=2.2,
             linestyle=(0, (6, 3)),
-            label=r"regularized BG: $\mathrm{KL}$+$\mathrm{X}_{\mu}$",
+            label=r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\mu}$",
         ),
         Line2D(
             [0],
@@ -826,13 +826,13 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
             color=RED,
             linewidth=2.3,
             label=(
-                r"regularized BG: $\mathrm{KL}$+$\mathrm{X}_{\mu}$+"
+                r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\mu}$+"
                 r"$\mathrm{X}_{(\hat{\mu}+\bar{\nu})/2}$"
             ),
         ),
     ]
     fig.suptitle(
-        "Dihedral marginals: regularized BG samples vs OpenMM reference",
+        "Dihedral marginals: regularized Boltzmann generator samples vs OpenMM reference",
         fontsize=17,
         y=0.98,
     )

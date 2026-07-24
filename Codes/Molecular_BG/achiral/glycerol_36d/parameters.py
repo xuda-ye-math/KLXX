@@ -1,4 +1,4 @@
-"""Full-size glycerol Boltzmann-generator parameters."""
+"""Full-size glycerol Boltzmann generator parameters."""
 
 MOLECULE = "glycerol"
 FORMULA = "C3H8O3"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the completed NMA 30D bridge controls exactly.
+    # Match the completed NMA 30D stage-schedule controls exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.7,
     "enlarge_factor": 1.4,

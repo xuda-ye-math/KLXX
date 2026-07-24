@@ -1,4 +1,4 @@
-"""Full-size N-methylacetamide Boltzmann-generator parameters."""
+"""Full-size N-methylacetamide Boltzmann generator parameters."""
 
 MOLECULE = "nma"
 FORMULA = "C3H7NO"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the completed n-butane 36D bridge controls exactly.
+    # Match the completed n-butane 36D stage-schedule controls exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.7,
     "enlarge_factor": 1.4,

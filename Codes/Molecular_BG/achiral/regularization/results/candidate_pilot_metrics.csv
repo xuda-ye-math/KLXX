@@ -1,2 +1,0 @@
-molecule,display_name,dimension,e_kj_mol,r_nm,raw_target_ress,raw_target_ress_ci_low,raw_target_ress_ci_high,reverse_ress,reverse_ress_ci_low,reverse_ress_ci_high,max_js_bits,max_occupancy_error,joint_state_tv,materially_modified_fraction,floor_frame_fraction_300K,energy_crosscheck_max_abs_kj_mol,fidelity_pass
-diethanolamine,neutral diethanolamine,48,150.0,0.1,0.9999999968921699,0.9999999966509674,0.9999999971241524,0.9999999967694618,0.9999999966702242,0.9999999968652472,0.019876000857274458,0.09290923370095328,0.2070190258350755,0.0,0.0,0.00029615609673783183,False

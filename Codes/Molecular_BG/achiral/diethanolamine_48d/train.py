@@ -21,7 +21,7 @@ import parameters as P
 
 
 HERE = Path(__file__).resolve().parent
-BUNDLE = "diethanolamine_gaff2_am1bcc_obc1"
+BUNDLE = HERE / "bundle"
 
 
 def main():

@@ -1,4 +1,4 @@
-"""Full-size neutral diethanolamine Boltzmann-generator parameters."""
+"""Full-size neutral diethanolamine Boltzmann generator parameters."""
 
 MOLECULE = "diethanolamine"
 FORMULA = "C4H11NO2"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the n-pentane 45D bridge controls exactly.
+    # Match the n-pentane 45D stage-schedule controls exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.6,
     "enlarge_factor": 1.4,
