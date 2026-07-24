@@ -23,6 +23,12 @@ installs both required project packages, Equinox through their declared
 dependencies, and the complete bundle-construction stack through the
 published `bundles` extra.
 
+> **Remark.** This environment is pip-only or uv-only, and the supported
+> platform is Linux with CUDA. JAX provides no GPU backend on Windows or
+> macOS, and installing this stack inside a Conda environment can cause
+> unexpected compilation problems. The installed NVIDIA driver must be newer
+> than the minimum required by the JAX version being installed.
+
 > **Remark.** PyPI treats hyphens and underscores as equivalent in project
 > names, so `pip install jflows 'jflows-md[bundles]'` performs the same
 > installation as the second command above. Python imports still use
