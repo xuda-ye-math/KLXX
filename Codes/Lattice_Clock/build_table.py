@@ -1,7 +1,8 @@
-"""Build the paired per-level ESS table from ``train.py`` artifacts.
+"""Build the paired per-stage ESS table from ``train.py`` artifacts.
 
-The Clock comparison is defined by the full-validation ESS at every accepted
-KL level.  KLXX must use the exact same accepted ``t_hist``.  The aggregate
+The clock comparison is defined by selected-proposal validation ESS over the
+complete validation set at every accepted forward KL stage. KLXX must use the
+same accepted stage schedule stored in ``t_hist``. The aggregate
 reported by the experiment is the propagation factor
 
     F = product_k ESS_k**(-1),
@@ -12,7 +13,6 @@ machine-readable CSV files.
 
 Run from the repository root after all paired runs finish::
 
-    source ~/.envs/jflows/bin/activate
     python Codes/Lattice_Clock/build_table.py
 """
 
@@ -72,7 +72,7 @@ def _load(path: Path) -> Run:
         if str(data["schedule_contract"]) != SCHEDULE_CONTRACT:
             raise ValueError(f"{path}: incompatible schedule contract")
         if not bool(data["complete"]):
-            raise ValueError(f"{path}: incomplete ladder")
+            raise ValueError(f"{path}: incomplete stage schedule")
         method = str(data["method"])
         if method not in METHOD_LABELS:
             raise ValueError(f"{path}: unknown method {method!r}")
@@ -83,7 +83,7 @@ def _load(path: Path) -> Run:
     if t_hist.ndim != 1 or ess.ndim != 1 or len(t_hist) != len(ess):
         raise ValueError(f"{path}: t_hist/ESS shape mismatch")
     if not len(t_hist) or t_hist[-1] != 1.0:
-        raise ValueError(f"{path}: accepted history does not end at t=1")
+        raise ValueError(f"{path}: accepted stage schedule does not end at t=1")
     if not np.all(np.isfinite(ess)) or np.any(ess <= 0.0) or np.any(ess > 1.0):
         raise ValueError(f"{path}: invalid validation ESS")
     return Run(batch_size, method, t_hist, ess)
@@ -115,7 +115,7 @@ def load_pairs() -> list[tuple[Run, Run]]:
         kl = runs[(batch_size, "kl")]
         klxx = runs[(batch_size, "klxx")]
         if not np.array_equal(kl.t_hist, klxx.t_hist):
-            raise ValueError(f"B={batch_size}: KL and KLXX t_hist differ")
+            raise ValueError(f"B={batch_size}: forward KL and KLXX t_hist differ")
         pairs.append((kl, klxx))
     return pairs
 
@@ -131,16 +131,16 @@ def _fmt_factor(value: float, better: bool) -> str:
 
 
 def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
-    max_levels = max(len(kl.t_hist) for kl, _ in pairs)
-    stage_headers = [str(k) for k in range(1, max_levels + 1)]
+    max_stages = max(len(kl.t_hist) for kl, _ in pairs)
+    stage_headers = [str(k) for k in range(1, max_stages + 1)]
     lines = [
         '<div align="center">',
         "",
         "| stage $k$ | " + " | ".join(stage_headers) + " | $F$ |",
-        "| :--- | " + " | ".join([":-:"] * (max_levels + 1)) + " |",
+        "| :--- | " + " | ".join([":-:"] * (max_stages + 1)) + " |",
     ]
     for kl, klxx in pairs:
-        pad = ["—"] * (max_levels - len(kl.t_hist))
+        pad = ["—"] * (max_stages - len(kl.t_hist))
         t_cells = [f"{t:.3f}" for t in kl.t_hist] + pad
         lines.append(
             f"| $t_k$ ($B = {kl.batch_size}$) | "
@@ -174,19 +174,19 @@ def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
 def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
     with (RESULTS / "per_level_ess.csv").open("w", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["batch_size", "level", "t", "kl_ess", "klxx_ess"])
+        writer.writerow(["batch_size", "stage", "t", "kl_ess", "klxx_ess"])
         for kl, klxx in pairs:
-            for level, (t, ess_kl, ess_klxx) in enumerate(
+            for stage, (t, ess_kl, ess_klxx) in enumerate(
                 zip(kl.t_hist, kl.ess, klxx.ess), start=1
             ):
                 writer.writerow(
-                    [kl.batch_size, level, f"{t:.9g}", f"{ess_kl:.9g}",
+                    [kl.batch_size, stage, f"{t:.9g}", f"{ess_kl:.9g}",
                      f"{ess_klxx:.9g}"]
                 )
 
     with (RESULTS / "factors.csv").open("w", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["batch_size", "method", "levels", "geometric_mean_ess", "F"])
+        writer.writerow(["batch_size", "method", "stages", "geometric_mean_ess", "F"])
         for kl, klxx in pairs:
             for run in (kl, klxx):
                 writer.writerow(
@@ -203,12 +203,12 @@ def main() -> None:
     RESULTS.mkdir(parents=True, exist_ok=True)
     table = _markdown_table(pairs)
     (RESULTS / "tables.md").write_text(
-        "# p-state clock — per-level ESS on a shared history\n\n"
+        "# p-state clock — per-stage ESS on a shared stage schedule\n\n"
         "The final column is the propagation factor "
         "$F = \\prod_k \\mathrm{ESS}_k^{-1}$; smaller is better. It "
         "summarizes stagewise weight degeneracy and is not a full-chain "
-        "ESS or endpoint error estimate. Every ESS is the full-validation "
-        "stage-gate value.\n\n"
+        "ESS or endpoint error estimate. Every ESS is the selected-proposal "
+        "validation ESS over the complete validation set.\n\n"
         + table
     )
     _write_csv(pairs)
@@ -216,8 +216,8 @@ def main() -> None:
     print(f"wrote {RESULTS / 'tables.md'} and CSV data")
     for kl, klxx in pairs:
         print(
-            f"B={kl.batch_size}: levels={len(kl.ess)} "
-            f"KL F={kl.factor:.1f} (GM={kl.geometric_mean:.3f}) | "
+            f"B={kl.batch_size}: stages={len(kl.ess)} "
+            f"forward KL F={kl.factor:.1f} (GM={kl.geometric_mean:.3f}) | "
             f"KLXX F={klxx.factor:.1f} (GM={klxx.geometric_mean:.3f})"
         )
 

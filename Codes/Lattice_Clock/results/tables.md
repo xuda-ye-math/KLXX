@@ -1,6 +1,6 @@
-# p-state clock — per-level ESS on a shared history
+# p-state clock — per-stage ESS on a shared stage schedule
 
-The final column is the propagation factor $F = \prod_k \mathrm{ESS}_k^{-1}$; smaller is better. It summarizes stagewise weight degeneracy and is not a full-chain ESS or endpoint error estimate. Every ESS is the full-validation stage-gate value.
+The final column is the propagation factor $F = \prod_k \mathrm{ESS}_k^{-1}$; smaller is better. It summarizes stagewise weight degeneracy and is not a full-chain ESS or endpoint error estimate. Every ESS is the selected-proposal validation ESS over the complete validation set.
 
 <div align="center">
 

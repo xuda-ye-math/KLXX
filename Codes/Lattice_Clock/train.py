@@ -1,8 +1,8 @@
-"""Train paired forward-KL and KLXX generators for the L=8 clock model.
+"""Train paired forward KL and KLXX generators for the L=8 clock model.
 
-Forward KL selects an adaptive bridge. KLXX uses the same accepted bridge as
-a fixed schedule, with ``POOL_SIZE=0`` so quench-and-temper acts on the full
-validation population. An optional argument from 1 to 5 selects one batch-size
+Forward KL selects an adaptive stage schedule. KLXX uses the same accepted stage schedule as
+a fixed schedule, with ``POOL_SIZE=0`` so quench and temper acts on the complete
+validation set. An optional argument from 1 to 5 selects one batch-size
 pair. Outputs are written below ``artifacts/`` for the analysis scripts.
 """
 
@@ -55,8 +55,8 @@ POOL_SIZE: int = 0
 TRAIN_STEPS_LIST = (3000, 3000, 3000, 3000, 3000)
 LR: float = 1e-3
 
-# Langevin / AIS (MALA everywhere)
-LADDER: int = 4        # levels of the SMC selection gate and the training AIS
+# Langevin / annealing (MALA everywhere)
+LADDER: int = 4        # levels of the SMC selection gate and training annealing
 MC_DT: float = 1e-3  # Langevin step size
 MC_STEPS: int = 100    # Langevin steps per level / rejuvenation / QT temper
 
@@ -74,22 +74,22 @@ COEFF_BETA: float = 0.5
 U_CLIP: float = 1e3    # potential screen: samples with target > U_CLIP drop from the loss
 G_CLIP: float = 1e2    # global gradient-norm clip (spike guard before Adam)
 
-# adaptive ladder (bg_param of the kl driver; klxx inherits accepted t_hist)
+# adaptive stage schedule (bg_param of the kl driver; klxx inherits accepted t_hist)
 BG_PARAM = {
-    "t_safe": 0.25,        # stage-1 bridge coefficient (the safe start)
+    "t_safe": 0.25,        # first stage point (the safe start)
     "shrink_factor": 0.7,  # rejected stage: t_k <- t_prev + shrink (t_k - t_prev)
     "enlarge_factor": 2.0, # accepted stage: extrapolation growth factor
     "tau_smc": 0.7,        # SMC pre-selection gate on t_k
     "tau_ess": 0.4,        # incremental ESS acceptance threshold
     "t_tol": 1e-3,         # snap the initial guess to t = 1 when 1 - t_k < t_tol
-    "max_stages": 30,      # ladder-length safety cap
+    "max_stages": 30,      # stage-count safety cap
     "max_retry": 12,       # training attempts per stage before giving up
 }
 
 # evaluation
-EVAL_SZIE: int = 80000    # composed-pushforward evaluation set size
+EVAL_SZIE: int = 80000   # evaluation sample count for the composed stage maps
 MODE_FRAC: float = 0.01  # a sector counts as found if it holds >= MODE_FRAC/P mass
-KNN_K: int = 5         # k of the kNN coverage referee
+KNN_K: int = 5         # k of the kNN coverage reference set
 CHUNKS: int = 16        # chunk count for the drivers' full-set evaluations
 MONITOR_EVERY: int = 50
 
@@ -144,7 +144,7 @@ def main(test: int | None = None) -> None:
                  bins=BINS, transforms=TRANSFORMS,
                  hidden_features=HIDDEN_FEATURES).zeros()
 
-    # QT referee set on the full target (uniform melt = fresh uniform draw)
+    # QT reference set on the full target (uniform melt = fresh uniform draw)
     t0 = time.time()
     hat_ref = quench_and_temper(
         jax.random.key(4), u0.samples(jax.random.key(5), VALID_SZIE), u1,
@@ -153,7 +153,7 @@ def main(test: int | None = None) -> None:
         mc_adjust=True,
     )
     hat_ref = jax.block_until_ready(hat_ref)
-    log(f"QT referee set built: {VALID_SZIE} particles on the full target "
+    log(f"QT reference set built: {VALID_SZIE} samples on the full target "
         f"in {time.time() - t0:.1f}s")
 
     for batch_size, train_steps in pairs:
@@ -177,10 +177,10 @@ def main(test: int | None = None) -> None:
                     monitor=mon, bg_param=BG_PARAM, chunks=CHUNKS,
                     checkpoint=False, u_clip=U_CLIP, g_clip=G_CLIP)
                 t_hist_kl = [float(s["t"]) for s in stages]
-            else:  # klxx: fixed schedule on the exact accepted KL history
+            else:  # KLXX: fixed schedule on the accepted forward KL stage schedule
                 if not t_hist_kl or t_hist_kl[-1] != 1.0:
-                    raise RuntimeError(f"{tag}: completed kl t_hist is required")
-                log(f"[{tag}] fixed t_hist from kl: "
+                    raise RuntimeError(f"{tag}: completed forward KL t_hist is required")
+                log(f"[{tag}] fixed t_hist from forward KL: "
                     f"{[f'{t:.4f}' for t in t_hist_kl]}")
                 y, stages = boltzmann_forward_KLXX_G_fixed(
                     x_valid, u0, u1, flow0,
@@ -189,8 +189,8 @@ def main(test: int | None = None) -> None:
                     train_steps=train_steps, lr=LR, ladder=LADDER, melt=MELT,
                     opt_dt=OPT_DT, opt_steps=OPT_STEPS,
                     # The public fixed-driver keyword remains `t_list`; the
-                    # experiment contract and saved accepted history are
-                    # deliberately named `t_hist`.
+                    # experiment contract stores the accepted stage schedule
+                    # under the legacy identifier `t_hist`.
                     mc_dt=MC_DT, mc_steps=MC_STEPS, t_list=t_hist_kl,
                     coeff_lambda=COEFF_LAMBDA, coeff_alpha=COEFF_ALPHA,
                     coeff_beta=COEFF_BETA,
@@ -204,10 +204,10 @@ def main(test: int | None = None) -> None:
             t_hist = np.asarray([s["t"] for s in stages], dtype=np.float64)
             if not len(t_hist) or t_hist[-1] != 1.0:
                 reached = float(t_hist[-1]) if len(t_hist) else 0.0
-                raise RuntimeError(f"{tag}: incomplete ladder at t={reached:.4f}")
+                raise RuntimeError(f"{tag}: incomplete stage schedule at t={reached:.4f}")
             if method == "klxx" and not np.array_equal(
                     t_hist, np.asarray(t_hist_kl, dtype=np.float64)):
-                raise RuntimeError(f"{tag}: t_hist differs from paired KL")
+                raise RuntimeError(f"{tag}: t_hist differs from paired forward KL")
             valid_selected_ess = np.array(
                 [s["valid_selected_ess"] for s in stages], dtype=np.float64
             )

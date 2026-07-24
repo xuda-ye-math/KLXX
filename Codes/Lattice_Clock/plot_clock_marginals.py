@@ -1,4 +1,4 @@
-"""Angle-density figure for the B=2000 klxx staged sampler — three curves,
+"""Angle-density figure for the B=2000 KLXX staged sampler — three curves,
 all centered at theta = 0 on [-pi, pi):
 
     top panel      the single-site marginal p(theta_j) (six clock wells),
@@ -7,17 +7,15 @@ all centered at theta = 0 on [-pi, pi):
                    ratio-preserving zoom on the [pi/6, pi/2] shoulder.
 
 The densities are reconstructed from N = 2,000,000 fresh source draws
-advanced through the trained klxx B=2000 schedule by the FULL staged sampler
-(map -> reweight -> resample -> MALA at every level). Both expensive
+advanced through the trained KLXX B=2000 stage schedule by the full staged sampler
+(map -> reweight -> resample -> MALA at every stage). Both expensive
 run-scoped artifacts are overwritten with the fresh rebuild:
 
     artifacts/klxx_B2000/marginals/rebuild_N2000000.npz
     artifacts/klxx_B2000/marginals/densities_N2000000.npz
 
 Run from the repo root:
-    source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/Lattice_Clock/plot_clock_marginals.py
+    python Codes/Lattice_Clock/plot_clock_marginals.py
 Writes ``results/clock_marginals.png``; progress is recorded with the
 temporary artifacts.
 """
@@ -59,9 +57,8 @@ def wrap(a: np.ndarray) -> np.ndarray:
 
 
 def staged_rebuild() -> np.ndarray:
-    """N=2M fresh source draws advanced through the trained klxx B2000
-    schedule by the full staged sampler (map -> reweight -> resample -> MALA
-    at every level); GPU."""
+    """Advance N=2M fresh source draws through the trained KLXX B=2000
+    stage schedule with map, reweighting, resampling, and MALA at every stage."""
     import os
     os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 

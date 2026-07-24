@@ -4,7 +4,7 @@
 
 one angle theta in [-pi, pi) per site, periodic boundary conditions.
 
-Physics: the canonical bridge between Ising (P=2) and XY (P->inf). For P >= 5
+Physics: the canonical interpolation between Ising (P=2) and XY (P->inf). For P >= 5
 in 2D it hosts two BKT transitions enclosing a critical quasi-long-range-
 ordered phase (Jose-Kadanoff-Kirkpatrick-Nelson 1977). The cold Boltzmann
 measure has exactly P symmetry-broken sectors (all spins near 2*pi*k/P) --

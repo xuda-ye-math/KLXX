@@ -1,6 +1,6 @@
 """Monte Carlo scaling of the staged-sampler occupancy bias (B=2000 runs).
 
-Runs the exact staged sampler of each trained B=2000 schedule — kl and klxx,
+Runs the exact staged sampler of each trained B=2000 stage schedule—forward KL and KLXX,
 per stage: load the stage flow G_k (artifacts/<method>_B2000/flows.eqx, no
 retraining), push the chunked compiled inverse, logw = U_{k-1}(x) - U_k(y)
 + ladj, multinomial resample PER TEST BLOCK, MALA rejuvenation on U_k — at
@@ -25,13 +25,9 @@ Reads ``artifacts/{kl,klxx}_B2000/data.npz`` (schedule + config) and the
 corresponding ``flows.eqx`` files.
 
 Run from the repo root:
-    source ~/.envs/jflows/bin/activate
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/Lattice_Clock/occupancy_bias_B2000.py --method kl
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/Lattice_Clock/occupancy_bias_B2000.py --method klxx
-    PYTHONPATH=/data/projects/jflows python \
-        Codes/Lattice_Clock/occupancy_bias_B2000.py --merge
+    python Codes/Lattice_Clock/occupancy_bias_B2000.py --method kl
+    python Codes/Lattice_Clock/occupancy_bias_B2000.py --method klxx
+    python Codes/Lattice_Clock/occupancy_bias_B2000.py --merge
 """
 
 import argparse
@@ -125,7 +121,7 @@ def load_run(method: str):
             for _ in range(len(t_hist))]
     flows = eqx.tree_deserialise_leaves(run_dir / "flows.eqx", like)
     assert len(flows) == len(t_hist), (
-        f"{method}: {len(flows)} flows != {len(t_hist)} levels"
+        f"{method}: {len(flows)} flows != {len(t_hist)} stages"
     )
     return t_hist, flows
 
@@ -299,7 +295,7 @@ def write_summary(raw: dict, rows: dict[str, list[dict]], suffix: str) -> None:
     slopes = {}
     with open(md_out, "w") as f:
         f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
-                "sampler, B=2000, kl and klxx)\n\nerr = (1/6) sum_s "
+                "sampler, B=2000, forward KL and KLXX)\n\nerr = (1/6) sum_s "
                 "|p_s - 1/6|; equal total work per row (10000*256 "
                 "particles); 2^(8-k) independent tests at N=10000*2^k; "
                 "k=0,...,6.\n")

@@ -3,8 +3,8 @@
 The target is the six-state clock model on a periodic $8\times8$ lattice. We
 compare forward KL with
 $\mathrm{KL}+\mathrm{X}_\mu+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ (KLXX) on
-exactly the same accepted temperature levels at each batch size. Every value
-below is the full-validation ESS of one accepted stage; minibatch monitors and
+exactly the same accepted stage points at each batch size. Every value
+below is the validation ESS over the complete validation set at one accepted stage; mini-batch monitors and
 composed endpoint ESS are not used for this comparison.
 
 ## Schedule-matched validation ESS
@@ -31,13 +31,13 @@ $F=\prod_k\mathrm{ESS}_k^{-1}$, so smaller is better.
 
 </div>
 
-KLXX has higher validation ESS on all 28 shared levels, beating forward KL
+KLXX has higher validation ESS at all 28 shared stages, beating forward KL
 throughout stage training for $B=2000$, $1000$, $500$, and $250$. Across these
 batch sizes, KLXX reduces $F$ by factors 2.87--3.70.
 
 ## Fresh $B=2000$ staged samples
 
-Two million fresh samples advanced through the trained KLXX ladder retain all
+Two million fresh samples advanced through the trained KLXX stage sequence retain all
 six global clock sectors. Nearest-neighbor angle differences are most
 concentrated at zero; the alignment peak weakens with lattice separation while
 the shoulders near $\pm\pi/3$ grow.
@@ -74,8 +74,8 @@ reported particle count, and every reported rebuild retains all six sectors.
 
 ## Verification summary
 
-- Every KL/KLXX pair uses an exactly shared accepted $t$ history.
-- All per-level values and $F$ factors were rebuilt from the live NPZ files.
+- Every forward KL/KLXX pair uses an exactly shared accepted stage schedule.
+- All per-stage values and $F$ factors were rebuilt from the live NPZ files.
 - The marginal figure uses 2000000 fresh staged samples saved before plotting.
 - Occupancy scaling was run as two independent method processes taking 3843
   and 3789 seconds;

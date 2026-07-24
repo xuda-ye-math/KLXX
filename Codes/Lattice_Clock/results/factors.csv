@@ -1,4 +1,4 @@
-batch_size,method,levels,geometric_mean_ess,F
+batch_size,method,stages,geometric_mean_ess,F
 2000,kl,6,0.555732176,33.9474176
 2000,klxx,6,0.66481127,11.5826987
 1000,kl,7,0.553337562,62.960611

@@ -1,4 +1,4 @@
-# Occupancy-bias Monte Carlo scaling (L=8 clock, staged sampler, B=2000, kl and klxx)
+# Occupancy-bias Monte Carlo scaling (L=8 clock, staged sampler, B=2000, forward KL and KLXX)
 
 err = (1/6) sum_s |p_s - 1/6|; equal total work per row (10000*256 particles); 2^(8-k) independent tests at N=10000*2^k; k=0,...,6.
 

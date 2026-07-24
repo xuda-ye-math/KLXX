@@ -6,7 +6,6 @@ right panel shows particle-count scaling at fixed ``B=2000``.  Both panels
 are rendered from the merged artifact archives, with no sampler or GPU work.
 
 Run from the repository root:
-    source /home/xuda/.envs/jflows/bin/activate
     python Codes/Lattice_Clock/plot_occupancy_bias.py
 
 Writes ``Codes/Lattice_Clock/results/occupancy_bias.png``.

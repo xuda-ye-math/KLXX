@@ -1,10 +1,10 @@
 """Batch-size scaling of staged-sampler occupancy bias at N=640000.
 
 For each trained schedule with B in {2000, 1000, 500, 250}, run the same
-staged sampler used by ``occupancy_bias_B2000.py`` for both losses (kl and
-klxx): load the saved stage flows without retraining, apply each inverse map,
+staged sampler used by ``occupancy_bias_B2000.py`` for both losses (forward KL
+and KLXX): load the saved stage flows without retraining, apply each inverse map,
 reweight and multinomially resample, then rejuvenate with MALA at the new
-bridge potential.  Report
+stage potential.  Report
 
     err = (1/6) * sum_s |p_s - 1/6|
 
@@ -17,7 +17,6 @@ below ``artifacts/occupancy_bias_N640000``; ``--merge`` combines them into a
 plot-ready NPZ and writes CSV/Markdown summaries below ``results/``.
 
 Run from the repository root:
-    source /home/xuda/.envs/jflows/bin/activate
     python Codes/Lattice_Clock/occupancy_bias_N640000.py --method kl
     python Codes/Lattice_Clock/occupancy_bias_N640000.py --method klxx
     python Codes/Lattice_Clock/occupancy_bias_N640000.py --merge
@@ -91,7 +90,7 @@ def _inv_ladj(flow, x):
 
 
 def read_run_config(method: str, batch_size: int) -> tuple[list[float], Path]:
-    """Validate one trained run and return its accepted schedule and flow path."""
+    """Validate one trained run and return its accepted stage schedule and flow path."""
     run_dir = ARTIFACTS / f"{method}_B{batch_size}"
     data_path = run_dir / "data.npz"
     flow_path = run_dir / "flows.eqx"
@@ -126,7 +125,7 @@ def read_run_config(method: str, batch_size: int) -> tuple[list[float], Path]:
 
 
 def validate_artifacts() -> None:
-    """Check every requested KL/KLXX artifact pair before GPU work starts."""
+    """Check every requested forward KL/KLXX artifact pair before GPU work starts."""
     for batch_size in B_VALUES:
         t_hist_kl, _ = read_run_config("kl", batch_size)
         t_hist_klxx, _ = read_run_config("klxx", batch_size)
@@ -137,7 +136,7 @@ def validate_artifacts() -> None:
 
 
 def load_run(method: str, batch_size: int):
-    """Load the accepted schedule and stage flows for one trained run."""
+    """Load the accepted stage schedule and stage flows for one trained run."""
     t_hist, flow_path = read_run_config(method, batch_size)
     like = [
         NCSF(
@@ -154,7 +153,7 @@ def load_run(method: str, batch_size: int):
     if len(flows) != len(t_hist):
         raise ValueError(
             f"{method} B={batch_size}: {len(flows)} flows != "
-            f"{len(t_hist)} schedule levels"
+            f"{len(t_hist)} stages"
         )
     return t_hist, flows
 
@@ -205,7 +204,7 @@ def staged_sample(n: int, seed: int, t_hist, flows) -> np.ndarray:
         )
         del y_push, logw
 
-        # MALA rejuvenation at the current bridge potential.
+        # MALA rejuvenation at the current stage potential.
         rejuvenated = []
         for chunk, start in enumerate(range(0, n, CHUNK_SIZE)):
             xb = y[start:start + CHUNK_SIZE]
