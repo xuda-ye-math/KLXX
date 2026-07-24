@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-07-23T22:08:32-04:00 (America/New_York)
+Last updated: 2026-07-23T23:13:03-04:00 (America/New_York)
 
 ## Current state
 
@@ -29,13 +29,20 @@ Last updated: 2026-07-23T22:08:32-04:00 (America/New_York)
   finalization they accept only documentation, comment, and docstring edits;
   executable or core-code edits are frozen unless the author explicitly
   reopens that scope.
-- **Pre-publication repository boundary:** X-regularization is on `main` at
-  `546ed5bc9732aa3cf092fca4870b2cbb7becdc32` (`Integrate remarks into
-  manuscript prose`), equal to `origin/main` before this release mutation.
-  The index is clean. Five tracked paths are modified and 114 nonignored paths
-  are untracked, totaling 17,995,035 bytes; no path is staged or deleted. The
-  author has requested that the complete working tree, including
-  `Paper/main.pdf`, be backed up, committed, and pushed.
+- **Current renamed repository boundary — KLXX:** the canonical local Git root
+  is now `/data/projects/KLXX`; `/data/projects/X-regularization` is absent.
+  Branch `main` is at `e0a8b2dbe17f607bf2010ef302620a59df44d192`
+  (`Finalize molecular results`). The canonical GitHub repository is
+  `https://github.com/xuda-ye-math/KLXX`, whose `main` branch was verified at
+  the same commit. The configured local `origin` still stores the former
+  `https://github.com/xuda-ye-math/X-regularization.git` URL, although both
+  that redirected endpoint and `origin/main` resolve to the same commit.
+  Before this status edit, `Paper/main.tex`, the author's 43-page
+  `Paper/main.pdf`, and `status.md` were modified and unstaged; no path was
+  staged, deleted, or untracked. The PDF is 10,993,615 bytes with SHA-256
+  `470b25b1dc388d2e2cbb707ed213a13c7fb1dc73d9c6750f3274d553287bc88a`.
+  The shared mirror now exists at `/data/backup/projects/KLXX`; the obsolete
+  `/data/backup/projects/X-regularization` path is absent.
 - **🚨🚨 CRITICAL SEVERE ACCIDENT — explicit split-math method-name command
   repeatedly refused:** the user repeatedly required every textual method name
   to put `KL`, `X_μ`, and, where present, `X_(μ̂ + ν̄)/2` in separate TeX math
@@ -79,9 +86,8 @@ Last updated: 2026-07-23T22:08:32-04:00 (America/New_York)
   independent copy exists to prove byte-identical recovery of the user's lost
   edit. Exact content recovery is therefore **unverified and unresolved**.
   Do not edit the QT algorithm block again without explicit user direction.
-- **Author-verified milestone — Introduction polish basically completed:**
-  the author has manually reviewed the Introduction and regards its polish as
-  basically complete. It follows the intended logical order of background,
+- **Done — Introduction written:** the author has explicitly marked the
+  Introduction writing complete. It follows the intended logical order of background,
   design and comparison, mathematical definition of KLXX, contributions, and
   organization while retaining the core principles and results. This manual
   author verification supersedes the earlier agent-only review status for the
@@ -936,6 +942,11 @@ Last updated: 2026-07-23T22:08:32-04:00 (America/New_York)
 
 ## Pending
 
+- **Pending — remote rename follow-through:** update the configured local
+  `origin` from the former X-regularization URL to
+  `https://github.com/xuda-ye-math/KLXX.git` in a separately authorized Git
+  operation. The shared-mirror rename is complete:
+  `/data/backup/projects/KLXX` exists and the obsolete old-name path is absent.
 - **Blocked pending user direction — QT working-tree recovery:** do not edit
   the QT algorithm block. The agent's four-line overwrite was reversed, but
   the user's pre-overwrite bytes were not captured, so exact recovery cannot
@@ -3026,3 +3037,42 @@ Last updated: 2026-07-23T22:08:32-04:00 (America/New_York)
   code changes.
 - The author authorized a shared mirror backup followed by an all-file commit
   and push of the X-regularization working tree, including `Paper/main.pdf`.
+
+### 2026-07-23T22:17:38-04:00 — Project renamed to KLXX
+
+- Recorded the author's project rename from X-regularization to KLXX. Direct
+  filesystem and Git inspection verified `/data/projects/KLXX` as the
+  canonical repository root and verified that the former local project path is
+  absent.
+- Verified `https://github.com/xuda-ye-math/KLXX` directly: its `main` branch,
+  local `HEAD`, and the local upstream ref all point to
+  `e0a8b2dbe17f607bf2010ef302620a59df44d192` (`Finalize molecular results`).
+  Historical timeline references retain the project name and paths that were
+  accurate when those events occurred.
+- Identified two rename follow-through items without mutating them. The local
+  `origin` configuration still contains the former repository URL, and the
+  shared backup is present under the former project name rather than
+  `/data/backup/projects/KLXX`.
+- The worktree was clean at the initial inspection. A user-side compile then
+  modified `Paper/main.pdf` at 22:16:28; its current SHA-256 is
+  `8613e1ad2ec6c187e4974140503beb63456b41d05a41dcc0c30d8b1ce4505a0e`.
+  The PDF is preserved unchanged by this operation. Only `status.md` was
+  edited; no remote, backup, manuscript, figure, source, index, or commit state
+  was changed.
+
+### 2026-07-23T23:12:06-04:00 — Introduction writing completed
+
+- The author explicitly marked the Introduction writing complete after the
+  final organization and parallel-tempering transition edits.
+- Direct source inspection verified the revised passages, and
+  `git diff --check -- Paper/main.tex status.md` passed. No PDF rebuild was
+  performed for these final prose edits.
+
+### 2026-07-23T23:13:03-04:00 — Repository skills copied and KLXX mirror refreshed
+
+- Copied the complete `paper-writing`, `bcp`, and unified `jflows` skill source
+  trees into `Skills/`. The installed `jflows` skill covers both `jflows` and
+  `jflows_md`; no separate `jflows_md` skill source exists.
+- `diff -qr` verified each copied tree against its installed source. The shared
+  backup exited zero, established `/data/backup/projects/KLXX`, and removed the
+  obsolete old-name mirror path.
