@@ -30,7 +30,6 @@ The phi^4 action is written out here directly (not imported) so this is a true
 independent cross-check of reference.py's energy and of the trained flow.
 
 Run from the repo root (GPU):
-    source ~/.envs/jflows/bin/activate
     python Codes/Lattice_Phi4/pt_reference.py
 Writes the temporary run log to artifacts/pt_reference.log and prints p_+
 for L = 6, 8.  The artifacts directory can be removed after recording the
