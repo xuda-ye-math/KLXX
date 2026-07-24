@@ -2,7 +2,7 @@
 
 This benchmark follows the homologous series from methane to n-hexane, with
 mixed-coordinate dimensions 9, 18, …, 54. Every reported run uses seed 0 and
-reaches the final bridge coefficient $t=1$. The endpoint training target
+reaches the final stage point $t=1$. The endpoint training target
 uses the molecular regularization parameters `(100, 0.15)`. The fixed runs use
 this endpoint throughout; the sharpening runs begin from the path shown in the
 table and finish at the same endpoint.
@@ -18,13 +18,13 @@ rigid-motion quotient, including its coordinate-measure Jacobian.
 We compare three adaptive generators. **ID** uses identity transport at every
 stage and therefore performs no flow training. **KL** trains the forward KL
 objective. **KLXX** augments forward KL with both log-ratio variation terms and
-uses quench-and-temper samples in the second term. The trained generators start
-    each stage from the identity map and select the trained or identity proposal by
-    ESS over the complete validation population. All three methods retain the same SMC endpoint selection,
-resampling, and MALA population updates; ID also retains sharpening when the
-    two regularization endpoints differ. KLXX uses `pool_size=0`, so its
-    quench-and-temper population starts from `VALID_SIZE` fresh source draws
-    rather than from a separately sized pool.
+uses QT samples in the second term. The trained generators start each stage
+from the identity map and select the trained or identity proposal by ESS over
+the complete validation set. All three methods retain the same SMC stage
+selection, resampling, and MALA updates; ID also retains sharpening when the
+two regularization endpoints differ. KLXX uses `pool_size=0`, so its QT
+reservoir starts from `VALID_SIZE` fresh source samples rather than from a
+separately sized sample set.
 
 ## Propagation factors
 
@@ -68,7 +68,7 @@ KLXX has the smallest total factor in all ten matched settings. KL selects the
 trained flow at all three methane stages and at two of three ethane stages.
 From propane onward, every accepted KL stage selects identity instead, so its
 factor remains near the ID baseline; the small differences arise because the
-adaptive schedules are method-specific. KLXX selects the trained map at every
+adaptive stage schedules are method-specific. KLXX selects the trained map at every
 accepted stage through pentane. At hexane it still selects trained maps in 6
 of 12 fixed stages and 8 of 10 sharpening stages, which gives factors below
 both ID and KL.
@@ -79,14 +79,14 @@ factors of 1.88, 1.69, and 5.09 at butane, pentane, and hexane, respectively.
 The corresponding sharpening KLXX runs take 3.10, 2.24, and 2.65 times the
 recorded KL time. The trade-off is therefore consistent across the larger
 molecules: KLXX plus sharpening gives the strongest propagation factors, at
-the cost of additional quench-and-temper and flow-training work.
+the cost of additional QT and flow-training work.
 
 The complete accepted-stage ESS records, including every sharpening step, are
 available in [tables.md](alkane_family/tables.md).
 
 ## Macroscopic observables
 
-The macroscopic comparison uses the completed KLXX population with the
+The macroscopic comparison uses the completed KLXX samples from the run with the
 smallest factor for each molecule: fixed regularization for methane, ethane,
 and propane, and sharpening for butane through hexane. These are direct,
 unweighted samples at `(100, 0.15)`; no regularization-ESS resampling or
@@ -116,7 +116,7 @@ agreement on these selected thermodynamic and structural observables together
 with their systematic change along the C1–C6 homologous series. It does not
 establish equality of the complete molecular distributions.
 
-The endpoint regularization is also mild on these KLXX populations. The
+The endpoint regularization is also mild on these KLXX samples. The
 measured `1-RESS` is numerically zero from methane through butane,
 `9.5e-6` for pentane, and `2.3e-5` for hexane when reweighting from
 `(100, 0.15)` to the raw potential.
@@ -128,7 +128,7 @@ measured `1-RESS` is numerically zero from methane through butane,
 - All summary entries above are reproduced from `run.json` and accepted
   `stage.json` records. The factor uses incremental accepted-stage ESS and is
   not a separately evaluated full-chain importance ESS.
-- Each training configuration is one seed. Method-specific adaptive ladders
+- Each training configuration is one seed. Method-specific adaptive stage schedules
   and unequal per-stage work mean that the recorded times are descriptive,
   not a fixed-compute comparison.
 - The promoted OpenMM observables use only the 0.25 fs references. An earlier
@@ -140,7 +140,7 @@ measured `1-RESS` is numerically zero from methane through butane,
 ## Additional achiral molecules
 
 We next test N-methylacetamide (NMA), glycerol, and neutral diethanolamine at
-300 K. Every reported run uses seed 0, reaches the final bridge coefficient
+300 K. Every reported run uses seed 0, reaches the final stage point
 $t=1$, and sharpens from `(50, 0.20)` to the molecule-specific endpoint shown
 in the table. We compare $\mathrm{KL}+\mathrm{X}_{\mu}$ with
 $\mathrm{KL}+\mathrm{X}_{\mu}+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$ (KLXX).
@@ -193,10 +193,10 @@ $\mathrm{KL}+\mathrm{X}_{\mu}+\mathrm{X}_{(\hat\mu+\bar\nu)/2}$,
 respectively. The small upper-left insets show representative trans
 conformers.</em></p>
 
-The BG curves use the final samples under each molecule's regularized endpoint.
+The Boltzmann generator curves use the final samples under each molecule's regularized endpoint.
 The OpenMM curves use saved 300 K trajectories, so replots do not rerun
 OpenMM. The NMA reference shown here is initialized in the trans basin; the
-glycerol and neutral-diethanolamine references pool two seeds.
+glycerol and neutral diethanolamine references pool two seeds.
 
 ## Chiral molecules
 
@@ -204,7 +204,7 @@ We report completed KLXX runs for `(2R,3R)`-2,3-butanediol, alanine
 dipeptide restricted to its L form, and N-acetyl-L-proline N-methylamide
 (Ac-Pro-NHMe). Every run uses seed 0, `pool_size=0`, 250 Adam steps per
 accepted flow stage, an eight-level SMC ladder, and 100 mixed-MALA steps.
-The validation-population and batch sizes are 240,000/12,000, 300,000/15,000,
+The validation set and batch sizes are 240,000/12,000, 300,000/15,000,
 and 320,000/16,000, respectively. Only the full
 KL+X<sub>μ</sub>+X<sub>(μ̂+ν̄)/2</sub> loss was run, so this section makes no
 within-target method comparison.
@@ -240,7 +240,7 @@ stage-propagation diagnostics rather than a cross-molecule ranking.
 <p align="center"><img src="chiral/conformations.png" alt="Representative final-stage conformations for the three completed chiral targets" width="1300px"></p>
 
 <p align="center"><em>Representative final-stage conformations selected near
-the most populated two-dihedral basin of each saved validation population.
+the most populated two-dihedral basin of each saved validation set.
 Gold rings mark every fixed stereocenter, with the retained R/S configuration
 written beside it; the remaining colors follow the CPK element convention.</em></p>
 
@@ -254,12 +254,12 @@ O-C-C-O heavy-atom torsions, while the right column resolves the two hydroxyl
 orientations. Each column shares its color scale across stages, and the two
 diagnostics retain separate colorbars.</em></p>
 
-<p align="center"><img src="chiral/adp_60d/results/ramachandran.png" alt="Alanine-dipeptide Ramachandran free-energy surfaces at four sharpening stages" width="900px"></p>
+<p align="center"><img src="chiral/adp_60d/results/ramachandran.png" alt="Alanine dipeptide Ramachandran free-energy surfaces at four sharpening stages" width="900px"></p>
 
-<p align="center"><em>Alanine-dipeptide Ramachandran surfaces at accepted
-stages 4, 6, 8, and 10. Each panel uses the persisted 10-million-sample
-inference population generated by the frozen stage flow followed by the saved
-stage pushforward, resampling, rejuvenation, and sharpening operations. The
+<p align="center"><em>Alanine dipeptide Ramachandran surfaces at accepted
+stages 4, 6, 8, and 10. Each panel uses 10 million persisted inference samples
+generated with the frozen stage flow and then processed by the saved stage
+resampling, rejuvenation, and sharpening operations. The
 panels therefore show the changing regularized target along the path rather
 than four estimates of one fixed potential.</em></p>
 
@@ -272,6 +272,6 @@ t=0.520 and ρ=(102, 0.172); the lower row is the final stage 11 at t=1 and
 column separates the ACE-PRO cis/trans torsion and the two signs of the
 proline-ring pucker. All four panels use one free-energy scale.</em></p>
 
-These figures are diagnostics of the regularized KLXX populations. They do
+These figures are diagnostics of the regularized KLXX samples. They do
 not provide a matched loss comparison, a raw-potential equilibrium reference,
 or uncertainty over independently trained generators.
