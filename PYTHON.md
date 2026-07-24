@@ -1,190 +1,136 @@
 # Python environment
 
-The active local environment is the pip-only virtual environment
-`~/.envs/jflows`. It is used for every current JAX and molecular workflow in
-`Codes/` and `Molecular_BG/`. The former Conda `jflows` environment and the old
-`~/.envs/jax` environment are retired.
+KLXX requires the published `jflows` and `jflows_md` packages. They are
+installed together; a sibling source checkout, editable installation, or
+manually configured `PYTHONPATH` is not required.
 
-The two live source packages remain outside the environment:
+## Installation
 
-- `/data/projects/jflows`
-- `/data/projects/jflows_md`
-
-Local runs select them explicitly with `PYTHONPATH`. Do not install either
-package into `~/.envs/jflows`, create a persistent `.pth` file, or use an
-editable install for local experiments. This guarantees that every run uses
-the current checked-out source.
-
-## Clean construction
-
-The environment uses the system Python and latest compatible pip releases; it
-is not a bit-for-bit lockfile. On this workstation the system interpreter is
-Python 3.14.
+Use Python 3.11 or newer in a virtual environment. For example, from the KLXX
+repository root:
 
 ```bash
-rm -rf "$HOME/.envs/jflows"
-mkdir -p "$HOME/.envs"
-/usr/bin/python3.14 -m venv "$HOME/.envs/jflows"
-source "$HOME/.envs/jflows/bin/activate"
-
-pip install --upgrade pip
-pip install --upgrade \
-  "jax[cuda13]" equinox "openmm[cuda13]" parmed mdtraj \
-  scipy matplotlib h5py scikit-learn pyyaml ambertools-unofficial
+python -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+pip install 'jax[cuda13]' 'openmm[cuda13]'
+pip install jflows 'jflows_md[bundles]'
 ```
 
-The brackets are pip extras and should be quoted in shells such as zsh:
+Quoting the extras prevents shells such as zsh from expanding the brackets.
+The first command installs the CUDA 13 builds of JAX and OpenMM. The second
+installs both required project packages, Equinox through their declared
+dependencies, and the complete bundle-construction stack through the
+published `bundles` extra.
 
-- `jax[cuda13]` installs JAX plus its CUDA-13 PJRT/plugin and NVIDIA runtime
-  dependencies.
-- `openmm[cuda13]` installs the OpenMM Python API plus the matching
-  `OpenMM-CUDA-13` platform package. There is no generic `cuda` extra.
-- `ambertools-unofficial` supplies the optional AmberTools command-line
-  programs used to construct newly versioned small-molecule bundles. It is an
-  unofficial repackaging and is not required for training from frozen bundles.
+> **Remark.** PyPI treats hyphens and underscores as equivalent in project
+> names, so `pip install jflows 'jflows-md[bundles]'` performs the same
+> installation as the second command above. Python imports still use
+> `jflows_md`.
 
-Use the corresponding CUDA 12 extras on a CUDA 12 machine. Plain `jax` and
-plain `openmm` are sufficient only when GPU support is not required.
+## Validation
 
-## Required validation
-
-Check dependency closure and the preferred accelerator:
+Check the installed dependency set and backend status:
 
 ```bash
 pip check
-XLA_PYTHON_CLIENT_PREALLOCATE=false python
+python - <<'PY'
+import jflows_md
+
+jflows_md.backend()
+PY
 ```
 
-Then enter:
+The report shows the installed JAX, Equinox, and OpenMM versions and their
+available accelerator backends. For the installation above, it should report
+CUDA backends for JAX and OpenMM.
 
-```python
->>> import jax
->>> import jax.numpy as jnp
->>> print("backend:", jax.default_backend())
->>> print("devices:", jax.devices())
->>> x = jnp.arange(4096, dtype=jnp.float32)
->>> y = jax.jit(lambda value: jnp.sin(value).sum())(x)
->>> jax.block_until_ready(y)
->>> print("compiled device:", y.device)
-```
+## Running experiments
 
-The expected backend is `gpu` and the compiled value should live on `cuda:0`.
-Validate the molecular simulator separately:
+Run drivers from the KLXX repository root. They import the packages installed
+in the active environment directly:
 
 ```bash
-python -m openmm.testInstallation
+python Codes/Lattice_Clock/train.py
+python Codes/Molecular_BG/alkane_family/methane_9d_raw/train.py
 ```
 
-Reference, CPU, CUDA, and OpenCL should all compute forces within tolerance.
-Finally, confirm that local packages are not installed:
+The reported molecular runs use their full configurations and are complete.
+Do not rerun or overwrite their saved results without explicit authorization.
 
-```bash
-cd /tmp
-env -u PYTHONPATH python
+## Molecular bundles
+
+All molecular bundles are stored locally under `Codes/Molecular_BG`, with
+exactly one local copy for each target. Achiral, chiral, and raw-alkane drivers
+load the `bundle/` directory in their own working folder. The sole exception
+to this same-folder layout is a sharpening alkane: it reuses the bundle in the
+corresponding `*_raw` folder rather than keeping a duplicate. For example,
+`Codes/Molecular_BG/alkane_family/methane_9d_raw/` has the layout:
+
+```text
+methane_9d_raw/
+├── bundle/
+│   ├── coordinates.json
+│   ├── manifest.json
+│   ├── reference.pdb
+│   ├── system.json
+│   ├── system.xml
+│   └── validation.json
+├── parameters.py
+└── train.py
 ```
 
-Then enter:
+Each same-folder driver resolves its local data with
+`BUNDLE = HERE / "bundle"`. A sharpening alkane instead uses a relative
+sibling path, such as
+`BUNDLE = HERE.parent / "butane_36d_raw" / "bundle"`. Every retained bundle is
+a complete runtime input: training and evaluation do not require AmberTools,
+and the pure-JAX molecular potential does not invoke OpenMM at runtime.
 
-```python
->>> import importlib.metadata as metadata
->>> import importlib.util
->>> print("jflows module:", importlib.util.find_spec("jflows"))
->>> print("jflows_md module:", importlib.util.find_spec("jflows_md"))
->>> names = {distribution.metadata["Name"].lower() for distribution in metadata.distributions()}
->>> "jflows" in names
-False
->>> "jflows-md" in names
-False
-```
+## System specifications
 
-Both modules and distributions should be absent without `PYTHONPATH`.
+The following snapshot records the machine used for the reported computations
+on 2026-07-24.
 
-## Running local experiments
+### Hardware and operating system
 
-Activate the environment once in each new terminal. Commands then use ordinary
-`python` and `pip` names:
+<div align="center">
 
-```bash
-source "$HOME/.envs/jflows/bin/activate"
-```
+| component | specification |
+|---|---|
+| CPU | AMD Ryzen 9 9950X3D, 16 cores and 32 threads, up to 5.76 GHz |
+| GPU | NVIDIA GeForce RTX 5090 with 32,607 MiB VRAM; NVIDIA driver 610.43.03 |
+| RAM | 64 GB installed as two 32 GB DDR5-6000 CL36 modules; 6000 MT/s effective data rate, corresponding to a 3000 MHz DDR clock; Linux reports 60.2 GiB usable |
+| motherboard | MSI MPG X870E Carbon WiFi (MS-7E49) |
+| operating system | Arch Linux, rolling release, x86-64 |
+| kernel | Linux 7.1.4-arch1-1 |
 
-For `jflows` experiments:
+</div>
 
-```bash
-cd /data/projects/X-regularization
-PYTHONPATH=/data/projects/jflows \
-  python Codes/Lattice_Clock/train.py
-```
+The RAM description is based on the two detected DDR5 SPD devices and their
+`KF560C36-32` module strings. The unprivileged kernel interfaces expose the
+module rating but not an independent live memory-controller clock, so
+3000 MHz is the clock corresponding to the rated DDR5-6000 profile.
 
-For molecular experiments:
+### Software environment
 
-```bash
-cd /data/projects/X-regularization
-PYTHONPATH=/data/projects/jflows:/data/projects/jflows_md \
-  python Molecular_BG/methane_9d/train.py
-```
+The package versions below were read directly from
+`/home/xuda/.envs/jflows`:
 
-Every molecular driver is full-size. The current 9D--45D results are complete;
-do not rerun or overwrite them without explicit authorization. No smoke-sized
-ESS run is a substitute for these configurations.
+<div align="center">
 
-## Isolated package smoke tests
+| package | version |
+|---|---:|
+| Python | 3.14.6 |
+| JAX | 0.11.0 |
+| JAXlib | 0.11.0 |
+| JAX CUDA 13 plugin | 0.11.0 |
+| Equinox | 0.13.8 |
+| OpenMM | 8.5.2 |
+| OpenMM CUDA 13 | 8.5.2 |
+| NumPy | 2.4.6 |
+| SciPy | 1.18.0 |
+| `jflows` | 0.5.4 |
+| `jflows_md` | 0.5.4 |
 
-Verification should not write caches or generated artifacts into public source
-trees. Copy the required trees to a temporary directory:
-
-```bash
-tmp=$(mktemp -d /tmp/jflows-smoke.XXXXXX)
-mkdir -p "$tmp/jflows" "$tmp/jflows_md"
-rsync -a --exclude='.git/' --exclude='__pycache__/' \
-  /data/projects/jflows/jflows /data/projects/jflows/smoke \
-  /data/projects/jflows/pyproject.toml "$tmp/jflows/"
-rsync -a --exclude='.git/' --exclude='__pycache__/' \
-  /data/projects/jflows_md/jflows_md /data/projects/jflows_md/smoke \
-  /data/projects/jflows_md/bundles /data/projects/jflows_md/pyproject.toml \
-  "$tmp/jflows_md/"
-
-XLA_PYTHON_CLIENT_PREALLOCATE=false \
-PYTHONPATH="$tmp/jflows:$tmp/jflows_md" \
-  python "$tmp/jflows_md/smoke/run_all.py"
-
-rm -rf "$tmp"
-```
-
-The suite does not launch production molecular training.
-
-## Current verification snapshot
-
-The environment rebuilt on 2026-07-11 resolved the following releases. These
-are evidence, not installation pins:
-
-- Python 3.14.6
-- JAX/JAXlib/CUDA plugin 0.10.2 and Equinox 0.13.8
-- OpenMM and OpenMM-CUDA-13 8.5.2
-- ParmEd 4.3.1 and MDTraj 1.11.1.post2
-- NumPy 2.4.6 and SciPy 1.18.0
-- Matplotlib 3.11.0, h5py 3.16.0, and scikit-learn 1.9.0
-- PyYAML 6.0.3 for local skill/frontmatter validation
-- `ambertools-unofficial` 26.0.0, providing working `antechamber`,
-  `parmchk2`, `tleap`, and `sqm` commands
-
-The complete isolated `jflows_md` smoke suite passed on `cuda:0`, including all
-three molecular potentials, Mixed_NSF, MALA, SMC/AIS, artifact reconstruction,
-one tiny Boltzmann-generator stage, and the real float32 glycerol compile path.
-
-## Optional bundle reconstruction
-
-Checked-in bundles are complete runtime inputs. Training and evaluation do not
-need AmberTools, and the pure-JAX molecular potential does not invoke OpenMM at
-runtime.
-
-The installed `ambertools-unofficial` 26.0.0 toolchain can construct newly
-versioned glycerol, diethanolamine, and other GAFF2/AM1-BCC targets. Because it
-is an unofficial repackaging, use it only with explicit provenance and hashes.
-The existing small-molecule bundles are frozen to AmberTools 24.8, so their
-exact historical rebuild gate intentionally rejects version 26 output. ADP is
-independent of AmberTools; its regenerated Hamiltonian and molecular potential
-match the frozen FAB target.
-
-The corresponding old molecular trees below `.archive/` retain historical
-JAX/PyTorch/zflows instructions. They are not active environment documentation.
+</div>
