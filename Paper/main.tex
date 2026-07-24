@@ -156,14 +156,14 @@ Section~\ref{sec: FR} analyzes convergence and fixed-surrogate error for $\KL$+$
 \section{Fisher--Rao gradient flow analysis}
 \label{sec: FR}
 
-For a tractable analysis we keep only the forward KL and the target log-ratio variation $\X_\mu$ in the full loss function \eqref{eq: total-loss}, and the contributions weighted by $\hat\mu$ and $\bar\nu$ are left out. The loss is then
+For simplicity, this section analyzes only forward KL with the target-weighted regularizer $\lambda\X_\mu$ as a density-space flow. Starting from the full loss \eqref{eq: total-loss}, we omit the mixture term weighted by $\hat\mu$ and $\bar\nu$ and consider
 \begin{equation}
     \mathcal L[\nu] = \KL(\mu\|\nu) + \lambda\,\X_\mu(\mu\|\nu),
     \label{eq: loss KL X}
 \end{equation}
-with $\lambda > 0$ fixed.
+with fixed $\lambda > 0$. This restriction isolates the nonlocal rank correlation induced by $\X_\mu$ from the additional mixture term built from QT and detached pushforward samples. It does not cover the full KLXX objective or its discrete neural-network optimization.
 
-The choice of Riemannian metric matters. In the Wasserstein-2 geometry the forward KL is not displacement convex, so the Otto--Villani/Bakry--{\'E}mery argument used for the reverse KL does not apply. We therefore work in the Fisher--Rao (FR) geometry. Along a positive FR solution, the forward KL has an exponential bound, and $\X_\mu$ adds a nonlocal birth--death term: the update at one point depends on how its importance weight ranks among weights under $\mu$. Writing the $\nu$-mean as $\langle\,\cdot\,\rangle_\nu := \int (\cdot)\,\nu\,\D x$, the FR gradient of a smooth functional $\mathcal F$ and the selected flow for $\mathcal L$ are
+The metric determines the resulting density dynamics. In the Wasserstein-2 geometry the forward KL is not displacement convex, so the Otto--Villani \citep{otto2000generalization} and Bakry--{\'E}mery \citep{bakry2014analysis} arguments used for the reverse KL do not apply. We instead work in the Fisher--Rao (FR) geometry. We set $\operatorname{sgn}(0)=0$ and assume throughout that the densities are positive and sufficiently regular for the gradient calculations. Writing the $\nu$-mean as $\langle\,\cdot\,\rangle_\nu := \int (\cdot)\,\nu\,\D x$, the FR gradient of a smooth functional $\mathcal F$ and the gradient flow for $\mathcal L$ are
 \begin{equation}
     \mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu) = \nu\Bigl(\frac{\delta\mathcal F}{\delta\nu} - \Bigl\langle\frac{\delta\mathcal F}{\delta\nu}\Bigr\rangle_\nu\Bigr),
     \qquad
@@ -172,7 +172,16 @@ The choice of Riemannian metric matters. In the Wasserstein-2 geometry the forwa
 \end{equation}
 and the mean-subtraction makes $\int \mathrm{grad}^{\mathrm{FR}}\mathcal F = 0$, so the flow conserves probability mass.
 
-Differentiating $\KL(\mu\|\nu_t)$ along this flow, and reducing the $\X_\mu$ term by a rank-correlation identity, gives the dissipation
+For the loss \eqref{eq: loss KL X}, the gradient flow has the explicit form
+\begin{equation}
+    \partial_t\nu_t(x) = \mu(x) - \nu_t(x) + 2\lambda \mu(x) S_t(x), \quad
+    \text{where~}
+    S_t(x) := \mathbb E_{y\sim\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\biggr)\biggr].
+    \label{eq: appendix-FR-L-flow}
+\end{equation}
+The local term $\mu(x)-\nu_t(x)$ is the FR flow of forward KL, while $S_t$ is the nonlocal rank correlation: the update at $x$ depends on how $\mu(x)/\nu_t(x)$ compares with the full distribution of importance weights under $\mu$. Since $\mathbb E_\mu[S_t]=0$, this term preserves total mass. Appendix~\ref{subsec: appendix-FR-grad-calc} derives \eqref{eq: appendix-FR-L-flow}.
+
+Differentiating $\KL(\mu\|\nu_t)$ along this flow, and reducing the $\X_\mu$ term by a rank correlation identity, gives the dissipation
 \begin{equation}
     \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\chi^2(\mu\|\nu_t) - \lambda\, \mathbb E_{x,y\sim\mu}\!\left[ \left|\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\right| \right],
     \label{eq: combined-rate}
@@ -194,13 +203,13 @@ The convergence result assumes that the outer expectation is taken under the exa
 We assume that the densities are positive on their common domain and that the displayed KL, chi-squared, and pair integrals are finite. At $\lambda=0$, the stationary density is $\nu^\star=\tilde\mu$, so the residual error is $\KL(\mu\|\tilde\mu)$. The next result shows when $\X_\mu$ improves this stationary-error bound. It is an idealization of one detached surrogate, not a theorem for the changing empirical batches used by the trainer.
 \begin{theorem}
 \label{thm: accuracy}
-Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \in [0, \tfrac12)$. Then every stationary density $\nu^\star$ of the selected subgradient flow for the fixed-surrogate loss $\widetilde{\mathcal L}$ in \eqref{eq: surrogate-loss-main} satisfies
+Assume $\mu$ is absolutely continuous with respect to $\tilde\mu$ and $\lambda \in [0, \tfrac12)$. Then every stationary density $\nu^\star$ of the gradient flow for the fixed-surrogate loss $\widetilde{\mathcal L}$ in \eqref{eq: surrogate-loss-main} satisfies
 \begin{equation}
     \KL(\mu\|\nu^\star) \Le \KL(\mu\|\tilde\mu) - \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y) \biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr| \D x \D y.
     \label{eq: accuracy-bound}
 \end{equation}
 \end{theorem}
-\noindent The subtracted term is nonnegative and is positive unless the displayed importance ratio is constant on the support of $\tilde\mu$. Within the theorem's assumptions, the rank feedback raises $\nu^\star$ in comparatively underweighted regions and lowers it elsewhere. The experiments use $\lambda=1$, outside the sufficient range $\lambda<\tfrac12$, so the theorem does not certify their finite-training behavior. Appendix~\ref{sec: appendix-FR} gives the variation, rank-correlation identity, and proofs.
+\noindent The subtracted term is nonnegative and is positive unless the displayed importance ratio is constant on the support of $\tilde\mu$. Within the theorem's assumptions, the rank correlation induced by the second term in \eqref{eq: surrogate-loss-main} raises $\nu^\star$ in comparatively underweighted regions and lowers it elsewhere. The experiments use $\lambda=1$, outside the sufficient range $\lambda<\tfrac12$, so the theorem does not certify their finite-training behavior. Appendix~\ref{sec: appendix-FR} gives the variation, rank correlation identity, and proofs.
 
 % ===================== Sections 3-4: training + generator =====================
 \section{Flow training with log-ratio variation}
@@ -1112,7 +1121,7 @@ For alanine dipeptide, Figure~\ref{fig: mol-adp-ramachandran} tracks the Ramacha
 \begin{figure}[p]
 \centering
 \includegraphics[width=\textwidth]{figures/molecular_adp_ramachandran.png}
-\caption{Alanine-dipeptide Ramachandran free-energy surfaces at accepted stages \(4\), \(6\), \(8\), and \(10\). Each panel contains \(10^7\) persisted inference samples after the corresponding saved-flow pushforward, resampling, rejuvenation, sharpening, and post-sharpen rejuvenation operations. The panel titles give the stage interpolation parameter and regularization value; stage \(10\) reaches \(t=1\) and \(\rho=(125,0.10)\). A common colorbar reports free energy relative to the observed minimum in units of \(k_{\mathrm B}T\).}
+\caption{Alanine dipeptide Ramachandran free-energy surfaces at accepted stages \(4\), \(6\), \(8\), and \(10\). Each panel contains \(10^7\) persisted inference samples after the corresponding saved-flow pushforward, resampling, rejuvenation, sharpening, and post-sharpen rejuvenation operations. The panel titles give the stage interpolation parameter and regularization value; stage \(10\) reaches \(t=1\) and \(\rho=(125,0.10)\). A common colorbar reports free energy relative to the observed minimum in units of \(k_{\mathrm B}T\).}
 \label{fig: mol-adp-ramachandran}
 \end{figure}
 
@@ -1135,7 +1144,7 @@ These four figures diagnose the regularized KLXX populations and their retained 
 
 Forward KL is mass-covering for exact distributions, but its sampled loss sees only the target regions supplied to it. This gap can produce a misleading ESS, transfer surrogate error to the flow, and leave target-poor proposal regions weakly constrained. Log-ratio variation addresses these failures by comparing the exact log-density ratio at pairs of samples. The sampling weight determines which regions are compared: target samples measure density variation on reached target regions, QT samples add candidate modes, and pushforward samples expose regions occupied by the proposal. KLXX combines these comparisons while retaining the exact target as a minimizer and the flow as a tractable importance proposal.
 
-The theory establishes a narrower statement. For the selected Fisher--Rao subgradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also improves the stationary-error bound by a nonnegative discrepancy term. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
+The theory establishes a narrower statement. For the Fisher--Rao gradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also improves the stationary-error bound by a nonnegative discrepancy term. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
 
 The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ reported stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins in the reported conformational diagnostics. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
 
@@ -1165,7 +1174,7 @@ $32$\,GB of VRAM.
 
 Section~\ref{sec: FR} states the main gradient-flow results used in the paper. This appendix supplies their derivations and proofs on the space of densities. We view $\nu$ as a generic probability density evolving along the gradient flow of the loss under an appropriate Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ converges to the target $\mu$ in $\KL(\mu\|\nu_t)$.
 
-The absolute value in $\X_\mu$ is not differentiable when two log-ratios coincide. We set $\operatorname{sgn}(0)=0$, selecting the zero subgradient at a tie, and study the corresponding formal Fisher--Rao subgradient flow. The densities below are assumed positive and regular enough for the displayed calculations.
+At ties we set $\operatorname{sgn}(0)=0$. Throughout this appendix, the densities are assumed positive and sufficiently regular for the displayed gradient calculations.
 
 In this section we restrict to the loss with only the forward KL and the shape regularizer $\X_\mu$, the log-ratio variation at weight $\omega = \mu$,
 \begin{equation}
@@ -1174,14 +1183,14 @@ In this section we restrict to the loss with only the forward KL and the shape r
      \mu(x)\mu(y) \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x \D y,
     \label{eq: appendix-loss-KL-X}
 \end{equation}
-where $\lambda>0$ is fixed. The calculations below hold along a positive solution of the selected flow; when $\lambda\Le\tfrac12$, the birth term in \eqref{eq: appendix-FR-L-flow} is nonnegative and preserves positivity.
+where $\lambda>0$ is fixed. The calculations below hold along a positive solution of this gradient flow; when $\lambda\Le\tfrac12$, the birth term in \eqref{eq: appendix-FR-L-flow} is nonnegative and preserves positivity.
 Throughout this section we abbreviate the importance weight by
 \begin{equation*}
     w(x) := \frac{\mu(x)}{\nu(x)},
 \end{equation*}
 so that the log-ratio is $z(x) = \log w(x) = \log\mu(x) - \log\nu(x)$, the field $z$ of \eqref{eq: logratio-z}. The importance weight $w$ is distinct from the localization measure $\omega$ in $\X_\omega$.
 
-The choice of Riemannian metric matters. In the Wasserstein-2 geometry, induced by optimal transport \citep{jordan1998variational,otto2001geometry}, the forward KL fails to be displacement convex along Wasserstein-2 geodesics, and the standard Otto--Villani/Bakry--{\'E}mery argument \citep{otto2000generalization,bakry2014analysis} used for the reverse KL does not apply. We therefore work in the Fisher--Rao (FR) geometry \citep{amari2016information,bauer2016uniqueness}. Along the selected positive flow, the forward KL has an exponential bound and $\X_\mu$ contributes a nonlocal birth--death term \citep{lu2019accelerating}: the update at $x$ depends on how its importance weight ranks among weights under $\mu$.
+The choice of Riemannian metric matters. In the Wasserstein-2 geometry, induced by optimal transport \citep{jordan1998variational,otto2001geometry}, the forward KL fails to be displacement convex along Wasserstein-2 geodesics, and the standard Otto--Villani/Bakry--{\'E}mery argument \citep{otto2000generalization,bakry2014analysis} used for the reverse KL does not apply. We therefore work in the Fisher--Rao (FR) geometry \citep{amari2016information,bauer2016uniqueness}. Along the positive flow, the forward KL has an exponential bound and $\X_\mu$ contributes a nonlocal birth--death term \citep{lu2019accelerating}: the update at $x$ depends on how its importance weight ranks among weights under $\mu$.
 
 Denoting the $\nu$-mean by $\langle \cdot \rangle_\nu := \int( \cdot ) \nu \D x$, the Fisher--Rao gradient of a functional $\mathcal F[\nu]$ and the associated dissipation identity along the FR gradient flow $\partial_t\nu_t = -\mathrm{grad}^{\mathrm{FR}}\mathcal F(\nu_t)$ are
 \begin{equation}
@@ -1206,7 +1215,7 @@ so by \eqref{eq: appendix-FR-gradient}, using $\langle w \rangle_\nu = \int_{\ma
     \label{eq: appendix-FR-grad-KL}
 \end{equation}
 
-For $\X_\mu$, the selected subvariation applies $\operatorname{sgn}(0)=0$ to the absolute value. At an evaluation point $r$, the variation of the inner log-ratio difference is
+For $\X_\mu$, the variation uses $\operatorname{sgn}(0)=0$ at ties. At an evaluation point $r$, the variation of the inner log-ratio difference is
 \begin{equation*}
     \frac{\delta}{\delta\nu(r)}
     \bigl[\log w(x)-\log w(y)\bigr]
@@ -1214,7 +1223,7 @@ For $\X_\mu$, the selected subvariation applies $\operatorname{sgn}(0)=0$ to the
     +\frac{\delta(r-y)}{\nu(y)}.
 \end{equation*}
 Here $\delta$ is the Dirac distribution, so integration against $\delta(r-x)$ evaluates the remaining integrand at $x=r$.
-Applying the selected sign subgradient and then exchanging $x$ and $y$ in the second term gives
+Applying this sign convention and then exchanging $x$ and $y$ in the second term gives
 \begin{align*}
     \frac{\delta \X_\mu(\mu\|\nu)}{\delta \nu}(r)
     & = \iint_{\mathbb R^d\times\mathbb R^d}
@@ -1224,39 +1233,32 @@ Applying the selected sign subgradient and then exchanging $x$ and $y$ in the se
     & = -2w(r)\int_{\mathbb R^d}
     \mu(y)\operatorname{sgn}\bigl(w(r)-w(y)\bigr)\D y.
 \end{align*}
-Hence the selected subvariation is
+Hence the variation is
 \begin{equation}
     \frac{\delta \X_\mu(\mu\|\nu)}{\delta \nu}(x) = - 2w(x)S(x),
     \qquad
     S(x) := \mathbb E_{y\sim\mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr].
     \label{eq: appendix-var-X}
 \end{equation}
-We call $S$ the \emph{rank field} of the importance weight under $\mu$: $S(x) > 0$ indicates that $w(x)$ is comparatively large within the distribution of weights, and hence that $\nu$ pointwise undercovers $\mu$ relative to that distribution; $S(x) < 0$ has the opposite interpretation, and $S \equiv 0$ at $\nu = \mu$. By antisymmetry,
+We call $S$ the \emph{rank correlation} of the importance weight under $\mu$: $S(x) > 0$ indicates that $w(x)$ is comparatively large within the distribution of weights, and hence that $\nu$ pointwise undercovers $\mu$ relative to that distribution; $S(x) < 0$ has the opposite interpretation, and $S \equiv 0$ at $\nu = \mu$. By antisymmetry,
 \begin{equation*}
     \mathbb E_\mu[S] = \mathbb E_{x,y\sim \mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr] = 0,
 \end{equation*}
-and the selected FR subgradient of $\X_\mu$ with respect to $\nu$ is
+and the FR gradient of $\X_\mu$ with respect to $\nu$ is
 \begin{equation}
     \mathrm{grad}^{\mathrm{FR}}\big[\X_\mu(\mu\|\nu)\big](x) = -2\mu(x) S(x).
     \label{eq: appendix-FR-grad-X}
 \end{equation}
 
-The selected FR subgradient of $\mathcal L[\nu]=\KL(\mu\|\nu)+\lambda\X_\mu(\mu\|\nu)$ is the sum of \eqref{eq: appendix-FR-grad-KL} and \eqref{eq: appendix-FR-grad-X}:
+The FR gradient of $\mathcal L[\nu]=\KL(\mu\|\nu)+\lambda\X_\mu(\mu\|\nu)$ is the sum of \eqref{eq: appendix-FR-grad-KL} and \eqref{eq: appendix-FR-grad-X}:
 \begin{equation*}
     \mathrm{grad}^{\mathrm{FR}}[\mathcal L](x) = \nu(x) - \mu(x) - 2\lambda \mu(x) S(x).
 \end{equation*}
-The selected Fisher--Rao subgradient flow therefore reads
-\begin{equation}
-    \partial_t\nu_t(x) = \mu(x) - \nu_t(x) + 2\lambda \mu(x) S_t(x), \quad
-    \text{where~}
-    S_t(x) := \mathbb E_{y\sim\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\biggr)\biggr].
-    \label{eq: appendix-FR-L-flow}
-\end{equation}
-Equation~\eqref{eq: appendix-FR-L-flow} is a \emph{nonlocal} PDE: its right-hand side at $x$ depends on $S_t(x)$, which in turn requires the entire profile of the importance weight $\mu/\nu_t$ over the support of $\mu$. Mass is conserved along the flow because
+This yields the Fisher--Rao gradient flow \eqref{eq: appendix-FR-L-flow} stated in Section~\ref{sec: FR}. It is a \emph{nonlocal} PDE: its right-hand side at $x$ depends on $S_t(x)$, which in turn requires the entire profile of the importance weight $\mu/\nu_t$ over the support of $\mu$. Mass is conserved along the flow because
 \begin{equation*}
     \frac{\D}{\D t}\!\int_{\mathbb R^d}\!\nu_t(x) \D x = 2\lambda\!\int_{\mathbb R^d}\!\mu(x) S_t(x) \D x = 0,
 \end{equation*}
-and the flow is stationary at $\nu_t = \mu$, where $\mu(x)/\nu_t(x) \equiv 1$ and hence $S_t\equiv 0$. When $\lambda = 0$, \eqref{eq: appendix-FR-L-flow} reduces to the pure Fisher--Rao gradient flow of the forward KL.
+and the flow is stationary at $\nu_t = \mu$, where $\mu(x)/\nu_t(x) \equiv 1$ and hence $S_t\equiv 0$. When $\lambda = 0$, \eqref{eq: appendix-FR-L-flow} reduces to the Fisher--Rao gradient flow of forward KL.
 
 \subsection{Convergence analysis of the \texorpdfstring{$\X_\mu$}{X-mu}-regularized flow}
 \label{subsec: appendix-FR-convergence}
@@ -1269,10 +1271,10 @@ where the chi-squared divergence is
 \begin{equation*}
     \chi^2(\mu\|\nu) := \int_{\mathbb R^d}(w-1)^2\nu\D x = \int_{\mathbb R^d} w^2\nu\D x - 1.
 \end{equation*}
-The sign of the second integral is settled by the following rank-correlation identity.
+The sign of the second integral is settled by the following rank correlation identity.
 
 \begin{lemma}
-\label{lem: appendix-rank-correlation}
+\label{lem: appendix-rankcorrelation}
 Let $\mu$ and $\nu$ be positive probability densities for which the displayed integral is finite. Then
 \begin{equation*}
     \int_{\mathbb R^d}\frac{\mu(x)^2}{\nu(x)}S(x)\D x = \frac{1}{2} \mathbb E_{x,y\sim\mu}\bigl[|w(x) - w(y)|\bigr] \Ge 0,
@@ -1291,7 +1293,7 @@ Symmetrizing in $x\leftrightarrow y$ gives
 \end{equation*}
 \end{proof}
 
-Applying Lemma~\ref{lem: appendix-rank-correlation} with $\nu = \nu_t$ and $S = S_t$, the dissipation rewrites as
+Applying Lemma~\ref{lem: appendix-rankcorrelation} with $\nu = \nu_t$ and $S = S_t$, the dissipation rewrites as
 \begin{equation}
     \frac{\D}{\D t}\KL(\mu\|\nu_t) = -\chi^2(\mu\|\nu_t) - \lambda \mathbb E_{x,y\sim\mu}\!\left[ \left|\frac{\mu(x)}{\nu_t(x)} - \frac{\mu(y)}{\nu_t(y)}\right| \right].
     \label{eq: appendix-combined-rate}
@@ -1305,38 +1307,38 @@ with no structural assumption on $\mu$: neither log-concavity, nor a spectral ga
 
 The uniform convergence rate \eqref{eq: appendix-KL-exponential} should \emph{not} be read as a blanket statement that minimizing the forward KL is intrinsically faster or more efficient than minimizing the reverse KL. The FR flow is a continuous-time idealization on the space of densities and does not account for sampling cost. In practice, evaluating the forward KL and its gradient requires samples from $\mu$, and producing representative samples in high dimensions is itself difficult. The empirical KLXX objective therefore also evaluates the exact log-ratio on the quench and temper measure $\hat\mu$, which is intended to supply support information that may be absent from the target-sample measure. The bound above quantifies convergence given exact target expectations; it does not establish the behavior of this additional empirical term or remove the cost of constructing its samples.
 
-A naive comparison of dissipation rates between the unregularized $\KL$ loss and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: the pure forward KL term depends locally on the value of $\mu(x)/\nu_t(x)$, whereas the rank field $S_t$ compares that value with the complete distribution of importance weights under $\mu$. The regularized flow \eqref{eq: appendix-FR-L-flow} therefore couples the update at $x$ to global rank information that the local forward KL term does not contain.
+A naive comparison of dissipation rates between the unregularized $\KL$ loss and $\KL + \lambda \X_\mu$ would also be misleading, since scaling the loss by a constant is mere time reparametrization with no qualitative gain. The substantive contribution of $\X_\mu$ is structural rather than rate-based: the pure forward KL term depends locally on the value of $\mu(x)/\nu_t(x)$, whereas the rank correlation $S_t$ compares that value with the complete distribution of importance weights under $\mu$. The regularized flow \eqref{eq: appendix-FR-L-flow} therefore couples the update at $x$ to this rank correlation, which the local forward KL term does not contain.
 
 Two further cautions concern the discrete realization of the flow. First, the time-reparametrization argument cuts in both directions once the optimizer enters. Training follows Adam steps, not the FR flow: the per-coordinate second-moment normalization absorbs a global rescaling of the loss, so a larger gradient buys no speedup by itself, while a regularizer that reshapes the relative magnitudes of the gradient components does change the optimizer's effective time scale. Part of any observed difference in training speed between $\KL$ and $\KL + \lambda \X_\mu$ may therefore be optimizer scaling rather than information geometry, and we claim no universal transient speedup on this basis. Second, the dissipation \eqref{eq: appendix-combined-rate} is a density-space statement, while each gradient step uses a finite, generally biased sample estimate. The staged clock experiment examines this finite-batch setting with a schedule-matched comparison: its quantitative claims use the selected-proposal ESS over the complete validation set at each stage, not a composed endpoint estimate or a diagnostic computed on a training mini-batch.
 
-Despite these cautions, the density-space flow retains a further monotonicity property: $\X_\mu$ decreases along the selected regularized flow. Pairing the selected subvariation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: appendix-var-X} against the flow \eqref{eq: appendix-FR-L-flow} gives
+Despite these cautions, the density-space flow retains a further monotonicity property: $\X_\mu$ decreases along the regularized flow. Pairing the variation $\delta\X_\mu/\delta\nu = -2wS$ \eqref{eq: appendix-var-X} against the flow \eqref{eq: appendix-FR-L-flow} gives
 \begin{equation*}
     \frac{\D}{\D t}\X_\mu(\mu\|\nu_t) = -2\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t} S_t \D x - 4\lambda\!\int_{\mathbb R^d}\frac{\mu^2}{\nu_t} S_t^2 \D x  \Le  0.
 \end{equation*}
-The first term is nonpositive by Lemma~\ref{lem: appendix-rank-correlation} and vanishes only when $\mu/\nu_t$ is $\mu$-almost-everywhere constant. Hence the inequality is strict away from that case, and $\X_\mu$ is driven to zero along the flow.
+The first term is nonpositive by Lemma~\ref{lem: appendix-rankcorrelation} and vanishes only when $\mu/\nu_t$ is $\mu$-almost-everywhere constant. Hence the inequality is strict away from that case, and $\X_\mu$ is driven to zero along the flow.
 
 \subsection{Asymptotic accuracy for a fixed biased surrogate}
 \label{subsec: appendix-accuracy}
 
-The convergence analysis of Section~\ref{subsec: appendix-FR-convergence} takes the outer expectation in $\KL(\mu\|\nu)+\lambda\X_\mu(\mu\|\nu)$ under the exact target. To isolate surrogate bias, fix a smooth density $\tilde\mu$ that does not vary with $\nu$ during this analysis and define
+The convergence analysis of Section~\ref{subsec: appendix-FR-convergence} takes the outer expectation in $\KL(\mu\|\nu)+\lambda\X_\mu(\mu\|\nu)$ under the exact target. To isolate surrogate bias, fix a smooth density $\tilde\mu$ that does not vary with $\nu$ and define
 \begin{equation}
     \widetilde{\mathcal L}[\nu]
     = \int_{\mathbb R^d}\!\tilde\mu(x)\log w(x)\D x
     + \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y)\bigl|\log w(x) - \log w(y)\bigr|\D x\D y,
     \label{eq: appendix-surrogate-loss}
 \end{equation}
-where the pointwise ratio $w(x)=\mu(x)/\nu(x)$ is still evaluated against the exact target. Repeating the selected-subgradient calculation of Section~\ref{subsec: appendix-FR-grad-calc} with $\mu$ replaced by $\tilde\mu$ only in the outer integrals gives
+where the pointwise ratio $w(x)=\mu(x)/\nu(x)$ is still evaluated against the exact target. Repeating the gradient calculation of Section~\ref{subsec: appendix-FR-grad-calc} with $\mu$ replaced by $\tilde\mu$ only in the outer integrals gives
 \begin{equation*}
     \mathrm{grad}^{\mathrm{FR}}\bigl[\widetilde{\mathcal L}\bigr](x) = \nu(x) - \tilde\mu(x)\bigl(1 + 2\lambda \widetilde S(x)\bigr),
     \qquad
     \widetilde S(x) := \mathbb E_{y\sim\tilde\mu}\bigl[\operatorname{sgn}(w(x) - w(y))\bigr].
 \end{equation*}
-A stationary density $\nu^\star$ of this selected flow therefore satisfies
+A stationary density $\nu^\star$ of this gradient flow therefore satisfies
 \begin{equation}
     \nu^\star(x) = \tilde\mu(x)\biggl[1 + 2\lambda\!\int_{\mathbb R^d}\tilde\mu(y)\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr)\D y\biggr].
     \label{eq: appendix-surrogate-stationary}
 \end{equation}
-At $\lambda=0$, the equation reduces to $\nu^\star=\tilde\mu$ and the residual error is $\KL(\mu\|\tilde\mu)$. For $\lambda>0$, the rank correction $1+2\lambda\widetilde S^\star$ raises $\nu^\star$ relative to $\tilde\mu$ where $\mu/\nu^\star$ is comparatively high and lowers it where the ratio is low. For $\lambda<\frac12$, the bracket in \eqref{eq: appendix-surrogate-stationary} is positive because $\widetilde S^\star\in[-1,1]$. Antisymmetry of the sign also gives
+At $\lambda=0$, the equation reduces to $\nu^\star=\tilde\mu$ and the residual error is $\KL(\mu\|\tilde\mu)$. For $\lambda>0$, the rank correlation $\widetilde S^\star$ enters through $1+2\lambda\widetilde S^\star$, raising $\nu^\star$ relative to $\tilde\mu$ where $\mu/\nu^\star$ is comparatively high and lowering it where the ratio is low. For $\lambda<\frac12$, \eqref{eq: appendix-surrogate-stationary} is positive because $\widetilde S^\star\in[-1,1]$. Antisymmetry of the sign also gives
 \begin{equation*}
     \int_{\mathbb R^d} \tilde\mu(x)\, \widetilde S^\star(x)\, \D x
     = \mathbb E_{x, y \sim \tilde\mu}\biggl[\operatorname{sgn}\biggl(\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr)\biggr] = 0,
@@ -1345,7 +1347,7 @@ hence every stationary point $\nu^\star = \tilde\mu(1 + 2\lambda \widetilde S^\s
 
 \begin{theorem}
 \label{thm: appendix-accuracy}
-Assume that $\mu$ is absolutely continuous with respect to $\tilde\mu$ and that $\lambda \in [0, \frac12)$. Then every stationary density $\nu^\star$ of the selected subgradient flow for $\widetilde{\mathcal L}$ in \eqref{eq: appendix-surrogate-loss} satisfies
+Assume that $\mu$ is absolutely continuous with respect to $\tilde\mu$ and that $\lambda \in [0, \frac12)$. Then every stationary density $\nu^\star$ of the gradient flow for $\widetilde{\mathcal L}$ in \eqref{eq: appendix-surrogate-loss} satisfies
 \begin{equation}
     \KL(\mu\|\nu^\star) \Le \KL(\mu\|\tilde\mu) - \lambda\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y) \biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr| \D x \D y.
     \label{eq: appendix-accuracy-bound}
@@ -1364,7 +1366,7 @@ where $u(x) := 1 + 2\lambda\widetilde S^\star(x) \Ge 1 - 2\lambda > 0$, since $\
     \KL(\mu\|\tilde\mu) - \KL(\mu\|\nu^\star)
     \Ge 2\lambda\!\int_{\mathbb R^d}\!\tilde\mu(x) \frac{\mu(x)}{\nu^\star(x)} \widetilde S^\star(x)\D x.
 \end{equation*}
-Applying the rank-correlation argument of Lemma~\ref{lem: appendix-rank-correlation} verbatim with $\mu$ replaced by $\tilde\mu$ in the outer measure,
+Applying the rank correlation identity of Lemma~\ref{lem: appendix-rankcorrelation} verbatim with $\mu$ replaced by $\tilde\mu$ in the outer measure,
 \begin{equation*}
     \int_{\mathbb R^d}\!\tilde\mu(x)\frac{\mu(x)}{\nu^\star(x)}\widetilde S^\star(x)\D x = \frac{1}{2}\!\iint_{\mathbb R^d\times\mathbb R^d}\!\tilde\mu(x)\tilde\mu(y) \biggl|\frac{\mu(x)}{\nu^\star(x)} - \frac{\mu(y)}{\nu^\star(y)}\biggr|\D x\D y,
 \end{equation*}
