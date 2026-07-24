@@ -1,4 +1,4 @@
-"""Full-size n-butane Boltzmann-generator parameters."""
+"""Full-size n-butane Boltzmann generator parameters."""
 
 MOLECULE = "n_butane"
 FORMULA = "C4H10"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the completed propane 27D bridge start exactly.
+    # Match the completed propane 27D stage-schedule start exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.7,
     "enlarge_factor": 1.4,

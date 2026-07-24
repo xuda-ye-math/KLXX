@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Direct macroscopic observables from the best final KLXX populations."""
+"""Direct macroscopic observables from the best final KLXX samples."""
 
 import json
 import math
@@ -68,10 +68,8 @@ def batch_observables(samples, target, regularized, carbon_indices):
 
 
 def bundle(folder):
-    local = folder / "bundle"
-    if local.exists():
-        return local
-    return ROOT / "regularization" / "bundle" / folder.name.replace("_raw", "")
+    molecule = folder.name.removesuffix("_raw")
+    return ROOT / f"{molecule}_raw" / "bundle"
 
 
 def records(run_dir, run):

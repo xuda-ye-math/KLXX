@@ -8,7 +8,7 @@ $$\prod_s \frac{1}{\operatorname{ESS}_s},$$
 
 where the product includes every flow or identity step and each sharpening step that is actually used.
 
-The molecule-level `1-RESS` is the ESS deficit when reweighting the final KLXX population at `(100, 0.15)` toward the exact, unregularized molecular potential.
+The molecule-level `1-RESS` is the ESS deficit when reweighting the final KLXX samples at `(100, 0.15)` toward the exact, unregularized molecular potential.
 
 ## Summary
 
@@ -56,7 +56,7 @@ The molecule-level `1-RESS` is the ESS deficit when reweighting the final KLXX p
 
 ## Direct KLXX macroscopic observables
 
-These are unweighted sample statistics from the best completed KLXX final validation population for each molecule at `rg_param = (100, 0.15)`. No RESS resampling or reweighting is applied. The physical energy is evaluated under the raw, unregularized potential. Continuous quantities in the table are reported as mean ± thermal/sample standard deviation. `R_g,C` is the carbon-skeleton radius of gyration and `R_ee,C` is the terminal-carbon distance. Rotamer populations are pooled over all backbone C–C–C–C dihedrals, using trans when `|φ| ≥ 2π/3`.
+These are unweighted sample statistics from the best completed KLXX final validation set for each molecule at `rg_param = (100, 0.15)`. No RESS resampling or reweighting is applied. The physical energy is evaluated under the raw, unregularized potential. Continuous quantities in the table are reported as mean ± thermal/sample standard deviation. `R_g,C` is the carbon-skeleton radius of gyration and `R_ee,C` is the terminal-carbon distance. Rotamer populations are pooled over all backbone C–C–C–C dihedrals, using trans when `|φ| ≥ 2π/3`.
 
 The independent benchmark uses the native OpenMM backend on the raw potential with a 0.25 fs timestep and two seeds. Methane through propane use 300 K Langevin trajectories; butane through hexane use 300–800 K replica exchange to mix backbone rotamers. OpenMM error bars on continuous observables span the two seed means rather than treating correlated frames as independent; the rotamer bars pool both seeds. The comparison supports consistent energy and carbon-skeleton growth across the C1–C6 homologous series and agreement on the selected observables; it does not assert equality of the full distributions.
 

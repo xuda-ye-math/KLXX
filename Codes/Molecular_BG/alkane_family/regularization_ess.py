@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Compute one exact-target regularization ESS for each alkane."""
+"""Compute one endpoint-to-physical regularization ESS for each alkane."""
 
 import json
 import os
@@ -36,10 +36,8 @@ def log_weight(samples, regularized, exact):
 
 
 def bundle(folder):
-    local = folder / "bundle"
-    if local.exists():
-        return local
-    return ROOT / "regularization" / "bundle" / folder.name.replace("_raw", "")
+    molecule = folder.name.removesuffix("_raw")
+    return ROOT / f"{molecule}_raw" / "bundle"
 
 
 def compute(name, dimension, folder_name):

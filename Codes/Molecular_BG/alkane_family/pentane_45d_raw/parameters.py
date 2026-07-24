@@ -1,4 +1,4 @@
-"""Full-size raw n-pentane Boltzmann-generator parameters."""
+"""Full-size raw n-pentane Boltzmann generator parameters."""
 
 MOLECULE = "n_pentane"
 FORMULA = "C5H12"

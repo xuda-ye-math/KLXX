@@ -1,4 +1,4 @@
-"""Full-size propane fixed-regularization Boltzmann parameters."""
+"""Full-size propane fixed-regularization Boltzmann generator parameters."""
 
 MOLECULE = "propane"
 FORMULA = "C3H8"

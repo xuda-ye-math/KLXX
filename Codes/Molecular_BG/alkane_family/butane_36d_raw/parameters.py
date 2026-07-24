@@ -1,4 +1,4 @@
-"""Full-size n-butane fixed-regularization Boltzmann parameters."""
+"""Full-size n-butane fixed-regularization Boltzmann generator parameters."""
 
 MOLECULE = "n_butane"
 FORMULA = "C4H10"

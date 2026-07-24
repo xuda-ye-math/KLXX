@@ -1,4 +1,4 @@
-"""Full-size n-pentane Boltzmann-generator parameters."""
+"""Full-size n-pentane Boltzmann generator parameters."""
 
 MOLECULE = "n_pentane"
 FORMULA = "C5H12"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the completed propane 27D bridge start exactly.
+    # Match the completed propane 27D stage-schedule start exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.6,
     "enlarge_factor": 1.4,

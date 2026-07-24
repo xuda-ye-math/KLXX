@@ -170,7 +170,7 @@
       "dimension": 36,
       "sample_count": 4000,
       "temperature_kelvin": 300.0,
-      "bundle": "butane_36d/bundle",
+      "bundle": "butane_36d_raw/bundle",
       "seeds": [
         {
           "physical_energy_mean_kj_mol": 63.46107302427292,
@@ -217,7 +217,7 @@
       "dimension": 45,
       "sample_count": 4000,
       "temperature_kelvin": 300.0,
-      "bundle": "pentane_45d/bundle",
+      "bundle": "pentane_45d_raw/bundle",
       "seeds": [
         {
           "physical_energy_mean_kj_mol": 78.24733903598785,
@@ -264,7 +264,7 @@
       "dimension": 54,
       "sample_count": 4000,
       "temperature_kelvin": 300.0,
-      "bundle": "regularization/bundle/hexane_54d",
+      "bundle": "hexane_54d_raw/bundle",
       "seeds": [
         {
           "physical_energy_mean_kj_mol": 90.63249290561676,

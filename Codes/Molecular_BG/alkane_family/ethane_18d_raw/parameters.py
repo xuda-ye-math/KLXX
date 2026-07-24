@@ -1,4 +1,4 @@
-"""Full-size ethane Boltzmann-generator parameters."""
+"""Full-size ethane Boltzmann generator parameters."""
 
 MOLECULE = "ethane"
 FORMULA = "C2H6"
@@ -6,7 +6,7 @@ DIMENSION = 18
 TEMPERATURE_KELVIN = 300.0
 SEED = 0
 
-# Fixed regularized target; the Boltzmann ladder does not sharpen this pair.
+# Fixed regularized target; the Boltzmann stage schedule does not sharpen this pair.
 RG_PARAM = (100.0, 0.15)
 
 NSF_LIM = 8.0

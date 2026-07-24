@@ -105,7 +105,7 @@ def build(runs):
         "sharpening step that is actually used.",
         "",
         "The molecule-level `1-RESS` is the ESS deficit when reweighting the "
-        "final KLXX population at `(100, 0.15)` toward the exact, "
+        "final KLXX samples at `(100, 0.15)` toward the exact, "
         "unregularized molecular potential.",
         "",
         "## Summary",
@@ -188,7 +188,7 @@ def build(runs):
             "## Direct KLXX macroscopic observables",
             "",
             "These are unweighted sample statistics from the best completed "
-            "KLXX final validation population for each molecule at "
+            "KLXX final validation set for each molecule at "
             "`rg_param = (100, 0.15)`. No RESS resampling or reweighting is "
             "applied. The physical energy is evaluated under the raw, "
             "unregularized potential. Continuous quantities in the table are "

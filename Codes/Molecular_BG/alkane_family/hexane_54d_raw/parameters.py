@@ -1,4 +1,4 @@
-"""Full-size raw n-hexane Boltzmann-generator parameters."""
+"""Full-size raw n-hexane Boltzmann generator parameters."""
 
 MOLECULE = "n_hexane"
 FORMULA = "C6H14"

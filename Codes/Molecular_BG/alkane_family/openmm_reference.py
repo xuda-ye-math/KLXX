@@ -43,10 +43,8 @@ def log(message):
 
 
 def bundle(folder):
-    local = ROOT / folder / "bundle"
-    if local.exists():
-        return local
-    return ROOT / "regularization" / "bundle" / folder.replace("_raw", "")
+    molecule = folder.removesuffix("_raw")
+    return ROOT / f"{molecule}_raw" / "bundle"
 
 
 def observables(positions, carbon_indices):

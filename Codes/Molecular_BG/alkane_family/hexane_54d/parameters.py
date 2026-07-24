@@ -1,4 +1,4 @@
-"""Full-size n-hexane Boltzmann-generator parameters."""
+"""Full-size n-hexane Boltzmann generator parameters."""
 
 MOLECULE = "n_hexane"
 FORMULA = "C6H14"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Continue the high-dimensional alkane bridge from t=0.1.
+    # Continue the high-dimensional alkane stage schedule from t=0.1.
     "t_safe": 0.1,
     "shrink_factor": 0.6,
     "enlarge_factor": 1.4,

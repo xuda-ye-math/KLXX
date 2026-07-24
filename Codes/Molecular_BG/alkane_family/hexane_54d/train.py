@@ -21,7 +21,7 @@ import parameters as P
 
 
 HERE = Path(__file__).resolve().parent
-BUNDLE = HERE.parent / "regularization" / "bundle" / "hexane_54d"
+BUNDLE = HERE.parent / "hexane_54d_raw" / "bundle"
 
 
 def main():
