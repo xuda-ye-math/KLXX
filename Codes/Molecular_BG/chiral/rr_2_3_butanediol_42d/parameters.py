@@ -1,4 +1,4 @@
-"""Full-size (2R,3R)-2,3-butanediol Boltzmann-generator parameters."""
+"""Full-size (2R,3R)-2,3-butanediol Boltzmann generator parameters."""
 
 MOLECULE = "rr_2_3_butanediol"
 FORMULA = "C4H10O2"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Match the neutral diethanolamine bridge controls exactly.
+    # Match the neutral diethanolamine stage-schedule controls exactly.
     "t_safe": 0.1,
     "shrink_factor": 0.6,
     "enlarge_factor": 1.4,

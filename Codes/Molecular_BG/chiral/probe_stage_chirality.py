@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Read-only CPU chirality probe for persisted molecular BG stages.
+"""Read-only CPU chirality probe for persisted molecular Boltzmann generator stages.
 
 Run once over all currently completed stages:
 

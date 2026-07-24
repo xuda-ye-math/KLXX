@@ -492,7 +492,7 @@ def main() -> None:
         flow_weights, flow_ress = weights_and_ress(
             flow_weights_path, args.sample_count
         )
-        log(f"stage {stage_number:02d} flow RESS={flow_ress:.9f}")
+        log(f"stage {stage_number:02d} flow ESS={flow_ress:.9f}")
         resample_to_disk(
             work_b,
             work_a,
@@ -547,7 +547,7 @@ def main() -> None:
         sharpen_weights, sharpen_ress = weights_and_ress(
             sharpen_weights_path, args.sample_count
         )
-        log(f"stage {stage_number:02d} sharpening RESS={sharpen_ress:.9f}")
+        log(f"stage {stage_number:02d} sharpening ESS={sharpen_ress:.9f}")
         resample_to_disk(
             work_b,
             work_a,
@@ -614,8 +614,8 @@ def main() -> None:
         current_path = stage_samples_path
         last_target = target_sharp
         log(
-            f"STAGE {stage_number:02d} COMPLETE | flow RESS={flow_ress:.6f} | "
-            f"sharpening RESS={sharpen_ress:.6f} | "
+            f"STAGE {stage_number:02d} COMPLETE | flow ESS={flow_ress:.6f} | "
+            f"sharpening ESS={sharpen_ress:.6f} | "
             f"post-MALA acceptance={float(sharp_acceptance.mean()):.6f} | "
             f"elapsed={elapsed / 60.0:.2f} min | saved={stage_samples_path}"
         )
@@ -641,7 +641,7 @@ def main() -> None:
         raw_weights, raw_ress = weights_and_ress(
             raw_weights_path, args.sample_count
         )
-        log(f"raw-potential RESS={raw_ress:.9f}")
+        log(f"endpoint-to-physical RESS={raw_ress:.9f}")
         resample_to_disk(
             current_path,
             work_a,
@@ -688,7 +688,7 @@ def main() -> None:
         manifest["status"] = "complete"
         atomic_json(output_dir / "run.json", manifest)
         log(
-            f"RAW COMPLETE | RESS={raw_ress:.9f} | "
+            f"RAW COMPLETE | endpoint-to-physical RESS={raw_ress:.9f} | "
             f"MALA acceptance={float(raw_acceptance.mean()):.6f} | "
             f"saved={raw_samples_path}"
         )

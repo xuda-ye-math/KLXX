@@ -1,4 +1,4 @@
-"""Full-size N-acetyl-L-proline N-methylamide BG parameters."""
+"""Full-size N-acetyl-L-proline N-methylamide Boltzmann generator parameters."""
 
 MOLECULE = "ac_pro_nhme"
 FORMULA = "C8H14N2O2"
@@ -39,7 +39,7 @@ CHECKPOINT = True
 INITIALIZE_FROM_IDENTITY = True
 
 BG_PARAM = {
-    # Continue the high-dimensional molecular bridge from t=0.1.
+    # Continue the high-dimensional molecular stage schedule from t=0.1.
     "t_safe": 0.1,
     "shrink_factor": 0.6,
     "enlarge_factor": 1.4,
