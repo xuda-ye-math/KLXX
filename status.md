@@ -1,14 +1,15 @@
 # Project status
 
-Last updated: 2026-07-24T18:07:07-04:00 (America/New_York)
+Last updated: 2026-07-24T18:34:01-04:00 (America/New_York)
 
 ## Current state
 
-- **Manuscript polish status — Sections 1--2 and Appendix A basically done:**
-  the Introduction, the Fisher--Rao analysis, and its proof appendix have had
-  their language pass and are considered basically complete. Sections 3--7
-  remain pending human inspection. Agent builds, searches, and reviews are
-  supporting checks only and do not substitute for that inspection.
+- **Manuscript polish status — Sections 1--3 and Appendix A basically done:**
+  the Introduction, the Fisher--Rao analysis, its proof appendix, and the
+  flow-training section have had their language pass under author direction
+  and are considered basically complete. Sections 4--7 remain pending human
+  inspection. Agent builds, searches, and reviews are supporting checks only
+  and do not substitute for that inspection.
 - **Publication state — everything outside `Paper/` is committed and pushed:**
   the former human-inspection gate is discharged. `Codes/`, `Skills/`,
   `README.md`, and `PYTHON.md` were inspected folder by folder and published
@@ -165,13 +166,15 @@ Last updated: 2026-07-24T18:07:07-04:00 (America/New_York)
   independent copy exists to prove byte-identical recovery of the user's lost
   edit. Exact content recovery is therefore **unverified and unresolved**.
   Do not edit the QT algorithm block again without explicit user direction.
-- **Done — Sections 1--2 and Appendix A human-inspected and polished:** the
+- **Done — Sections 1--3 and Appendix A human-inspected and polished:** the
   author has explicitly marked the Introduction, the Fisher--Rao analysis, and
   its proof appendix as human-inspected. This author verification supersedes
   the earlier agent-only review status for those parts of the manuscript. A
   subsequent author-directed language pass over the Introduction and the
   Fisher--Rao appendix is also complete, so these parts are basically done.
-- **Review boundary — Sections 3--7 are not fully verified by the author:**
+  Section 3 then received its own author-directed review: every reported
+  finding was decided by the author, and the accepted fixes were applied.
+- **Review boundary — Sections 4--7 are not fully verified by the author:**
   those sections remain mainly agent-generated or agent-edited and have not
   received a complete human review. Recorded builds, source searches,
   rendered-page checks, and independent-agent reviews are supporting checks
@@ -1024,7 +1027,7 @@ Last updated: 2026-07-24T18:07:07-04:00 (America/New_York)
   the QT algorithm block. The agent's four-line overwrite was reversed, but
   the user's pre-overwrite bytes were not captured, so exact recovery cannot
   be verified from Git or a hash.
-- **Pending — human inspection of Sections 3--7:** Sections 1--2 and
+- **Pending — human inspection of Sections 4--7:** Sections 1--3 and
   Appendix A are basically done, so this is the sole remaining manuscript
   review boundary. The remaining
   methods, algorithms, tables, figures, captions, and cross-section
@@ -3293,3 +3296,27 @@ Last updated: 2026-07-24T18:07:07-04:00 (America/New_York)
 - Moved the local agent rules from the root `AGENTS.md` into the ignored
   `.claude/CLAUDE.md` and added the two-level vocabulary rule, the
   abbreviation rule, and the build-artifact rule.
+
+### 2026-07-24T18:34:01-04:00 — Section 3 human review completed
+
+- Section 3 was inspected against the local rules and reported as a tiered
+  table before any edit. The author decided every finding, and twelve accepted
+  fixes were applied: the orphaned comma after \eqref{eq: weight}, the
+  unsupported adaptive melt-scale claim, the unexplained "at most two must be
+  built" count, the broken list frame in the section opening, the repeated
+  AIS and QT expansions, the mixed effective-sample-size and metric wording,
+  the "does not model ... exactly" hedge, the Algorithm 2 input wording, and
+  the points/samples mismatch against the introduction.
+- One reported finding was withdrawn after checking the source. The
+  permutation estimator concern was wrong: `jflows` at `a275462` draws
+  `jax.random.permutation` uniformly over all `N!` permutations in
+  `loss.py:131` and `:166` and in `train.py:392`, `:526`, and `:545`, with an
+  independent key for the mixture pair. No fixed-point handling exists or is
+  needed, and the paper's description is accurate.
+- Applied the author's terminology decision to drop every completeness
+  qualifier before "validation set" in `Paper/main.tex`: twelve "complete
+  validation set", one "full validation set", and one "complete fixed
+  validation set". Ten tracked files under `Codes/` and this diary still carry
+  the old phrase and were deliberately left unchanged.
+- Sections 1--3 and Appendix A are now basically done; Sections 4--7 remain
+  the sole pending manuscript review boundary.
