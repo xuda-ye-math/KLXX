@@ -1,0 +1,76 @@
+{
+  "burnin_rounds": 1000,
+  "cis_occupancy_300K": 0.15,
+  "cold_cis_trans_changes": 370,
+  "cold_pucker_sign_changes": 676,
+  "cold_samples": 4000,
+  "energy_300K_kj_mol_range": [
+    -51.69473958651179,
+    79.83225218912412
+  ],
+  "figure": "results/openmm_multimodality.png",
+  "hot_cis_occupancy": 0.297,
+  "hot_cis_trans_changes": 656,
+  "hot_pucker_sign_changes": 1377,
+  "joint_state_occupancy_300K": {
+    "cis / pucker +": 0.12025,
+    "cis / pucker -": 0.02975,
+    "trans / pucker +": 0.53225,
+    "trans / pucker -": 0.31775
+  },
+  "occupied_joint_states_above_1pct": 4,
+  "pucker_amplitude_nm_max": 0.05410051758402171,
+  "pucker_amplitude_nm_mean": 0.032627778964388725,
+  "pucker_amplitude_nm_min": 0.0017184050662037704,
+  "pucker_minus_occupancy_300K": 0.3475,
+  "pucker_phase_range_rad": [
+    -3.136528728624971,
+    3.102149447976188
+  ],
+  "pucker_plus_occupancy_300K": 0.6525,
+  "schema_version": 1,
+  "source": "data/openmm_probe.npz",
+  "stereo_min_margin_nm3": [
+    0.0006274706506187827
+  ],
+  "swap_acceptance": [
+    0.668,
+    0.6536,
+    0.654,
+    0.662,
+    0.7024,
+    0.6696,
+    0.678,
+    0.6588,
+    0.6628,
+    0.682,
+    0.6764,
+    0.6708,
+    0.6856,
+    0.6896,
+    0.712
+  ],
+  "temperatures_kelvin": [
+    300.0,
+    329.04749390838776,
+    360.9075108246351,
+    395.8523732318682,
+    434.18077123211356,
+    476.22031559045973,
+    522.3303379776746,
+    572.9049623462498,
+    628.3764736923762,
+    689.2190129982208,
+    755.952629936924,
+    829.1477279806654,
+    909.429939906239,
+    997.4854753713449,
+    1094.0669862698592,
+    1200.0
+  ],
+  "trans_occupancy_300K": 0.85,
+  "walker_shape": [
+    5001,
+    16
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "analysis_sha256": "6cec7daa96bb7fbab38c944e27debc7e9dd64ed262406b220050a4d9553e1358",
+  "artifact_paths": {
+    "candidate": [
+      "data/verification/adp__e125_r0p1__seed4401.npz",
+      "data/verification/adp__e125_r0p1__seed4402.npz"
+    ],
+    "raw": [
+      "data/verification/adp__raw__seed4401.npz",
+      "data/verification/adp__raw__seed4402.npz"
+    ],
+    "starts": [
+      "data/starts/full/adp__seed4401.npz",
+      "data/starts/full/adp__seed4402.npz"
+    ]
+  },
+  "artifact_sha256": {
+    "candidate": [
+      "d46679dfe291d4a95fe0d34fbb459cc2cddbaa16a39121d54e7dcdc3b313265a",
+      "d46c3fa43b4ca9ec66d346b42d0711d88ac53c1b28dc97c045a99b88be62c17e"
+    ],
+    "raw": [
+      "d45aa713e5573ec63d925708e724fa39f75c7036bff76b88a6f46f70c949de54",
+      "12ba57d09c10d5b720d9d5d971dff2e377840b89d64552695b51815412e70dbf"
+    ],
+    "starts": [
+      "d2e5d26d7a2ba9ee371c383a8fdc65f7758420ca5a627df6994e272e9370a1d4",
+      "394d35185668ea180ffdaddbbe0b82072c8547cd9d7d606edf684dd9acff6387"
+    ]
+  },
+  "bundle_sha256": {
+    "coordinates.json": "57972d50b9813f6526f9fbd45b319b5f9e6365cc315a25190e762b362fcbe268",
+    "manifest.json": "5d4fd86f8d92af217a342f695742586115d12255eb2da3d18edf88623b9842f4",
+    "reference.pdb": "d8272d84af4a3569189dba7f7a126c24ecccf9556ce22c1441ffd48432945e88",
+    "system.json": "a67f66315ad149ba3385b2d02ef2c57b4a0ab4d45581434bf05e148e7fce072f",
+    "system.xml": "e0282937561813c3a3b4e2a1cfcabf1d0eac7e500cfcb0564c81fa9821b17823",
+    "validation.json": "4a2766565458cd0804e248d8caf31e1f8e4b80a8a4fa7f803096a2c1a9f65c9c"
+  },
+  "candidate_energy_crosscheck_max_abs_kj_mol": 0.0,
+  "candidate_force_quantiles_kj_mol_nm": [
+    3254.721007973335,
+    4636.809254298174,
+    5370.842522861752,
+    6686.4180403893015
+  ],
+  "candidate_js_bits": [
+    0.002757903443130937,
+    0.0061699222600389,
+    0.0008152845965729381,
+    0.001233411159866758
+  ],
+  "candidate_mixing": {
+    "max_half_joint_tv": 0.05635873560401865,
+    "max_half_marginal_tv": 0.05046215338496128,
+    "max_split_rhat": 1.0027627831123227,
+    "min_markov_ess": 219.7077471415326,
+    "min_swap_acceptance": 0.8296,
+    "pass": true,
+    "round_trips_per_seed": [
+      815,
+      808
+    ]
+  },
+  "candidate_occupancy_error": [
+    0.029244516653127495,
+    0.04686621258514034,
+    0.0,
+    0.0014997188027244812
+  ],
+  "candidate_stereo_min_margin_nm3": {
+    "alanine_ca_L": 0.0009359100471128742
+  },
+  "config_sha256": "b447150d4ea3eb5bb7c8f022426c10af0ad526cf8714e284bca87ebd9eb17349",
+  "current_runner_sha256": "9de6d9dcf9fe80d20b010b490be4ef77e2b88e12005c7cff2b0bd5a1fb1079a2",
+  "dimension": 60,
+  "display_name": "L-alanine dipeptide",
+  "distance_metrics": [],
+  "e_kj_mol": 125.0,
+  "energy_crosscheck_max_abs_kj_mol": 0.0,
+  "energy_crosscheck_pass": true,
+  "energy_difference_quantiles_kj_mol": [
+    -0.00016924086958169937,
+    6.623834636343418e-05,
+    0.00017316207472504165,
+    0.00021783850708743564,
+    8.736676610396977
+  ],
+  "equilibrium_resolved": true,
+  "floor_frame_fraction_300K": 0.0,
+  "floor_frame_fraction_all_replicas": 0.0,
+  "floor_interaction_fraction_300K": 0.0,
+  "floor_interaction_fraction_all_replicas": 0.0,
+  "jflows_md_commit_observed": "df0da9c9c194aeb9971f77711480aa91bdb33b9e",
+  "joint_state_tv": 0.04962377961569557,
+  "materially_modified_fraction": 0.0005,
+  "max_js_bits": 0.0061699222600389,
+  "max_occupancy_error": 0.04686621258514034,
+  "metric_fingerprint": "43149b53fc58f2613448f4d635dc6162a887eaf8b501b81b0e9c70b1bbe2ae1d",
+  "molecule": "adp",
+  "per_seed_raw_target_ress": [
+    {
+      "block_length": 2,
+      "ci_high": 0.9999999993187361,
+      "ci_low": 0.9997872898965675,
+      "ress": 0.9999150205245783,
+      "seed": 4401
+    },
+    {
+      "block_length": 2,
+      "ci_high": 0.9999999993038339,
+      "ci_low": 0.9992939290146406,
+      "ress": 0.9997645471543172,
+      "seed": 4402
+    }
+  ],
+  "per_seed_reverse_ress": [
+    {
+      "block_length": 3,
+      "ci_high": 0.9999999993315739,
+      "ci_low": 0.9999928880503963,
+      "ress": 0.9999976274835178,
+      "seed": 4401
+    },
+    {
+      "block_length": 3,
+      "ci_high": 0.9999999993340567,
+      "ci_low": 0.9999970096905155,
+      "ress": 0.9999990020852224,
+      "seed": 4402
+    }
+  ],
+  "phase": "verification",
+  "plots": {
+    "ress": "results/verification/adp__e125_r0p1__43149b53fc58f261_ress.png",
+    "stress": "results/verification/adp__e125_r0p1__43149b53fc58f261_stress.png",
+    "torsions": "results/verification/adp__e125_r0p1__43149b53fc58f261_torsions.png"
+  },
+  "primary_pass": true,
+  "r_nm": 0.1,
+  "raw_baseline_js_bits": [
+    0.006624684462735933,
+    0.009023250383698746,
+    0.0010596793711780727,
+    0.0011350007330147402
+  ],
+  "raw_baseline_occupancy_error": [
+    0.05372985130576036,
+    0.02274147194801948,
+    0.0,
+    0.0
+  ],
+  "raw_energy_crosscheck_max_abs_kj_mol": 0.0,
+  "raw_force_quantiles_kj_mol_nm": [
+    3238.6972200599243,
+    4634.901145654148,
+    5340.10828822761,
+    6998.653740767509
+  ],
+  "raw_joint_state_tv": 0.07375324836035145,
+  "raw_max_js_bits": 0.009023250383698746,
+  "raw_max_occupancy_error": 0.05372985130576036,
+  "raw_mixing": {
+    "max_half_joint_tv": 0.07302131830433715,
+    "max_half_marginal_tv": 0.0694479140644517,
+    "max_split_rhat": 1.0064526129341234,
+    "min_markov_ess": 771.9847692490284,
+    "min_swap_acceptance": 0.8336,
+    "pass": true,
+    "round_trips_per_seed": [
+      833,
+      823
+    ]
+  },
+  "raw_stereo_min_margin_nm3": {
+    "alanine_ca_L": 0.0013814790151457233
+  },
+  "raw_target_ress": 0.9998397790137932,
+  "raw_target_ress_block_length": 2,
+  "raw_target_ress_ci_high": 0.9999962680691007,
+  "raw_target_ress_ci_low": 0.9995756977624175,
+  "reverse_ress": 0.9999983147708409,
+  "reverse_ress_block_length": 3,
+  "reverse_ress_ci_high": 0.9999999993115489,
+  "reverse_ress_ci_low": 0.9999954440363334,
+  "schema_version": 1,
+  "seeds": [
+    4401,
+    4402
+  ],
+  "stereo_pass": true,
+  "stress": {
+    "candidate_force_kj_mol_nm": [
+      5093.788121686191,
+      43.329041932949,
+      1833.788240429613,
+      370.5609434094056,
+      78.25212373985492,
+      63.754217827321675,
+      65.14166202975116
+    ],
+    "distance_nm": [
+      0.2,
+      0.15,
+      0.12,
+      0.1,
+      0.08,
+      0.06,
+      0.04
+    ],
+    "median_log10_attenuation_below_0p10_nm": 7.628767347664094,
+    "pair": [
+      0,
+      19
+    ],
+    "raw_force_kj_mol_nm": [
+      863627342.858119,
+      3037000062.6720586,
+      3037000942.4005194,
+      3037000211.2924237,
+      3037000165.009026,
+      3037000017.9370046,
+      3037000390.870563
+    ]
+  },
+  "structural_pass": true,
+  "tail_exponent_at_400K": 75.17022190170378,
+  "tail_required_exponent": 62,
+  "tail_second_moment_pass": true
+}

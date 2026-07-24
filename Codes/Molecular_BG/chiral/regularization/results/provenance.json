@@ -1,0 +1,73 @@
+{
+  "analysis_sha256": "6cec7daa96bb7fbab38c944e27debc7e9dd64ed262406b220050a4d9553e1358",
+  "bundles": {
+    "adp": {
+      "coordinates.json": "57972d50b9813f6526f9fbd45b319b5f9e6365cc315a25190e762b362fcbe268",
+      "manifest.json": "5d4fd86f8d92af217a342f695742586115d12255eb2da3d18edf88623b9842f4",
+      "reference.pdb": "d8272d84af4a3569189dba7f7a126c24ecccf9556ce22c1441ffd48432945e88",
+      "system.json": "a67f66315ad149ba3385b2d02ef2c57b4a0ab4d45581434bf05e148e7fce072f",
+      "system.xml": "e0282937561813c3a3b4e2a1cfcabf1d0eac7e500cfcb0564c81fa9821b17823",
+      "validation.json": "4a2766565458cd0804e248d8caf31e1f8e4b80a8a4fa7f803096a2c1a9f65c9c"
+    },
+    "rr_2_3_butanediol": {
+      "coordinates.json": "54aafe4b5ed9ab355cd0755047e4a99d1a4d07e41a8efa96b0e715fd78ee33a1",
+      "manifest.json": "8c98a8bfe1f9ce2d085f59812cdd87885d8a81845db8efe4dad47b2aab000629",
+      "reference.pdb": "5aeaaaf47710410aca3dec911ff39aca4cc96fd1864f84ae56e025baaa4a7530",
+      "system.json": "f6d2762d5e94c5b492eec819c80ab6f02c162dd9ac8b374c323fa1a21fad42d3",
+      "system.xml": "8b051da007a81150b53603b8c426328b5c8ee57632d2508b521bc7d437083de7",
+      "validation.json": "c628e28d2d91c7c408720cac98acdb274c7e8f73aecf31482d4dcf847289f9f9"
+    },
+    "s_2_butanol": {
+      "coordinates.json": "c4996d5f055831fa2b1fd61d7f4d19b39aa7b44ce9df561dbde3871a8f1ff097",
+      "manifest.json": "34994899aab67245a09dc32ea0123e653dbd705c2b0ac612e337925340461fe8",
+      "reference.pdb": "92542bd220f41e2924f814f7adf4aa26d8e98b9a51d2cd5ff319e1c51d50ac26",
+      "system.json": "b7b7e81151c6b877a95c294238b1bfd17094c4dbf29c84b19779438430a983cb",
+      "system.xml": "7665f2387a1277614f02526da92f6121ecf8cf4ff46e8e3fb19f8683af59cbd6",
+      "validation.json": "91008abecdbd280790f99774998f58c4b86938af1f54c0192417d19198b51294"
+    }
+  },
+  "config_sha256": "b447150d4ea3eb5bb7c8f022426c10af0ad526cf8714e284bca87ebd9eb17349",
+  "current_runner_sha256": "9de6d9dcf9fe80d20b010b490be4ef77e2b88e12005c7cff2b0bd5a1fb1079a2",
+  "data_artifacts_sha256": {
+    "data/pilot/adp__e125_r0p1__seed4401.npz": "8500d50ba190c5f73166f4d7fe2a6f5194177fbe056ee68655ef26ac087ed9cd",
+    "data/pilot/adp__raw__seed4401.npz": "015ca53cb96caec422d01a805bd90c448d7ec9288e236f4efcc42db2597759ff",
+    "data/pilot/rr_2_3_butanediol__e100_r0p1__seed4401.npz": "ae69e551436d850ccb7c97bdb093c7ae8f24f57993d3da265358b8ce089d0ec1",
+    "data/pilot/rr_2_3_butanediol__raw__seed4401.npz": "9d970dd14dc7ff49e7ea388a018130bba262cf506e361651a66da0ea76be748b",
+    "data/pilot/s_2_butanol__e100_r0p1__seed4401.npz": "75a81998545f4cb434bd7e35eef7906e5cbf7110d23b1f6c867e42fde7a678ad",
+    "data/pilot/s_2_butanol__raw__seed4401.npz": "d15b78430d31089820b31f12b9989111a394fbd2584dbb2c457eb10043fa84c3",
+    "data/sanity/adp__e125_r0p1__seed4401.npz": "e250f2ab52cf85b5f6dd804ab948b9362753369a0f3cede4cf8c6c42661b7a25",
+    "data/sanity/adp__raw__seed4401.npz": "05cc209a46369342635f9809166b9422759e03b033a92ccd0e8605b50dc16650",
+    "data/sanity/rr_2_3_butanediol__e100_r0p1__seed4401.npz": "2488ddfd654f3d9c1a6656447d15e3d451fab82ca7e7422947413a4b52577d48",
+    "data/sanity/rr_2_3_butanediol__raw__seed4401.npz": "d22e36748af7ae12033bce2923b0f2f61cb0cc39aaf89e50fe7fbb899d20a6c0",
+    "data/sanity/s_2_butanol__e100_r0p1__seed4401.npz": "f9b5e34ae3efc289fdb1eb2d2ad73580ab38c0c944bb9a4811ff5524aafbf788",
+    "data/sanity/s_2_butanol__raw__seed4401.npz": "da3cbea7bff159ce425da63aecd0bb43dd49b228f7d84e69af3397a115ccbfff",
+    "data/starts/full/adp__seed4401.npz": "d2e5d26d7a2ba9ee371c383a8fdc65f7758420ca5a627df6994e272e9370a1d4",
+    "data/starts/full/adp__seed4402.npz": "394d35185668ea180ffdaddbbe0b82072c8547cd9d7d606edf684dd9acff6387",
+    "data/starts/full/rr_2_3_butanediol__seed4401.npz": "45158b3f276a9cc0abe602ba05c5a856443fd648219b84445308e66c79b6035a",
+    "data/starts/full/rr_2_3_butanediol__seed4402.npz": "02a9bacdcd080abaced05bdd00dc04bb5601de2eb24e9e9375016519d21e71e9",
+    "data/starts/full/s_2_butanol__seed4401.npz": "625435a7182f12163ead7b3828f38feb1ed1918dbbbeced8ef88ae1c04f9c057",
+    "data/starts/full/s_2_butanol__seed4402.npz": "8930cb9b2d1c12ca8bcb55bebfe7e397a4ad18b77c946d65b838812e00bbcb0b",
+    "data/starts/sanity/adp__seed4401.npz": "f53d380132b98e789e20101711ccf57739b201873d5965a2d5dc626365a7ffb0",
+    "data/starts/sanity/rr_2_3_butanediol__seed4401.npz": "174d0475d058551cba861b1e509d49fbe8d82b71967718ecb39a8de6c0556d3f",
+    "data/starts/sanity/s_2_butanol__seed4401.npz": "ca6c77edf3aa64fe85bded816f6779c0316fb6434fc041dcb7e44cb9a7d8b3ba",
+    "data/verification/adp__e125_r0p1__seed4401.npz": "d46679dfe291d4a95fe0d34fbb459cc2cddbaa16a39121d54e7dcdc3b313265a",
+    "data/verification/adp__e125_r0p1__seed4402.npz": "d46c3fa43b4ca9ec66d346b42d0711d88ac53c1b28dc97c045a99b88be62c17e",
+    "data/verification/adp__raw__seed4401.npz": "d45aa713e5573ec63d925708e724fa39f75c7036bff76b88a6f46f70c949de54",
+    "data/verification/adp__raw__seed4402.npz": "12ba57d09c10d5b720d9d5d971dff2e377840b89d64552695b51815412e70dbf",
+    "data/verification/rr_2_3_butanediol__e100_r0p1__seed4401.npz": "7ae76c685e33d9d3ecfa3958723846f9de0d878574335a66278c676f1683d14b",
+    "data/verification/rr_2_3_butanediol__e100_r0p1__seed4402.npz": "f15785323a6de716e009580adb43046eab35d5d5e0830598efe160ac2c7b1ce6",
+    "data/verification/rr_2_3_butanediol__raw__seed4401.npz": "1f6d58cbc9ff47a200a27cdc71ec467db92d5e68e6cc449bcb075098ca5a1d0f",
+    "data/verification/rr_2_3_butanediol__raw__seed4402.npz": "fa6cf8e2ae6c0d9a36cc7d690179de1d1ab5f7f7bc93efd2b5323b0d58fce137",
+    "data/verification/s_2_butanol__e100_r0p1__seed4401.npz": "47509153633c34ff9b374a5a5263eb9f242c8f504cf227f27110373b17864a0d",
+    "data/verification/s_2_butanol__e100_r0p1__seed4402.npz": "ea027eb4cf4eee73d48e3611589e8451cf8f286645830c596573039ca8c01e99",
+    "data/verification/s_2_butanol__raw__seed4401.npz": "e5162c56f41e860ada6f5a2fbfd8f5be779bee1e9b2e63f71cb823c176516ca1",
+    "data/verification/s_2_butanol__raw__seed4402.npz": "f31c3ec41da1f69467d8616deb3946a7e26d8730c11085daaf09d0944eaa5cfc"
+  },
+  "jflows_md_source": {
+    "commit": "df0da9c9c194aeb9971f77711480aa91bdb33b9e",
+    "root": "/data/projects/jflows_md",
+    "worktree_clean": true
+  },
+  "openmm_version": "8.5.2.dev-36a30cb",
+  "runner_hash_role": "post-hoc audited snapshot; not embedded at trajectory generation"
+}

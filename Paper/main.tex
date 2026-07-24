@@ -95,7 +95,7 @@ target annealing, QT, and detached pushforward samples \\
 \bottomrule
 \end{tabular}
 }
-\caption{Objectives and training mechanisms for the methods discussed above. Here $z=\log(\mu/\nu)$; the LDR row gives its target-weighted form with $p=1$ for LDR-1 and $p=2$ for LDR-2. The forward KL row uses the annealed baseline in this paper but may instead use external target data. The table compares how samples enter each objective; it does not assume equal computational budgets.}
+\caption{Objectives and training mechanisms for the methods discussed above. Here $z=\log(\mu/\nu)$; the LDR row gives its target-weighted form with $p=1$ for LDR-L1 and $p=2$ for LDR-L2. The forward KL row uses the annealed baseline in this paper but may instead use external target data. The table compares how samples enter each objective; it does not assume equal computational budgets.}
 \label{tab: methods}
 \end{table}
 
@@ -107,7 +107,7 @@ We now turn from the principle-level comparison to the mathematical definition o
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x\D y,
     \label{eq: X}
 \end{equation}
-which measures how far $z$ is from a constant on the region weighted by $\omega$. For $\omega=\mu$, $\X_\mu$ averages $|z(x)-z(y)|$ over independent target points, whereas LDR-1 uses the centered penalty $\mathbb E_\mu|z-\mathbb E_\mu z|$. Jensen's inequality and the triangle inequality give $\mathbb E_\mu|z-\mathbb E_\mu z|\Le\X_\mu(\mu\|\nu)\Le2\mathbb E_\mu|z-\mathbb E_\mu z|$. Thus, at the same coefficient, $\KL$+$\X_\mu$ and LDR-1 are comparable up to a factor of two. This suggests similar training performance, although the objectives are not equivalent. KLXX is also not equivalent to LDR-2: its target-weighted variation is pairwise $L^1$, and its new mixture term uses QT and pushforward samples. Since $\X_\omega$ is nonnegative and vanishes at $\nu=\mu$, adding it to the exact forward KL preserves the target as a minimizer.
+which measures how far $z$ is from a constant on the region weighted by $\omega$. For $\omega=\mu$, $\X_\mu$ averages $|z(x)-z(y)|$ over independent target points, whereas LDR-L1 uses the centered penalty $\mathbb E_\mu|z-\mathbb E_\mu z|$. Jensen's inequality and the triangle inequality give $\mathbb E_\mu|z-\mathbb E_\mu z|\Le\X_\mu(\mu\|\nu)\Le2\mathbb E_\mu|z-\mathbb E_\mu z|$. Thus, at the same coefficient, $\KL$+$\X_\mu$ and LDR-L1 are comparable up to a factor of two. This suggests similar training performance, although the objectives are not equivalent. KLXX is also not equivalent to LDR-L2: its target-weighted variation is pairwise $L^1$, and its new mixture term uses QT and pushforward samples. Since $\X_\omega$ is nonnegative and vanishes at $\nu=\mu$, adding it to the exact forward KL preserves the target as a minimizer.
 
 The target distribution $\mu$ supplies samples for both the forward KL and $\X_\mu$. The wide-coverage distribution $\hat\mu$ supplies candidate-mode samples, while $\bar\nu$ is the pushforward distribution of the current proposal; samples from $\bar\nu$ are held fixed during differentiation. The combined loss is
 \begin{equation}
@@ -235,7 +235,7 @@ The loss draws on three measures, of which at most two must be built. The $\bar\
 
 Two recurring settings are the \emph{$\X_\mu$-only setting}, with $\lambda=1$ and $\alpha=\beta=0$, and KLXX, with $\lambda=1$ and $\alpha=\beta=\frac12$. The first adds no sampling measure beyond the target batch, while the second splits its mixture batch equally between $\hat\mu$ and $\bar\nu$. We report the full KLXX loss as $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ when it must be distinguished from the other ablations.
 
-Here \emph{$\X_\mu$-only} describes the active regularizer, not the complete objective: the setting retains forward KL and denotes $\KL$+$\X_\mu$. We do not train with log-ratio variation alone, because empirical pairwise terms constrain relative log-ratios only on sampled regions and provide no global density-shaping constraint elsewhere. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} shows the analogous failure: without a data-based divergence, training with only LDR-1 or only LDR-2 produces qualitatively incorrect distributions. Accordingly, every $\X$-regularized objective in this paper includes forward KL.
+Here \emph{$\X_\mu$-only} describes the active regularizer, not the complete objective: the setting retains forward KL and denotes $\KL$+$\X_\mu$. We do not train with log-ratio variation alone, because empirical pairwise terms constrain relative log-ratios only on sampled regions and provide no global density-shaping constraint elsewhere. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} shows the analogous failure: without a data-based divergence, training with only LDR-L1 or only LDR-L2 produces qualitatively incorrect distributions. Accordingly, every $\X$-regularized objective in this paper includes forward KL.
 
 \subsection{Approximating \texorpdfstring{$\mu$}{mu} by annealed importance sampling}
 \label{subsec: ais}
@@ -517,7 +517,7 @@ The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Two-Moon/results/samples.png}
+    \includegraphics[width=\textwidth]{figures/2d_two_moon_samples.png}
     \caption{Two-Moon target. Columns, from left to right, are forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Each panel overlays the learned pushforward on the target energy and reports its final ESS and coverage. Gray points show the source.}
     \label{fig: two-moon}
 \end{figure}
@@ -527,7 +527,7 @@ The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so al
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Three-Well/results/samples.png}
+    \includegraphics[width=\textwidth]{figures/2d_three_well_samples.png}
     \caption{Three-Well target. From left to right, the panels show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Each panel overlays the learned pushforward on the target energy and reports final ESS and coverage; gray points show the source. Forward KL and $\KL$+$\X_\mu$ represent the two favored wells but miss the suppressed third well. Both objectives weighted by $\hat\mu$ place samples in all three wells, and the equal mixture retains the higher ESS of the two mode-complete fits.}
     \label{fig: threewell}
 \end{figure}
@@ -537,7 +537,7 @@ The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and 
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Himmelblau/results/samples.png}
+    \includegraphics[width=\textwidth]{figures/2d_himmelblau_samples.png}
     \caption{Himmelblau target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$; each panel shows the pushforward over the target energy with final ESS and coverage, and gray points show the source. The first two objectives capture only two of the four wells. Both $\hat\mu$-weighted objectives cover all four, while including pushforward samples in the mixture term reduces the visible intermodal mass and raises ESS relative to the $\hat\mu$-only fit.}
     \label{fig: himmelblau}
 \end{figure}
@@ -547,7 +547,7 @@ The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approxim
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/2D_Benchmark/Sparse/results/samples.png}
+    \includegraphics[width=\textwidth]{figures/2d_sparse_samples.png}
     \caption{Sparse target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$, with the learned pushforward overlaid on the target energy; panel titles report final ESS and coverage, and gray points show the source. The first two objectives cover the central pair but miss the two remote modes. The $\hat\mu$-only objective restores the remote modes with visible mass between components, whereas the equal mixture covers all four modes with less intermodal mass and higher ESS.}
     \label{fig: sparse}
 \end{figure}
@@ -591,7 +591,7 @@ All four objectives use the same identity-initialized neural spline flow on $[-4
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/HD_Product/results/ess.png}
+    \includegraphics[width=\textwidth]{figures/hd_product_ess.png}
     \caption{ESS on the product multi-well target \eqref{eq: highd-potential}. (a) Final validation ESS over all sixteen tested dimensions. (b) Batch ESS during the $d=256$ training run; faint curves are raw values and bold curves are $40$-step moving averages.}
     \label{fig: highd-ess}
 \end{figure}
@@ -648,7 +648,7 @@ Forward KL and $\KL$+$\X_\mu$ collapse at every size and seed. Their annealed ba
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=\textwidth]{../Codes/Lattice_Phi4/L8/results/fig_methods.png}
+    \includegraphics[width=\textwidth]{figures/lattice_phi4_l8_methods.png}
     \caption{Magnetization density on the $L=8$ lattice at seed $0$. Each panel shows the pushforward density (gray), the reweighted density (color), and the resampled mirror-MALA reference density (dotted); the title reports ESS and the reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
@@ -707,7 +707,7 @@ The comparison is also consistent stage by stage. The loss $\KL$+$\X_\mu$+$\X_{(
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.7\textwidth]{../Codes/Lattice_Clock/results/clock_marginals.png}
+    \includegraphics[width=0.7\textwidth]{figures/lattice_clock_marginals.png}
     \caption{Angle densities from $2\times10^6$ fresh samples advanced through the trained $B=2000$ $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ stage sequence by map, reweighting, resampling, and MALA. The upper panel is the single-site marginal. The lower panel gives pair differences at offsets $(0,1)$, $(1,1)$, and $(0,2)$; dots and the inset resolve the one-clock-step angle $\pi/3$. Dashed lines show the uniform density.}
     \label{fig: clock-marginals}
 \end{figure}
@@ -723,7 +723,7 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 
 \begin{figure}[htb]
     \centering
-    \includegraphics[width=0.9\textwidth]{../Codes/Lattice_Clock/results/occupancy_bias.png}
+    \includegraphics[width=0.9\textwidth]{figures/lattice_clock_occupancy_bias.png}
     \caption{Clock-sector occupancy bias under two fresh-rebuild tests. (a) Mean bias at fixed $N=6.4\times10^5$ across training batch sizes; each bar averages four matched sampling seeds. (b) Mean bias at fixed $B=2000$ versus particle count; at $N=10^4 2^k$, each mean uses $2^{8-k}$ independent rebuilds, keeping the total work per point at $2.56\times10^6$ particles. Error bars in both panels are $\pm2$ standard errors. The dashed line in (b) is an $N^{-1/2}$ reference anchored at the smallest $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ point. The panels use separately generated rebuild ensembles.}
     \label{fig: clock-occupancy}
 \end{figure}
@@ -740,7 +740,7 @@ At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes o
 \section{Boltzmann generators on molecular potential energies}
 \label{sec: molecular}
 
-The model problems above separate the target and QT training signals on explicit targets and probe the term built from pushforward samples. Molecular systems add a singular nonbonded core, a mixed Euclidean--periodic domain, and more conformational degrees of freedom as molecular size grows. We first define the molecular measure and its regularized potential, then add sharpening to the staged generator and report the completed alkane family and three additional achiral molecules. The remaining targets are chiral systems with one fixed stereochemical configuration.
+The model problems above separate the target and QT training signals on explicit targets and probe the term built from pushforward samples. Molecular systems add a singular nonbonded core, a mixed Euclidean--periodic domain, and more conformational degrees of freedom as molecular size grows. We first define the molecular measure and its regularized potential, then add sharpening to the staged generator and report the completed alkane family, three additional achiral molecules, and three chiral KLXX runs with fixed stereochemical configurations.
 
 \subsection{Molecular potential models}
 \label{sec: mol-models}
@@ -809,27 +809,27 @@ neutral diethanolamine
 \addlinespace
 \multicolumn{4}{l}{\emph{Chiral targets: one fixed stereochemical configuration}} \\
 \addlinespace[2pt]
-\((S)\)-2-butanol
-& \(15/39\)
-& GAFF2/AM1-BCC; OBC1/ACE
-& pending \\
 \((2R,3R)\)-2,3-butanediol
 & \(16/42\)
 & GAFF2/AM1-BCC; OBC1/ACE
-& pending \\
+& complete \\
 alanine dipeptide
 & \(22/60\)
 & ff96; OBC1/ACE
-& pending \\
+& complete \\
+Ac-Pro-NHMe
+& \(26/72\)
+& ff96; OBC1/ACE
+& complete \\
 \bottomrule
 \end{tabular}
-\caption{Molecular targets in mixed internal coordinates, grouped by configurational stereochemistry. All systems are at \(300\,\mathrm K\), use no nonbonded cutoff or bond constraints, and include the coordinate Jacobian in \eqref{eq: molecular-reduced-potential}. For each chiral target, the generator and reference are restricted to one specified stereochemical configuration, while all conformations within that configuration remain part of the target. The achiral generator runs are complete; the chiral generators remain pending.}
+\caption{Molecular targets in mixed internal coordinates, grouped by configurational stereochemistry. All systems are at \(300\,\mathrm K\), use no nonbonded cutoff or bond constraints, and include the coordinate Jacobian in \eqref{eq: molecular-reduced-potential}. For each chiral target, the generator and reference are restricted to one specified stereochemical configuration, while all conformations within that configuration remain part of the target. All listed generator runs are complete.}
 \label{tab: molecular-targets}
 \end{table}
 
-The alkane family uses neutral all-atom bundles with GAFF2 parameters, AM1-BCC charges, graph-symmetry and neutrality projection, and \(\mathrm{mbondi2}\) radii. GAFF and AM1-BCC are described in \citet{wang2004gaff} and \citet{jakalian2002am1bcc}; the bundles are prepared with AmberTools \citep{case2023ambertools}. OBC1/ACE is used across the homologous series, and the independent references are propagated with OpenMM \citep{eastman2017openmm}. NMA uses the 12-atom ACE--NME ff96/OBC1/ACE Hamiltonian. The two chiral alcohols use GAFF2/AM1-BCC with OBC1/ACE. Alanine dipeptide uses the 22-atom ACE--ALA--NME Hamiltonian of the FAB benchmark \citep{midgley2022flow}: Amber ff96, OBC1 with \(\mathrm{igb}=2\), \(\mathrm{mbondi2}\) radii, solute and solvent dielectric constants \(1\) and \(78.5\), and the \(\mathrm L\)-alanine component selected by the reference trajectory.
+The alkane family uses neutral all-atom bundles with GAFF2 parameters, AM1-BCC charges, graph-symmetry and neutrality projection, and \(\mathrm{mbondi2}\) radii. GAFF and AM1-BCC are described in \citet{wang2004gaff} and \citet{jakalian2002am1bcc}; the bundles are prepared with AmberTools \citep{case2023ambertools}. OBC1/ACE is used across the homologous series, and the independent references are propagated with OpenMM \citep{eastman2017openmm}. NMA uses the 12-atom ACE--NME ff96/OBC1/ACE Hamiltonian. The two chiral alcohols use GAFF2/AM1-BCC with OBC1/ACE. Alanine dipeptide uses the 22-atom ACE--ALA--NME Hamiltonian of the FAB benchmark \citep{midgley2022flow}: Amber ff96, OBC1 with \(\mathrm{igb}=2\), \(\mathrm{mbondi2}\) radii, solute and solvent dielectric constants \(1\) and \(78.5\), and the \(\mathrm L\)-alanine component selected by the reference trajectory. Ac-Pro-NHMe uses the corresponding 26-atom ACE--PRO--NME ff96/OBC1/ACE Hamiltonian.
 
-The alkanes, glycerol, neutral diethanolamine, and NMA have no fixed configurational stereocenter under these bundle definitions. Neutral diethanolamine retains both signs of its nitrogen-pyramidal coordinate, and the NMA amide torsion remains periodic so that both cis and trans conformations belong to its target. The chiral targets retain only the named configurations: \(S\) for 2-butanol, \((2R,3R)\) for 2,3-butanediol, and \(\mathrm L\)-alanine for alanine dipeptide. All conformational basins within each selected configuration remain part of the corresponding target. These support conventions are part of the target rather than an after-the-fact filter.
+The alkanes, glycerol, neutral diethanolamine, and NMA have no fixed configurational stereocenter under these bundle definitions. Neutral diethanolamine retains both signs of its nitrogen-pyramidal coordinate, and the NMA amide torsion remains periodic so that both cis and trans conformations belong to its target. The chiral targets retain only the named configurations: \((2R,3R)\) for 2,3-butanediol, \(\mathrm L\)-alanine for alanine dipeptide, and \(\mathrm L\)-proline for Ac-Pro-NHMe. All conformational basins within each selected configuration remain part of the corresponding target. These support conventions are part of the target rather than an after-the-fact filter.
 
 The Lennard--Jones core in \eqref{eq: molecular-amber-energy} grows as \(r^{-12}\), so early flow proposals can place a few samples at energies and gradients far beyond the scale of the thermally occupied region. We therefore use a two-parameter molecular surrogate. Let \(x_\star\) be the bundle reference geometry. After flooring only the regular and exception Coulomb/Lennard--Jones pair distances at \(r\), denote the complete force-field energy by \(E_r(x)\), its reference value by \(E_r^\star:=E_r(x_\star)\), and its reference-relative value by \(\Delta E_r(x):=E_r(x)-E_r^\star\). For an energy threshold \(e\), define the soft cap
 \begin{equation}
@@ -978,7 +978,7 @@ The endpoint-to-physical weights are nearly uniform on the final KLXX sample set
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{../Codes/Molecular_BG/alkane_family/results/macroscopic.png}
+\includegraphics[width=\textwidth]{figures/molecular_alkane_family_macroscopic.png}
 \caption{Macroscopic observables from the smallest-factor KLXX sample set for each alkane and an independent physical-potential reference. Fixed-path KLXX is used for methane through propane and sharpening KLXX for butane through hexane. (a) Physical energy evaluated under the exact, unregularized potential. (b) Carbon-skeleton radius of gyration \(R_{g,\mathrm C}\) and terminal-carbon distance \(R_{ee,\mathrm C}\). (c) Pooled backbone trans and gauche fractions. Filled solid curves and unhatched bars denote KLXX; open dashed curves and hatched bars denote the reference.}
 \label{fig: alkane-macroscopic}
 \end{figure}
@@ -1031,11 +1031,11 @@ Figure~\ref{fig: mol-achiral-stage-ess} resolves each factor into its accepted-s
 
 \begin{figure}[p]
 \centering
-\includegraphics[width=\textwidth]{../Codes/Molecular_BG/achiral/nma_30d/results/stage_ess.png}
+\includegraphics[width=\textwidth]{figures/molecular_nma_30d_stage_ess.png}
 \par\smallskip
-\includegraphics[width=\textwidth]{../Codes/Molecular_BG/achiral/glycerol_36d/results/stage_ess.png}
+\includegraphics[width=\textwidth]{figures/molecular_glycerol_36d_stage_ess.png}
 \par\smallskip
-\includegraphics[width=\textwidth]{../Codes/Molecular_BG/achiral/diethanolamine_48d/results/stage_ess.png}
+\includegraphics[width=\textwidth]{figures/molecular_diethanolamine_48d_stage_ess.png}
 \caption{Per-stage flow and sharpening ESS for NMA (top), glycerol (middle), and neutral diethanolamine (bottom). Each arc spans one accepted transition \(t_{k-1}\to t_k\). Within each stacked annotation, the first row is flow ESS and the second row is sharpening ESS. Blue upper arcs show $\KL$+$\X_\mu$; red lower arcs show $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The horizontal coordinate is the source-to-target interpolation parameter \(t\in[0,1]\).}
 \label{fig: mol-achiral-stage-ess}
 \end{figure}
@@ -1046,7 +1046,7 @@ The final regularized samples are compared with saved \(300\,\mathrm K\) OpenMM 
 
 \begin{figure}[htb]
 \centering
-\includegraphics[width=\textwidth]{../Codes/Molecular_BG/achiral/results/dihedrals.png}
+\includegraphics[width=\textwidth]{figures/molecular_achiral_dihedrals.png}
 \caption{Selected dihedral marginals from regularized BG samples and OpenMM references for NMA, glycerol, and neutral diethanolamine. Gray denotes the OpenMM reference; dashed blue denotes $\KL$+$\X_\mu$, and solid red denotes $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The upper-left insets show representative trans conformers. The NMA reference is a saved trajectory initialized in the trans basin, whereas the glycerol and neutral-diethanolamine references pool two seeds. The NMA panel is therefore a trans-basin comparison rather than an estimate of the equilibrium cis/trans populations.}
 \label{fig: mol-achiral-dihedrals}
 \end{figure}
@@ -1055,12 +1055,79 @@ The curves overlap closely on these selected one-dimensional marginals, but this
 
 \FloatBarrier
 
-\subsection{Chiral molecules: pending}
-\label{sec: mol-adp-pending}
+\subsection{Chiral molecule results}
+\label{sec: mol-chiral-results}
 
-The smaller chiral targets are \((S)\)-2-butanol at dimension \(39\) and \((2R,3R)\)-2,3-butanediol at dimension \(42\). Both use GAFF2/AM1-BCC with OBC1/ACE. Their target supports retain only the named stereochemical configuration; the butanol target fixes one center, while the butanediol target fixes both centers jointly. The planned comparisons must report signed-volume acceptance together with the energy and torsional distributions.
+We report completed runs for \((2R,3R)\)-2,3-butanediol, alanine dipeptide restricted to its \(\mathrm L\) form, and \(N\)-acetyl-\(\mathrm L\)-proline \(N\)-methylamide (Ac-Pro-NHMe). Only the full KLXX loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is evaluated, so this subsection contains no within-target loss comparison. Every run uses seed \(0\), \(\texttt{pool\_size}=0\), \(250\) Adam steps per accepted flow stage, an eight-level SMC ladder, and \(100\) mixed-MALA steps. The validation-population and batch sizes are \(240000/12000\), \(300000/15000\), and \(320000/16000\), respectively. The three sharpening paths and their persisted stage summaries are reported in Table~\ref{tab: mol-chiral-summary}.
 
-Alanine dipeptide provides the higher-dimensional chiral benchmark with a published reference. Its mixed domain is \(\mathbb R^{42}\times\mathbb T^{18}\), restricted to the \(\mathrm L\)-alanine component represented by the FAB million-frame trajectory. Thus only one stereochemical configuration is sampled, but its Ramachandran and remaining torsional degrees of freedom vary within that component. The intended comparison uses the exact ff96/OBC1/ACE Hamiltonian and reports the Ramachandran \((\phi,\psi)\) distribution together with full-energy reweighting and the remaining torsions. All three chiral generators remain pending, so none of their sampling results enters this revision.
+\begin{table}[htb]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccccc}
+\toprule
+\multirow{2}{*}{molecule (\(d\))} &
+\multirow{2}{*}{start \(\rho_0\)} &
+\multirow{2}{*}{end \(\rho_1\)} &
+\multicolumn{3}{c}{$\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$} \\
+\cmidrule(l){4-6}
+& & & \(F\) & stages & time (min) \\
+\midrule
+\((2R,3R)\)-2,3-butanediol (42)
+& \((50,0.20)\) & \((100,0.10)\) & 22.66 & 8 & 35.8 \\
+\addlinespace
+alanine dipeptide (60)
+& \((50,0.25)\) & \((125,0.10)\) & 111.2 & 10 & 72.7 \\
+\addlinespace
+Ac-Pro-NHMe (72)
+& \((50,0.25)\) & \((150,0.10)\) & 812.1 & 11 & 124.7 \\
+\bottomrule
+\end{tabular}
+\caption{KLXX-only Boltzmann generator results for the completed chiral targets, including propagation factor \(F\) from \eqref{eq: molecular-propagation-factor}, the number of accepted stages, and total persisted stage time in minutes. The method uses the full loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. Each row reports one seed and one sharpening path; no alternative loss was run for these targets.}
+\label{tab: mol-chiral-summary}
+\end{table}
+
+All three manifests are complete and reach \(t=1\). The propagation factors multiply the inverse flow and sharpening ESS over accepted stages, as in the earlier molecular tables. Because the rows correspond to different molecules, validation sizes, and regularization paths, their factors are stage-propagation diagnostics rather than a cross-molecule ranking.
+
+Figure~\ref{fig: mol-chiral-conformations} shows one representative final-stage conformation for each completed target. The plotted structure is an actual validation sample selected near the most populated two-dihedral basin. Gold rings mark the fixed stereocenters: both \(R\) centers of 2,3-butanediol, the \(S\) alanine \(\mathrm C_\alpha\), and the \(S\) proline \(\mathrm C_\alpha\).
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=\textwidth]{figures/molecular_chiral_conformations.png}
+\caption{Representative final-stage conformations for the three completed chiral targets. From left to right: \((2R,3R)\)-2,3-butanediol, \(\mathrm L\)-alanine dipeptide, and Ac-Pro-NHMe. Gold rings and the adjacent \(R/S\) labels identify every fixed stereocenter; the atom colors follow the CPK convention shown in the legend. Each structure is the saved validation sample nearest the modal center of a molecule-specific two-dihedral histogram.}
+\label{fig: mol-chiral-conformations}
+\end{figure}
+
+Figure~\ref{fig: mol-butanediol-landscape} compares the accepted 2,3-butanediol stage nearest (t=0.5) with the final stage. Both rows resolve the heavy-atom rotamers and hydroxyl orientations; each diagnostic shares one color scale across the two stages, while the two columns retain separate colorbars.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/molecular_rr_2_3_butanediol_landscape.png}
+\caption{Conformational free-energy surfaces for \((2R,3R)\)-2,3-butanediol from \(240000\) KLXX samples per stage. The upper row is stage \(5\), the accepted stage nearest \(t=0.5\), at \(t=0.492\) and \(\rho=(74.6,0.151)\); the lower row is the final stage \(8\) at \(t=1\) and \(\rho=(100,0.10)\). The left column shows the C-C-C-C and O-C-C-O heavy-atom torsions, and the right column shows the two hydroxyl-orientation torsions. Each column shares its scale across stages, and the two diagnostics have separate colorbars in units of \(k_{\mathrm B}T\).}
+\label{fig: mol-butanediol-landscape}
+\end{figure}
+
+For alanine dipeptide, Figure~\ref{fig: mol-adp-ramachandran} tracks the Ramachandran surface along four accepted sharpening stages. Each panel uses a persisted \(10^7\)-sample inference population generated without additional training. The panels correspond to different regularized potentials, so the visible change is a path diagnostic rather than repeated estimation of one fixed target.
+
+\begin{figure}[p]
+\centering
+\includegraphics[width=\textwidth]{figures/molecular_adp_ramachandran.png}
+\caption{Alanine-dipeptide Ramachandran free-energy surfaces at accepted stages \(4\), \(6\), \(8\), and \(10\). Each panel contains \(10^7\) persisted inference samples after the corresponding saved-flow pushforward, resampling, rejuvenation, sharpening, and post-sharpen rejuvenation operations. The panel titles give the stage interpolation parameter and regularization value; stage \(10\) reaches \(t=1\) and \(\rho=(125,0.10)\). A common colorbar reports free energy relative to the observed minimum in units of \(k_{\mathrm B}T\).}
+\label{fig: mol-adp-ramachandran}
+\end{figure}
+
+Ac-Pro-NHMe adds a ring degree of freedom and a cis/trans peptide torsion. Figure~\ref{fig: mol-ac-pro-landscape} compares the accepted stage nearest (t=0.5) with the final stage in both the backbone and joint ACE-PRO torsion/ring-pucker coordinates.
+
+\begin{figure}[htb]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/molecular_ac_pro_nhme_landscape.png}
+\caption{Conformational free-energy surfaces for Ac-Pro-NHMe from \(320000\) KLXX samples per stage. The upper row is stage \(7\), the accepted stage nearest \(t=0.5\), at \(t=0.520\) and \(\rho=(102,0.172)\); the lower row is the final stage \(11\) at \(t=1\) and \(\rho=(150,0.10)\). The left column shows the proline backbone \((\phi,\psi)\) surface, and the right column shows the joint ACE-PRO peptide torsion \(\omega\) and proline-ring pucker \(\chi_1\), with the cis and trans sectors marked. All four panels share one free-energy scale in units of \(k_{\mathrm B}T\).}
+\label{fig: mol-ac-pro-landscape}
+\end{figure}
+
+These four figures diagnose the regularized KLXX populations and their retained stereochemical components. They do not provide a matched loss comparison, a raw-potential equilibrium reference, or uncertainty over independently trained generators.
+
+\FloatBarrier
 
 % ===================== Section 7: Conclusions + Acknowledgement =====================
 \section{Conclusions}
@@ -1070,9 +1137,9 @@ Forward KL is mass-covering for exact distributions, but its sampled loss sees o
 
 The theory establishes a narrower statement. For the selected Fisher--Rao subgradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also improves the stationary-error bound by a nonnegative discrepancy term. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
 
-The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ reported stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
+The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ reported stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins in the reported conformational diagnostics. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
 
-The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals and do not determine joint conformational weights. The chiral targets marked pending in Table~\ref{tab: molecular-targets} still require generator runs and matched references; the alanine study will also permit a direct comparison with FAB \citep{midgley2022flow}. Larger molecules and explicit solvent remain outside the present results.
+The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals and do not determine joint conformational weights. The chiral results likewise lack matched raw-potential references and alternative-loss runs; a direct alanine comparison with FAB remains future work \citep{midgley2022flow}. Larger molecules and explicit solvent remain outside the completed results.
 
 
 \section*{Acknowledgments}

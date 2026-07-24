@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "bundle_root": "/data/projects/X-regularization/Codes/Molecular_BG/chiral/ac_pro_nhme_72d",
+  "jflows_md_commit": "df0da9c9c194aeb9971f77711480aa91bdb33b9e",
+  "temperature_kelvin": 300.0,
+  "temperatures_kelvin": [
+    300.0,
+    312.58608823116265,
+    325.70020851886716,
+    339.36451372328884,
+    353.6020860974454,
+    368.43697627859734,
+    383.8942439154812,
+    400.0
+  ],
+  "timestep_fs": 1.0,
+  "friction_per_ps": 1.0,
+  "platform": "CUDA",
+  "precision": "mixed",
+  "start_temperature_kelvin": 600.0,
+  "start_steps": 200000,
+  "start_sample_interval": 25000,
+  "sanity_start_steps": 800,
+  "sanity_start_sample_interval": 100,
+  "phases": {
+    "sanity": {
+      "rounds": 20,
+      "burnin_rounds": 0,
+      "steps_per_round": 10,
+      "seeds": [4401]
+    },
+    "pilot": {
+      "rounds": 1500,
+      "burnin_rounds": 300,
+      "steps_per_round": 100,
+      "seeds": [4401]
+    },
+    "verification": {
+      "rounds": 5000,
+      "burnin_rounds": 1000,
+      "steps_per_round": 100,
+      "seeds": [4401, 4402]
+    }
+  },
+  "candidate_order": [
+    [100.0, 0.10],
+    [150.0, 0.10]
+  ],
+  "tail_moment_order": 2,
+  "stereo_min_margin_nm3": 1e-6,
+  "primary_ress_min": 0.80,
+  "bootstrap_replicates": 2000,
+  "histogram_bins": 72,
+  "energy_crosscheck_atol_kj_mol": 0.0005,
+  "force_frames": 500,
+  "structural": {
+    "max_js_bits_floor": 0.03,
+    "max_occupancy_error_floor": 0.05,
+    "max_joint_state_tv_floor": 0.10,
+    "raw_baseline_multiplier": 2.0
+  },
+  "mixing": {
+    "min_markov_ess": 100.0,
+    "max_split_rhat": 1.05,
+    "max_half_marginal_tv": 0.10,
+    "min_swap_acceptance": 0.10,
+    "min_round_trips_per_seed": 1
+  },
+  "molecules": {
+    "ac_pro_nhme": {
+      "display_name": "N-acetyl-L-proline N-methylamide",
+      "bundle": "bundle",
+      "dimension": 72,
+      "torsions": [
+        [1, 4, 6, 16],
+        [4, 6, 16, 18],
+        [6, 16, 18, 20],
+        [6, 16, 13, 10],
+        [16, 13, 10, 7],
+        [16, 18, 20, 22]
+      ],
+      "torsion_labels": [
+        "omega (ACE--PRO)",
+        "phi",
+        "psi",
+        "ring chi1",
+        "ring chi2",
+        "omega (PRO--NME)"
+      ],
+      "distance_pairs": [[5, 21]],
+      "distance_labels": ["ACE O--NME H"],
+      "stereocenters": [
+        {
+          "label": "proline_ca_L",
+          "atoms": [16, 6, 18, 13],
+          "volume_sign": 1
+        }
+      ]
+    }
+  }
+}
