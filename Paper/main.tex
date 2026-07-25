@@ -14,7 +14,7 @@
 \maketitle
 
 \begin{abstract}
-Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can then miss target mass while its observed importance weights give a high effective sample size. We introduce log-ratio variation, a pairwise regularizer of the exact target-to-proposal log-density ratio, and use it to define KLXX. Its three weighting measures address target fitting, candidate mode coverage, and leakage control without changing the exact-target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted term, then place KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the molecular potential. In the reported model and molecular tests, KLXX improves coverage-aware or stagewise diagnostics, and selected molecular observables agree with independent OpenMM simulations. Log-ratio variation thus supplies information that a sampled forward KL objective can omit.
+Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can then miss target mass while its observed importance weights give a high effective sample size. We introduce log-ratio variation, a pairwise regularizer of the exact target-to-proposal log-density ratio, and use it to define KLXX. Its three weighting measures address target fitting, candidate mode coverage, and proposal support control without changing the exact-target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted term, then place KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the regularized molecular potential. In the reported model and molecular tests, KLXX improves mode-coverage or stagewise diagnostics, and selected molecular observables agree with independent OpenMM simulations. Log-ratio variation thus supplies information that a sampled forward KL objective can omit.
 \end{abstract}
 
 % ===================== Graphical abstract =====================
@@ -66,7 +66,7 @@ which is mass-covering for exact distributions: it diverges if $\nu$ vanishes wh
 
 The sampled forward KL leaves three distinct gaps. First, a mode absent from its target surrogate contributes no training points. If the flow also misses that mode, the observed weights can be nearly uniform on the reached support, so the ESS can be close to one even though target mass is absent; we call this a \emph{fake ESS} \citep{noe2019boltzmann,midgley2022flow}. Second, a finite or biased target surrogate distorts the sampled objective, and the fitted flow can inherit that error. Third, target samples give little information where the proposal places excess mass, allowing leakage between modes or into target-poor regions. Addressing one of these failures does not by itself resolve the other two.
 
-To address these gaps, we propose KLXX, a forward KL loss augmented by log-ratio variations; the graphical abstract summarizes it, and Equation~\eqref{eq: KLXX-G-intro} gives its full form. KLXX preserves the tractable target-to-proposal density ratio and exact-target minimizer while separating target fitting, candidate-mode coverage, and proposal-support control. The first two terms of \eqref{eq: KLXX-G-intro}, the sampled forward KL and the target-weighted variation $\X_\mu$, both draw on the target surrogate supplied by annealing. The new third term mixes samples from quench and temper (QT) with pushforward samples: QT contributes candidate modes missing from the surrogate, while pushforward samples expose proposal support and leakage. QT guides coverage rather than estimating physical mode weights or guaranteeing complete discovery.
+To address these gaps, we propose KLXX, a forward KL loss augmented by log-ratio variations; the graphical abstract summarizes it, and Equation~\eqref{eq: KLXX-G-intro} gives its full form. KLXX preserves the tractable target-to-proposal density ratio and exact-target minimizer while separating target fitting, candidate mode coverage, and proposal-support control. The first two terms of \eqref{eq: KLXX-G-intro}, the sampled forward KL and the target-weighted variation $\X_\mu$, both draw on the target surrogate supplied by annealing. The new third term mixes samples from quench and temper (QT) with pushforward samples: QT contributes candidate modes missing from the surrogate, while pushforward samples expose proposal support and leakage. QT guides coverage rather than estimating physical mode weights or guaranteeing complete discovery.
 
 The closest related method is Flow Annealed Importance Sampling Bootstrap (FAB), which couples AIS and flow training but replaces the forward KL by the $\alpha$-divergence ($\alpha=2$) \citep{midgley2022flow}. Its integrand is proportional to $\mu^2/\nu$, and its exact minimizer also minimizes importance-weight variance. FAB targets $\mu^2/\nu$ with AIS and reuses those samples through a prioritized replay buffer, which must be maintained across training. Related methods insert flows into SMC, anneal toward low-temperature targets, add an inference-time SMC correction, or connect disconnected regions \citep{arbel2021annealed,matthews2022craft,schopmans2025temperature,tan2025sequential,vonklitzing2026constrained}. KLXX instead retains the forward KL and adds nonnegative log-ratio variations. Its additional cost is the QT construction and the variation evaluations, including the extra mixture batch; it uses no replay buffer. FAB's $2$-divergence gives a stronger tail penalty, whereas KLXX obtains coverage information from QT. Section~\ref{subsec: annealing} compares their sampling mechanisms.
 
@@ -811,46 +811,39 @@ where \(J(q)\) is the Cartesian volume Jacobian of the reconstruction, including
 
 \begin{table}[htb]
 \centering
-\begin{tabular}{lcll}
+\begin{tabular}{lcl}
 \toprule
-target & atoms / \(d\) & model & status \\
+target & atoms / \(d\) & model \\
 \midrule
-\multicolumn{4}{l}{\emph{Achiral targets}} \\
+\multicolumn{3}{l}{\emph{Achiral targets}} \\
 \addlinespace[2pt]
 alkanes, \(\mathrm C_1\)--\(\mathrm C_6\)
 & \(5\text{--}20/9\text{--}54\)
-& GAFF2/AM1-BCC; OBC1/ACE
-& complete \\
+& GAFF2/AM1-BCC; OBC1/ACE \\
 \(N\)-methylacetamide (NMA)
 & \(12/30\)
-& ff96; OBC1/ACE
-& complete \\
+& ff96; OBC1/ACE \\
 glycerol
 & \(14/36\)
-& GAFF2/AM1-BCC; OBC1/ACE
-& complete \\
+& GAFF2/AM1-BCC; OBC1/ACE \\
 neutral diethanolamine
 & \(18/48\)
-& GAFF2/AM1-BCC; OBC1/ACE
-& complete \\
+& GAFF2/AM1-BCC; OBC1/ACE \\
 \addlinespace
-\multicolumn{4}{l}{\emph{Chiral targets: one fixed stereochemical configuration}} \\
+\multicolumn{3}{l}{\emph{Chiral targets: one fixed stereochemical configuration}} \\
 \addlinespace[2pt]
 \((2R,3R)\)-2,3-butanediol
 & \(16/42\)
-& GAFF2/AM1-BCC; OBC1/ACE
-& complete \\
+& GAFF2/AM1-BCC; OBC1/ACE \\
 alanine dipeptide
 & \(22/60\)
-& ff96; OBC1/ACE
-& complete \\
+& ff96; OBC1/ACE \\
 Ac-Pro-NHMe
 & \(26/72\)
-& ff96; OBC1/ACE
-& complete \\
+& ff96; OBC1/ACE \\
 \bottomrule
 \end{tabular}
-\caption{Molecular targets in mixed internal coordinates, grouped by configurational stereochemistry. All systems are at \(300\,\mathrm K\), use no nonbonded cutoff or bond constraints, and include the coordinate Jacobian in \eqref{eq: molecular-reduced-potential}. For each chiral target, the generator and reference are restricted to one specified stereochemical configuration, while all conformations within that configuration remain part of the target. All listed generator runs are complete.}
+\caption{Molecular targets in mixed internal coordinates, grouped by configurational stereochemistry. All systems are at \(300\,\mathrm K\), use no nonbonded cutoff or bond constraints, and include the coordinate Jacobian in \eqref{eq: molecular-reduced-potential}. For each chiral target, the generator and reference are restricted to one specified stereochemical configuration, while all conformations within that configuration remain part of the target.}
 \label{tab: molecular-targets}
 \end{table}
 
@@ -1085,7 +1078,7 @@ The curves overlap closely on these selected one-dimensional marginals, but this
 \subsection{Chiral molecule results}
 \label{sec: mol-chiral-results}
 
-We report completed runs for \((2R,3R)\)-2,3-butanediol, alanine dipeptide restricted to its \(\mathrm L\) form, and \(N\)-acetyl-\(\mathrm L\)-proline \(N\)-methylamide (Ac-Pro-NHMe). Only the full KLXX loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is evaluated, so this subsection contains no within-target loss comparison. Every run uses seed \(0\), \(\texttt{pool\_size}=0\), \(250\) Adam steps per accepted flow stage, an eight-level SMC ladder, and \(100\) mixed-MALA steps. The validation-set and batch-size pairs are \(240000/12000\), \(300000/15000\), and \(320000/16000\), respectively. The three sharpening paths and their persisted stage summaries are reported in Table~\ref{tab: mol-chiral-summary}.
+We report completed runs for \((2R,3R)\)-2,3-butanediol, alanine dipeptide restricted to its \(\mathrm L\) form, and \(N\)-acetyl-\(\mathrm L\)-proline \(N\)-methylamide (Ac-Pro-NHMe). Only the full KLXX loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is evaluated, so this subsection contains no within-target loss comparison. Every run uses seed \(0\), \(250\) Adam steps per accepted flow stage, an eight-level SMC ladder, and \(100\) mixed-MALA steps. The validation-set and batch-size pairs are \(240000/12000\), \(300000/15000\), and \(320000/16000\), respectively. The three sharpening paths and their persisted stage summaries are reported in Table~\ref{tab: mol-chiral-summary}.
 
 \begin{table}[htb]
 \centering
@@ -1162,9 +1155,9 @@ These four figures diagnose the regularized KLXX sample sets and their retained 
 
 Forward KL is mass-covering for exact distributions, but its sampled loss sees only the target regions supplied to it. This gap can produce a fake ESS, transfer surrogate error to the flow, and leave target-poor proposal regions weakly constrained. Log-ratio variation addresses these failures by comparing the exact log-density ratio at pairs of samples. The weighting measure determines which regions are compared: target samples measure density variation on reached target regions, QT samples add candidate modes, and pushforward samples expose regions occupied by the proposal. KLXX combines these comparisons while retaining the exact target as a minimizer and the flow as a tractable importance proposal.
 
-The theory establishes a narrower statement. For the FR gradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also improves the stationary-error bound by a nonnegative discrepancy term. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
+The theory establishes a narrower statement. For the FR gradient flow of forward KL with $\X_\mu$, the regularizer adds a nonpositive term to the instantaneous KL dissipation. For a fixed smooth surrogate and $\lambda<\frac12$, it also subtracts a nonnegative discrepancy term from the stationary-error bound. This does not prove finite-step behavior for full KLXX, Adam, or the experimental value $\lambda=1$.
 
-The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation across the tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ reported stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins in the reported conformational diagnostics. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
+The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation at all sixteen tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ shared stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in all ten matched settings, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins in the reported conformational diagnostics. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
 
 The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals and do not determine joint conformational weights. The chiral results likewise lack matched raw-potential references and alternative-loss runs; a direct alanine dipeptide comparison with FAB remains future work \citep{midgley2022flow}. Larger molecules and explicit solvent remain outside the completed results.
 
