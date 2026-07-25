@@ -354,11 +354,23 @@ Under the support condition $\mu\ll\nu$ and standard consistency conditions, the
 \section{Adaptive-staging Boltzmann generator}
 \label{sec: boltzmann}
 
-A single flow can be inadequate when the source-to-target change is too large, so we divide the interpolation into stages. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}, using user-chosen weights $\lambda,\alpha,\beta\Ge0$. The KLXX Boltzmann generator is the special case $(\lambda,\alpha,\beta)=(1,\frac12,\frac12)$; the construction below also permits other choices. Sampling diagnostics determine the stage schedule.
+A single flow can be inadequate when the source-to-target change is too large, so we divide the interpolation into stages. Each stage changes the potential by a controlled amount and trains one flow with the loss in \eqref{eq: total-loss-G}, using user-chosen parameters $\lambda,\alpha,\beta\Ge0$. The KLXX Boltzmann generator is the special case $(\lambda,\alpha,\beta)=(1,\frac12,\frac12)$. Sampling diagnostics determine the stage schedule.
+
+\subsection{Why staging must be adaptive}
+
+Two obstacles prevent a single flow from carrying $\mu_0$ to $\mu$ in one map.
+
+\begin{itemize}
+    \item \emph{Curse of dimensionality.} In low dimension a unimodal source can often be reshaped into a multimodal target by one map, but as $d$ grows the target landscape develops more basins, separated by higher barriers and occupying a smaller fraction of the source support. A normalizing flow of fixed depth and width can represent only a bounded change of shape, so the deformation it realizes in one training run is limited by its capacity rather than by the training budget. Requesting the whole source-to-target change from a single flow therefore leaves part of the target unfitted in exactly the high-dimensional, multimodal problems of interest. Splitting the interpolation into stages keeps each requested deformation within the capacity of one flow, and the number of stages needed to do so grows with dimension.
+
+    \item \emph{Structural limitation of a diffeomorphism.} A trained flow is a diffeomorphism of $\mathbb R^d$, so the pushforward $\nu$ inherits the connected support of $\mu_0$: the map deforms that support continuously and cannot split it into disconnected components. Mass therefore remains on the paths joining the target basins even when the basins themselves are well fitted, an effect visible between the isolated modes of the Sparse target in Figure~\ref{fig: sparse}. Reweighting and MALA rejuvenation at the interpolating distributions remove the leaked samples at every stage, so the support changes shape gradually across the schedule.
+\end{itemize}
+
+The stage schedule cannot be fixed in advance, because we assume no external information about the target. Training uses no target dataset, no reference trajectory, and no prior knowledge of the number, location, or depth of the potential wells. The only available information is oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$: the interpolating potentials are formed from $U_0$ and $U$ alone, the loss evaluates $U_{t}$ through the log-ratio $z$, the annealing and rejuvenation kernels use $-\nabla U_{t}$ in their proposals, and the quench of Algorithm~\ref{alg: QT} descends on the same potential. Under this restriction the difficulty of a candidate stage cannot be read off the potential before attempting it. The algorithm therefore probes the interpolation parameter: it proposes a stage increment, trains the stage flow, accepts the increment only when the resulting proposal passes a sampling gate on the validation set, and otherwise shrinks the increment and retries. Adaptive staging is thus more than a convenience. It is the mechanism that turns oracle access alone into a stage schedule matched to the difficulty the target actually presents, and it lets easy regions advance in few large stages while hard regions receive as many small stages as they require.
 
 \subsection{Construction of the adaptive stage schedule}
 
-To interpolate from the simple source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propto \exp(-U)$, we seek an increasing sequence
+To interpolate from the source $\mu_0 \propto \exp(-U_0)$ to the target $\mu \propto \exp(-U)$, we seek an increasing sequence
 \begin{equation*}
     0 = t_0 < t_1 < \cdots < t_K = 1
 \end{equation*}
@@ -370,13 +382,13 @@ defining the interpolating potential and measure
 \end{equation*}
 Here $t$ is a dimensionless interpolation parameter, not a thermodynamic temperature. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
 
-Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, an optional classical SMC calculation can screen the proposed stage increment $\Delta t_k$. Its smallest incremental ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. Its floor lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the complete stage sample set used for training batches, QT, and stage selection; it is not a held-out test set.
+Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, an optional classical SMC calculation can screen the proposed stage increment $\Delta t_k$. Its smallest incremental ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the sample set carried across stages and used in full for training batches, QT, and stage selection; it is not a held-out test set, and neither QT nor the SMC screen first draws a separately sized subset of it.
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
 \caption{Adaptive selection of the stage increment $\Delta t_k$}
 \label{alg: step}
-\KwInput{potentials $U_0, U$, previous stage point $t_{k-1}$, validation set $\mathcal Y_{k-1} = \{y_1,\dots,y_N\}$ approximating $\mu_{k-1}$, ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, shrink factor $\gamma = 0.7$, initial guess $t_{\mathrm{init}}$}
+\KwInput{potentials $U_0, U$, stage point $t_{k-1}$, validation set $\mathcal Y_{k-1} = \{y_1,\dots,y_N\}$ approximating $\mu_{k-1}$, ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, shrink factor $\gamma=0.7$, initial guess $t_{\mathrm{init}}$}
 \KwOutput{next stage point $t_{k}$, giving the stage increment $\Delta t_k = t_k - t_{k-1}$}
 
 $U_{t_{k-1}} \gets (1-t_{k-1}) U_0 + t_{k-1} U$\;
@@ -399,7 +411,7 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 \mbox{}\\
-When enabled, these SMC ladders involve only the potentials $U_0$ and $U$, never the flow map. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
+When enabled, these SMC ladders involve only the potentials $U_0$ and $U$. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) of Section~\ref{sec: boltzmann} below supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
 
 \FloatBarrier
 
@@ -408,13 +420,13 @@ When enabled, these SMC ladders involve only the potentials $U_0$ and $U$, never
 Algorithm~\ref{alg: boltzmann} combines the stage-selection rule with the training procedure. It carries a fixed-size validation set $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}\in[0,1)$, the algorithm shrinks the stage increment and retries. The displayed loop ends when $t_K=1$. Practical implementations use an endpoint tolerance and finite caps on retries and stages; reaching a cap returns an incomplete stage schedule.
 
 \begin{enumerate}[(i)]
-\item \emph{Validation set.} Stage $k$ uses the \emph{validation set size} $N$ and the \emph{batch size} $B$. The validation set $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. A working copy of all $N$ samples supplies the SMC calculation in step~(ii), and, when $\alpha>0$, all $N$ samples initialize QT in step~(iii). Neither operation first draws a separately sized subset. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
+\item \emph{Validation set.} Stage $k$ uses the \emph{validation set size} $N$ and the \emph{batch size} $B$, taken at least $2$ so that the permuted-pair estimator has a pair to form. The validation set $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
 
-\item \emph{Adaptive stage selection.} Algorithm~\ref{alg: step} selects the next stage point $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted stage increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. The default $\tau_{\mathrm{SMC}}=0$ accepts this initial guess without the optional SMC screen. If a positive floor is supplied, the algorithm shrinks the stage increment until the classical SMC ESS on all $N$ particles clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
+\item \emph{Adaptive stage selection.} Algorithm~\ref{alg: step} selects the next stage point $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted stage increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. When a positive floor is supplied, the algorithm shrinks the stage increment until the classical SMC ESS on all $N$ samples clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
 
 \item \emph{Wide-coverage set.} When $\alpha>0$, quench and temper (Algorithm~\ref{alg: QT}) acts on the validation set $\mathcal Y_{k-1}$ under $U_{t_k}$. The resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ form the fixed stage reservoir. The measure $\hat\mu_k$ is the law obtained by drawing uniformly from this reservoir and applying the short MALA refresh used at each gradient step; it supplies the wide-coverage component of the last term in \eqref{eq: stage-loss}. When $\alpha=0$, that component vanishes and the QT construction is omitted.
 
-\item \emph{Training loss.} The flow $G_k$ is trained by the general loss \eqref{eq: total-loss-G} specialized to the stage $\mu_{k-1}\to\mu_k$. With the pushforward distribution $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its frozen sampling measure $\bar\nu_k$, the stage log-ratio is
+\item \emph{Training loss.} Each attempt initializes $G_k$ to the identity map and trains it by the general loss \eqref{eq: total-loss-G} specialized to the stage $\mu_{k-1}\to\mu_k$. With the pushforward distribution $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its frozen sampling measure $\bar\nu_k$, the stage log-ratio is
 \begin{equation*}
     z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)|.
 \end{equation*}
@@ -427,10 +439,10 @@ The stage loss then reads
     \mathcal{L}[G_k]
     &= \underbrace{\mathbb{E}_{y \sim \mu_k}\bigl[z_k(y)\bigr]}_{\KL(\mu_k\|\nu_k)}
      + \lambda\underbrace{\mathbb{E}_{y, y' \sim \mu_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\mu_k}(\mu_k\|\nu_k)}
-     + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\alpha\hat\mu_k+\beta\bar\nu_k}(\mu_k\|\nu_k)} ,
+     + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\alpha\hat\mu_k+\beta\bar\nu_k}(\mu_k\|\nu_k)} .
     \label{eq: stage-loss}
 \end{align}
-When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased annealed surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is mapped to the batch of pushforward samples $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: annealing} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the permuted-pair estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and $\KL$+$\X_{\mu_k}$, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
+When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased annealed surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is mapped to the batch of pushforward samples $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: annealing} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the permuted-pair estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and $\KL$+$\X_{\mu}$, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
 
 \item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained set of pushforward samples $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with proportional importance weights represented by
 \begin{equation*}
@@ -495,7 +507,7 @@ $K \gets k$\;
 \Return $\{t_k\}_{k=0}^{K}$ and $\{G_k\}_{k=1}^{K}$\;
 \end{algorithm}
 \mbox{}\\
-The accepted stage schedule defines a Boltzmann generator for $\mu$. The process starts with samples from $\mu_0$. At stage $k$, it applies the selected inverse map or identity, computes $w_k$, resamples, and rejuvenates under $U_{t_k}$. The resulting validation set supplies stage $k+1$.
+The accepted stage schedule defines a Boltzmann generator for $\mu$. The process starts with samples from $\mu_0$. At stage $k$, it applies the selected inverse map or identity, computes $w_k$, resamples, and rejuvenates under $U_{t_k}$. The resulting sample set supplies stage $k+1$.
 
 The accepted-stage weights also define the propagation factor used below:
 \begin{equation}
