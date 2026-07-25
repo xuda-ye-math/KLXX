@@ -525,7 +525,7 @@ Because normalized ESS lies in $(0,1]$, $F$ is at least one, with the ideal valu
 \section{Numerical experiments on model problems}
 \label{sec: experiments}
 
-We now test the roles assigned to the three sampling measures. The 2D targets assess target accuracy, QT-assisted mode coverage, and visible proposal leakage. The product multi-well benchmark tests how the ESS difference changes with dimension. The tilted $\phi^4$ model shows why ESS must be paired with a collective-mode diagnostic. The clock model then compares the full objective on shared stage schedules. Accordingly, ESS is reported with coverage, minority-phase weight, or sector occupancy whenever mode omission is possible.
+We test forward KL against its $\X$-augmented losses $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$, the last of which is KLXX. The target distributions vary in dimension, in the kind of barrier that separates their modes, and in how far those modes lie from the source. The 2D benchmarks separate finite-batch accuracy from mode discovery and make proposal leakage directly visible. The product multi-well raises the dimension to $256$, where the multimodality is a product of independent sign choices. The tilted $\phi^4$ model replaces isolated wells by a collective domain-wall barrier between two unequally weighted vacua. The clock model is a periodic $64$-dimensional target with six symmetry-related sectors, trained by the full adaptive-staging construction. Accordingly, ESS is always reported together with a mode-coverage diagnostic, since neither quantity is conclusive on its own.
 
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
@@ -539,7 +539,7 @@ $\KL$+$\X_\mu$,\qquad
 $\KL$+$\X_\mu$+$\X_{\hat\mu}$,\qquad
 $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$.
 \end{center}
-The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$. Each training step constructs a target surrogate by one annealing update through the current flow. The rejuvenation kernel uses $100$ MALA steps of size $10^{-3}$ for Two-Moon and $50$ MALA steps of size $2\times10^{-3}$ for the other targets. The fixed validation sets contain $5\times10^4$ points for Two-Moon and Himmelblau and $8\times10^4$ for Three-Well and Sparse. For both objectives containing the wide-coverage term $\X_{\hat\mu}$, quench and temper acts on the fixed validation set, with melt scale $2$ and an Armijo L-BFGS quench using initial step $0.5$ and $200$ iterations. The final ESS is computed from flow importance weights on that validation set. Coverage, with $\kappa=5$ against an independently generated quench and temper reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. The reference sets contain $1000$, $4000$, $500$, and $4000$ points for Two-Moon, Three-Well, Himmelblau, and Sparse, respectively; their QT tempering uses $1000$ MALA steps at the target-specific step size above. Hence a collapsed flow can have ESS near one but cannot have full coverage. Each objective--target pair is one fixed-seed training realization, so the numerical differences below describe these matched runs rather than variation across independent trainings.
+The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$. Each training step constructs a target surrogate by one annealing update through the current flow. The rejuvenation kernel uses $100$ MALA steps of size $10^{-3}$ for Two-Moon and $50$ MALA steps of size $2\times10^{-3}$ for the other targets. The fixed validation sets contain $5\times10^4$ points for Two-Moon and Himmelblau and $8\times10^4$ for Three-Well and Sparse. For both objectives containing the wide-coverage term $\X_{\hat\mu}$, quench and temper acts on the fixed validation set, with melt scale $2$ and an Armijo L-BFGS quench using initial step $0.5$ and $200$ iterations. The final ESS is computed from flow importance weights on that validation set. Coverage, with $\kappa=5$ against an independently generated quench and temper reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. The reference sets contain $1000$, $4000$, $500$, and $4000$ points for Two-Moon, Three-Well, Himmelblau, and Sparse, respectively; their QT tempering uses $1000$ MALA steps at the target-specific step size above. Because coverage tests occupancy of the reference balls, a collapsed flow can have ESS near one but cannot have full coverage. Each objective--target pair is one fixed-seed training realization, so the numerical differences below describe these matched runs rather than variation across independent trainings.
 
 \begin{figure}[htb]
     \centering
@@ -549,7 +549,7 @@ The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)
 \end{figure}
 
 \paragraph{Two-Moon.}
-The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$. With batch size $500$, $200$ Adam steps, and learning rate $10^{-3}$, forward KL reaches ESS $0.8358$. Adding $\X_\mu$ raises it to $0.9109$, while the equal-weight mixture is best at $0.9236$ (Figure~\ref{fig: two-moon}). Because coverage is already complete, this comparison tests whether pairwise log-ratio control improves density calibration on the reached support.
+The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$. With batch size $500$, $200$ Adam steps, and learning rate $10^{-3}$, forward KL reaches ESS $0.8358$. Adding $\X_\mu$ raises it to $0.9109$, while the equal-weight mixture is best at $0.9236$ (Figure~\ref{fig: two-moon}). The loss $\KL$+$\X_\mu$+$\X_{\hat\mu}$ stays at $0.8348$, level with forward KL, since QT supplies no mode that the annealed batch is missing. Because coverage is already complete, this comparison tests whether pairwise log-ratio control improves density calibration on the reached support.
 
 \begin{figure}[htb]
     \centering
@@ -564,24 +564,24 @@ The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_himmelblau_samples.png}
-    \caption{Himmelblau target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$; each panel shows the pushforward samples over the target energy with final ESS and coverage, and gray points show the source. The first two objectives capture only two of the four wells. Both $\hat\mu$-weighted objectives cover all four, while including pushforward samples in the mixture term reduces the visible intermodal mass and raises ESS relative to the $\hat\mu$-only fit.}
+    \caption{Himmelblau target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$; each panel shows the pushforward samples over the target energy with final ESS and coverage, and gray points show the source. The first two objectives capture only two of the four wells. Both $\hat\mu$-weighted objectives cover all four, while including pushforward samples in the mixture term reduces the visible intermodal mass and raises ESS relative to the $\KL$+$\X_\mu$+$\X_{\hat\mu}$ fit.}
     \label{fig: himmelblau}
 \end{figure}
 
 \paragraph{Himmelblau.}
-The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approximately $3$--$4$. Training uses batch size $1000$, $1000$ steps, and learning rate $10^{-3}$. Forward KL and $\KL$+$\X_\mu$ capture only two wells, giving coverage $0.5160$ despite ESS $0.9316$ and $0.9809$. Both objectives using $\hat\mu$ attain coverage $1$. Relative to the $\hat\mu$-only result, the equal mixture shows less visible intermodal mass and raises ESS from $0.9562$ to $0.9736$ (Figure~\ref{fig: himmelblau}). This paired observation is consistent with, but does not by itself prove, the proposed leakage-control role of $\bar\nu$.
+The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approximately $3$--$4$. Training uses batch size $1000$, $1000$ steps, and learning rate $10^{-3}$. Forward KL and $\KL$+$\X_\mu$ capture only two wells, giving coverage $0.5160$ despite ESS $0.9316$ and $0.9809$. Both objectives using $\hat\mu$ attain coverage $1$. Relative to the $\KL$+$\X_\mu$+$\X_{\hat\mu}$ result, the equal mixture shows less visible intermodal mass and raises ESS from $0.9562$ to $0.9736$ (Figure~\ref{fig: himmelblau}). This paired observation is consistent with, but does not by itself prove, the proposed leakage-control role of $\bar\nu$.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_sparse_samples.png}
-    \caption{Sparse target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$, with the pushforward samples overlaid on the target energy; panel titles report final ESS and coverage, and gray points show the source. The first two objectives cover the central pair but miss the two remote modes. The $\hat\mu$-only objective restores the remote modes with visible mass between components, whereas the equal mixture covers all four modes with less intermodal mass and higher ESS.}
+    \caption{Sparse target. Columns show forward KL, $\KL$+$\X_\mu$, $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$, with the pushforward samples overlaid on the target energy; panel titles report final ESS and coverage, and gray points show the source. The first two objectives cover the central pair but miss the two remote modes. The loss $\KL$+$\X_\mu$+$\X_{\hat\mu}$ restores the remote modes with visible mass between components, whereas the equal mixture covers all four modes with less intermodal mass and higher ESS.}
     \label{fig: sparse}
 \end{figure}
 
 \FloatBarrier
 
 \paragraph{Sparse.}
-The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL$+$\X_\mu$ cover only the central pair. Their coverage is $0.5335$, while their ESS values are $0.9116$ and $0.9266$. The $\hat\mu$-only objective restores all four modes but also places visible mass between them, with ESS $0.8262$. The equal mixture attains coverage $1$, shows less intermodal mass, and reaches ESS $0.9555$.
+The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL$+$\X_\mu$ cover only the central pair. Their coverage is $0.5335$, while their ESS values are $0.9116$ and $0.9266$. The loss $\KL$+$\X_\mu$+$\X_{\hat\mu}$ restores all four modes but also places visible mass between them, with ESS $0.8262$. The equal mixture attains coverage $1$, shows less intermodal mass, and reaches ESS $0.9555$.
 
 \begin{table}[htb]
     \centering
@@ -599,12 +599,12 @@ The target is a four-component Gaussian mixture with component standard deviatio
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
-The four targets support the intended division of labor. Adding $\X_\mu$ raises ESS when coverage is already complete. QT samples supply information about modes absent from the annealed batch. Including pushforward samples in the mixture term is associated with cleaner intermodal regions than the $\hat\mu$-only objective. Because there is no $\bar\nu$-only ablation, the last comparison is evidence for the combined mixture rather than a causal estimate of one term. The equal mixture has the highest mode-complete ESS on every target in Table~\ref{tab: 2d-benchmark-summary}.
+The four targets support the intended division of labor. Adding $\X_\mu$ raises ESS when coverage is already complete. QT samples supply information about modes absent from the annealed batch. Including pushforward samples in the mixture term is associated with cleaner intermodal regions than the loss $\KL$+$\X_\mu$+$\X_{\hat\mu}$. The equal mixture has the highest mode-complete ESS on every target in Table~\ref{tab: 2d-benchmark-summary}.
 
 \subsection{High-dimensional product multi-well}
 \label{subsec: highd}
 
-We next isolate accuracy scaling over the sixteen dimensions
+We next isolate accuracy scaling over the dimensions
 $d=16,32,\ldots,256$. Letting $k=\lfloor\log_2 d\rfloor$, we use
 \begin{equation}
     U(\mathbf{x})=\frac12\lVert\mathbf{x}\rVert^2
@@ -613,7 +613,7 @@ $d=16,32,\ldots,256$. Letting $k=\lfloor\log_2 d\rfloor$, we use
 \end{equation}
 The first $k$ coordinates are symmetric double wells with minima at $\pm\sqrt{\ln 24}$ and barrier approximately $9.9$, while the remaining $d-k$ coordinates are standard Gaussian. The target therefore has exactly $2^k$ equal-weight sign-pattern modes, where $2^k\Le d<2^{k+1}$. Multimodality occupies only a $k$-dimensional subspace, but the log-weight error accumulates across all $d$ coordinates.
 
-All four objectives use the same identity-initialized neural spline flow on $[-4,4]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. At every dimension, training uses batch size $250$, $2000$ Adam steps at learning rate $10^{-3}$, gradient clipping at $10^2$, and a fixed validation set of size $5000d$. The live target surrogate uses one annealing update followed by $50$ MALA steps of size $2\times10^{-3}$. This is a standalone one-flow ablation, so its separately reported QT set contains $1000d$ samples rather than the validation set used by the staged algorithm. QT uses melt scale $2$ and an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations. Final validation ESS is evaluated on $\max(200d,80000)$ fresh source samples. Each objective--dimension pair is one fixed-seed training realization.
+All four objectives use the same identity-initialized neural spline flow on $[-4,4]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. At every dimension, training uses batch size $250$, $2000$ Adam steps at learning rate $10^{-3}$, gradient clipping at $10^2$, and a fixed validation set of size $5000d$. The live target surrogate uses one annealing update followed by $50$ MALA steps of size $2\times10^{-3}$. This is a standalone one-flow ablation, so its separately reported QT set contains $1000d$ samples rather than reusing the validation set as the staged algorithm does. QT uses melt scale $2$ and an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations. Final validation ESS is evaluated on $\max(200d,80000)$ fresh source samples. Each objective--dimension pair is one fixed-seed training realization.
 
 \begin{figure}[htb]
     \centering
@@ -622,7 +622,7 @@ All four objectives use the same identity-initialized neural spline flow on $[-4
     \label{fig: highd-ess}
 \end{figure}
 
-Every expected sign pattern appears in the fresh evaluation samples for every method and dimension, including all $256$ patterns at $d=256$. The ESS comparison is therefore not explained by a missing sign-pattern mode in those samples. Figure~\ref{fig: highd-ess} shows that every objective with log-ratio variation has higher validation ESS than forward KL at all sixteen dimensions. At $d=256$, the final values are $0.4322$ for forward KL, $0.5608$ for $\KL$+$\X_\mu$, $0.5979$ for $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $0.5687$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The two objectives containing $\hat\mu$ behave similarly across dimensions. During the $d=256$ training realization, all three objectives with log-ratio variation continue to improve after forward KL begins to plateau.
+In each of the $64$ evaluated pairs of objective and dimension, all $2^k$ sign patterns of the double-well coordinates occur among the fresh evaluation samples, including all $256$ patterns for each of the four objectives at $d=256$. The ESS comparison is therefore not explained by a missing sign-pattern mode in those samples. Figure~\ref{fig: highd-ess} shows that each of the three objectives with log-ratio variation has higher final validation ESS than forward KL at every one of the sixteen dimensions, so forward KL is the lowest of the four at each dimension. At $d=256$, the final values are $0.4322$ for forward KL, $0.5608$ for $\KL$+$\X_\mu$, $0.5979$ for $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $0.5687$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The two objectives containing $\hat\mu$ behave similarly across dimensions. During the $d=256$ training realization, all three objectives with log-ratio variation continue to improve after forward KL begins to plateau.
 
 \subsection{Lattice \texorpdfstring{$\phi^4$}{phi4} field theory: ESS at a collective barrier}
 \label{subsec: phi4}
@@ -679,7 +679,7 @@ Forward KL and $\KL$+$\X_\mu$ collapse at every size and seed. Their annealed ba
     \label{fig: phi4-methods}
 \end{figure}
 
-Both objectives using QT populate both vacua at every seed. Their recovered $p_+$ lies between $0.1238$ and $0.1312$, within $0.005$ of the parallel-tempering estimate and the resampled mirror-MALA reference at the corresponding lattice size. In these finite-capacity fits, recovering both vacua is accompanied by some mass in the suppressed region between phases and lower ESS. At $L=8$, the equal mixture has ESS $0.6756$--$0.6902$, compared with $0.6355$--$0.6541$ for the $\hat\mu$-only objective. Its samples retain both vacua with less visible mass in the suppressed region between phases, consistent with the intended role of the pushforward samples.
+Both objectives using QT populate both vacua at every seed. Their recovered $p_+$ lies between $0.1238$ and $0.1312$, within $0.005$ of the parallel-tempering estimate and the resampled mirror-MALA reference at the corresponding lattice size. In these finite-capacity fits, recovering both vacua is accompanied by some mass in the suppressed region between phases and lower ESS. At $L=8$, the equal mixture has ESS $0.6756$--$0.6902$, compared with $0.6355$--$0.6541$ for the loss $\KL$+$\X_\mu$+$\X_{\hat\mu}$. Its samples retain both vacua with less visible mass in the suppressed region between phases, consistent with the intended role of the pushforward samples.
 
 \subsection{Boltzmann generator on \texorpdfstring{$p$}{p}-state clock model}
 \label{subsec: clock}
@@ -694,11 +694,11 @@ U(\boldsymbol\theta)
 \end{equation}
 where $\langle jl\rangle$ runs over nearest-neighbor pairs. The source is uniform on the torus and the interpolation is $U_t=tU$. At low temperature, the target separates into six symmetry-related clock sectors.
 
-Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ samples, and both SMC and quench and temper act directly on this complete set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$, a four-level annealed surrogate with $100$ MALA steps of size $10^{-3}$, energy clipping at $10^3$, and gradient clipping at $10^2$. For KLXX, QT uses wrapped-Gaussian melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule starts from $t_{\mathrm{safe}}=0.25$, uses enlarge factor $\Gamma=2$, and applies the nondefault gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$. An additional completed run lies below this reporting cutoff and is excluded from the table and all aggregate clock claims.
+Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ samples, and both SMC and quench and temper act directly on this set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$, a four-level annealed surrogate with $100$ MALA steps of size $10^{-3}$, energy clipping at $10^3$, and gradient clipping at $10^2$. For KLXX, QT uses wrapped-Gaussian melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule uses the nondefault settings $t_{\mathrm{safe}}=0.25$, enlarge factor $\Gamma=2$, and gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$. An additional completed run lies below this reporting cutoff and is excluded from the table and all aggregate clock claims.
 
 The comparison is schedule-matched. An adaptive stage schedule is first constructed with forward KL using SMC preselection and an ESS acceptance gate. The loss $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ is then trained on the identical accepted values of $t$, without a second gate. Hence the two methods see the same stage increments within each batch-size pair. Every configuration is a single run, so individual stage ESS values carry single-run fluctuation.
 
-The principal metric is the selected-proposal validation ESS of each accepted stage. The propagation factor in \eqref{eq: propagation-factor} summarizes stagewise weight degeneracy across the stage sequence; smaller is better. It is not a full-chain ESS or an endpoint error estimate. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting factor.
+The principal diagnostic is the selected-proposal validation ESS of each accepted stage. The propagation factor in \eqref{eq: propagation-factor} summarizes stagewise weight degeneracy across the stage sequence; smaller is better. It is not a full-chain ESS or an endpoint error estimate. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting factor.
 
 \begin{table}[htb]
     \centering
@@ -750,7 +750,7 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/lattice_clock_occupancy_bias.png}
-    \caption{Clock-sector occupancy bias under two fresh-rebuild tests. (a) Mean bias at fixed $N=6.4\times10^5$ across training batch sizes; each bar averages four matched sampling seeds. (b) Mean bias at fixed $B=2000$ versus particle count; at $N=10^4 2^k$, each mean uses $2^{8-k}$ independent rebuilds, keeping the total work per point at $2.56\times10^6$ particles. Error bars in both panels are $\pm2$ standard errors. The dashed line in (b) is an $N^{-1/2}$ reference anchored at the smallest $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ point. The panels use separately generated rebuild ensembles.}
+    \caption{Clock-sector occupancy bias under two fresh-rebuild tests. (a) Mean bias at fixed $N=6.4\times10^5$ across training batch sizes; each bar averages four matched sampling seeds. (b) Mean bias at fixed $B=2000$ versus particle count; at $N=2^k\times10^4$, each mean uses $2^{8-k}$ independent rebuilds, keeping the total work per point at $2.56\times10^6$ particles. Error bars in both panels are $\pm2$ standard errors. The dashed line in (b) is an $N^{-1/2}$ reference anchored at the smallest $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ point. The panels use separately generated rebuild ensembles.}
     \label{fig: clock-occupancy}
 \end{figure}
 
@@ -759,6 +759,8 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 At fixed $N$, panel (a) shows that the mean occupancy bias increases as the training batch shrinks for both methods. KLXX has the lower mean at $B=2000$, $1000$, and $250$. At those batch sizes, the forward KL means are $0.00573$, $0.00888$, and $0.02760$, while the KLXX means are $0.00235$, $0.00517$, and $0.01506$. At $B=500$ the ordering reverses slightly, from $0.00963$ for forward KL to $0.01082$ for KLXX, and the intervals defined by $\pm2$ standard errors overlap.
 
 At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.459$ for forward KL and $-0.479$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00552$ to $0.00358$ at $N=6.4\times10^5$. Every reported rebuild in both panels retains all six sectors. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each stage schedule for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
+
+\clearpage
 
 \FloatBarrier
 
