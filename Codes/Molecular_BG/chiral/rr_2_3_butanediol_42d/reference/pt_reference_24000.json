@@ -1,0 +1,49 @@
+{
+  "bundle": "rr_2_3_butanediol_gaff2_am1bcc_obc1",
+  "atoms": 16,
+  "potential": "unregularized physical",
+  "temperature_kelvin": 300.0,
+  "grid": "wide_6",
+  "temperatures_kelvin": [
+    300.0,
+    365.0,
+    444.0,
+    540.0,
+    658.0,
+    800.0
+  ],
+  "timestep_fs": 0.25,
+  "friction_per_ps": 1.0,
+  "steps_per_round": 2000,
+  "ps_per_frame": 0.5,
+  "equilibration_rounds": 1000,
+  "production_frames": 24000,
+  "nanoseconds_retained": 12.0,
+  "acceptance_mean": 0.5251230769230769,
+  "acceptance_min": 0.486,
+  "acceptance_max": 0.572,
+  "cold_energy_mean_kj_mol": 28.82505776977539,
+  "cold_energy_std_kj_mol": 11.624913256379891,
+  "cccc": {
+    "occupancy": [
+      0.081,
+      0.80825,
+      0.11075
+    ],
+    "visited": 3,
+    "transitions": 5275
+  },
+  "occo": {
+    "occupancy": [
+      0.041791666666666664,
+      0.7277083333333333,
+      0.2305
+    ],
+    "visited": 3,
+    "transitions": 10657
+  },
+  "seconds": 6539.043563127518,
+  "seed": 1729,
+  "frames_path": "pt_reference_frames.npz",
+  "status": "complete"
+}

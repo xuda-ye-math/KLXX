@@ -1,0 +1,38 @@
+{
+  "bundle": "rr_2_3_butanediol_gaff2_am1bcc_obc1",
+  "atoms": 16,
+  "potential": "unregularized physical",
+  "sampler": "single-particle Langevin at the target distribution",
+  "temperature_kelvin": 300.0,
+  "timestep_fs": 0.25,
+  "friction_per_ps": 1.0,
+  "parent_sampler": "parallel tempering (seed frames only)",
+  "parent_frames": 24000,
+  "parent_path": "pt_reference_frames_24000.npz",
+  "variants_per_parent": 10,
+  "extension_steps": 200,
+  "extension_femtoseconds": 50.0,
+  "production_frames": 240000,
+  "cccc": {
+    "occupancy": [
+      0.08247916666666667,
+      0.8058,
+      0.11172083333333334
+    ],
+    "visited": 3,
+    "transitions": 28823
+  },
+  "occo": {
+    "occupancy": [
+      0.0400375,
+      0.7288291666666666,
+      0.23113333333333333
+    ],
+    "visited": 3,
+    "transitions": 74438
+  },
+  "seconds": 1085.20587849617,
+  "seed": 20260725,
+  "frames_path": "pt_reference_frames.npz",
+  "status": "complete"
+}

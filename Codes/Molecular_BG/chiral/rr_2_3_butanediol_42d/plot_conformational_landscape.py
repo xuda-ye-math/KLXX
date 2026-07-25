@@ -40,6 +40,10 @@ OCCO_ATOMS = (0, 2, 3, 1)
 OH1_ATOMS = (14, 0, 2, 3)
 OH2_ATOMS = (15, 1, 3, 2)
 
+# Per-column free-energy colorbar limits; ``None`` rounds up to the observed
+# maximum.  Both columns are pinned so the landscape figures share one scale.
+COLUMN_FREE_ENERGY_LIMITS = (10.0, 4.0)
+
 FREE_ENERGY_CMAP = LinearSegmentedColormap.from_list(
     "reference_free_energy",
     (
@@ -248,7 +252,11 @@ def plot_landscapes(
         )
         if finite.size == 0:
             raise ValueError(f"column {column} has no finite free-energy values")
-        vlimits.append(max(float(math.ceil(float(finite.max()))), 1.0))
+        fixed = COLUMN_FREE_ENERGY_LIMITS[column]
+        if fixed is not None:
+            vlimits.append(float(fixed))
+        else:
+            vlimits.append(max(float(math.ceil(float(finite.max()))), 1.0))
 
     diagnostics = (
         ("heavy-atom torsions", r"C-C-C-C dihedral (rad)", r"O-C-C-O dihedral (rad)"),
