@@ -1,0 +1,28 @@
+{
+  "bundle": "ac_pro_nhme_ff96_obc1",
+  "atoms": 26,
+  "potential": "unregularized physical",
+  "sampler": "single-particle Langevin at the target distribution",
+  "temperature_kelvin": 300.0,
+  "timestep_fs": 0.25,
+  "friction_per_ps": 1.0,
+  "parent_sampler": "parallel tempering (seed frames only)",
+  "parent_frames": 32000,
+  "parent_path": "pt_reference_frames_32000.npz",
+  "variants_per_parent": 10,
+  "extension_steps": 200,
+  "extension_femtoseconds": 50.0,
+  "production_frames": 320000,
+  "parent_omega": {
+    "trans_fraction": 0.904375,
+    "cis_fraction": 0.09562499999999996
+  },
+  "omega": {
+    "trans_fraction": 0.904375,
+    "cis_fraction": 0.09562499999999996
+  },
+  "seconds": 1512.4632086753845,
+  "seed": 20260725,
+  "frames_path": "pt_reference_frames.npz",
+  "status": "complete"
+}
