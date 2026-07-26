@@ -30,7 +30,7 @@ from jflows_md.boltzmann.load import load_validation_samples, validate_run
 
 
 HERE = Path(__file__).resolve().parent
-RUN_DIR = HERE / "artifacts" / "klxx"
+RUN_DIR = HERE / "artifacts" / "inference_15M"
 BUNDLE = HERE / "bundle"
 DEFAULT_OUTPUT = HERE / "results" / "conformational_landscape.png"
 
@@ -90,6 +90,41 @@ def dihedral(positions: np.ndarray, atoms: tuple[int, int, int, int]) -> np.ndar
     if not np.all(np.isfinite(angle)):
         raise ValueError(f"nonfinite dihedral for atom tuple {atoms}")
     return np.remainder(angle.astype(np.float64) + np.pi, 2.0 * np.pi) - np.pi
+
+
+def selected_inference_stages(run_dir: Path) -> list[tuple[dict, np.memmap]]:
+    """Load the inference stage nearest t=0.5 and the final stage."""
+
+    manifest = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    if manifest.get("status") != "complete" or not manifest.get("stages"):
+        raise ValueError(f"inference run is not complete: {run_dir}")
+    if manifest.get("inference_only") is not True:
+        raise ValueError("input does not declare inference-only provenance")
+    if int(manifest.get("training_updates", -1)) != 0:
+        raise ValueError("input reports nonzero training updates")
+    stages = manifest["stages"]
+    intermediate = min(stages, key=lambda item: abs(float(item["t"]) - 0.5))
+    final = stages[-1]
+    if intermediate["stage"] == final["stage"]:
+        raise ValueError("the intermediate and final stage selections coincide")
+    if not math.isclose(float(final["t"]), 1.0, abs_tol=1e-12):
+        raise ValueError(f"final stage has t={final['t']}, not t=1")
+
+    loaded = []
+    for stage_ref in (intermediate, final):
+        path = (run_dir / stage_ref["samples_path"]).resolve()
+        try:
+            path.relative_to(run_dir.resolve())
+        except ValueError as error:
+            raise ValueError(f"sample path escapes run directory: {path}") from error
+        samples = np.load(path, mmap_mode="r", allow_pickle=False)
+        if samples.ndim != 2 or samples.dtype != np.float32:
+            raise ValueError(
+                f"expected a float32 sample matrix, found {samples.shape} "
+                f"{samples.dtype}"
+            )
+        loaded.append((stage_ref, samples))
+    return loaded
 
 
 def selected_stages(run_dir: Path) -> list[tuple[dict, np.memmap]]:
@@ -226,7 +261,7 @@ def plot_landscapes(
         figsize=(9.5, 8.6),
         layout="constrained",
     )
-    vmax = 9.0
+    vmax = 8.0
     panel_letters = ("a", "b", "c", "d")
     pucker_limits = []
     image = None
@@ -356,7 +391,7 @@ def main() -> None:
     target = Molecular_Potential.from_bundle(bundle, temperature_kelvin=300.0)
     landscapes = []
     all_metrics = {}
-    for metadata, samples in selected_stages(run_dir):
+    for metadata, samples in selected_inference_stages(run_dir):
         if target.dimension != samples.shape[1] or samples.shape[1] != 72:
             raise ValueError(
                 f"unexpected dimension: target={target.dimension}, "

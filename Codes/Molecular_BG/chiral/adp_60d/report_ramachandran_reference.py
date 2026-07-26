@@ -110,7 +110,7 @@ def main() -> None:
 
     names = (
         "KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub>",
-        "MD reference (FAB)",
+        "ground truth",
     )
     surfaces = {
         names[0]: free_energy_surface(klxx_counts, args.smoothing),
@@ -148,9 +148,10 @@ def main() -> None:
     lines = [
         "# ADP Ramachandran comparison",
         "",
-        "The KLXX generator and the published alanine dipeptide reference data",
-        "at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124) on the",
-        "same 100-bin phi/psi grid with the same wrapped smoothing. Each",
+        "The KLXX generator against ground truth: the published alanine",
+        "dipeptide reference data at 300 K from the FAB study (Zenodo record",
+        "6993124, DOI 10.5281/zenodo.6993124), on the same 100-bin phi/psi",
+        "grid with the same wrapped smoothing. Each",
         "surface is normalized to its own most populated bin, so only raw",
         "per-method values are reported; a difference between two such surfaces",
         "would carry an arbitrary additive offset.",

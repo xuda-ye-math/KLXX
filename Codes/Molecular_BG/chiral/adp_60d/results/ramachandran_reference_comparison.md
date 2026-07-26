@@ -1,8 +1,9 @@
 # ADP Ramachandran comparison
 
-The KLXX generator and the published alanine dipeptide reference data
-at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124) on the
-same 100-bin phi/psi grid with the same wrapped smoothing. Each
+The KLXX generator against ground truth: the published alanine
+dipeptide reference data at 300 K from the FAB study (Zenodo record
+6993124, DOI 10.5281/zenodo.6993124), on the same 100-bin phi/psi
+grid with the same wrapped smoothing. Each
 surface is normalized to its own most populated bin, so only raw
 per-method values are reported; a difference between two such surfaces
 would carry an arbitrary additive offset.
@@ -20,7 +21,7 @@ same phi/psi atom indices apply to both.
 </thead>
 <tbody>
 <tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>10,000,000</td></tr>
-<tr><td>MD reference (FAB)</td><td>10,000,000</td></tr>
+<tr><td>ground truth</td><td>10,000,000</td></tr>
 </tbody>
 </table>
 
@@ -32,7 +33,7 @@ same phi/psi atom indices apply to both.
 
 <table>
 <thead>
-<tr><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>MD reference (FAB)</th></tr>
+<tr><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>ground truth</th></tr>
 </thead>
 <tbody>
 <tr><td>10.40</td><td>10.40</td></tr>
@@ -49,7 +50,7 @@ Maximum free energy over finite bins, in units of $k_{\mathrm B}T$.
 
 <table>
 <thead>
-<tr><th>region</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>MD reference (FAB)</th></tr>
+<tr><th>region</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>ground truth</th></tr>
 </thead>
 <tbody>
 <tr><td>low (&lt; 2)</td><td>1.230</td><td>1.230</td></tr>
@@ -73,7 +74,7 @@ finite in both surfaces, so the rows are directly comparable.
 </thead>
 <tbody>
 <tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>0.0031</td><td>0.7958</td><td>0.2012</td></tr>
-<tr><td>MD reference (FAB)</td><td>0.0033</td><td>0.7940</td><td>0.2027</td></tr>
+<tr><td>ground truth</td><td>0.0033</td><td>0.7940</td><td>0.2027</td></tr>
 </tbody>
 </table>
 
