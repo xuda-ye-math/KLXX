@@ -1,44 +1,81 @@
 # ADP Ramachandran comparison
 
-The final KLXX stage against the published alanine dipeptide reference
-data at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124).
-Both sets use the same 100-bin phi/psi grid, the same wrapped
-smoothing, and each surface is normalized to its own most populated
-bin. The reference topology matches the frozen bundle atom for atom, so
-the same phi/psi atom indices apply to both.
+The KLXX generator and the published alanine dipeptide reference data
+at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124) on the
+same 100-bin phi/psi grid with the same wrapped smoothing. Each
+surface is normalized to its own most populated bin, so only raw
+per-method values are reported; a difference between two such surfaces
+would carry an arbitrary additive offset.
 
-- KLXX stage 10: `10,000,000` samples, t = `1.000`, rho = `(125, 0.1)`
-- MD reference: `10,000,000` frames
+The reference topology matches the frozen bundle atom for atom, so the
+same phi/psi atom indices apply to both.
 
-## Surface extent
+### Sample sets
 
-Occupied bins counts every bin holding at least one sample. The
-maximum is taken over finite bins only.
+<div align="center">
 
-| sample set | occupied bins | max free energy / kBT |
-|---|---:|---:|
-| KLXX | 6413 | 10.40 |
-| MD reference (FAB) | 6481 | 10.40 |
+<table>
+<thead>
+<tr><th>method</th><th>samples</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>10,000,000</td></tr>
+<tr><td>MD reference (FAB)</td><td>10,000,000</td></tr>
+</tbody>
+</table>
 
-## Free energy by region
+</div>
 
-Bins are classified by the MD reference: low means below 2 kBT, high means above 3 kBT.
-Entries are the mean free energy of each set over those bins, in kBT.
-Only bins finite in both surfaces are used, so the rows are directly
-comparable.
+### Maximum free energy
 
-| region | bins | KLXX | MD reference (FAB) |
-|---|---:|---:|---:|
-| low F (< 2 kBT) | 653 | 1.230 | 1.230 |
-| high F (> 3 kBT) | 4496 | 6.323 | 6.293 |
-| all bins | 5690 | 5.379 | 5.355 |
+<div align="center">
 
-## Backbone basin populations
+<table>
+<thead>
+<tr><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>MD reference (FAB)</th></tr>
+</thead>
+<tbody>
+<tr><td>10.40</td><td>10.40</td></tr>
+</tbody>
+</table>
 
-Fractions of the phi/psi histogram; alpha-L is phi > 0, and the
-phi < 0 half is split by the sign of psi.
+</div>
 
-| sample set | alpha-L (phi > 0) | beta/PPII (psi > 0) | alpha-R (psi < 0) |
-|---|---:|---:|---:|
-| KLXX | 0.0031 | 0.7958 | 0.2012 |
-| MD reference (FAB) | 0.0033 | 0.7940 | 0.2027 |
+Maximum free energy over finite bins, in units of $k_{\mathrm B}T$.
+
+### Mean free energy by region
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>region</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>MD reference (FAB)</th></tr>
+</thead>
+<tbody>
+<tr><td>low (&lt; 2)</td><td>1.230</td><td>1.230</td></tr>
+<tr><td>high (&gt; 3)</td><td>6.323</td><td>6.293</td></tr>
+<tr><td>all</td><td>5.379</td><td>5.355</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Regions are classified by the reference surface and restricted to bins
+finite in both surfaces, so the rows are directly comparable.
+
+### Backbone basin populations
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>method</th><th>alpha-L (phi &gt; 0)</th><th>beta/PPII (psi &gt; 0)</th><th>alpha-R (psi &lt; 0)</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>0.0031</td><td>0.7958</td><td>0.2012</td></tr>
+<tr><td>MD reference (FAB)</td><td>0.0033</td><td>0.7940</td><td>0.2027</td></tr>
+</tbody>
+</table>
+
+</div>
+

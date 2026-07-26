@@ -1,45 +1,84 @@
 # Ac-Pro-NHMe landscape comparison
 
-Three sample sets on the same 100-bin torsion grid with the same
-wrapped smoothing, each surface normalized to its own most populated
-bin. `KLXX resampled + rejuvenated` is the KLXX set reweighted by the
-regularization ESS weights, resampled, then rejuvenated with
-mixed-domain MALA under the raw potential.
+The KLXX generator and an independent OpenMM run on the same
+100-bin torsion grid with the same wrapped smoothing. Each
+surface is normalized to its own most populated bin, so only raw
+per-method values are reported; a difference between two such surfaces
+would carry an arbitrary additive offset.
 
-- Regularization ESS (RESS): `1.000002`
-- Mixed-domain MALA acceptance during rejuvenation: `0.2282`
+The OpenMM column is native parallel tempering on the
+unregularized physical potential at 300 K.
 
-## Surface extent
+### Sample sets
 
-| diagnostic | sample set | occupied bins | max free energy / kBT |
-|---|---|---:|---:|
-| backbone | KLXX | 1825 | 7.43 |
-| backbone | KLXX resampled + rejuvenated | 1825 | 7.43 |
-| backbone | OpenMM reference | 1698 | 7.61 |
-| peptide/ring | KLXX | 1147 | 8.13 |
-| peptide/ring | KLXX resampled + rejuvenated | 1149 | 8.14 |
-| peptide/ring | OpenMM reference | 1067 | 8.41 |
+<div align="center">
 
-## Free energy by region
+<table>
+<thead>
+<tr><th>method</th><th>samples</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>320,000</td></tr>
+<tr><td>OpenMM</td><td>320,000</td></tr>
+</tbody>
+</table>
 
-Bins are classified by the OpenMM reference: low means below 2 kBT, high means above 3 kBT.
-Entries are the mean free energy of each set over those bins, in kBT.
-Only bins finite in all three surfaces are used, so the rows are
-directly comparable.
+</div>
 
-| diagnostic | region | bins | KLXX | KLXX resampled + rejuvenated | OpenMM reference |
-|---|---|---:|---:|---:|---:|
-| backbone | low F (< 2 kBT) | 328 | 0.972 | 0.969 | 1.121 |
-| backbone | high F (> 3 kBT) | 922 | 4.551 | 4.558 | 5.053 |
-| backbone | all bins | 1474 | 3.394 | 3.397 | 3.789 |
-| peptide/ring | low F (< 2 kBT) | 141 | 1.134 | 1.142 | 1.161 |
-| peptide/ring | high F (> 3 kBT) | 682 | 4.178 | 4.193 | 5.173 |
-| peptide/ring | all bins | 965 | 3.427 | 3.440 | 4.198 |
+### Maximum free energy
 
-## ACE-PRO peptide torsion populations
+<div align="center">
 
-| sample set | trans | cis |
-|---|---:|---:|
-| KLXX | 0.7165 | 0.2835 |
-| KLXX resampled + rejuvenated | 0.7170 | 0.2830 |
-| OpenMM reference | 0.9044 | 0.0956 |
+<table>
+<thead>
+<tr><th>diagnostic</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>OpenMM</th></tr>
+</thead>
+<tbody>
+<tr><td>backbone</td><td>7.43</td><td>7.61</td></tr>
+<tr><td>peptide/ring</td><td>8.13</td><td>8.41</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Maximum free energy over finite bins, in units of $k_{\mathrm B}T$.
+
+### Mean free energy by region
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>diagnostic</th><th>region</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>OpenMM</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="3">backbone</td><td>low (&lt; 2)</td><td>0.972</td><td>1.121</td></tr>
+<tr><td>high (&gt; 3)</td><td>4.598</td><td>5.095</td></tr>
+<tr><td>all</td><td>3.442</td><td>3.835</td></tr>
+<tr><td rowspan="3">peptide/ring</td><td>low (&lt; 2)</td><td>1.134</td><td>1.161</td></tr>
+<tr><td>high (&gt; 3)</td><td>4.244</td><td>5.218</td></tr>
+<tr><td>all</td><td>3.486</td><td>4.246</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Regions are classified by the OpenMM surface and restricted to bins
+finite in both surfaces, so the rows are directly comparable.
+
+### ACE-PRO peptide torsion populations
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>method</th><th>trans</th><th>cis</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>0.7165</td><td>0.2835</td></tr>
+<tr><td>OpenMM</td><td>0.9044</td><td>0.0956</td></tr>
+</tbody>
+</table>
+
+</div>
+

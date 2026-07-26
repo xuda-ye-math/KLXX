@@ -1,45 +1,84 @@
-# Butanediol landscape comparison
+# (2R,3R)-2,3-Butanediol landscape comparison
 
-Three sample sets on the same 100-bin torsion grid with the same
-wrapped smoothing, each surface normalized to its own most populated
-bin. `KLXX resampled + rejuvenated` is the KLXX set reweighted by the
-regularization ESS weights, resampled, then rejuvenated with
-mixed-domain MALA under the raw potential.
+The KLXX generator and an independent OpenMM run on the same
+100-bin torsion grid with the same wrapped smoothing. Each
+surface is normalized to its own most populated bin, so only raw
+per-method values are reported; a difference between two such surfaces
+would carry an arbitrary additive offset.
 
-- Regularization ESS (RESS): `0.999981`
-- Mixed-domain MALA acceptance during rejuvenation: `0.8867`
+The OpenMM column is native parallel tempering on the
+unregularized physical potential at 300 K.
 
-## Surface extent
+### Sample sets
 
-| diagnostic | sample set | occupied bins | max free energy / kBT |
-|---|---|---:|---:|
-| heavy-atom | KLXX | 836 | 8.32 |
-| heavy-atom | KLXX resampled + rejuvenated | 845 | 8.31 |
-| heavy-atom | OpenMM reference | 830 | 8.44 |
-| hydroxyl | KLXX | 10000 | 4.83 |
-| hydroxyl | KLXX resampled + rejuvenated | 10000 | 4.80 |
-| hydroxyl | OpenMM reference | 10000 | 4.93 |
+<div align="center">
 
-## Free energy by region
+<table>
+<thead>
+<tr><th>method</th><th>samples</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>240,000</td></tr>
+<tr><td>OpenMM</td><td>240,000</td></tr>
+</tbody>
+</table>
 
-Bins are classified by the OpenMM reference: low means below 2 kBT, high means above 3 kBT.
-Entries are the mean free energy of each set over those bins, in kBT.
-Only bins finite in all three surfaces are used, so the rows are
-directly comparable.
+</div>
 
-| diagnostic | region | bins | KLXX | KLXX resampled + rejuvenated | OpenMM reference |
-|---|---|---:|---:|---:|---:|
-| heavy-atom | low F (< 2 kBT) | 104 | 1.125 | 1.114 | 1.239 |
-| heavy-atom | high F (> 3 kBT) | 601 | 5.468 | 5.455 | 5.729 |
-| heavy-atom | all bins | 816 | 4.478 | 4.465 | 4.716 |
-| hydroxyl | low F (< 2 kBT) | 4182 | 1.209 | 1.177 | 1.297 |
-| hydroxyl | high F (> 3 kBT) | 2536 | 3.237 | 3.203 | 3.572 |
-| hydroxyl | all bins | 10000 | 2.091 | 2.056 | 2.275 |
+### Maximum free energy
 
-## Central C-C-C-C rotamer populations
+<div align="center">
 
-| sample set | gauche-minus | gauche-plus | trans |
-|---|---:|---:|---:|
-| KLXX | 0.1758 | 0.2091 | 0.6151 |
-| KLXX resampled + rejuvenated | 0.1762 | 0.2096 | 0.6142 |
-| OpenMM reference | 0.1383 | 0.1663 | 0.6953 |
+<table>
+<thead>
+<tr><th>diagnostic</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>OpenMM</th></tr>
+</thead>
+<tbody>
+<tr><td>heavy-atom</td><td>8.32</td><td>8.44</td></tr>
+<tr><td>hydroxyl</td><td>4.83</td><td>4.93</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Maximum free energy over finite bins, in units of $k_{\mathrm B}T$.
+
+### Mean free energy by region
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>diagnostic</th><th>region</th><th>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></th><th>OpenMM</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="3">heavy-atom</td><td>low (&lt; 2)</td><td>1.125</td><td>1.239</td></tr>
+<tr><td>high (&gt; 3)</td><td>5.482</td><td>5.743</td></tr>
+<tr><td>all</td><td>4.492</td><td>4.730</td></tr>
+<tr><td rowspan="3">hydroxyl</td><td>low (&lt; 2)</td><td>1.209</td><td>1.297</td></tr>
+<tr><td>high (&gt; 3)</td><td>3.237</td><td>3.572</td></tr>
+<tr><td>all</td><td>2.091</td><td>2.275</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Regions are classified by the OpenMM surface and restricted to bins
+finite in both surfaces, so the rows are directly comparable.
+
+### Central C-C-C-C rotamer populations
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>method</th><th>gauche&minus;</th><th>gauche+</th><th>trans</th></tr>
+</thead>
+<tbody>
+<tr><td>KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub></td><td>0.1758</td><td>0.2091</td><td>0.6151</td></tr>
+<tr><td>OpenMM</td><td>0.1383</td><td>0.1663</td><td>0.6953</td></tr>
+</tbody>
+</table>
+
+</div>
+

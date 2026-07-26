@@ -108,86 +108,123 @@ def main() -> None:
         raise ValueError("KLXX and reference histograms use different edges")
     print(f"reference frames={frames:,}", flush=True)
 
+    names = (
+        "KL+X<sub>&mu;</sub>+X<sub>(&mu;&#770;+&nu;&#772;)/2</sub>",
+        "MD reference (FAB)",
+    )
     surfaces = {
-        "KLXX": free_energy_surface(klxx_counts, args.smoothing),
-        "MD reference (FAB)": free_energy_surface(reference_counts, args.smoothing),
+        names[0]: free_energy_surface(klxx_counts, args.smoothing),
+        names[1]: free_energy_surface(reference_counts, args.smoothing),
     }
-    counts = {"KLXX": klxx_counts, "MD reference (FAB)": reference_counts}
-    names = ("KLXX", "MD reference (FAB)")
+    counts = {names[0]: klxx_counts, names[1]: reference_counts}
 
-    reference = surfaces["MD reference (FAB)"]
+    reference = surfaces[names[1]]
     # ``free_energy_surface`` smooths an integer count array, so a bin holding a
     # single sample can round to zero density and diverge.  Those bins are
     # excluded here rather than being reported as an infinite free energy.
-    both = np.isfinite(surfaces["KLXX"]) & np.isfinite(reference)
+    both = np.isfinite(surfaces[names[0]]) & np.isfinite(reference)
     low = both & (reference < LOW_FREE_ENERGY)
     high = both & (reference > HIGH_FREE_ENERGY)
+
+    def table(header_rows, body_rows):
+        """Wrap rows in the centered HTML table markup used by the reports."""
+
+        return [
+            '<div align="center">',
+            "",
+            "<table>",
+            "<thead>",
+            *header_rows,
+            "</thead>",
+            "<tbody>",
+            *body_rows,
+            "</tbody>",
+            "</table>",
+            "",
+            "</div>",
+            "",
+        ]
 
     lines = [
         "# ADP Ramachandran comparison",
         "",
-        "The final KLXX stage against the published alanine dipeptide reference",
-        "data at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124).",
-        "Both sets use the same 100-bin phi/psi grid, the same wrapped",
-        "smoothing, and each surface is normalized to its own most populated",
-        "bin. The reference topology matches the frozen bundle atom for atom, so",
-        "the same phi/psi atom indices apply to both.",
+        "The KLXX generator and the published alanine dipeptide reference data",
+        "at 300 K (Zenodo record 6993124, DOI 10.5281/zenodo.6993124) on the",
+        "same 100-bin phi/psi grid with the same wrapped smoothing. Each",
+        "surface is normalized to its own most populated bin, so only raw",
+        "per-method values are reported; a difference between two such surfaces",
+        "would carry an arbitrary additive offset.",
         "",
-        f"- KLXX stage {SELECTED_STAGE}: `{sample_count:,}` samples, "
-        f"t = `{float(stage['t']):.3f}`, rho = "
-        f"`({float(stage['rg_end'][0]):.3g}, {float(stage['rg_end'][1]):.3g})`",
-        f"- MD reference: `{frames:,}` frames",
+        "The reference topology matches the frozen bundle atom for atom, so the",
+        "same phi/psi atom indices apply to both.",
         "",
-        "## Surface extent",
+        "### Sample sets",
         "",
-        "Occupied bins counts every bin holding at least one sample. The",
-        "maximum is taken over finite bins only.",
-        "",
-        "| sample set | occupied bins | max free energy / kBT |",
-        "|---|---:|---:|",
     ]
-    for name in names:
-        surface = surfaces[name]
-        finite = surface[np.isfinite(surface)]
-        lines.append(
-            f"| {name} | {int((counts[name] > 0).sum())} | "
-            f"{float(finite.max()):.2f} |"
-        )
-    lines += [
-        "",
-        "## Free energy by region",
-        "",
-        "Bins are classified by the MD reference: low means below "
-        f"{LOW_FREE_ENERGY:.0f} kBT, high means above {HIGH_FREE_ENERGY:.0f} kBT.",
-        "Entries are the mean free energy of each set over those bins, in kBT.",
-        "Only bins finite in both surfaces are used, so the rows are directly",
-        "comparable.",
-        "",
-        "| region | bins | " + " | ".join(names) + " |",
-        "|---|---:|---:|---:|",
-    ]
-    regions = (
-        (f"low F (< {LOW_FREE_ENERGY:.0f} kBT)", low),
-        (f"high F (> {HIGH_FREE_ENERGY:.0f} kBT)", high),
-        ("all bins", both),
+    lines += table(
+        ["<tr><th>method</th><th>samples</th></tr>"],
+        [
+            f"<tr><td>{names[0]}</td><td>{sample_count:,}</td></tr>",
+            f"<tr><td>{names[1]}</td><td>{frames:,}</td></tr>",
+        ],
     )
-    for label, mask in regions:
-        values = " | ".join(f"{surfaces[name][mask].mean():.3f}" for name in names)
-        lines.append(f"| {label} | {int(mask.sum())} | {values} |")
 
+    lines += ["### Maximum free energy", ""]
+    cells = ""
+    for name in names:
+        finite = surfaces[name][np.isfinite(surfaces[name])]
+        cells += f"<td>{float(finite.max()):.2f}</td>"
+    lines += table(
+        ["<tr>" + "".join(f"<th>{name}</th>" for name in names) + "</tr>"],
+        [f"<tr>{cells}</tr>"],
+    )
     lines += [
+        "Maximum free energy over finite bins, in units of $k_{\\mathrm B}T$.",
         "",
-        "## Backbone basin populations",
+        "### Mean free energy by region",
         "",
-        "Fractions of the phi/psi histogram; alpha-L is phi > 0, and the",
-        "phi < 0 half is split by the sign of psi.",
-        "",
-        "| sample set | alpha-L (phi > 0) | beta/PPII (psi > 0) | alpha-R (psi < 0) |",
-        "|---|---:|---:|---:|",
     ]
+
+    body = []
+    for label, mask in (
+        (f"low (&lt; {LOW_FREE_ENERGY:.0f})", low),
+        (f"high (&gt; {HIGH_FREE_ENERGY:.0f})", high),
+        ("all", both),
+    ):
+        values = "".join(
+            f"<td>{surfaces[name][mask].mean():.3f}</td>" for name in names
+        )
+        body.append(f"<tr><td>{label}</td>{values}</tr>")
+    lines += table(
+        [
+            "<tr><th>region</th>"
+            + "".join(f"<th>{name}</th>" for name in names)
+            + "</tr>"
+        ],
+        body,
+    )
+    lines += [
+        "Regions are classified by the reference surface and restricted to bins",
+        "finite in both surfaces, so the rows are directly comparable.",
+        "",
+        "### Backbone basin populations",
+        "",
+    ]
+
+    body = []
     for name in names:
         alpha_l, beta, alpha_r = basin_populations(counts[name], edges)
-        lines.append(f"| {name} | {alpha_l:.4f} | {beta:.4f} | {alpha_r:.4f} |")
+        body.append(
+            f"<tr><td>{name}</td><td>{alpha_l:.4f}</td>"
+            f"<td>{beta:.4f}</td><td>{alpha_r:.4f}</td></tr>"
+        )
+    lines += table(
+        [
+            "<tr><th>method</th><th>alpha-L (phi &gt; 0)</th>"
+            "<th>beta/PPII (psi &gt; 0)</th><th>alpha-R (psi &lt; 0)</th></tr>"
+        ],
+        body,
+    )
 
     report = args.report.expanduser().resolve()
     report.parent.mkdir(parents=True, exist_ok=True)
