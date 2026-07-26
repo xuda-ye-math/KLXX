@@ -24,7 +24,6 @@ import jax
 import numpy as np
 
 from jflows_md import Molecular_Potential
-from jflows_md.boltzmann.load import load_validation_samples, validate_run
 
 from plot_conformational_landscape import (
     BUNDLE,
@@ -35,11 +34,13 @@ from plot_conformational_landscape import (
     dihedral,
     free_energy,
     histograms,
+    selected_inference_stages,
 )
 
 
 HERE = Path(__file__).resolve().parent
-REFERENCE = HERE / "reference" / "pt_reference_frames.npz"
+KLXX_RUN = HERE / "artifacts" / "inference_10M"
+REFERENCE = HERE / "reference" / "pt_reference_frames_100000.npz"
 DEFAULT_REPORT = HERE / "results" / "landscape_reference_comparison.md"
 
 METHODS = (
@@ -51,19 +52,17 @@ LOW_FREE_ENERGY = 2.0
 HIGH_FREE_ENERGY = 3.0
 
 
-def final_stage_samples(run_dir: Path) -> tuple[dict, np.ndarray]:
-    """Load the persisted final stage at t=1 of a completed run."""
+def inference_final_stage(run_dir: Path) -> tuple[dict, np.ndarray]:
+    """Load the final stage at t=1 of a completed inference-only run.
 
-    record = validate_run(run_dir)
-    stages = record.get("stages", [])
-    if record.get("status") != "complete" or not stages:
-        raise ValueError(f"run is not complete: {run_dir}")
-    stage_ref = stages[-1]
-    if not math.isclose(float(stage_ref["t"]), 1.0, abs_tol=1e-12):
-        raise ValueError(f"final stage has t={stage_ref['t']}, not t=1")
-    stage_root = (run_dir / stage_ref["path"]).resolve()
-    metadata = json.loads((stage_root / "stage.json").read_text(encoding="utf-8"))
-    samples = load_validation_samples(run_dir, int(stage_ref["stage"]), mmap_mode="r")
+    ``selected_inference_stages`` already refuses a run that is incomplete, that
+    does not declare ``inference_only``, that reports a nonzero training-update
+    count, or whose final stage is not at t=1.
+    """
+
+    metadata, samples = selected_inference_stages(run_dir)[-1]
+    if not math.isclose(float(metadata["t"]), 1.0, abs_tol=1e-12):
+        raise ValueError(f"final stage has t={metadata['t']}, not t=1")
     return metadata, samples
 
 
@@ -122,6 +121,7 @@ def table(header_rows: list[str], body_rows: list[str]) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--klxx-run", type=Path, default=KLXX_RUN)
     parser.add_argument("--reference", type=Path, default=REFERENCE)
     parser.add_argument("--report", type=Path, default=DEFAULT_REPORT)
     parser.add_argument("--bins", type=int, default=100)
@@ -134,10 +134,11 @@ def main() -> None:
     labels: list[str] = []
     counts: dict[str, dict] = {"heavy-atom": {}, "hydroxyl": {}}
     sizes: dict[str, int] = {}
+    arrays: dict[str, np.ndarray] = {}
     edges = None
 
     for method, label in METHODS:
-        metadata, samples = final_stage_samples(HERE / "artifacts" / method)
+        metadata, samples = inference_final_stage(args.klxx_run.expanduser().resolve())
         method_edges, heavy, hydroxyl, _ = histograms(
             samples, target, args.bins, args.chunk_size
         )
@@ -148,6 +149,7 @@ def main() -> None:
         counts["heavy-atom"][label] = heavy
         counts["hydroxyl"][label] = hydroxyl
         sizes[label] = int(samples.shape[0])
+        arrays[label] = samples
         print(f"{method} samples={samples.shape[0]:,}", flush=True)
 
     with np.load(args.reference.expanduser().resolve()) as handle:
@@ -161,12 +163,46 @@ def main() -> None:
     sizes[REFERENCE_LABEL] = int(positions.shape[0])
     print(f"reference frames={positions.shape[0]:,}", flush=True)
 
+    # A surface normalized to its own most populated bin cannot resolve deeper
+    # than about log(N): the deepest occupied bin is the one holding a single
+    # sample.  The raw maxima are therefore not comparable across sets of
+    # different size, so each generated set is also histogrammed after being
+    # thinned to the reference frame count.  This is a measurement at matched
+    # size, not a shift applied to the smaller set -- a log(N) shift is only
+    # valid where the surface is count-limited at *both* sizes, which holds for
+    # the sparse heavy-atom torsions and fails for the hydroxyl pair.
+    matched = {"heavy-atom": {}, "hydroxyl": {}}
+    reference_size = sizes[REFERENCE_LABEL]
+    for label, samples in arrays.items():
+        stride = max(1, samples.shape[0] // reference_size)
+        subset = samples[::stride][:reference_size]
+        matched_edges, heavy, hydroxyl, _ = histograms(
+            subset, target, args.bins, args.chunk_size
+        )
+        if not np.allclose(edges, matched_edges):
+            raise ValueError("thinned set uses different histogram edges")
+        matched["heavy-atom"][label] = heavy
+        matched["hydroxyl"][label] = hydroxyl
+        print(
+            f"thinned {label}: stride {stride} -> {subset.shape[0]:,} samples",
+            flush=True,
+        )
+    for diagnostic in matched:
+        matched[diagnostic][REFERENCE_LABEL] = counts[diagnostic][REFERENCE_LABEL]
+
     surfaces = {
         diagnostic: {
             label: free_energy(counts[diagnostic][label], args.smoothing)
             for label in labels
         }
         for diagnostic in counts
+    }
+    matched_surfaces = {
+        diagnostic: {
+            label: free_energy(matched[diagnostic][label], args.smoothing)
+            for label in labels
+        }
+        for diagnostic in matched
     }
 
     lines = [
@@ -178,8 +214,15 @@ def main() -> None:
         "per-method values are reported; a difference between two such surfaces",
         "would carry an arbitrary additive offset.",
         "",
-        "The OpenMM column is native parallel tempering on the",
-        "unregularized physical potential at 300 K.",
+        "The KLXX column is the final stage at $t=1$ of an inference-only run",
+        "with no training update. The OpenMM column is native parallel",
+        "tempering on the unregularized physical potential at 300 K: one",
+        "continuous chain over six replicas on a geometric 300--800 K grid,",
+        "50.0 ns retained after a 0.5 ns discarded equilibration.",
+        "",
+        "The two sample counts differ by two orders of magnitude, as the",
+        "sample-set table records. Generating flow samples is cheap and",
+        "parallel; advancing a single tempered trajectory is neither.",
         "",
         "### Sample sets",
         "",
@@ -191,21 +234,36 @@ def main() -> None:
 
     lines += ["### Maximum free energy", ""]
     header = (
-        "<tr><th>diagnostic</th>"
+        "<tr><th>diagnostic</th><th>sample count</th>"
         + "".join(f"<th>{label}</th>" for label in labels)
         + "</tr>",
     )
     body = []
+    rows = (
+        ("as sampled", surfaces),
+        (f"thinned to {reference_size:,}", matched_surfaces),
+    )
     for diagnostic in ("heavy-atom", "hydroxyl"):
-        cells = ""
-        for label in labels:
-            surface = surfaces[diagnostic][label]
-            finite = surface[np.isfinite(surface)]
-            cells += f"<td>{float(finite.max()):.2f}</td>"
-        body.append(f"<tr><td>{diagnostic}</td>{cells}</tr>")
+        # The diagnostic name is spanned rather than repeated on every row.
+        for index, (row_label, source) in enumerate(rows):
+            cells = ""
+            for label in labels:
+                surface = source[diagnostic][label]
+                finite = surface[np.isfinite(surface)]
+                cells += f"<td>{float(finite.max()):.2f}</td>"
+            span = f'<td rowspan="{len(rows)}">{diagnostic}</td>' if index == 0 else ""
+            body.append(f"<tr>{span}<td>{row_label}</td>{cells}</tr>")
     lines += table(list(header), body)
     lines += [
         "Maximum free energy over finite bins, in units of $k_{\\mathrm B}T$.",
+        "",
+        "Each surface is normalized to its own most populated bin, so the",
+        "deepest value it can resolve is set by the bin holding a single",
+        "sample and grows as $\\log N$. The `as sampled` row therefore compares",
+        "two different resolutions rather than two free-energy surfaces. The",
+        "`thinned` row removes that by histogramming the generated set at the",
+        "reference frame count, which is a measurement at matched size rather",
+        "than a correction applied to either column.",
         "",
         "### Mean free energy by region",
         "",

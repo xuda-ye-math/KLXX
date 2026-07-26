@@ -1129,7 +1129,7 @@ For alanine dipeptide, Figure~\ref{fig: mol-adp-ramachandran} tracks the Ramacha
 \label{fig: mol-adp-ramachandran}
 \end{figure}
 
-Alanine dipeptide is the one chiral target for which an independent equilibrium reference is available: the implicit-solvent trajectory data released with the FAB study \citep{midgley2022flow} were generated for the same Hamiltonian and are used here as ground truth. Table~\ref{tab: mol-adp-reference} compares the final KLXX stage against it. Both sets contain \(10^7\) samples, are binned on the same \(100\times100\) grid over \((\phi,\psi)\), and are smoothed identically, and each surface is normalized to its own most populated bin, so only per-method values are quoted; a difference between two such surfaces would carry an arbitrary additive offset.
+Two of the three chiral targets carry an independent equilibrium reference. For alanine dipeptide the reference is published: the implicit-solvent trajectory data released with the FAB study \citep{midgley2022flow} were generated for the same Hamiltonian and are used here as ground truth. Table~\ref{tab: mol-adp-reference} compares the final KLXX stage against it. Both sets contain \(10^7\) samples, are binned on the same \(100\times100\) grid over \((\phi,\psi)\), and are smoothed identically, and each surface is normalized to its own most populated bin, so only per-method values are quoted; a difference between two such surfaces would carry an arbitrary additive offset.
 
 \begin{table}[htb]
 \centering
@@ -1166,6 +1166,36 @@ Figure~\ref{fig: mol-butanediol-landscape} compares the accepted 2,3-butanediol 
 \label{fig: mol-butanediol-landscape}
 \end{figure}
 
+2,3-butanediol carries an independent equilibrium reference of our own: a PT run on the unregularized physical potential at \(300\,\mathrm K\), six replicas on a geometric \(300\)--\(800\,\mathrm K\) grid, retaining \(10^5\) frames over \(50.0\,\mathrm{ns}\) after a discarded \(0.5\,\mathrm{ns}\) equilibration, with a mean per-pair exchange probability of \(0.529\) and \(2.2\times10^4\) transitions among the three central rotamers. Table~\ref{tab: mol-butanediol-reference} compares it with the final KLXX stage on the same \(100\times100\) torsion grid with the same smoothing.
+
+The two sample sets differ in size by two orders of magnitude, and the two halves of the table are read accordingly. A basin population and a mean over occupied bins are ratios, estimated without bias at either size, so both are quoted from the full \(10^7\) inference set. A maximum free energy is not such a quantity: each surface is normalized to its own most populated bin, so the deepest value it can resolve is set by the bin holding a single sample and grows as \(\log N\). Maxima are therefore quoted only at matched count, with the same inference set thinned to the reference's \(10^5\).
+
+\begin{table}[htb]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+& \multicolumn{3}{c}{central C-C-C-C rotamer population} \\
+\cmidrule(l){2-4}
+sample set & gauche\(-\) & gauche\(+\) & trans \\
+\midrule
+$\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & 0.1486 & 0.1861 & 0.6652 \\
+OpenMM reference & 0.1425 & 0.1726 & 0.6849 \\
+\midrule
+& \multicolumn{3}{c}{mean free energy over reference-classified bins} \\
+\cmidrule(l){2-4}
+sample set & low & high & all \\
+\midrule
+$\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & 1.229 & 5.126 & 4.137 \\
+OpenMM reference & 1.259 & 5.353 & 4.309 \\
+\bottomrule
+\end{tabular}
+\caption{\((2R,3R)\)-2,3-butanediol at the final accepted stage against an independent OpenMM PT reference, with \(10^7\) inference samples and \(10^5\) reference frames. Rotamers split the central C-C-C-C torsion at its eclipsed barriers, trans for \(|\phi|\Ge2\pi/3\) and one gauche well on either side of \(\phi=0\). Bins are classified by the reference surface as low below \(2\,k_{\mathrm B}T\) and high above \(3\,k_{\mathrm B}T\), and restricted to bins finite in both surfaces; entries are mean free energies in units of \(k_{\mathrm B}T\) on the heavy-atom torsions. Maximum free energies are comparable only at matched count: with the inference set thinned to \(10^5\), they are \(7.52\) against \(7.54\) on the heavy-atom torsions and \(4.04\) against \(4.04\) on the hydroxyl pair.}
+\label{tab: mol-butanediol-reference}
+\end{table}
+
+The two sets agree closely. The rotamer populations differ by at most \(0.020\), in the dominant trans well, and by \(0.014\) and \(0.006\) in the two gauche wells; the mean free energies differ by at most \(0.23\,k_{\mathrm B}T\); and at matched sample count the maxima differ by \(0.02\,k_{\mathrm B}T\) and \(0.00\,k_{\mathrm B}T\). The residual trans difference is larger than the reference's own sampling error, which the rotamer transition count places near \(0.003\), so it is not attributable to reference noise alone.
+
 Ac-Pro-NHMe adds a ring degree of freedom and a cis/trans peptide torsion. Figure~\ref{fig: mol-ac-pro-landscape} compares the accepted stage nearest \(t=0.5\) with the final stage in both the backbone and joint ACE-PRO torsion/ring-pucker coordinates.
 
 \begin{figure}[htb]
@@ -1175,7 +1205,7 @@ Ac-Pro-NHMe adds a ring degree of freedom and a cis/trans peptide torsion. Figur
 \label{fig: mol-ac-pro-landscape}
 \end{figure}
 
-These four figures diagnose the regularized KLXX sample sets and their retained stereochemical components. Alanine dipeptide is additionally checked against ground truth in Table~\ref{tab: mol-adp-reference}. What this subsection does not provide is a matched loss comparison, an independent equilibrium reference for 2,3-butanediol or Ac-Pro-NHMe, or uncertainty over independently trained generators.
+These four figures diagnose the regularized KLXX sample sets and their retained stereochemical components. Alanine dipeptide is additionally checked against ground truth in Table~\ref{tab: mol-adp-reference}, and 2,3-butanediol against our own reference in Table~\ref{tab: mol-butanediol-reference}. What this subsection does not provide is a matched loss comparison, an independent equilibrium reference for Ac-Pro-NHMe, or uncertainty over independently trained generators.
 
 \FloatBarrier
 
@@ -1189,7 +1219,7 @@ The theory establishes a narrower statement. For the FR gradient flow of forward
 
 The numerical results provide the remaining evidence. The 2D and $\phi^4$ ablations are consistent with the roles of the target, QT, and pushforward samples; the product test shows higher validation ESS for every tested objective with log-ratio variation at all sixteen tested dimensions. On the shared clock stage schedules, KLXX has higher validation ESS on all $28$ shared stages and a smaller propagation factor at every reported batch size. In the single-seed alkane runs, KLXX has the smallest factor in all ten matched settings, while forward KL approaches the identity baseline as molecule size grows. The sharpening paths have lower KLXX factors for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\mu$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins in the reported conformational diagnostics. For alanine dipeptide, the final sample set matches the published equilibrium reference of \citet{midgley2022flow} at \(10^7\) samples per side: the three backbone basin populations differ by at most \(0.0018\), including the \(0.3\%\) \(\alpha_{\mathrm L}\) basin, and the mean free energies agree to \(0.03\,k_{\mathrm B}T\) in every band. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with an explanation based on additional support information; they are not a theorem of universal dominance or a fixed-compute comparison.
 
-The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals and do not determine joint conformational weights. Among the chiral results, only alanine dipeptide is checked against ground truth; 2,3-butanediol and Ac-Pro-NHMe lack matched independent MD references, and no alternative-loss run was made for any of the three. Larger molecules and explicit solvent remain outside the completed results.
+The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets, but a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals and do not determine joint conformational weights. Among the chiral results, alanine dipeptide is checked against published ground truth and 2,3-butanediol against a reference of our own; Ac-Pro-NHMe lacks a matched independent MD reference, and no alternative-loss run was made for any of the three. Larger molecules and explicit solvent remain outside the completed results.
 
 
 \section*{Acknowledgments}

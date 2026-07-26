@@ -2,6 +2,8 @@
   "bundle": "rr_2_3_butanediol_gaff2_am1bcc_obc1",
   "atoms": 16,
   "potential": "unregularized physical",
+  "sampler": "parallel tempering",
+  "chains": 1,
   "temperature_kelvin": 300.0,
   "grid": "wide_6",
   "temperatures_kelvin": [
@@ -14,36 +16,37 @@
   ],
   "timestep_fs": 0.25,
   "friction_per_ps": 1.0,
+  "platform": "CUDA",
   "steps_per_round": 2000,
   "ps_per_frame": 0.5,
   "equilibration_rounds": 1000,
-  "production_frames": 24000,
-  "nanoseconds_retained": 12.0,
-  "acceptance_mean": 0.5251230769230769,
-  "acceptance_min": 0.486,
-  "acceptance_max": 0.572,
-  "cold_energy_mean_kj_mol": 28.82505776977539,
-  "cold_energy_std_kj_mol": 11.624913256379891,
+  "production_frames": 100000,
+  "nanoseconds_retained": 50.0,
+  "acceptance_mean": 0.5289386138613862,
+  "acceptance_min": 0.45,
+  "acceptance_max": 0.596,
+  "cold_energy_mean_kj_mol": 28.895497935638428,
+  "cold_energy_std_kj_mol": 11.667820935535714,
   "cccc": {
     "occupancy": [
-      0.081,
-      0.80825,
-      0.11075
+      0.08304,
+      0.80194,
+      0.11502
     ],
     "visited": 3,
-    "transitions": 5275
+    "transitions": 22488
   },
   "occo": {
     "occupancy": [
-      0.041791666666666664,
-      0.7277083333333333,
-      0.2305
+      0.04254,
+      0.72837,
+      0.22909
     ],
     "visited": 3,
-    "transitions": 10657
+    "transitions": 44047
   },
-  "seconds": 6539.043563127518,
+  "seconds": 26183.814164161682,
   "seed": 1729,
-  "frames_path": "pt_reference_frames.npz",
+  "frames_path": "pt_reference_frames_100000.npz",
   "status": "complete"
 }
