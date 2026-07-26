@@ -261,7 +261,7 @@ def plot_landscapes(
         figsize=(9.5, 8.6),
         layout="constrained",
     )
-    vmax = 10.0
+    vmax = 11.0
     panel_letters = ("a", "b", "c", "d")
     pucker_limits = []
     image = None
