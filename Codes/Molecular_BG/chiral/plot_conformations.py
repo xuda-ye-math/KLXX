@@ -63,16 +63,6 @@ class Molecule:
 
 MOLECULES = (
     Molecule(
-        folder="rr_2_3_butanediol_42d",
-        display_name="(2R,3R)-2,3-butanediol",
-        dimension=42,
-        dihedrals=((4, 2, 3, 5), (0, 2, 3, 1)),
-        stereocenters=(2, 3),
-        configurations=("R", "R"),
-        view_elevation=14.0,
-        view_azimuth=72.0,
-    ),
-    Molecule(
         folder="adp_60d",
         display_name="alanine dipeptide",
         dimension=60,
@@ -81,6 +71,16 @@ MOLECULES = (
         configurations=("S",),
         view_elevation=18.0,
         view_azimuth=64.0,
+    ),
+    Molecule(
+        folder="rr_2_3_butanediol_42d",
+        display_name="(2R,3R)-2,3-butanediol",
+        dimension=42,
+        dihedrals=((4, 2, 3, 5), (0, 2, 3, 1)),
+        stereocenters=(2, 3),
+        configurations=("R", "R"),
+        view_elevation=14.0,
+        view_azimuth=72.0,
     ),
     Molecule(
         folder="ac_pro_nhme_72d",
