@@ -42,7 +42,7 @@ OH2_ATOMS = (15, 1, 3, 2)
 
 # Per-column free-energy colorbar limits; ``None`` rounds up to the observed
 # maximum.  Both columns are pinned so the landscape figures share one scale.
-COLUMN_FREE_ENERGY_LIMITS = (11.0, 2.5)
+COLUMN_FREE_ENERGY_LIMITS = (11.0, 4.0)
 
 FREE_ENERGY_CMAP = LinearSegmentedColormap.from_list(
     "reference_free_energy",

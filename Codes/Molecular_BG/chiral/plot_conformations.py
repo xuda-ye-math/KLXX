@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 
 from matplotlib import pyplot as plt
 from matplotlib.lines import Line2D
-from matplotlib.patches import Circle
+from matplotlib.patches import Circle, Polygon
 import matplotlib.patheffects as path_effects
 import numpy as np
 from scipy.ndimage import gaussian_filter
@@ -44,6 +44,7 @@ COVALENT_RADII_ANGSTROM = {1: 0.31, 6: 0.76, 7: 0.71, 8: 0.66}
 LIGHT = np.asarray((-0.42, 0.50, 0.76))
 LIGHT = LIGHT / np.linalg.norm(LIGHT)
 GOLD = "#E8990C"
+TEAL = "#0F8B8D"
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,13 @@ class Molecule:
     configurations: tuple[str, ...]
     view_elevation: float
     view_azimuth: float
+    # Panel zoom.  The axis half-range is set by the molecule's own extent, so
+    # a larger molecule is drawn smaller; a value below one enlarges it.
+    view_zoom: float = 1.0
+    # Ring atoms in cycle order, highlighted and labelled when present.
+    ring: tuple[int, ...] = ()
+    ring_label: str = ""
+    ring_label_offset: tuple[float, float] = (0.0, 0.0)
 
 
 MOLECULES = (
@@ -81,6 +89,9 @@ MOLECULES = (
         configurations=("R", "R"),
         view_elevation=14.0,
         view_azimuth=72.0,
+        # This is the smallest target, so its own extent fills the panel more
+        # than the others; push it back out.
+        view_zoom=1.35,
     ),
     Molecule(
         folder="ac_pro_nhme_72d",
@@ -89,8 +100,20 @@ MOLECULES = (
         dihedrals=((4, 6, 16, 18), (6, 16, 18, 20)),
         stereocenters=(16,),
         configurations=("S",),
-        view_elevation=18.0,
-        view_azimuth=64.0,
+        # Chosen so the proline ring reads as a ring.  The ring is atoms
+        # (6, 16, 13, 10, 7); at the previous 18/64 view its plane was nearly
+        # edge-on, projecting 1.74 A^2 against a maximum of 3.80, so the only
+        # ring in the test set was invisible.  This view is face-on to 0.98 and
+        # keeps the stereocentre marker clear of the carbonyl oxygen.
+        view_elevation=-14.0,
+        view_azimuth=4.0,
+        # This is the largest target, so its own extent zooms the panel out
+        # further than the others; pull it back in.
+        view_zoom=0.78,
+        # Pyrrolidine, in cycle order: N, CA, CB, CG, CD.
+        ring=(6, 16, 13, 10, 7),
+        ring_label="pyrrolidine ring",
+        ring_label_offset=(-64.0, -46.0),
     ),
 )
 
@@ -343,6 +366,24 @@ def draw_conformation(
                 solid_capstyle="round",
                 zorder=bond_zorder + 0.1,
             )
+    if molecule.ring:
+        # Filled behind the atoms so the ring reads as a closed face rather
+        # than as five separate spheres.
+        ring_xy = np.column_stack((x[list(molecule.ring)], y[list(molecule.ring)]))
+        axis.add_patch(
+            Polygon(
+                ring_xy,
+                closed=True,
+                facecolor=TEAL,
+                edgecolor=TEAL,
+                linewidth=2.6,
+                linestyle=(0, (5, 2)),
+                alpha=0.30,
+                joinstyle="round",
+                zorder=1.2,
+            )
+        )
+
     for index in np.argsort(depth):
         radius = radii[index]
         atom_zorder = 6.0 + 4.0 * (depth[index] - depth_low) / depth_span
@@ -417,9 +458,52 @@ def draw_conformation(
             [path_effects.withStroke(linewidth=2.4, foreground="white")]
         )
 
+    if molecule.ring and molecule.ring_label:
+        ring_xy = np.column_stack((x[list(molecule.ring)], y[list(molecule.ring)]))
+        centroid = ring_xy.mean(axis=0)
+        annotation = axis.annotate(
+            molecule.ring_label,
+            xy=(centroid[0], centroid[1]),
+            xytext=molecule.ring_label_offset,
+            textcoords="offset points",
+            color=TEAL,
+            fontsize=11,
+            fontweight="bold",
+            ha="center",
+            va="top",
+            zorder=22,
+            arrowprops={
+                "arrowstyle": "-",
+                "color": TEAL,
+                "linewidth": 2.0,
+                "shrinkA": 2.0,
+                "shrinkB": 6.0,
+            },
+        )
+        annotation.set_path_effects(
+            [path_effects.withStroke(linewidth=2.6, foreground="white")]
+        )
+
     center = projected[:, :2].mean(axis=0)
     half_range = float(np.max(np.abs(projected[:, :2] - center)))
     half_range += float(radii.max()) + 0.26
+    half_range *= molecule.view_zoom
+    # Zoom trims padding, never an atom: keep every sphere inside the panel, so
+    # an over-aggressive zoom saturates instead of cropping the molecule.
+    required = float(
+        np.max(np.abs(projected[:, :2] - center) + radii[:, None])
+    ) + 0.06
+    half_range = max(half_range, required)
+    # A square panel holding a molecule that is wider than tall leaves vertical
+    # slack, and all of it reads as a band of white between the title and the
+    # molecule.  Move the window down so the molecule rides higher and the slack
+    # falls to the bottom, where the legend already leaves space.  Bounded by the
+    # measured slack, so this can never crop an atom.
+    slack = half_range - float(
+        np.max(np.abs(projected[:, 1] - center[1]) + radii)
+    )
+    center = center.copy()
+    center[1] -= max(0.0, slack) * 0.55
     axis.set_xlim(center[0] - half_range, center[0] + half_range)
     axis.set_ylim(center[1] - half_range, center[1] + half_range)
     axis.set_aspect("equal")
@@ -451,6 +535,11 @@ def main() -> None:
         figsize=(13.5, 4.3),
         layout="constrained",
     )
+    # The panels are square while the molecules are wider than tall, so the
+    # default padding shows up as a band of white between each title and its
+    # molecule.  Trim the vertical padding; the horizontal keeps the panels
+    # from touching.
+    figure.get_layout_engine().set(h_pad=0.008, w_pad=0.03, hspace=0.0, wspace=0.02)
     print(f"JAX backend: {jax.default_backend()}", flush=True)
 
     for panel, (axis, molecule) in enumerate(
@@ -485,7 +574,7 @@ def main() -> None:
         draw_conformation(axis, positions, atomic_numbers, bonds, molecule)
         axis.set_title(
             rf"({chr(96 + panel)}) {molecule.display_name} ($d={molecule.dimension}$)",
-            pad=4,
+            pad=1,
         )
         print(
             f"{molecule.display_name}: stage={final['stage']} "
