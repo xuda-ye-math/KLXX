@@ -38,12 +38,44 @@ bins are left white. Read across the panels, the surfaces show how the
 interpolation carries the generator from a smooth source landscape to the
 resolved basins and barriers of the target.
 
+The panels show the path; the table below shows where it ends. The final-stage
+KLXX sample set is compared against published ground truth on the same 100-bin
+φ/ψ grid with the same wrapped smoothing, with 10⁷ samples on each side.
+
+<div align="center">
+
+<table>
+<thead>
+<tr><th>quantity</th><th>KLXX</th><th>ground truth</th></tr>
+</thead>
+<tbody>
+<tr><td>α_L basin population (φ &gt; 0)</td><td>0.0031</td><td>0.0033</td></tr>
+<tr><td>β/PPII basin population (ψ &gt; 0)</td><td>0.7958</td><td>0.7940</td></tr>
+<tr><td>α_R basin population (ψ &lt; 0)</td><td>0.2012</td><td>0.2027</td></tr>
+<tr><td>maximum free energy</td><td>10.40</td><td>10.40</td></tr>
+</tbody>
+</table>
+
+</div>
+
+Free energies are in units of kBT. The three basin populations differ by at
+most 0.0018, including the α_L basin that carries only 0.3% of the total, and
+both surfaces reach the same maximum. Each surface is normalized to its own
+most populated bin, so only per-method values are quoted; a difference between
+two such surfaces would carry an arbitrary additive offset.
+Together the figure and the table are the accuracy claim for KLXX on this
+target: the panels show that the staged construction reaches the right
+landscape, and the table shows that the landscape it reaches matches an
+independent reference.
+
 ## Active implementation
 
-The experiments use the published JAX packages `jflows` and `jflows_md`.
+The experiments use the published JAX packages
+[`jflows`](https://github.com/xuda-ye-math/jflows) and
+[`jflows_md`](https://github.com/xuda-ye-math/jflows_md), whose sources are
+also included under [`External/`](External/).
 Install them into a virtual environment and activate it as described in
-[`PYTHON.md`](PYTHON.md); a source checkout, editable installation, or manually
-configured `PYTHONPATH` is not required.
+[`PYTHON.md`](PYTHON.md).
 
 Run a `jflows` experiment from the repository root with:
 
@@ -70,6 +102,7 @@ KLXX/
 │   ├── Lattice_Clock/      # periodic clock-model experiments
 │   ├── Lattice_Phi4/       # L=6 and L=8 tilted phi-four experiments
 │   └── Molecular_BG/       # alkane, achiral, and chiral molecular experiments
+├── External/               # jflows and jflows_md sources as git submodules
 ├── Paper/                  # manuscript and tracked paper figures
 └── PYTHON.md               # authoritative pip-only environment guide
 ```
