@@ -5,11 +5,12 @@ complete validation set at every accepted forward KL stage. KLXX must use the
 same accepted stage schedule stored in ``t_hist``. The aggregate
 reported by the experiment is the propagation factor
 
-    F = product_k ESS_k**(-1),
+    F_hat_Sigma = sum_{k=0}^{K} product_{j=k+1}^{K} ESS_j**(-1/2),
 
-not the direct ESS of a composed map.  This script implements that reporting
-contract and writes a centered Markdown table in the paper layout, plus
-machine-readable CSV files.
+with the empty product equal to one, so that the summand at k = K is one and
+F_hat_Sigma >= K + 1. This is not the direct ESS of a composed map. This
+script implements that reporting contract and writes a centered Markdown table
+in the paper layout, plus machine-readable CSV files.
 
 Run from the repository root after all paired runs finish::
 
@@ -48,8 +49,18 @@ class Run:
 
     @property
     def factor(self) -> float:
-        """Propagation factor ``prod_k 1 / ESS_k``."""
-        return float(np.prod(1.0 / self.ess))
+        """Propagation factor ``sum_k prod_{j>k} ESS_j**(-1/2)``.
+
+        Accumulated over the accepted stages from the last one backwards, so
+        that the running product carries the suffix ``prod_{j=k+1}^{K}`` and
+        the ``k = K`` summand is the empty product.
+        """
+        total = 1.0
+        suffix = 1.0
+        for ess in self.ess[::-1]:
+            suffix /= float(np.sqrt(ess))
+            total += suffix
+        return total
 
     @property
     def geometric_mean(self) -> float:
@@ -136,7 +147,7 @@ def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
     lines = [
         '<div align="center">',
         "",
-        "| stage $k$ | " + " | ".join(stage_headers) + " | $F$ |",
+        "| stage $k$ | " + " | ".join(stage_headers) + r" | $\hat F_\Sigma$ |",
         "| :--- | " + " | ".join([":-:"] * (max_stages + 1)) + " |",
     ]
     for kl, klxx in pairs:
@@ -186,7 +197,9 @@ def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
 
     with (RESULTS / "factors.csv").open("w", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
-        writer.writerow(["batch_size", "method", "stages", "geometric_mean_ess", "F"])
+        writer.writerow(
+            ["batch_size", "method", "stages", "geometric_mean_ess", "F_hat_sigma"]
+        )
         for kl, klxx in pairs:
             for run in (kl, klxx):
                 writer.writerow(
@@ -205,7 +218,8 @@ def main() -> None:
     (RESULTS / "tables.md").write_text(
         "# p-state clock — per-stage ESS on a shared stage schedule\n\n"
         "The final column is the propagation factor "
-        "$F = \\prod_k \\mathrm{ESS}_k^{-1}$; smaller is better. It "
+        "$\\hat F_\\Sigma = \\sum_{k=0}^{K} \\prod_{j=k+1}^{K} "
+        "\\mathrm{ESS}_j^{-1/2}$; smaller is better. It "
         "summarizes stagewise weight degeneracy and is not a full-chain "
         "ESS or endpoint error estimate. Every ESS is the selected-proposal "
         "validation ESS over the complete validation set.\n\n"
@@ -217,8 +231,10 @@ def main() -> None:
     for kl, klxx in pairs:
         print(
             f"B={kl.batch_size}: stages={len(kl.ess)} "
-            f"forward KL F={kl.factor:.1f} (GM={kl.geometric_mean:.3f}) | "
-            f"KLXX F={klxx.factor:.1f} (GM={klxx.geometric_mean:.3f})"
+            f"forward KL F_hat_sigma={kl.factor:.1f} "
+            f"(GM={kl.geometric_mean:.3f}) | "
+            f"KLXX F_hat_sigma={klxx.factor:.1f} "
+            f"(GM={klxx.geometric_mean:.3f})"
         )
 
 
