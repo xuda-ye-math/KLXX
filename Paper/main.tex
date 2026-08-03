@@ -144,7 +144,7 @@ Second, we analyze forward KL with $\X_\mu$ in Fisher--Rao geometry. The regular
 
 Third, we demonstrate that QT can reach target basins outside the regions covered by the source and annealed samples. In the Himmelblau and Sparse tests, the two objectives trained without QT miss remote wells, while both QT-based losses recover every mode; mixing QT and pushforward samples also reduces visible intermodal leakage (Figures~\ref{fig: himmelblau} and~\ref{fig: sparse}). We therefore report ESS together with coverage, since uniform weights on reached modes do not imply complete coverage.
 
-Fourth, we build an adaptive-staging Boltzmann generator without a replay buffer. Annealing and QT generate the required samples on the fly, and the MCMC transitions use only derivatives of $U$ without differentiating the flow density. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the desired endpoint. We also bound the error of the sample set this construction returns: Theorem~\ref{thm: propagation} controls the error at rate $N^{-1/2}$ for every bounded observable, with a constant independent of $N$ that depends on the stage maps only through their weight suprema, so the scheme is asymptotically unbiased and its error is removed by enlarging the sample alone. Reading that constant stagewise defines the propagation factors, which quantify how the error accumulates across the accepted stages; the experiments report the computable factor $\hat F_\Sigma$, assembled from the ESS of each accepted stage.
+Fourth, we build an adaptive-staging Boltzmann generator based on KLXX without any external data or replay buffer, using only oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$. Annealing and QT generate the required samples on the fly, and the MCMC transitions do not differentiate the flow density. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the desired endpoint. We also bound the error of the sample set this construction returns: Theorem~\ref{thm: propagation} controls the error at rate $N^{-1/2}$ for every bounded observable, with a constant independent of $N$ that depends on the stage maps only through their weight suprema, so the scheme is asymptotically unbiased and its error is removed by enlarging the sample alone. Reading that constant stagewise defines the propagation factors, which quantify how the error accumulates across the accepted stages; the experiments report the computable factor $\hat F_\Sigma$, assembled from the ESS of each accepted stage.
 
 Fifth, we develop the Python packages \texttt{jflows} and \texttt{jflows-md} for normalizing flow Boltzmann sampling with molecular potentials. With a JAX backend and OpenXLA compilation, the reported 22-atom alanine dipeptide run completes all ten accepted training stages in 72.7 minutes of total persisted stage time on one NVIDIA GeForce RTX 5090, without an external target dataset or a prescribed conformational landscape.
 
@@ -364,7 +364,7 @@ Two obstacles prevent a single flow from carrying $\mu_0$ to $\mu$ in one map.
     \item \emph{Structural limitation of a diffeomorphism.} A trained flow is a diffeomorphism of $\mathbb R^d$, so the pushforward $\nu$ inherits the connected support of $\mu_0$: the map deforms that support continuously and cannot split it into disconnected components. Mass therefore remains on the paths joining the target basins even when the basins themselves are well fitted, an effect visible between the isolated modes of the Sparse target in Figure~\ref{fig: sparse}. Reweighting and MALA rejuvenation at the interpolating distributions remove the leaked samples at every stage, so the support changes shape gradually across the schedule.
 \end{itemize}
 
-The stage schedule cannot be fixed in advance, because we assume no external information about the target. Training uses no target dataset, no reference trajectory, and no prior knowledge of the number, location, or depth of the potential wells. The only available information is oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$: the interpolating potentials are formed from $U_0$ and $U$ alone, the loss evaluates $U_{t}$ through the log-ratio $z$, the annealing and rejuvenation kernels use $-\nabla U_{t}$ in their proposals, and the quench of Algorithm~\ref{alg: QT} descends on the same potential. Under this restriction the difficulty of a candidate stage cannot be read off the potential before attempting it. The algorithm therefore probes the interpolation parameter: it proposes a stage increment, trains the stage flow, accepts the increment only when the resulting proposal passes a sampling gate on the validation set, and otherwise shrinks the increment and retries. Adaptive staging is thus more than a convenience. It is the mechanism that turns oracle access alone into a stage schedule matched to the difficulty the target actually presents, and it lets easy regions advance in few large stages while hard regions receive as many small stages as they require.
+The stage schedule cannot be fixed in advance, because we assume no external information about the target. Training uses no target dataset, no reference trajectory, and no prior knowledge of the number, location, or depth of the potential wells. Under this restriction the difficulty of a candidate stage cannot be read off the potential before attempting it. The algorithm therefore probes the interpolation parameter: it proposes a stage increment, trains the stage flow, accepts the increment only when the resulting proposal passes a sampling gate on the validation set, and otherwise shrinks the increment and retries. Adaptive staging is thus more than a convenience. It is the mechanism that turns oracle access to $U(x)$ and $\nabla U(x)$ into a stage schedule matched to the difficulty the target actually presents, and it lets easy regions advance in few large stages while hard regions receive as many small stages as they require.
 
 \subsection{Construction of the adaptive stage schedule}
 
@@ -378,9 +378,9 @@ defining the interpolating potential and measure
 \qquad \mu_t(x)\propto\exp(-U_t(x)),
     \qquad t\in[0,1].
 \end{equation*}
-Here $t$ is a dimensionless interpolation parameter, not a thermodynamic temperature. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
+Here $t$ is a dimensionless interpolation parameter. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
 
-Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, an optional classical SMC calculation can screen the proposed stage increment $\Delta t_k$. Its smallest incremental ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the sample set carried across stages and used in full for training batches, QT, and stage selection; it is not a held-out test set, and neither QT nor the SMC screen first draws a separately sized subset of it.
+Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, Algorithm~\ref{alg: step} can screen the proposed stage increment $\Delta t_k$ with an optional classical SMC calculation. Its smallest per-level ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the sample set carried across stages and used in full for training batches, QT, and stage selection; it is not a held-out test set, and neither QT nor the SMC screen first draws a separately sized subset of it.
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
@@ -408,26 +408,26 @@ $t_k \gets t_{\mathrm{init}}$\;
     }
 }
 \end{algorithm}
-\mbox{}\\
-When enabled, these SMC ladders involve only the potentials $U_0$ and $U$. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) of Section~\ref{sec: boltzmann} below supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
+
+These SMC ladders involve only the potentials $U_0$ and $U$. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) below supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
 
 
 \subsection{The full training procedure}
 
-Algorithm~\ref{alg: boltzmann} combines the stage-selection rule with the training procedure. It carries a fixed-size validation set $\mathcal Y_k\approx\mu_k$ across stages. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}\in[0,1)$, the algorithm shrinks the stage increment and retries. The displayed loop ends when $t_K=1$. Practical implementations use an endpoint tolerance and finite caps on retries and stages; reaching a cap returns an incomplete stage schedule.
+Algorithm~\ref{alg: boltzmann} combines the stage-selection rule with the training procedure. It carries across stages a fixed-size validation set $\mathcal Y_k$, whose empirical measure approximates the per-stage target $\mu_k$. Each candidate stage builds its QT set when $\alpha>0$, trains a flow with the selected loss weights, and compares that flow with the identity proposal. If neither proposal reaches the validation ESS floor $\tau_{\mathrm v}\in[0,1)$, the algorithm shrinks the stage increment and retries. The displayed loop ends when $t_K=1$. Practical implementations use an endpoint tolerance and finite caps on retries and stages; reaching a cap returns an incomplete stage schedule.
 
 \begin{enumerate}[(i)]
 \item \emph{Validation set.} Stage $k$ uses the \emph{validation set size} $N$ and the \emph{batch size} $B$, taken at least $2$ so that the permuted-pair estimator has a pair to form. The validation set $\mathcal Y_{k-1}=\{y_1,\dots,y_N\}\approx\mu_{k-1}$ is carried over from the previous stage. Training batches are drawn at run time, $B$ samples per gradient step, from $\mathcal Y_{k-1}$; no separate training set is built.
 
 \item \emph{Adaptive stage selection.} Algorithm~\ref{alg: step} selects the next stage point $t_k$. The first stage starts from $t_{\mathrm{init}}=t_{\mathrm{safe}}=0.2$. Later stages extrapolate the last accepted stage increment, $t_{\mathrm{init}}=\min\bigl(1,t_{k-1}+\Gamma(t_{k-1}-t_{k-2})\bigr)$, with enlarge factor $\Gamma=1.5$. When a positive floor is supplied, the algorithm shrinks the stage increment until the classical SMC ESS on all $N$ samples clears that floor. The selected stage target is $\mu_k\propto\exp(-U_{t_k})$, with $U_{t_k}=(1-t_k)U_0+t_kU$.
 
-\item \emph{Wide-coverage set.} When $\alpha>0$, quench and temper (Algorithm~\ref{alg: QT}) acts on the validation set $\mathcal Y_{k-1}$ under $U_{t_k}$. The resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ form the fixed stage reservoir. The measure $\hat\mu_k$ is the law obtained by drawing uniformly from this reservoir and applying the short MALA refresh used at each gradient step; it supplies the wide-coverage component of the last term in \eqref{eq: stage-loss}. When $\alpha=0$, that component vanishes and the QT construction is omitted.
+\item \emph{Wide-coverage set.} When $\alpha>0$, quench and temper (Algorithm~\ref{alg: QT}) acts on the validation set $\mathcal Y_{k-1}$ under $U_{t_k}$. The resulting $N$ samples $\hat{\mathcal Y}_k=\mathrm{QT}(\mathcal Y_{k-1},U_{t_k})$ form the fixed stage reservoir. The measure $\hat\mu_k$ is the law obtained by drawing uniformly from this reservoir and applying the short MALA refresh used at each gradient step; it supplies the wide-coverage component of the last term in \eqref{eq: stage-loss}.
 
 \item \emph{Training loss.} Each attempt initializes $G_k$ to the identity map and trains it by the general loss \eqref{eq: total-loss-G} specialized to the stage $\mu_{k-1}\to\mu_k$. With the pushforward distribution $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$ and its frozen sampling measure $\bar\nu_k$, the stage log-ratio is
 \begin{equation*}
     z_k(y) = U_{t_{k-1}}(G_k(y)) - U_{t_k}(y) - \log|\det J_{G_k}(y)|.
 \end{equation*}
-Let $s=\alpha+\beta$. For $s>0$, define the stage specialization of the normalized mixture $\xi$, with any zero-weight component omitted,
+Let $s=\alpha+\beta$. For $s>0$, define the stage specialization of the normalized mixture $\xi$,
 \begin{equation*}
     \xi_k:=\frac{\alpha\hat\mu_k+\beta\bar\nu_k}{s}.
 \end{equation*}
@@ -439,14 +439,14 @@ The stage loss then reads
      + \underbrace{s^2\mathbb{E}_{y, y' \sim \xi_k}\bigl[|z_k(y) - z_k(y')|\bigr]}_{\X_{\alpha\hat\mu_k+\beta\bar\nu_k}(\mu_k\|\nu_k)} .
     \label{eq: stage-loss}
 \end{align}
-When $s=0$, the last term is omitted. The $\mu_k$-expectations are estimated from the biased annealed surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is mapped to the batch of pushforward samples $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: annealing} with $G = G_k$. When $s>0$, a batch $\mathcal X_{\xi_k}$ from $\xi_k$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$ when $\alpha>0$, and from $\bar\nu_k$ with probability $\beta/s$ when $\beta>0$; the permuted-pair estimate is then multiplied by $s^2$. This factor retains the general-weight definition in \eqref{eq: X} when $\alpha+\beta\ne1$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and $\KL$+$\X_{\mu}$, respectively; $(1,\frac12,\frac12)$ gives the default KLXX loss.
+The $\mu_k$-expectations are estimated from the biased annealed surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is mapped to the batch of pushforward samples $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: annealing} with $G = G_k$. The batch $\mathcal X_{\xi_k}$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/s$, and from $\bar\nu_k$ with probability $\beta/s$; the permuted-pair estimate is then multiplied by $s^2$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and $\KL$+$\X_{\mu}$, respectively; $(1,1,0)$ gives $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $(1,\frac12,\frac12)$ gives the default KLXX loss.
 
 \item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained set of pushforward samples $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with proportional importance weights represented by
 \begin{equation*}
     w_k^{\mathrm{tr}}(\tilde y) := \exp\bigl(z_k(\tilde y)\bigr),
     \qquad \tilde y \in \tilde{\mathcal Y}_k^{\mathrm{tr}} .
 \end{equation*}
-The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\mathrm{id}}(y)=\exp[U_{t_{k-1}}(y)-U_{t_k}(y)]$. We select the pair with the larger ESS over the validation set and denote it by $(\tilde{\mathcal Y}_k,w_k)$, taking the stage map to be $G_k$ or the identity accordingly. If $\ESS(w_k) < \tau_{\mathrm v}$, with default $\tau_{\mathrm v} = 0.6$, we discard the candidate, shrink to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced stage increment. Otherwise we advance the validation set to $\mathcal Y_k = \mathrm{MALA}\bigl(\mathrm{resample}(\tilde{\mathcal Y}_k, w_k;N),\, U_{t_k}\bigr) \approx \mu_k$.
+The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\mathrm{id}}(y)=\exp\big(U_{t_{k-1}}(y)-U_{t_k}(y)\big)$. We select the pair with the larger ESS over the validation set and denote it by $(\tilde{\mathcal Y}_k,w_k)$, taking the stage map to be $G_k$ or the identity accordingly. If $\ESS(w_k) < \tau_{\mathrm v}$, with default $\tau_{\mathrm v} = 0.6$, we discard the candidate, shrink to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (iii)--(v) at the reduced stage increment. Otherwise we advance the validation set to $\mathcal Y_k = \mathrm{MALA}\bigl(\mathrm{resample}(\tilde{\mathcal Y}_k, w_k;N),\, U_{t_k}\bigr) \approx \mu_k$.
 \end{enumerate}
 
 \begin{algorithm}[p]
@@ -511,13 +511,13 @@ The accepted stage schedule defines a Boltzmann generator for $\mu$. The process
 
 Algorithm~\ref{alg: boltzmann} returns a validation set of $N$ samples at the endpoint. This subsection bounds the Monte Carlo error of that validation set as an estimate of the target distribution $\mu$ and identifies how the bound grows along the stage schedule. We analyze the flow and resample part of the generator, omitting the MALA rejuvenation for simplicity. The stage maps are the diffeomorphisms fixed by an accepted schedule; no property of the training that produced them is used.
 
-Assuming $\mu_k \ll \nu_k$, we take the stage weight in normalized form, $w_k := \D\mu_k/\D\nu_k$ with $\int w_k \, \D\nu_k = 1$, and assume $w_k > 0$ so that the self-normalization below is always defined. The scheme draws $X_0^1,\dots,X_0^N$ independently from $\mu_0$ and, for $k=1,\dots,K$, repeats three steps.
+Assuming $\mu_k \ll \nu_k$, we take the stage weight in normalized form, $w_k := \D\mu_k/\D\nu_k$ with $\int w_k \, \D\nu_k = 1$, and assume $w_k > 0$ so that the self-normalization below is always defined. The scheme draws $Y_0^1,\dots,Y_0^N$ independently from $\mu_0$ and, for $k=1,\dots,K$, repeats three steps.
 \begin{itemize}
-    \item \emph{Propagation.} Apply the inverse stage map to each particle, $Y_k^i = G_k^{-1}(X_{k-1}^i)$.
-    \item \emph{Reweighting.} Evaluate the stage weight at each propagated particle, $W_k^i = w_k(Y_k^i)$.
-    \item \emph{Resampling.} Draw $X_k^{1:N}$ by multinomial resampling from $\sum_{i=1}^{N} \bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{Y_k^i}$.
+    \item \emph{Propagation.} Apply the inverse stage map to each particle, $X_k^i = G_k^{-1}(Y_{k-1}^i)$.
+    \item \emph{Reweighting.} Evaluate the stage weight at each propagated particle, $W_k^i = w_k(X_k^i)$.
+    \item \emph{Resampling.} Draw $Y_k^{1:N}$ by multinomial resampling from $\sum_{i=1}^{N} \bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{X_k^i}$.
 \end{itemize}
-After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{X_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a distribution $\mu$ and a function $\varphi$, $\mu(\varphi) := \int_{\mathbb R^d} \varphi \, \D\mu$ is the integral, or average, of $\varphi$ under $\mu$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \sup\varphi - \inf\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$.
+After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{Y_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a distribution $\mu$ and a function $\varphi$, $\mu(\varphi) := \int_{\mathbb R^d} \varphi \, \D\mu$ is the integral, or average, of $\varphi$ under $\mu$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$. Since $w_k>0$ and every $G_k$ is a diffeomorphism, the distributions $\mu_0$, $\nu_1,\dots,\nu_K$ and $\mu_1,\dots,\mu_K$ are mutually equivalent, so the null sets these quantities ignore are the same for all of them.
 
 \begin{theorem}
 \label{thm: propagation}
@@ -533,9 +533,11 @@ Suppose $w_k>0$ and the $\nu_k$-essential supremum $\lVert w_k \rVert_\infty$ is
 with the empty product equal to one.
 \end{theorem}
 \noindent
-Appendix~\ref{sec: appendix-propagation} gives the proof of Theorem~\ref{thm: propagation}. The constant is explicit and independent of $N$, and depends on the stage maps only through the weight suprema. It is a product over stages, summed over the stage at which the error enters. Motivated by Theorem~\ref{thm: propagation}, we introduce two propagation factors read from that structure, which characterize how the strong error propagates across the stages.
+Appendix~\ref{sec: appendix-propagation} gives the proof of Theorem~\ref{thm: propagation}. The constant is explicit and independent of $N$, and depends on the stage maps only through the weight suprema; it is a product over stages, summed over the stage at which the error enters.
 
-The first is the square root of the constant, up to the observable,
+Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. The bound gives $\lVert \mu_K^N(\varphi) - \mu_K(\varphi) \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the flow and resample inference is \emph{asymptotically unbiased}, and its error is removed by increasing the sample size alone. Classical Monte Carlo sampling of $\mu$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first. The generator of Algorithm~\ref{alg: boltzmann} inherits the property, since its rejuvenation step is MALA and leaves each stage target invariant exactly \citep{delmoral2004feynman}. That step is also what keeps the particles distinct. Multinomial resampling only copies particles, and the stage maps are bijections, so flow and resample alone can never raise the number of distinct configurations: it can only fall from stage to stage, and the returned set is made increasingly of repeats. The MALA sweep after each resampling diffuses the copies apart under independent noise, so the particles carried into the next stage are scattered configurations rather than duplicated ones, and because the kernel is $\mu_k$-invariant this costs no bias.
+
+The structure of that constant in \eqref{eq: propagation-bound} motivates two propagation factors, which characterize how the $L^2$ error propagates across the stages. The first is the square root of the constant, up to the observable,
 \begin{equation}
     F_{\Sigma+}
     := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} 3\lVert w_j \rVert_\infty ,
@@ -546,14 +548,14 @@ so that $C = \frac14 \operatorname{osc}(\varphi)^2 F_{\Sigma+}^2$, and \eqref{eq
     \bigl\lVert \mu_K^N(\varphi) - \mu_K(\varphi) \bigr\rVert_2
     \Le \frac{\operatorname{osc}(\varphi)}{2}\, \frac{F_{\Sigma+}}{\sqrt N} .
 \end{equation*}
-The factor therefore acts on the strong error itself, not on its square, and by Theorem~\ref{thm: propagation} it is a valid upper bound on the accumulated error at rate $N^{-1/2}$.
+The factor therefore acts on the error itself, and by Theorem~\ref{thm: propagation} the $L^2$ error decays at rate $N^{-1/2}$, the same rate as the Monte Carlo error.
 
 The second keeps that form, drops the factors $3$, which arise from the recursion in the proof and carry no information about the problem, and replaces each supremum by the reciprocal square root of the stage ESS. For the stage weight, the ESS of \eqref{eq: ESS} reads
 \begin{equation}
     \ESS(w_k) := \frac{1}{\int_{\mathbb R^d} w_k(x)^2 \, \nu_k(x) \, \D x} \in [0,1] ,
     \label{eq: propagation-ESS}
 \end{equation}
-which is the vector definition with the sample averages replaced by $\nu_k$-integrals, using $\int_{\mathbb R^d} w_k \, \D\nu_k = 1$. The second factor is then
+and the resulting factor is
 \begin{equation}
     F_{\Sigma}
     := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} \frac{1}{\sqrt{\ESS(w_j)}} .
@@ -567,20 +569,18 @@ The substitution is ordered stagewise. Since $\lVert w_j \rVert_\infty \Ge \int 
     F_\Sigma \Le F_{\Sigma+} .
 \end{equation*}
 
-Neither factor can be computed directly: $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$, and $F_{\Sigma+}$ the $\nu_j$-essential supremum of $w_j$. A Boltzmann generator run already evaluates the importance weights of every stage, $\mathbf W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(Y_j^i)$, and the sample counterparts of both quantities are read off them at no further cost. We therefore propose the discrete approximations of the factors
+Neither factor can be computed directly: $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$, and $F_{\Sigma+}$ the $\nu_j$-essential supremum of $w_j$. A Boltzmann generator run already evaluates the importance weights of every stage, $\mathbf W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(X_j^i)$, and the sample counterparts of both quantities are read off them at no further cost. We therefore propose the discrete approximations of the factors
 \begin{equation}
     \hat F_{\Sigma+} := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K}  \max_{1 \Le i \Le N} \frac{3N W_j^i}{\sum_{l=1}^{N} W_j^l} ,
     \qquad
     \hat F_{\Sigma} := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} \frac{1}{\sqrt{\ESS(\mathbf W_j)}} ,
     \label{eq: propagation-factor-hat}
 \end{equation}
-both invariant to the scale of the weights and therefore available when the target is known only up to a constant. They are ordered by the same three inequalities, with the largest rescaled weight in place of the supremum, so $\hat F_\Sigma \Le \hat F_{\Sigma+}$. Neither is a bound on its continuous counterpart at finite $N$: the particles need not visit the region where $w_j$ is largest, and the empirical normalization is itself random.
+both invariant to the scale of the weights and therefore available when the target is known only up to a constant. They are ordered by the same three inequalities, with the largest rescaled weight in place of the supremum, so $\hat F_\Sigma \Le \hat F_{\Sigma+}$. Neither, however, is a bound on its continuous counterpart at finite $N$.
 
 The experiments report $\hat F_\Sigma$ as the propagation factor, while the analysis stays with $F_{\Sigma+}$ and $F_\Sigma$. $F_\Sigma$ is not itself a bound on the error constant; it is a realistic and convenient surrogate for $F_{\Sigma+}$, built directly from the ESS of each accepted stage. Every summand is at least one, so $F_\Sigma \Ge K+1$, and the cost of resampling is charged even when every stage proposal equals its target. Appendix~\ref{subsec: appendix-factor} takes up what this substitution preserves and what it does not: why $F_\Sigma$ is not an upper bound on the error constant, how far it can sit from $F_{\Sigma+}$, and why it is nevertheless the quantity the experiments report.
 
 The factor summarizes weight degeneracy along one accepted schedule, and does not measure the difficulty of the target. The sample size required by importance sampling grows exponentially in the KL divergence between target and proposal \citep{chatterjee2018sample}, and with the intrinsic dimension of the problem \citep{agapiou2017importance}; neither dependence appears in $F_\Sigma$.
-
-Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. The bound gives $\lVert \mu_K^N(\varphi) - \mu_K(\varphi) \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the flow and resample inference is \emph{asymptotically unbiased}, and its error is removed by enlarging the sample alone. Classical Monte Carlo sampling of $\mu$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first. The generator of Algorithm~\ref{alg: boltzmann} inherits the property, since its rejuvenation step is MALA and leaves each stage target invariant exactly \citep{delmoral2004feynman}. That step is also what keeps the particles distinct. Multinomial resampling only copies particles, and the stage maps are bijections, so flow and resample alone can never raise the number of distinct configurations: it can only fall from stage to stage, and the returned set is made increasingly of repeats. The MALA sweep after each resampling diffuses the copies apart under independent noise, so the particles carried into the next stage are scattered configurations rather than duplicated ones, and because the kernel is $\mu_k$-invariant this costs no bias.
 
 
 
@@ -1523,31 +1523,30 @@ The threshold $\lambda<\frac12$ is a sufficient condition for strict positivity 
 \section{Proof of the propagation factor analysis}
 \label{sec: appendix-propagation}
 
-Section~\ref{sec: propagation-analysis} states the error bound and the two propagation factors read from it. This appendix reduces the scheme to a resample-only procedure, restates the bound for it as Theorem~\ref{thm: reduced}, and proves that theorem; Theorem~\ref{thm: propagation} follows at once. Section~\ref{subsec: appendix-factor} examines the factor the experiments report.
+Section~\ref{sec: propagation-analysis} states the error bound and the two propagation factors read from it. The scheme analyzed throughout is flow and resample only: each accepted stage propagates every particle by the inverse stage map, reweights it, and resamples, and the MALA rejuvenation that the full generator applies after each resampling is omitted. No Markov kernel therefore acts between stages, no particle position is ever moved except by a stage map, and the quantity bounded is the propagation error alone.
 
-The scheme analyzed throughout is flow and resample only: each accepted stage propagates every particle by the inverse stage map, reweights it, and resamples, and the MALA rejuvenation that the full generator applies after each resampling is omitted. No Markov kernel therefore acts between stages, no particle position is ever moved except by a stage map, and the quantity bounded is the propagation error alone. Nothing about the training that produced the stage maps is used; they are fixed data.
+This appendix simplifies that scheme to a resample-only procedure, restates the bound for it as Theorem~\ref{thm: reduced}, and proves that theorem; Theorem~\ref{thm: propagation} follows at once. Section~\ref{subsec: appendix-factor} examines the factor the experiments report.
 
-We write $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the algorithm, namely the $N$ initial draws and every resampling draw.
 
 \subsection{Notation and problem reduction}
 \label{subsec: appendix-notation}
 
-Without rejuvenation, resampling only copies particles and creates no new positions, and propagation applies $G_k^{-1}$ to each of them. Every position present at stage $k$ is therefore an initial draw with the inverse stage maps applied in order, so we write
+We write $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the algorithm, namely the $N$ initial draws and every resampling draw. Without rejuvenation, resampling only copies particles and creates no new positions, and propagation applies $G_k^{-1}$ to each of them. Every position present at stage $k$ is therefore an initial draw with the inverse stage maps applied in order, so we write
 \begin{equation}
     \Theta_k := G_k^{-1}\circ\cdots\circ G_1^{-1},
     \qquad \Theta_0 := \mathrm{id} ,
     \label{eq: appendix-theta}
 \end{equation}
-for that composition, so that every $X_k^i$ is $\Theta_k$ applied to one of the initial draws.
+for that composition, so that every $Y_k^i$ is $\Theta_k$ applied to one of the initial draws.
 
-Instead of studying the varying positions $X_k^i$, we therefore carry the stage-$k$ target back through $\Theta_k$ and read the algorithm there. Define the distribution $\eta_k$ and the density $r_k$ by
+Instead of studying the varying positions $Y_k^i$, we therefore carry the stage-$k$ target back through $\Theta_k$ and read the algorithm there. Define the distribution $\eta_k$ and the density $r_k$ by
 \begin{equation}
     \eta_k := (\Theta_k^{-1})_{\#}\mu_k,
     \qquad
     r_k := w_k\circ\Theta_k ,
     \label{eq: appendix-pulled-back}
 \end{equation}
-for $k=0,1,\dots,K$, so that $\eta_0=\mu_0$, $(\Theta_k)_{\#}\eta_{k-1}=\nu_k$ and $r_k=\D\eta_k/\D\eta_{k-1}$. The scheme then becomes a resample-only procedure: $\eta_k$ is obtained from $\eta_{k-1}$ by multiplying by the importance weight $r_k$, no propagation step remains, and every stage acts on one fixed space. Nothing is lost, since
+for $k=0,1,\dots,K$, the density $r_k$ for $k\Ge1$ only, so that $\eta_0=\mu_0$, $(\Theta_k)_{\#}\eta_{k-1}=\nu_k$ and $r_k=\D\eta_k/\D\eta_{k-1}$. The scheme then becomes a resample-only procedure: $\eta_k$ is obtained from $\eta_{k-1}$ by multiplying by the importance weight $r_k$, no propagation step remains, and every stage acts on one fixed space. Nothing is lost, since
 \begin{equation*}
     \lVert r_k\rVert_\infty=\lVert w_k\rVert_\infty ,
     \qquad
@@ -1570,7 +1569,7 @@ After stage $K$ it returns the empirical measure $\eta_K^N = \frac1N\sum_{i=1}^{
 \end{equation*}
 so bounding the error of the reduced procedure bounds the error of the original. This is a change of variables and not a change of scheme: every resampling step is retained, with the same weights and the same draws.
 
-Theorem~\ref{thm: propagation} is therefore a statement about the reduced procedure, and we restate it as such.
+Theorem~\ref{thm: propagation} therefore becomes a statement about the reduced procedure, and we restate it as such.
 
 \begin{theorem}
 \label{thm: reduced}
@@ -1584,7 +1583,7 @@ Suppose $r_k>0$ and the $\eta_{k-1}$-essential supremum $\lVert r_k\rVert_\infty
 with the empty product equal to one.
 \end{theorem}
 
-The two statements are the same one: the displays above give $\mu_K^N(\varphi)=\eta_K^N(f)$ with $\operatorname{osc}(f)=\operatorname{osc}(\varphi)$, and $\lVert r_j\rVert_\infty=\lVert w_j\rVert_\infty$, so the two bounds have the same left-hand side and the same constant, and the hypotheses correspond in the same way. It is enough to prove Theorem~\ref{thm: reduced}.
+The two statements are now the same one: the displays above give $\mu_K^N(\varphi)=\eta_K^N(f)$ with $\operatorname{osc}(f)=\operatorname{osc}(\varphi)$, and $\lVert r_j\rVert_\infty=\lVert w_j\rVert_\infty$, so the two bounds in \eqref{eq: propagation-bound} and \eqref{eq: appendix-reduced-bound} have the same left-hand side and the same constant, and the hypotheses correspond in the same way. It is enough to prove Theorem~\ref{thm: reduced}.
 
 One stage of the reduced procedure does two things to $\eta_{k-1}^N$: reweighting, which adds no randomness but distorts the measure, and resampling, which adds randomness but on average returns what it was given. The weighted distribution from which stage $k$ resamples averages $f$ to
 \begin{equation}
@@ -1597,16 +1596,16 @@ and the same ratio taken at $\eta_{k-1}$ instead of $\eta_{k-1}^N$ returns $\eta
 \subsection{Proof of Theorem~\ref{thm: reduced}}
 \label{subsec: appendix-proof}
 
-The proof is an induction on the stage index. What it carries from one stage to the next is a single scalar, the worst-case $L^2$ error of the particle measure over observables of unit oscillation: the base case is one round of independent sampling, and the inductive step charges what one accepted stage adds to that scalar. Two facts about the density $r_k$ are used throughout. First $\eta_{k-1}(r_k)= 1$, because $r_k=\D\eta_k/\D\eta_{k-1}$ and $\eta_k$ is a probability measure. Second, the hypotheses of Theorem~\ref{thm: reduced} give $\eta_{k-1}^N(r_k)\in(0,\lVert r_k\rVert_\infty]$, so no normalization vanishes or diverges.
+The proof is an induction on the stage index. Two facts about the density $r_k$ are used throughout. First, $\eta_{k-1}(r_k)= 1$, because $r_k=\D\eta_k/\D\eta_{k-1}$ and $\eta_k$ is a probability measure. Second, the hypotheses of Theorem~\ref{thm: reduced} give $\eta_{k-1}^N(r_k)\in(0,\lVert r_k\rVert_\infty]$, so no normalization vanishes or diverges.
 
-A stage perturbs the estimate through the weighted numerator and through the random normalization. The next lemma separates them and charges each to a fixed function, $g$ and $r_k$, which is what the induction needs: it controls the particle error only on functions that do not themselves depend on the particles.
+The next lemma bounds the error of the weighted average \eqref{eq: appendix-weighted} by the previous stage's unweighted errors on the fixed functions $g_k$ and $r_k$, and so accounts for the error propagated by \emph{reweighting}.
 
 \begin{lemma}
 \label{lem: onestep}
-Let $f$ be bounded and measurable, and define $g := r_k\bigl(f-\eta_k(f)\bigr)$. Then $\eta_{k-1}(g)=0$, $\operatorname{osc}(g)\Le2\lVert r_k\rVert_\infty\operatorname{osc}(f)$, and
+Let $f$ be bounded and measurable, and define $g_k := r_k\bigl(f-\eta_k(f)\bigr)$. Then $\eta_{k-1}(g_k)=0$, $\operatorname{osc}(g_k)\Le2\lVert r_k\rVert_\infty\operatorname{osc}(f)$, and
 \begin{equation}
-    \Bigl|\frac{\eta_{k-1}^N(r_kf)}{\eta_{k-1}^N(r_k)}-\eta_k(f)\Bigr|
-    \Le \bigl|\eta_{k-1}^N(g)-\eta_{k-1}(g)\bigr| + \operatorname{osc}(f)\,\bigl|\eta_{k-1}^N(r_k)-\eta_{k-1}(r_k)\bigr| .
+    \biggl|\frac{\eta_{k-1}^N(r_kf)}{\eta_{k-1}^N(r_k)}-\eta_k(f)\biggr|
+    \Le \bigl|\eta_{k-1}^N(g_k)-\eta_{k-1}(g_k)\bigr| + \operatorname{osc}(f)\,\bigl|\eta_{k-1}^N(r_k)-\eta_{k-1}(r_k)\bigr| .
     \label{eq: appendix-onestep}
 \end{equation}
 \end{lemma}
@@ -1614,53 +1613,89 @@ Let $f$ be bounded and measurable, and define $g := r_k\bigl(f-\eta_k(f)\bigr)$.
 \begin{proof}
 Since $r_k=\D\eta_k/\D\eta_{k-1}$ we have $\eta_{k-1}(r_kh)=\eta_k(h)$ for bounded $h$, so, using $\eta_{k-1}(r_k)=1$,
 \begin{equation*}
-    \eta_{k-1}(g) = \eta_k(f) - \eta_k(f)\,\eta_{k-1}(r_k) = 0 .
+    \eta_{k-1}(g_k) = \eta_k(f) - \eta_k(f)\,\eta_{k-1}(r_k) = 0 .
 \end{equation*}
-Write $D := \eta_{k-1}^N(r_kf)/\eta_{k-1}^N(r_k)-\eta_k(f)$ and $\delta := \eta_{k-1}^N(r_k)-1$. Then
+Write $D_k := \eta_{k-1}^N(r_kf)/\eta_{k-1}^N(r_k)-\eta_k(f)$ and $\delta_k := \eta_{k-1}^N(r_k)-1$. Then
 \begin{equation*}
-    \eta_{k-1}^N(g) = \eta_{k-1}^N(r_kf) - \eta_k(f)\,\eta_{k-1}^N(r_k) = \eta_{k-1}^N(r_k)\,D = D(1+\delta) ,
+    \eta_{k-1}^N(g_k) = \eta_{k-1}^N(r_kf) - \eta_k(f)\,\eta_{k-1}^N(r_k) = \eta_{k-1}^N(r_k)\,D_k = D_k(1+\delta_k) ,
 \end{equation*}
-hence $D = \eta_{k-1}^N(g)-D\delta$ and $|D|\Le|\eta_{k-1}^N(g)|+|D|\,|\delta|$. Both $\eta_{k-1}^N(r_kf)/\eta_{k-1}^N(r_k)$ and $\eta_k(f)$ are weighted averages of $f$ and so lie in $[\inf f,\sup f]$, whence $|D|\Le\operatorname{osc}(f)$. Applying that bound to the second $|D|$ only, and using $\eta_{k-1}(g)=0$ and $\eta_{k-1}(r_k)=1$, gives \eqref{eq: appendix-onestep}.
+hence $D_k = \eta_{k-1}^N(g_k)-D_k\delta_k$, and the triangle inequality gives
+\begin{equation*}
+    |D_k|\Le|\eta_{k-1}^N(g_k)|+|D_k|\,|\delta_k| .
+\end{equation*}
+Both $\eta_{k-1}^N(r_kf)/\eta_{k-1}^N(r_k)$ and $\eta_k(f)$ are weighted averages of $f$ and so lie in $[\inf f,\sup f]$, whence $|D_k|\Le\operatorname{osc}(f)$. Using that bound on the right-hand side only, and keeping $|D_k|$ itself on the left, leaves
+\begin{equation*}
+    |D_k|\Le|\eta_{k-1}^N(g_k)|+\operatorname{osc}(f)\,|\delta_k| ,
+\end{equation*}
+and inserting $\eta_{k-1}(g_k)=0$ and $\eta_{k-1}(r_k)=1$ into the two absolute values gives \eqref{eq: appendix-onestep}.
 
-For the oscillations, $\eta_k(f)\in[\inf f,\sup f]$ gives $\lVert f-\eta_k(f)\rVert_\infty\Le\operatorname{osc}(f)$ and therefore $\lVert g\rVert_\infty\Le\lVert r_k\rVert_\infty\operatorname{osc}(f)$, so $\operatorname{osc}(g)\Le2\lVert g\rVert_\infty\Le2\lVert r_k\rVert_\infty\operatorname{osc}(f)$.
+For the oscillations, $\eta_k(f)\in[\inf f,\sup f]$ gives $\lVert f-\eta_k(f)\rVert_\infty\Le\operatorname{osc}(f)$ and therefore $\lVert g_k\rVert_\infty\Le\lVert r_k\rVert_\infty\operatorname{osc}(f)$, so $\operatorname{osc}(g_k)\Le2\lVert g_k\rVert_\infty\Le2\lVert r_k\rVert_\infty\operatorname{osc}(f)$.
 \end{proof}
 
 We are now ready to prove Theorem~\ref{thm: reduced}.
 
 \begin{proof}
-The recursion is carried by one scalar per stage, the worst-case $L^2$ error over observables of unit oscillation,
+Define $\varepsilon_k$ by the worst-case $L^2$ error over observables of unit oscillation,
 \begin{equation}
     \varepsilon_k := \sup\bigl\{\lVert\eta_k^N(h)-\eta_k(h)\rVert_2 \;:\; h\text{ bounded measurable},\ \operatorname{osc}(h)\Le1\bigr\} .
     \label{eq: appendix-eps-def}
 \end{equation}
-This is finite, indeed $\varepsilon_k\Le1$, since $\eta_k^N(h)$ and $\eta_k(h)$ both lie in $[\inf h,\sup h]$. The quantity $\eta_k^N(h)-\eta_k(h)$ is unchanged when a constant is added to $h$ and is positively homogeneous in $h$, so applying \eqref{eq: appendix-eps-def} to $h/\operatorname{osc}(h)$ gives, with both sides vanishing when $\operatorname{osc}(h)=0$,
+Then $\varepsilon_k\Le1$, since $\eta_k^N(h)$ and $\eta_k(h)$ both lie in $[\inf h,\sup h]$. The definition of $\varepsilon_k$ implies
 \begin{equation}
     \lVert\eta_k^N(h)-\eta_k(h)\rVert_2 \Le \operatorname{osc}(h)\,\varepsilon_k
-    \qquad\text{for every bounded } h .
+    \qquad\text{for every bounded } h.
     \label{eq: appendix-eps}
 \end{equation}
-
-For the base case, $\eta_0^N$ is the empirical measure of $N$ independent draws from $\eta_0$, so $\mathbb E[(\eta_0^N(h)-\eta_0(h))^2]=\operatorname{Var}_{\eta_0}(h)/N$, and Popoviciu's inequality bounds a variance by a quarter of the squared range, giving $\varepsilon_0\Le1/(2\sqrt N)$.
-
-For the inductive step, write $A$ for the weighted average \eqref{eq: appendix-weighted}, so that the identity
-\begin{equation*}
-    \eta_k^N(f)-\eta_k(f)
-    = \bigl[\eta_k^N(f)-A\bigr]
-    + \bigl[A-\eta_k(f)\bigr]
-\end{equation*}
-is exact; the first bracket is the error injected by the resampling at stage $k$ and the second the error inherited from before it. Conditionally on $Z_{k-1}^{1:N}$ the stage-$k$ particles are $N$ independent draws from the weighted distribution whose $f$-average is $A$, so the first bracket has conditional mean zero and conditional second moment at most $\operatorname{osc}(f)^2/(4N)$, again by Popoviciu. That bound is uniform in $Z_{k-1}^{1:N}$, so the tower property gives $\lVert\cdot\rVert_2\Le\operatorname{osc}(f)/(2\sqrt N)$ for it. For the second bracket, Lemma~\ref{lem: onestep}, the triangle inequality, and \eqref{eq: appendix-eps} applied to the fixed functions $g$ and $r_k$ give
-\begin{equation*}
-    \bigl\lVert A-\eta_k(f)\bigr\rVert_2
-    \Le \bigl[\operatorname{osc}(g)+\operatorname{osc}(f)\operatorname{osc}(r_k)\bigr]\varepsilon_{k-1}
-    \Le 3\lVert r_k\rVert_\infty\operatorname{osc}(f)\,\varepsilon_{k-1} ,
-\end{equation*}
-the last step by the oscillation bound of Lemma~\ref{lem: onestep} together with $\operatorname{osc}(r_k)\Le\lVert r_k\rVert_\infty$, which holds because $r_k\Ge0$. Adding the two by Minkowski's inequality and taking the supremum over $\operatorname{osc}(f)\Le1$ yields
+The proof rests on the recurrence
 \begin{equation}
-    \varepsilon_k \Le \frac{1}{2\sqrt N} + 3\lVert r_k\rVert_\infty\,\varepsilon_{k-1} .
+    \varepsilon_k \Le \frac{1}{2\sqrt N} + 3\lVert r_k\rVert_\infty\,\varepsilon_{k-1},\quad\text{with the second term absent at } k=0,
     \label{eq: appendix-recursion}
 \end{equation}
+which we establish for every $k\Ge0$ and then unroll; Theorem~\ref{thm: reduced} is a consequence of \eqref{eq: appendix-recursion}.
 
-Write $a:=1/(2\sqrt N)$ and $b_j:=3\lVert r_j\rVert_\infty$. We claim $\varepsilon_k \Le a\sum_{i=0}^{k}\prod_{j=i+1}^{k}b_j$, the empty product being one. At $k=0$ the right-hand side is $a$, which is the base case. Assuming it at $k-1$, \eqref{eq: appendix-recursion} gives
+At $k=0$, \eqref{eq: appendix-recursion} reads $\varepsilon_0\Le1/(2\sqrt N)$. Here $\eta_0^N$ is the empirical measure of $N$ independent draws from $\eta_0$, so
+\begin{equation*}
+    \mathbb E\bigl[(\eta_0^N(h)-\eta_0(h))^{2}\bigr] = \frac{\operatorname{Var}_{\eta_0}(h)}{N}.
+\end{equation*}
+Then Popoviciu's inequality on variances \citep{popoviciu1935equations} bounds the variance $\operatorname{Var}_{\eta_0}(h)$ by $\frac14\operatorname{osc}(h)^2\Le\frac14$.
+
+For $k\Ge1$, write $A_k$ for the weighted average \eqref{eq: appendix-weighted}, so that the identity
+\begin{equation}
+    \eta_k^N(f)-\eta_k(f)
+    = \bigl[\eta_k^N(f)-A_k\bigr]
+    + \bigl[A_k-\eta_k(f)\bigr]
+    \label{eq: appendix-split}
+\end{equation}
+is exact; the first bracket of \eqref{eq: appendix-split} is the error injected by the resampling at stage $k$ and the second the error inherited from before it. Recall from Section~\ref{subsec: appendix-notation} that $Z_j^{1:N}$ are the $N$ particles the reduced procedure holds at stage $j$, and that $\eta_j^N$ is their empirical measure. Conditionally on $Z_{k-1}^{1:N}$, the stage-$k$ particles $Z_k^{1:N}$ are $N$ independent draws from the weighted distribution $(Z_{k-1}^i,R_k^i)_{i=1}^{N}$, whose $f$-average is $A_k$ by \eqref{eq: appendix-weighted}. Hence $\mathbb E\bigl[\eta_k^N(f)\bigm| Z_{k-1}^{1:N}\bigr]=A_k$, and again by Popoviciu's inequality on variances,
+\begin{equation*}
+    \mathbb E\Bigl[\bigl(\eta_k^N(f)-A_k\bigr)^{2}\Bigm| Z_{k-1}^{1:N}\Bigr]
+    \Le \frac{\operatorname{osc}(f)^{2}}{4N} .
+\end{equation*}
+This bound is uniform in $Z_{k-1}^{1:N}$, so the tower property gives
+\begin{equation}
+    \bigl\lVert\eta_k^N(f)-A_k\bigr\rVert_2 \Le \frac{\operatorname{osc}(f)}{2\sqrt N} .
+    \label{eq: appendix-resample}
+\end{equation}
+For the second bracket of \eqref{eq: appendix-split}, we employ Lemma~\ref{lem: onestep} to obtain the $L^2$ error bound
+\begin{equation*}
+    \bigl\lVert A_k-\eta_k(f)\bigr\rVert_2
+    \Le \bigl\lVert\eta_{k-1}^N(g_k)-\eta_{k-1}(g_k)\bigr\rVert_2
+    + \operatorname{osc}(f)\,\bigl\lVert\eta_{k-1}^N(r_k)-\eta_{k-1}(r_k)\bigr\rVert_2 ,
+\end{equation*}
+where we recall $g_k = r_k\bigl(f-\eta_k(f)\bigr)$, and where the two norms come from taking $\lVert\cdot\rVert_2$ in \eqref{eq: appendix-onestep} and applying the triangle inequality. Neither $g_k$ nor $r_k$ depends on the particles, so \eqref{eq: appendix-eps} applies to each and gives
+\begin{equation*}
+    \bigl\lVert A_k-\eta_k(f)\bigr\rVert_2
+    \Le \bigl[\operatorname{osc}(g_k)+\operatorname{osc}(f)\operatorname{osc}(r_k)\bigr]\varepsilon_{k-1} .
+\end{equation*}
+Finally $\operatorname{osc}(g_k)\Le2\lVert r_k\rVert_\infty\operatorname{osc}(f)$ by Lemma~\ref{lem: onestep}, and $\operatorname{osc}(r_k)\Le\lVert r_k\rVert_\infty$ because $r_k\Ge0$, so the two oscillations contribute $2\lVert r_k\rVert_\infty\operatorname{osc}(f)$ and $\lVert r_k\rVert_\infty\operatorname{osc}(f)$ respectively, and
+\begin{equation}
+    \bigl\lVert A_k-\eta_k(f)\bigr\rVert_2
+    \Le 3\lVert r_k\rVert_\infty\operatorname{osc}(f)\,\varepsilon_{k-1} .
+    \label{eq: appendix-inherited}
+\end{equation}
+Adding \eqref{eq: appendix-resample} and \eqref{eq: appendix-inherited} by Minkowski's inequality and taking the supremum over $\operatorname{osc}(f)\Le1$ yields \eqref{eq: appendix-recursion}.
+
+It remains to unroll the recurrence. Write $a:=1/(2\sqrt N)$ and $b_j:=3\lVert r_j\rVert_\infty$, and induct on $k$ to prove $\varepsilon_k \Le a\sum_{i=0}^{k}\prod_{j=i+1}^{k}b_j$, the empty product being one. At $k=0$ the right-hand side is $a$, which is \eqref{eq: appendix-recursion} at $k=0$. Assuming it at $k-1$, \eqref{eq: appendix-recursion} gives
 \begin{equation*}
     \varepsilon_k \Le a + b_k\,a\sum_{i=0}^{k-1}\prod_{j=i+1}^{k-1}b_j
     = a\Biggl[1+\sum_{i=0}^{k-1}\prod_{j=i+1}^{k}b_j\Biggr]
@@ -1674,8 +1709,6 @@ the last equality because the $i=k$ term is the empty product. Taking $k=K$ and 
 Squaring gives \eqref{eq: appendix-reduced-bound}.
 \end{proof}
 
-The dependence on $K$ is pessimistic, and the recursion is where it comes from: each application of \eqref{eq: appendix-recursion} re-enters $\varepsilon_{k-1}$, a supremum over all observables of unit oscillation, and the same worst case is taken again at the next stage. Taking $\mu_k\equiv\mu$ and $G_k=\mathrm{id}$ makes every stage weight one, so the scheme is independent sampling followed by $K$ rounds of uniform resampling, and yet $F_{\Sigma+}=(3^{K+1}-1)/2$ and the constant grows like $9^{K}$, so the bound says nothing until $N$ reaches that order, while $\operatorname{osc}(f)$ bounds the error at every $N$. Theorem~\ref{thm: propagation} should therefore be read as establishing the rate $N^{-1/2}$ and the finiteness of the constant, not its size.
-
 \subsection{The role of the propagation factor \texorpdfstring{$F_\Sigma$}{F-Sigma}}
 \label{subsec: appendix-factor}
 
@@ -1686,9 +1719,11 @@ The gap can moreover be made arbitrarily large, because an ESS is a second momen
     \frac{1}{\ESS(w)} = \int_{\mathbb R^d} w^2\,\D\nu = \frac{(1-Mp)^{2}}{1-p} + pM^{2} .
     \label{eq: appendix-twopoint}
 \end{equation}
-Choosing $p=M^{-3}$ gives $\ESS(w)\to1$ as $M\to\infty$ while $\lVert w\rVert_\infty=M\to\infty$, so a schedule of stages behaving this way would send $F_\Sigma$ to $K+1$, the least value it can take, while $F_{\Sigma+}\Ge(3M)^{K}$ diverged without limit. An ESS weights a large weight by the probability of the set carrying it, and a weight of size $M$ on a set of proposal probability $M^{-3}$ barely moves it; a supremum is fixed by that weight alone.
+Choosing $p=M^{-3}$ gives $\ESS(w)\to1$ as $M\to\infty$ while $\lVert w\rVert_\infty=M\to\infty$, so a schedule of stages behaving this way would send $F_\Sigma$ to $K+1$, the least value it can take, while $F_{\Sigma+}\Ge(3M)^{K}$ diverges without limit. An ESS weights a large weight by the probability of the set carrying it, and a weight of size $M$ on a set of proposal probability $M^{-3}$ barely moves the ESS; a supremum is fixed by that weight alone.
 
 For a singular potential the supremum need not be finite. A stage weight is an exponential of a difference of potentials, and the soft cap of a molecular potential slows the growth of the interaction core without bounding that difference, so $\lVert w_k\rVert_\infty$ is not controlled by the regularization and may be infinite. Should it be infinite at some stage, $F_{\Sigma+}=\infty$ and the bound of Theorem~\ref{thm: propagation} is unavailable, while a square-integrable weight still has $\ESS(w_k)>0$ and leaves $F_\Sigma$ finite. The two factors are governed by different norms of the same weight, the $L^2$ norm and the $L^\infty$ norm, and the second is the fragile one.
+
+The size of the constant is a third limitation, and the recursion of Section~\ref{subsec: appendix-proof} is where it comes from: each application of \eqref{eq: appendix-recursion} re-enters $\varepsilon_{k-1}$, a supremum over all observables of unit oscillation, and the same worst case is taken again at the next stage. Taking $\mu_k\equiv\mu$ and $G_k=\mathrm{id}$ makes every stage weight one, so the scheme is independent sampling followed by $K$ rounds of uniform resampling, and yet $F_{\Sigma+}=(3^{K+1}-1)/2$ and the constant of \eqref{eq: propagation-bound} grows like $9^{K}$, so the bound says nothing until $N$ reaches that order, while $\operatorname{osc}(\varphi)$ bounds the error at every $N$. Theorem~\ref{thm: propagation} should therefore be read as establishing the rate $N^{-1/2}$ and the finiteness of the constant, not its size.
 
 $F_\Sigma$ is nevertheless the reasonable quantity to report. The ESS is the natural second-moment stand-in for the supremum, and the ordering of Section~\ref{sec: propagation-analysis} is exactly the statement that the $L^2$ measurement never exceeds the $L^\infty$ one. It is also the classical measurement for importance sampling, since $\int w_k\,\D\nu_k=1$ gives
 \begin{equation}
