@@ -1,0 +1,403 @@
+% =====================================================================
+% Standalone report on the propagation factor F_star proposed in
+% F_star/main_F_star.tex (the passages set in red).
+%
+% This file is self-contained. The preamble below copies the packages
+% and the macro definitions from Paper/preamble.tex and Paper/main.tex
+% that the report needs; it does not \input either file, and it does
+% not read Paper/references.bib.
+% =====================================================================
+\documentclass[11pt]{article}
+
+\usepackage[letterpaper, margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\definecolor{darkgreen}{rgb}{0.0,0.5,0.0}
+\usepackage[colorlinks,linkcolor=red,citecolor=darkgreen,urlcolor=blue]{hyperref}
+\usepackage[amsmath,thmmarks]{ntheorem}
+
+\newtheorem{remark}{Remark}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newenvironment{proof}{\par\medskip\noindent\textit{Proof.}\ }{\hfill$\square$\par\medskip}
+\theoremstyle{plain}
+
+% Macros copied from Paper/preamble.tex
+\newcommand{\Le}{\leqslant}
+\newcommand{\Ge}{\geqslant}
+\newcommand{\D}{\mathrm{d}}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\X}{\mathrm{X}}
+\newcommand{\ESS}{\mathrm{ESS}}
+
+% Abbreviations used in F_star/main_F_star.tex but not in Paper/preamble.tex
+\newcommand{\osc}{\operatorname{osc}}
+\newcommand{\Var}{\operatorname{Var}}
+\newcommand{\esssup}{\operatorname*{ess\,sup}}
+\newcommand{\essinf}{\operatorname*{ess\,inf}}
+
+\title{On the propagation factor $F_\star$: why it is not the quantity to report}
+\author{}
+\date{2026-08-02}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This report examines the propagation factor $F_\star$ introduced in the red
+passages of \texttt{F\_star/main\_F\_star.tex} and asks three questions: whether
+it can serve as the error bound the experiments report, what its evaluation
+costs relative to the reported factor $\hat F_\Sigma$, and whether it resolves
+the difficulty that a singular molecular potential creates for the supremum
+factor $F_{\Sigma+}$. The theoretical content of $F_\star$ is sound and its
+central observation is correct: the exponential dependence on the stage count
+$K$ in the published constant is an artifact of the recursion, and telescoping
+over the injected errors removes it. What follows is not a criticism of that
+argument. The conclusion is that $F_\star$ is a good remark and a poor
+statistic. It is governed by a two-sided norm, and the side it adds --- an
+essential infimum --- is precisely the side a singular potential destroys, so
+it does not settle the singularity difficulty but inherits it twice. Its
+sample counterpart is an exponentiated extremum, which has no limit in the
+particle count, is a property of the realized genealogy rather than of the
+stage schedule, and is biased low at exactly the stages that dominate it.
+Finally, it cannot be computed from what the completed runs saved. Section~8
+records the decision taken on the strength of this analysis: $F_\star$ is not
+mentioned anywhere in the paper.
+\end{abstract}
+
+\section{What $F_\star$ is}
+
+Write $\mu_t\propto\exp(-U_t)$ with $U_t=(1-t)U_0+tU$ for the interpolation
+from the source to the target, $\mu_k:=\mu_{t_k}$ for the accepted stage
+targets, $\nu_k$ for the stage proposal, and $w_k:=\D\mu_k/\D\nu_k$ for the
+stage weight. After the change of variables that removes the stage maps, the
+accumulated ratio
+\begin{equation}
+    R_k:=\prod_{j=k+1}^{K}r_j=\frac{\D\varrho_K}{\D\varrho_k},
+    \qquad R_K:=1,
+    \label{eq: accumulated}
+\end{equation}
+carries the stage-$k$ target all the way to the endpoint in one reweighting.
+The proposed theorem assumes that each $R_k$ is bounded on both sides off
+null sets of the source,
+\begin{equation}
+    0<\underline R_k:=\essinf R_k \Le \esssup R_k=:\overline R_k<\infty,
+    \qquad
+    \varrho^\star_k:=\frac{\overline R_k}{\underline R_k}\Ge1,
+    \label{eq: two-sided}
+\end{equation}
+and concludes the same bound as the published theorem with the factor
+\begin{equation}
+    F_\star:=\sum_{k=0}^{K}\varrho^\star_k
+    \qquad\text{in place of}\qquad
+    F_{\Sigma+}=\sum_{k=0}^{K}\ \prod_{j=k+1}^{K}3\lVert w_j\rVert_\infty .
+    \label{eq: two-factors}
+\end{equation}
+
+Two things are genuinely gained, and they should be stated before the
+objections. First, the geometric factor $3^{K-k}$ disappears. In the neutral
+case $\mu_k\equiv\mu$ with identity stage maps, every $R_k\equiv1$ and
+$F_\star=K+1$, whereas $F_{\Sigma+}=(3^{K+1}-1)/2$ and the constant grows like
+$9^{K}$ although nothing whatever is lost by a stage. Second, the supremum of a
+product is replaced by the spread of a single accumulated ratio, and successive
+stage weights need not peak at the same configurations, so the replacement is
+typically far from an equality. The accompanying ordering lemma also shows that
+$F_\star$ dominates the accumulated factor $F_{\mathrm{acc}}$ and bounds the
+asymptotic variance \emph{linearly} rather than through its square. All of this
+is correct and worth recording.
+
+The rest of this report concerns whether the resulting quantity can be
+\emph{reported}.
+
+\section{The hypothesis is two-sided, and the new side is the fragile one}
+
+The published theorem assumes only $\lVert w_k\rVert_\infty<\infty$. The
+proposed theorem assumes \eqref{eq: two-sided}, which is strictly stronger in
+kind, not merely in degree: it adds a lower bound on a density. The red text
+acknowledges this --- ``the bound is vacuous when a stage weight comes
+arbitrarily close to zero on the carried source support'' --- and states
+plainly that ``the two results are therefore not ordered in general''.
+
+That non-ordering is decisive for a reported quantity. A factor whose
+finiteness is not implied by the finiteness of the factor it replaces cannot
+be substituted for it in the experimental tables: there are schedules on which
+$F_{\Sigma+}<\infty$ and $F_\star=\infty$. A reported column must be defined
+for every run in it.
+
+It is worth being explicit about where the lower bound fails, because for the
+molecular targets it fails for a structural reason rather than an accidental
+one. Taking identity stage maps for clarity, the accumulated ratio of
+\eqref{eq: accumulated} is
+\begin{equation}
+    R_k \ \propto\ \frac{\mu_K}{\mu_k}
+    \ =\ \exp\bigl(-(1-t_k)(U-U_0)\bigr),
+    \label{eq: R-explicit}
+\end{equation}
+so the two ends of $R_k$ are governed by the two ends of the energy difference
+$U-U_0$:
+\begin{itemize}
+    \item $\underline R_k=0$ wherever $U-U_0\to+\infty$, that is, in the
+    repulsive core where the target potential diverges;
+    \item $\overline R_k=\infty$ wherever $U-U_0\to-\infty$, that is, in the
+    far field where the Gaussian source potential diverges while the target
+    potential does not.
+\end{itemize}
+The first item is exactly the singular-potential difficulty. The second is
+present for every stage $k<K$ whenever the source is Gaussian on an unbounded
+component and the target energy is capped. Both ends therefore fail for the
+same schedules on which $\lVert w_k\rVert_\infty$ was already in doubt, and the
+lower end fails for a reason the upper end did not have.
+
+\section{Does $F_\star$ settle the singularity error?}
+
+It does not. The relevant comparison is between norms. The manuscript's
+Appendix B.3 already explains why $F_\Sigma$ survives a singular potential and
+$F_{\Sigma+}$ does not: an effective sample size is an $L^2$ quantity and a
+supremum is an $L^\infty$ quantity, and a square-integrable weight can have
+$\ESS(w_k)>0$ while $\lVert w_k\rVert_\infty=\infty$. The ordering of the three
+candidates by fragility is therefore
+\begin{equation*}
+    \underbrace{L^2}_{\textstyle F_\Sigma}
+    \ \prec\
+    \underbrace{L^\infty}_{\textstyle F_{\Sigma+}}
+    \ \prec\
+    \underbrace{L^\infty\ \text{and}\ L^{-\infty}}_{\textstyle F_\star},
+\end{equation*}
+and $F_\star$ sits at the fragile end. It asks for more control of the weight
+than the factor that already fails, so it cannot repair a failure caused by
+insufficient control.
+
+The point survives even when both ends are finite. Suppose the domain is
+compact --- a torus component, say --- or that the regularized potential
+$U^{\{\rho\}}$ caps the energy at the threshold $e$, so that
+\eqref{eq: two-sided} holds. Then \eqref{eq: R-explicit} gives
+\begin{equation}
+    \varrho^\star_k
+    \ =\ \exp\Bigl((1-t_k)\bigl[\,\esssup(U-U_0)-\essinf(U-U_0)\,\bigr]\Bigr)
+    \ =\ \exp\bigl((1-t_k)\,\osc(U-U_0)\bigr).
+    \label{eq: rho-star-energy}
+\end{equation}
+The summand is the exponential of an accessible energy range measured in units
+of $k_{\mathrm B}T$. For the molecular targets that range is not a small
+number: the regularization threshold $e$ alone is a large multiple of
+$k_{\mathrm B}T$, and the source and target potentials disagree by that order
+over the sampled region. A factor of the form $\exp(\text{hundreds})$ is not a
+diagnostic that a reader can compare between two runs; it is a number whose
+logarithm is the only readable part.
+
+So the regularization, not $F_\star$, is what makes the constant finite, and
+what it leaves is finite in the same sense that $\exp(300)$ is finite. This is
+the precise sense in which $F_\star$ does not settle the singularity error: it
+converts an infinite factor into an astronomically large one, by borrowing the
+cap that the sampling potential already applies, and it does so only on the end
+where the cap acts.
+
+\section{The sample counterpart is an exponentiated extremum}
+
+Even granting the hypothesis, the reported quantity would not be $F_\star$ but
+its sample counterpart. With $S_k^i$ the accumulated suffix log-weight along
+the lineage of particle $i$, the proposal is
+\begin{equation}
+    \hat F_\star=\sum_{k=0}^{K}\exp\Bigl(\max_i S_k^i-\min_i S_k^i\Bigr).
+    \label{eq: F-star-hat}
+\end{equation}
+Four properties of \eqref{eq: F-star-hat} disqualify it as a reported number.
+
+\paragraph{It has no limit in $N$.} A maximum and a minimum over $N$ draws are
+extremum statistics. For a log-weight with unbounded support the observed range
+$\max_iS_k^i-\min_iS_k^i$ grows without bound as $N$ increases, so
+$\hat F_\star$ increases with the particle count and does not converge. It
+therefore measures the sample size as much as it measures the run. By contrast
+$\ESS(\mathbf W_j)$ is a second moment: it converges as $N$ grows, and
+$\hat F_\Sigma$ inherits that stability. The manuscript reports factors
+computed at $N$ between $2.4\times10^5$ and $3.2\times10^5$ and compares them
+across molecules; a statistic that drifts with $N$ cannot be used that way.
+
+\paragraph{The drift is then exponentiated.} The quantity that grows with $N$
+sits inside an exponential. An increase of the observed log-range by $5$, which
+a tenfold increase in $N$ can easily produce for a heavy-tailed weight,
+multiplies the reported factor by about $150$. The reported value is thus not
+merely unstable but unstable on a multiplicative scale that swamps any
+difference between two training objectives, which is the comparison the
+factor exists to make.
+
+\paragraph{It is a property of the genealogy, not of the schedule.} The
+accumulated ratio $\hat R_k^i=\prod_{j>k}W_j^{a_j(i)}$ is taken along the
+ancestral line $a_j(i)$ produced by the realized resampling draws. Two
+inference passes with the same trained flows, the same accepted schedule and
+different resampling seeds produce different lineages and therefore different
+$\hat F_\star$. The published factors do not have this property:
+$\hat F_\Sigma$ and $\hat F_{\Sigma+}$ are functions of the stage weight
+vectors alone. A factor that characterizes ``one accepted schedule'', which is
+how the manuscript uses the term, must not depend on the resampling draws of a
+particular replay.
+
+\paragraph{Its bias runs the wrong way.} The red text records the defect
+itself: resampling makes lineages coalesce, so the number of distinct
+ancestors at stage $k$ falls as $K-k$ grows, and the observed spread of
+$\hat R_k^i$ for early $k$ is computed over few distinct values and is biased
+low. The early stages are precisely the ones with the largest accumulated
+ratio and therefore the largest summands in \eqref{eq: F-star-hat}. The
+estimator is thus optimistic exactly where it matters most, and its bias
+cannot be signed away by increasing $N$, since coalescence is driven by the
+number of stages.
+
+\section{The calculation is more expensive, and the saved runs cannot support it}
+
+The cost argument is concrete rather than asymptotic.
+
+\paragraph{What the reported factors need.} $\hat F_\Sigma$ and
+$\hat F_{\Sigma+}$ are read off the stage weight vectors
+$\mathbf W_j=(W_j^1,\dots,W_j^N)$, which every run evaluates anyway: one
+second moment and one maximum per vector, a single pass over data already on
+disk. The completed chiral runs persist exactly these, per stage:
+\texttt{flow\_log\_weights.npy}, \texttt{sharpen\_log\_weights.npy},
+\texttt{samples.npy}, the two acceptance arrays, and \texttt{metadata.json}.
+
+\paragraph{What $F_\star$ needs, and what is missing.} Equation
+\eqref{eq: F-star-hat} needs the resampling ancestor indices $a_j(i)$. No
+ancestor, index or lineage array appears anywhere under the chiral run
+directories. The saved artifacts therefore do not determine $\hat F_\star$,
+and no amount of post-processing recovers it: the genealogy was not recorded
+and cannot be reconstructed from weights and positions. Reporting $F_\star$
+for the completed runs would require re-running inference on all three
+molecules with ancestry recorded.
+
+\paragraph{The coalescence-free alternative is a second training-scale replay.}
+The remedy offered for the coalescence bias is to push each stage-$k$
+validation particle through the remaining maps $G_{k+1}^{-1},\dots,G_K^{-1}$
+without resampling. This is $O(K)$ flow evaluations per particle per starting
+stage and $O(K^2N)$ in total. For alanine dipeptide at $K=10$ and
+$N=3.0\times10^{5}$ that is on the order of $10^{7}$ flow evaluations, against
+the $O(KN)\approx3\times10^{6}$ of a single inference replay: a factor of $K$
+more work than the pass that produced the samples in the first place, to
+obtain one column of one table.
+
+\paragraph{And the summary side is also unavailable.} The per-stage summaries
+saved with the reported factors record the effective sample size and the
+largest rescaled weight, but not the smallest. The infimum side of
+\eqref{eq: two-sided}, which is the side $F_\star$ adds, was never persisted
+for any of the three molecules.
+
+\section{What the measured runs show}
+
+Table~\ref{tab: measured} reproduces the factors computed from the three
+completed chiral runs. These are measured values from the saved artifacts, not
+estimates.
+
+\begin{table}[htb]
+\centering
+\begin{tabular}{lrrrrr}
+\toprule
+molecule ($d$) & $N$ & stages & $\hat F_\Sigma$ & $\hat F_{\Sigma+}$ & $\log_{10}\hat F_{\Sigma+}$\\
+\midrule
+$(2R,3R)$-2,3-butanediol (42) & $2.4\times10^5$ & 8  & 37.45  & $1.01\times10^{20}$ & 20.01\\
+\textsc{l}-alanine dipeptide (60) & $3.0\times10^5$ & 10 & 68.08  & $3.55\times10^{26}$ & 26.55\\
+Ac-Pro-NHMe (72)              & $3.2\times10^5$ & 11 & 176.75 & $3.37\times10^{31}$ & 31.53\\
+\bottomrule
+\end{tabular}
+\caption{Propagation factors of the three completed chiral runs, accumulated
+over the selected flow or identity weight of every accepted stage followed by
+its sharpening weight. Reproduced from the saved run summaries.}
+\label{tab: measured}
+\end{table}
+
+Two features of these runs bear on the question. First, the spread between the
+two published factors is already $18$ to $29$ orders of magnitude, and the
+whole of that spread is the product structure that $F_\star$ is designed to
+remove. The diagnosis in the red text is therefore correct on the real runs and
+not only on the six-state illustration: the exponential growth is an artifact.
+Second, the per-stage maxima that generate it are individually modest --- the
+largest rescaled weight over all entries of all three runs is $106.07$, at
+alanine dipeptide stage 2 --- while the corresponding effective sample sizes
+never fall below $0.410$. A schedule whose worst stage retains $41\%$ of its
+particles is not a pathological one, and yet its supremum factor is $10^{26}$.
+This is the strongest available evidence that the exponential constant should
+be read as an artifact, and it is an argument for the remark, not for a new
+reported column.
+
+\section{Conclusion and recommendation}
+
+\begin{enumerate}
+    \item \textbf{The mathematics of $F_\star$ is correct and its diagnosis is
+    right.} The telescoping identity, the theorem, and the ordering lemma all
+    hold as stated, and the exponential dependence on $K$ in the published
+    constant is genuinely an artifact of re-entering a worst case at every
+    stage.
+    \item \textbf{It is not a reportable error bound.} Its hypothesis is
+    two-sided and is not implied by the hypothesis it replaces, so the two
+    theorems are not ordered and $F_\star$ can be infinite where $F_{\Sigma+}$
+    is finite.
+    \item \textbf{It does not settle the singularity difficulty.} It requires
+    control of the weight in $L^\infty$ \emph{and} of its reciprocal, so it is
+    strictly more fragile than the factor that already fails on a singular
+    potential. Where the regularized potential does make it finite, the value
+    is $\exp(\osc(U-U_0))$ by \eqref{eq: rho-star-energy}, an exponential of an
+    energy range in units of $k_{\mathrm B}T$.
+    \item \textbf{Its estimator is unsuitable independently of all that.} It is
+    an exponentiated extremum: it drifts upward with $N$, it depends on the
+    realized resampling genealogy rather than on the accepted schedule, and its
+    coalescence bias is low at the dominant stages.
+    \item \textbf{It costs a second replay, and cannot be evaluated at all on
+    the completed runs}, which persisted neither ancestor indices nor the
+    minimum-weight side of the per-stage summaries.
+\end{enumerate}
+
+The reported factor should therefore remain $\hat F_\Sigma$, which is bounded
+below by $K+1$, built from second moments that converge in $N$, computable from
+vectors already on disk, and independent of the resampling draws. The
+manuscript's existing position --- that $\hat F_\Sigma$ is not an error bound but
+is the honest summary of accumulated stagewise weight degeneracy along one
+accepted schedule --- is the one the evidence supports.
+
+\section{Decision}
+
+\noindent\textbf{Decided by Xuda Ye, 2026-08-02: $F_\star$ is not to be
+mentioned at all, anywhere in this paper.}
+
+The decision is one of scope rather than of correctness. This is a
+computational frontier paper: it proposes a training objective and a generator,
+and it reports what a run costs and what it recovers. The propagation factor
+enters it as a summary of accumulated stagewise weight degeneracy, not as the
+subject of the paper. A second factor, a second theorem, its two-sided
+hypothesis, the ordering lemma relating the two, and the discussion of which is
+honest in which direction would add a strand of analysis that the paper's
+readership is not reading it for, and that no experiment in it uses. The
+material in \texttt{main\_F\_star.tex} is therefore held outside the
+manuscript in its entirety, including the parts of it that are correct.
+
+Three consequences are worth recording so that the decision is not partially
+undone later.
+
+\begin{itemize}
+    \item \textbf{Nothing in the manuscript needs to change.} $F_\star$,
+    $\varrho^\star_k$, $F_{\mathrm{acc}}$, the accumulated ratio and the
+    two-sided hypothesis appear nowhere in \texttt{Paper/main.tex}. The
+    symbols $R_k$ and $\essinf$ that do occur there are a different object and
+    a different use: $R_k^i=r_k(Z_{k-1}^i)$ is the reduced-procedure stage
+    weight of Appendix B, and $\essinf$ appears only in the definition
+    $\osc(\varphi)=\esssup\varphi-\essinf\varphi$ in Section 4.4.
+    \item \textbf{The pessimism in $K$ is already stated without $F_\star$.}
+    Appendix B.3 makes that point on its own terms, with the neutral-case
+    computation $F_{\Sigma+}=(3^{K+1}-1)/2$ and a constant growing like
+    $9^{K}$, and concludes that the theorem establishes the rate $N^{-1/2}$ and
+    the finiteness of the constant rather than its size. That paragraph needs
+    no reference to a second factor, and none should be added to it.
+    \item \textbf{No column, remark, footnote or appendix.} The exclusion
+    covers the reported tables, the discussion of what the factor does and does
+    not measure, and any forward-looking sentence promising a sharper constant.
+    A partial mention would carry the cost the decision is avoiding --- a
+    reader asking what the other factor is --- without the benefit of the full
+    treatment.
+\end{itemize}
+
+The analysis in Sections 1--7 above is retained here, and only here, as the
+record of why the question was asked and how it was answered. Should a later
+and more theoretical paper take up the constant itself, this report and
+\texttt{main\_F\_star.tex} are the starting point: the telescoping argument,
+the theorem, and the ordering lemma are sound, and the objections in
+Sections 2--6 are objections to reporting $F_\star$ in \emph{this} paper, not
+to the result.
+
+\end{document}
