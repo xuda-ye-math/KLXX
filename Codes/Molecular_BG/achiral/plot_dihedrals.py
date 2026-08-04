@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 """Plot one crucial dihedral for each completed achiral molecular target.
 
-The OpenMM reference trajectories are read from the saved regularization
-artifacts.  The final KLX and KLXX sharpening samples are converted from
+The PT reference trajectories are read from each molecule's
+``artifacts/pt_reference`` folder.  The final KLX and KLXX sharpening samples are converted from
 mixed coordinates with their molecular bundles.  Extracted angles and
 representative trans conformers are cached, so ``--replot`` requires neither
 OpenMM nor JAX reconstruction.
@@ -35,7 +35,6 @@ from scipy.ndimage import gaussian_filter1d
 
 
 HERE = Path(__file__).resolve().parent
-REFERENCE_DIR = HERE / "regularization" / "data" / "production"
 RESULTS_DIR = HERE / "results"
 CACHE_PATH = RESULTS_DIR / "dihedrals_data.npz"
 FIGURE_PATH = RESULTS_DIR / "dihedrals.png"
@@ -76,7 +75,7 @@ MOLECULES = (
         atoms=(1, 4, 6, 8),
         dihedral_label="C-C(O)-N-C",
         reference_seeds=(3402,),
-        reference_selection="trans-initialized raw trajectory",
+        reference_selection="one continuous PT chain, trans-initialized",
     ),
     Molecule(
         key="glycerol",
@@ -87,7 +86,7 @@ MOLECULES = (
         atoms=(1, 2, 4, 5),
         dihedral_label="C-C-C-O",
         reference_seeds=(3401, 3402),
-        reference_selection="pooled raw trajectories",
+        reference_selection="one continuous PT chain",
     ),
     Molecule(
         key="diethanolamine",
@@ -98,7 +97,7 @@ MOLECULES = (
         atoms=(1, 2, 3, 4),
         dihedral_label="C-C-N-C",
         reference_seeds=(3401, 3402),
-        reference_selection="pooled raw trajectories",
+        reference_selection="one continuous PT chain",
     ),
 )
 METHODS = {
@@ -167,32 +166,31 @@ def dihedral(positions: np.ndarray, atoms: tuple[int, ...]) -> np.ndarray:
 def load_reference(
     molecule: Molecule,
 ) -> tuple[np.ndarray, np.ndarray, list[dict], dict, dict]:
-    paths = [
-        REFERENCE_DIR / f"{molecule.key}__raw__seed{seed}.npz"
-        for seed in molecule.reference_seeds
-    ]
-    missing = [path for path in paths if not path.is_file()]
+    directory = HERE / molecule.folder / "artifacts" / "pt_reference"
+    paths = [directory / "pt_reference_frames.npz"]
+    manifests = [directory / "pt_reference.json"]
+    missing = [path for path in paths + manifests if not path.is_file()]
     if missing:
-        raise FileNotFoundError(
-            f"missing selected raw OpenMM trajectories: {missing}"
-        )
+        raise FileNotFoundError(f"missing PT reference: {missing}")
 
     angles = []
     provenance = []
     expected_bundle_hashes = None
     best_conformer = None
-    for path in paths:
+    for path, manifest_path in zip(paths, manifests):
+        metadata = json.loads(manifest_path.read_text(encoding="utf-8"))
         with np.load(path, allow_pickle=False) as data:
-            metadata = json.loads(str(data["metadata"]))
-            positions = np.asarray(data["positions_nm"])
-            energies = np.asarray(data["energies_kj_mol"])
+            # The PT driver persists the cold replica only, after equilibration.
+            positions = np.asarray(data["positions_nm"])[:, None]
+            energies = np.asarray(data["cold_energy_kj_mol"])[:, None]
 
         if metadata.get("molecule") != molecule.key:
             raise ValueError(f"molecule mismatch in {path}")
-        if metadata.get("phase") != "production" or metadata.get("rg_param") is not None:
-            raise ValueError(f"reference is not a raw production trajectory: {path}")
+        if metadata.get("status") != "complete":
+            raise ValueError(f"PT reference is not complete: {manifest_path}")
         if int(metadata.get("dimension", -1)) != molecule.dimension:
             raise ValueError(f"dimension mismatch in {path}")
+        metadata = dict(metadata, burnin_rounds=0, bundle_sha256={})
         temperatures = metadata.get("temperatures_kelvin", [])
         if not temperatures or not math.isclose(float(temperatures[0]), 300.0):
             raise ValueError(f"replica zero is not 300 K in {path}")
@@ -354,7 +352,7 @@ def build_cache(chunk_size: int) -> dict[str, np.ndarray]:
             "one trans conformer and one crucial dihedral per achiral molecular target"
         ),
         "angle_units": "radians",
-        "reference": "selected raw OpenMM 300 K replica(s) after saved burn-in",
+        "reference": "300 K cold replica of the PT run in artifacts/pt_reference",
         "bg": "final regularized-potential sharpening samples at t=1",
         "density_processing": "achiral phi/-phi symmetrization and periodic smoothing",
         "molecules": {},
@@ -398,7 +396,7 @@ def build_cache(chunk_size: int) -> dict[str, np.ndarray]:
             "bg_sources": {},
         }
         print(
-            f"{molecule.display_name}: OpenMM reference "
+            f"{molecule.display_name}: PT reference "
             f"{reference.size} angles from "
             f"{len(reference_provenance)} selected seed(s); "
             f"trans conformer seed {conformer_provenance['seed']} "
@@ -745,7 +743,11 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
             "mathtext.fontset": "cm",
         }
     )
-    fig, marginal_axes = plt.subplots(1, 3, figsize=(12.5, 4.8))
+    columns = len(MOLECULES)
+    fig, marginal_axes = plt.subplots(
+        1, columns, figsize=(12.5 * columns / 3.0, 4.8), squeeze=False
+    )
+    marginal_axes = marginal_axes[0]
     for index, (axis, molecule) in enumerate(zip(marginal_axes, MOLECULES)):
         grid, reference = periodic_density(
             arrays[f"{molecule.key}_reference"]
@@ -811,7 +813,7 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
         )
 
     handles = [
-        Patch(color="0.65", alpha=0.55, label="OpenMM reference"),
+        Patch(color="0.65", alpha=0.55, label="PT reference"),
         Line2D(
             [0],
             [0],
@@ -832,7 +834,7 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
         ),
     ]
     fig.suptitle(
-        "Dihedral marginals: regularized Boltzmann generator samples vs OpenMM reference",
+        "Dihedral marginals: regularized Boltzmann generator samples vs PT reference",
         fontsize=17,
         y=0.98,
     )
