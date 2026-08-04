@@ -63,3 +63,6 @@ arXiv-2602.03729v2.tar.gz
 # Downloaded reference PDFs (checked against citations, not part of the source)
 External/978-1-4684-9393-1.pdf
 External/0508594v1.pdf
+
+# The F_star draft and its report: kept locally, not part of the repository
+F_star/
