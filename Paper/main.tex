@@ -304,14 +304,14 @@ from the validation set $\mathcal Y=\{x_1,\dots,x_N\}$ and target potential $U$ 
 \setstretch{1.2}
 \caption{Quench and temper (QT): wide-coverage construction}
 \label{alg: QT}
-\KwInput{validation set $\mathcal Y = \{x_1,\dots,x_N\}$, target potential $U$, melt scale $m_e$}
-\KwOutput{wide-coverage set $\hat{\mathcal Y} = \{\hat x_1,\dots,\hat x_N\}$ forming $\hat\mu$, written $\hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)$}
+\KwInput{validation set $\mathcal Y = \{y_1,\dots,y_N\}$, target potential $U$, melt scale $m_e$}
+\KwOutput{wide-coverage set $\hat{\mathcal Y} = \{\hat y_1,\dots,\hat y_N\}$ forming $\hat\mu$, written $\hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)$}
 \tcp{melt}
-Scatter the samples $x_i \gets x_i + m_e\zeta_i$ with $\zeta_i \sim \mathcal N(0, I_d)$ i.i.d. and melt scale $m_e > 0$\;
+Scatter the samples $y_i \gets y_i + m_e\zeta_i$ with $\zeta_i \sim \mathcal N(0, I_d)$ i.i.d. and melt scale $m_e > 0$\;
 \tcp{quench}
-Drive each sample toward a mode center of $\mu$ by L-BFGS on $U$, updating $x_1,\dots,x_N$\;
+Drive each sample toward a mode center of $\mu$ by L-BFGS on $U$, updating $y_1,\dots,y_N$\;
 \tcp{temper}
-Spread the samples around each mode, $\hat x_{1:N} \gets \mathrm{MALA}(x_{1:N}, U)$\;
+Spread the samples around each mode, $\hat y_{1:N} \gets \mathrm{MALA}(y_{1:N}, U)$\;
 \end{algorithm}
 \mbox{}\\
 On a torus or Euclidean--torus product, periodic coordinates are interpreted modulo their period after the melt and after each MALA proposal. If the QT set contains a basin absent from the annealed target batch, $\X_{\hat\mu}$ supplies pairwise log-ratio evaluations on that basin. A large melt scale $m_e$ can bias the QT set toward basins far from the input set. This is intentional: $\hat\mu$ is a coverage measure, not an estimate of target mode probabilities. Adding $\X_{\hat\mu}$ to the forward KL preserves $\nu=\mu$ as a minimizer, while empirical frequencies in the finite QT set affect the optimization path.
@@ -511,13 +511,13 @@ The accepted stage schedule defines a Boltzmann generator for $\mu$. The process
 
 Algorithm~\ref{alg: boltzmann} returns a validation set of $N$ samples at the endpoint. This subsection bounds the Monte Carlo error of that validation set as an estimate of the target distribution $\mu$ and identifies how the bound grows along the stage schedule. We analyze the flow and resample part of the generator, omitting the MALA rejuvenation for simplicity. The stage maps are the diffeomorphisms fixed by an accepted schedule; no property of the training that produced them is used.
 
-Assuming $\mu_k \ll \nu_k$, we take the stage weight in normalized form, $w_k := \D\mu_k/\D\nu_k$ with $\int w_k \, \D\nu_k = 1$, and assume $w_k > 0$ so that the self-normalization below is always defined. The scheme draws $Y_0^1,\dots,Y_0^N$ independently from $\mu_0$ and, for $k=1,\dots,K$, repeats three steps.
+Assuming $\mu_k \ll \nu_k$, we take the stage weight in normalized form, $w_k := \D\mu_k/\D\nu_k$ with $\int w_k \, \D\nu_k = 1$, and assume $w_k > 0$ so that the self-normalization below is always defined. The scheme draws $X_0^1,\dots,X_0^N$ independently from $\mu_0$ and, for $k=1,\dots,K$, repeats three steps.
 \begin{itemize}
-    \item \emph{Propagation.} Apply the inverse stage map to each particle, $X_k^i = G_k^{-1}(Y_{k-1}^i)$.
-    \item \emph{Reweighting.} Evaluate the stage weight at each propagated particle, $W_k^i = w_k(X_k^i)$.
-    \item \emph{Resampling.} Draw $Y_k^{1:N}$ by multinomial resampling from $\sum_{i=1}^{N} \bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{X_k^i}$.
+    \item \emph{Propagation.} Apply the inverse stage map to each particle, $Y_k^i = G_k^{-1}(X_{k-1}^i)$.
+    \item \emph{Reweighting.} Evaluate the stage weight at each propagated particle, $W_k^i = w_k(Y_k^i)$.
+    \item \emph{Resampling.} Draw $X_k^{1:N}$ by multinomial resampling from $\sum_{i=1}^{N} \bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{Y_k^i}$.
 \end{itemize}
-After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{Y_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a distribution $\mu$ and a function $\varphi$, $\mu(\varphi) := \int_{\mathbb R^d} \varphi \, \D\mu$ is the integral, or average, of $\varphi$ under $\mu$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$. Since $w_k>0$ and every $G_k$ is a diffeomorphism, the distributions $\mu_0$, $\nu_1,\dots,\nu_K$ and $\mu_1,\dots,\mu_K$ are mutually equivalent, so the null sets these quantities ignore are the same for all of them.
+After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{X_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a distribution $\mu$ and a function $\varphi$, $\mu(\varphi) := \int_{\mathbb R^d} \varphi \, \D\mu$ is the integral, or average, of $\varphi$ under $\mu$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$. Since $w_k>0$ and every $G_k$ is a diffeomorphism, the distributions $\mu_0$, $\nu_1,\dots,\nu_K$ and $\mu_1,\dots,\mu_K$ are mutually equivalent, so the null sets these quantities ignore are the same for all of them.
 
 \begin{theorem}
 \label{thm: propagation}
@@ -569,7 +569,7 @@ The substitution is ordered stagewise. Since $\lVert w_j \rVert_\infty \Ge \int 
     F_\Sigma \Le F_{\Sigma+} .
 \end{equation*}
 
-Neither factor can be computed directly: $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$, and $F_{\Sigma+}$ the $\nu_j$-essential supremum of $w_j$. A Boltzmann generator run already evaluates the importance weights of every stage, $\mathbf W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(X_j^i)$, and the sample counterparts of both quantities are read off them at no further cost. We therefore propose the discrete approximations of the factors
+Neither factor can be computed directly: $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$, and $F_{\Sigma+}$ the $\nu_j$-essential supremum of $w_j$. A Boltzmann generator run already evaluates the importance weights of every stage, $\mathbf W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(Y_j^i)$, and the sample counterparts of both quantities are read off them at no further cost. We therefore propose the discrete approximations of the factors
 \begin{equation}
     \hat F_{\Sigma+} := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K}  \max_{1 \Le i \Le N} \frac{3N W_j^i}{\sum_{l=1}^{N} W_j^l} ,
     \qquad
@@ -1517,9 +1517,9 @@ We write $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the
     \qquad \Theta_0 := \mathrm{id} ,
     \label{eq: appendix-theta}
 \end{equation}
-for that composition, so that every $Y_k^i$ is $\Theta_k$ applied to one of the initial draws.
+for that composition, so that every $X_k^i$ is $\Theta_k$ applied to one of the initial draws.
 
-Instead of studying the varying positions $Y_k^i$, we push the stage-$k$ target $\mu_k$ back through $\Theta_k$. Define the distribution $\eta_k$ and the density $r_k$ by
+Instead of studying the varying positions $X_k^i$, we push the stage-$k$ target $\mu_k$ back through $\Theta_k$. Define the distribution $\eta_k$ and the density $r_k$ by
 \begin{equation}
     \eta_k := (\Theta_k^{-1})_{\#}\mu_k,
     \qquad
@@ -1592,7 +1592,7 @@ Let $f$ be bounded and measurable, and define $g_k := r_k\bigl(f-\eta_k(f)\bigr)
 \end{lemma}
 
 \begin{proof}
-Since $r_k=\D\eta_k/\D\eta_{k-1}$ we have $\eta_{k-1}(r_kh)=\eta_k(h)$ for bounded $h$, so, using $\eta_{k-1}(r_k)=1$,
+Since $r_k=\D\eta_k/\D\eta_{k-1}$ we have $\eta_{k-1}(r_kh)=\eta_k(h)$ for bounded $h$. Using $\eta_{k-1}(r_k)=1$, we obtain
 \begin{equation*}
     \eta_{k-1}(g_k) = \eta_k(f) - \eta_k(f)\,\eta_{k-1}(r_k) = 0 .
 \end{equation*}
