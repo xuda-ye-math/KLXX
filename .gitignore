@@ -65,4 +65,7 @@ External/978-1-4684-9393-1.pdf
 External/0508594v1.pdf
 
 # The F_star draft and its report: kept locally, not part of the repository
-F_star/
+Paper/main_F_star.tex
+Paper/report_F_star.tex
+Paper/main_F_star.pdf
+Paper/report_F_star.pdf

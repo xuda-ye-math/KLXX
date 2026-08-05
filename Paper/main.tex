@@ -912,7 +912,16 @@ U^{\{\rho\}}(q)
 +\mathcal C_e\bigl(\Delta E_r(x(q))\bigr)\right]-\log J(q).
 \label{eq: regularized-molecular-potential}
 \end{equation}
-The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor \(r\) is measured in \(\mathrm{nm}\). The component formulas of the bonded and OBC1/ACE terms are unchanged before the scalar cap is applied to the complete energy. The coordinate Jacobian and domain are not capped. The physical potential \(U\) in \eqref{eq: molecular-reduced-potential} is recovered in the formal limit \(e\to\infty\), \(r\to0\). 
+The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor \(r\) is measured in \(\mathrm{nm}\). The component formulas of the bonded and OBC1/ACE terms are unchanged before the scalar cap is applied to the complete energy. The coordinate Jacobian and domain are not capped. The physical potential \(U\) in \eqref{eq: molecular-reduced-potential} is recovered in the formal limit \(e\to\infty\), \(r\to0\).
+
+A run ends at a finite regularization setting \(\rho\) rather than at that formal limit. For endpoint samples $q_1,\ldots,q_N$, define the endpoint-to-physical weights and the corresponding regularization ESS (RESS) by
+\begin{equation}
+w_i^{\mathrm{phys}}
+:=\exp\!\left[U^{\{\rho\}}(q_i)-U(q_i)\right],
+\qquad
+\operatorname{RESS}:=\ESS\!\left(w^{\mathrm{phys}}\right).
+\label{eq: molecular-ress}
+\end{equation}
 
 \subsection{Boltzmann generators with sharpening}
 \label{sec: mol-sharpening}
@@ -1022,15 +1031,7 @@ ethane (18) & \((100,0.15)\)
 Within the single-seed runs, KLXX has the smallest factor in all ten settings. Foward KL selects trained maps through methane and part of ethane. From propane onward, every accepted KL stage selects the identity proposal, and its factor is close to the ID result. KLXX selects the trained map at every accepted stage through pentane. At hexane, it selects trained maps in \(6\) of \(12\) fixed-path stages and \(8\) of \(10\) sharpening stages.
 The difference between the fixed and sharpening paths increases with molecule size in these runs. The KLXX fixed-path factor divided by the sharpening-path factor is \(1.03\), \(1.04\), \(1.19\), and \(1.66\) for propane. The butane, pentane, and hexane KLXX sharpening runs take \(3.10\), \(2.24\), and \(2.65\) times the recorded KL wall time. The KLXX sharpening paths have the lowest factor in the larger-molecule comparisons, with additional QT, reweighting, and flow-training cost.
 
-The runs stop at the finite regularization $\rho_1$ rather than at the formal physical limit. For endpoint samples $q_1,\ldots,q_N$, define the endpoint-to-physical weights and their normalized endpoint-to-physical regularization ESS (RESS) by
-\begin{equation}
-w_i^{\mathrm{phys}}
-:=\exp\!\left[U^{\{\rho_1\}}(q_i)-U(q_i)\right],
-\qquad
-\operatorname{RESS}:=\ESS\!\left(w^{\mathrm{phys}}\right).
-\label{eq: molecular-ress}
-\end{equation}
-The endpoint-to-physical weights are nearly uniform on the final KLXX sample sets: $1-\operatorname{RESS}=0$ numerically from methane through butane, $9.5\times10^{-6}$ for pentane, and $2.3\times10^{-5}$ for hexane. These values measure overlap on the sampled sets; they do not prove global equality between $U^{\{\rho_1\}}$ and $U$.
+The endpoint-to-physical weights of \eqref{eq: molecular-ress}, here at $\rho=\rho_1$, are nearly uniform on the final KLXX sample sets: $1-\operatorname{RESS}=0$ numerically from methane through butane, $9.5\times10^{-6}$ for pentane, and $2.3\times10^{-5}$ for hexane. These values measure overlap on the sampled sets; they do not prove global equality between $U^{\{\rho_1\}}$ and $U$.
 
 \begin{figure}[htb]
 \centering
