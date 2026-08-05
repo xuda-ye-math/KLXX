@@ -123,23 +123,13 @@ module rating but not an independent live memory-controller clock, so
 
 ### Software environment
 
-The package versions below were read directly from
-`/home/xuda/.envs/jflows`:
+The package versions below were read directly from the installed environment:
 
-<div align="center">
-
-| package | version |
-|---|---:|
-| Python | 3.14.6 |
-| JAX | 0.11.0 |
-| JAXlib | 0.11.0 |
-| JAX CUDA 13 plugin | 0.11.0 |
-| Equinox | 0.13.8 |
-| OpenMM | 8.5.2 |
-| OpenMM CUDA 13 | 8.5.2 |
-| NumPy | 2.4.6 |
-| SciPy | 1.18.0 |
-| `jflows` | 0.5.4 |
-| `jflows_md` | 0.5.4 |
-
-</div>
+- Python: 3.14.6
+- `jax[cuda13]`: 0.11.0
+- `equinox`: 0.13.8
+- `openmm[cuda13]`: 8.5.2
+- `numpy`: 2.4.6
+- `scipy`: 1.18.0
+- `jflows`: 0.5.4
+- `jflows_md[bundles]`: 0.5.4
