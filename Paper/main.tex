@@ -14,14 +14,14 @@
 \maketitle
 
 \begin{abstract}
-Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can then miss target mass while its observed importance weights give a high effective sample size. We introduce the log-ratio variation, a pairwise regularizer of the exact target-to-proposal log-density ratio, and use it to define KLXX, a new loss function for training normalizing flows. Its three weighting measures address target fitting, candidate mode coverage, and proposal support control without changing the exact target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted term, then place KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the regularized molecular potential. We bound the sampling error of that generator, which is therefore asymptotically unbiased, and read from the bound a propagation factor, computed from the per-stage effective sample size, that summarizes how error accumulates across stages. In the reported model and molecular tests, KLXX improves mode-coverage or stagewise diagnostics, and selected molecular observables agree with independent molecular simulations. Log-ratio variation thus supplies information that a sampled forward KL loss can omit.
+Normalizing flow Boltzmann generators retain a tractable proposal density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can miss target mass while its observed importance weights give a high effective sample size. We introduce the log-ratio variation $\X_\omega$, the mean absolute pairwise difference of the exact target-to-proposal log-density ratio under a weighting measure $\omega$, and use it to define KLXX, a new loss function for training normalizing flows: its two X's are two distinct log-ratio variations added to the forward KL, one weighted by the target surrogate, the other by a mixture of quench and temper samples with pushforward samples. Its three weighting measures thereby address target fitting, candidate mode coverage, and proposal support control without changing the exact target minimizer. We derive an exponential Fisher--Rao bound and a fixed-surrogate error bound for forward KL with the target-weighted variation $\X_\mu$, then place KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the regularized molecular potential. We bound that generator's sampling error, so it is asymptotically unbiased, and read from the bound a propagation factor, computed from the per-stage effective sample size, that summarizes how error accumulates across stages. In the reported model and molecular tests, KLXX improves mode-coverage or stagewise diagnostics, and selected observables agree with independent molecular simulations. The log-ratio variations thus supply information that a sampled forward KL loss can omit.
 \end{abstract}
 
 % ===================== Graphical abstract =====================
 \par\medskip
 \noindent\makebox[\textwidth][c]{%
     \hspace*{7.8pt}%
-    \resizebox{0.90\textwidth}{!}{%
+    \resizebox{0.80\textwidth}{!}{%
         \vbox{%
             \begingroup
             \def\KLXXEmbedded{1}%
