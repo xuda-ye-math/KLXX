@@ -275,7 +275,7 @@ Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples f
     \qquad y \in \mathbb R^d.
     \label{eq: weight}
 \end{equation}
-Below, $w_i$ denotes the importance weight $w(y_i)$ at the sampled point $y_i$. In high dimensions, however, $\mu$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We temper the reweighting through $M+1$ bridge distributions
+In high dimensions, however, $\mu$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We temper the reweighting through $M+1$ bridge distributions
 \begin{equation}
     \pi_m(y) \propto \nu(y)^{1-\frac{m}{M}} \mu(y)^{\frac{m}{M}} \propto ((G^{-1})_{\#}\mu_0)(y)\, w(y)^{\frac{m}{M}}, \qquad m = 0,1,\dots,M,
     \label{eq: pi-m}
