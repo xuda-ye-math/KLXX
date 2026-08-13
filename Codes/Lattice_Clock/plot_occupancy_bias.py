@@ -5,6 +5,15 @@ The left panel compares training batch sizes at fixed ``N=640000``.  The
 right panel shows particle-count scaling at fixed ``B=2000``.  Both panels
 are rendered from the merged artifact archives, with no sampler or GPU work.
 
+The two panels share one configuration, ``B=2000`` at ``N=640000``, and each
+archive holds a four-repetition sample of it.  The samples use the same four
+seeds but not the same random stream: the two drivers chunk the MALA
+rejuvenation at 80000 and at 160000, so the per-chunk keys
+``fold_in(key_k, 2000 + chunk)`` are relabelled and the trajectories separate
+at the first rejuvenation.  Both are valid estimates of the same quantity.
+The shared point is therefore taken once, from the batch-size archive, so the
+panels agree there by construction rather than by coincidence.
+
 Run from the repository root:
     python Codes/Lattice_Clock/plot_occupancy_bias.py
 
@@ -31,6 +40,10 @@ EXPECTED_N = 640000
 EXPECTED_B_VALUES = (2000, 1000, 500, 250)
 EXPECTED_BASE_SIZE = 10000
 MAX_REPORT_K = 6
+# The panels meet at B=2000, N=640000. Both archives measure it; the scaling
+# panel takes its value from the batch-size archive so the two agree.
+SHARED_B = 2000
+SHARED_K = 6
 
 
 def log(message: str) -> None:
@@ -81,7 +94,24 @@ def load_batch_summary(
 
 def load_scaling_summary(
 ) -> tuple[np.ndarray, dict[str, np.ndarray], dict[str, np.ndarray]]:
-    """Load particle-count scaling summaries at fixed batch size."""
+    """Load particle-count scaling summaries at fixed batch size.
+
+    The shared point at k=SHARED_K is read from the batch-size archive; every
+    other point comes from this archive.  See the module docstring.
+    """
+    if EXPECTED_BASE_SIZE * 2**SHARED_K != EXPECTED_N:
+        raise ValueError(
+            f"shared point k={SHARED_K} is N={EXPECTED_BASE_SIZE * 2**SHARED_K}, "
+            f"but the batch-size run is at N={EXPECTED_N}"
+        )
+    with np.load(BATCH_DATA, allow_pickle=False) as batch:
+        shared = {
+            method: np.asarray(
+                batch[f"bias_{method}_B{SHARED_B}"], dtype=np.float64
+            )
+            for method in METHODS
+        }
+
     with np.load(SCALING_DATA, allow_pickle=False) as data:
         base_size = int(data["BASE_SZIE"])
         ks = [int(value) for value in data["ks"] if int(value) <= MAX_REPORT_K]
@@ -102,7 +132,13 @@ def load_scaling_summary(
         means: dict[str, np.ndarray] = {}
         sems: dict[str, np.ndarray] = {}
         for method in METHODS:
-            summaries = [summarize(data[f"bias_{method}_k{k}"]) for k in ks]
+            summaries = [
+                summarize(
+                    shared[method] if k == SHARED_K
+                    else data[f"bias_{method}_k{k}"]
+                )
+                for k in ks
+            ]
             means[method] = np.asarray([value[0] for value in summaries])
             sems[method] = np.asarray([value[1] for value in summaries])
             if np.any(means[method] <= 0.0):

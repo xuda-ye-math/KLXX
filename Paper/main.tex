@@ -113,7 +113,7 @@ target annealing, QT, and detached pushforward samples \\
 \end{table}
 
 
-We now turn from these method-level comparisons to the mathematical definition of KLXX. Define the tractable log-density ratio $z(x):=\log\frac{\mu(x)}{\nu(x)}$. For a nonnegative density $\omega$ on $\mathbb R^d$, define the \emph{log-ratio variation}
+We now turn from these method-level comparisons to the mathematical definition of KLXX. Define the tractable log-density ratio $z(x):=\log\frac{\mu(x)}{\nu(x)}$. For a {\color{blue}finite measure} $\omega$ on $\mathbb R^d$, define the \emph{log-ratio variation}
 \begin{equation}
     \X_\omega(\mu\|\nu) = \iint_{\mathbb R^d\times\mathbb R^d} \omega(x)\,\omega(y)
     \biggl|\log\frac{\mu(x)}{\nu(x)} - \log\frac{\mu(y)}{\nu(y)}\biggr| \D x\D y,
@@ -133,7 +133,7 @@ To rewrite the loss \eqref{eq: total-loss} in a tractable map-level form, use $\
     z(y)=\log\frac{\mu(y)}{\nu(y)} = U_0(G(y)) - U(y) - \log|\det J_G(y)|.
     \label{eq: logratio-z}
 \end{equation}
-The normalizers of $\mu$ and $\mu_0$ are absorbed into the potentials here, so \eqref{eq: logratio-z} defines $z$ up to an additive constant, which depends on neither $y$ nor $G$.
+The normalizers of $\mu$ and $\mu_0$ are absorbed into the potentials here, so \eqref{eq: logratio-z} defines $z$ up to an additive constant, which depends on neither $y$ nor $G$. {\color{blue}The first underbrace below therefore reads as an identity up to that additive constant, independent of $G$: it shifts the loss without moving its minimizer, and the pairwise terms difference it away.}
 Substituting \eqref{eq: logratio-z} into \eqref{eq: total-loss} yields
 \begin{align}
     \mathcal{L}[G]
@@ -160,7 +160,7 @@ Third, we demonstrate that QT can reach target basins outside the regions covere
 
 Fourth, we build an adaptive-staging Boltzmann generator based on KLXX without any external data or replay buffer, using only oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$. Annealing and QT generate the required samples on the fly, and the MCMC transitions do not differentiate the flow density. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the desired endpoint. We also bound the error of the sample set this construction returns: Theorem~\ref{thm: propagation} controls the error at rate $N^{-1/2}$ for every bounded observable, with a constant independent of $N$ that depends on the stage maps only through their weight suprema, so the scheme is asymptotically unbiased and its error is removed by enlarging the sample alone. Reading that constant stagewise defines the propagation factors, which quantify how the error accumulates across the accepted stages; the experiments report the computable factor $\hat F_\Sigma$, assembled from the ESS of each accepted stage.
 
-{\color{blue}In addition, we develop general Python packages} \texttt{jflows} and \texttt{jflows-md} for normalizing flow Boltzmann sampling with molecular potentials. With a JAX backend and OpenXLA compilation, the reported 22-atom alanine dipeptide run completes all ten accepted training stages in 72.7 minutes of total persisted stage time on one NVIDIA GeForce RTX 5090, without an external target dataset or a prescribed conformational landscape.
+{\color{blue}In addition, we develop general Python packages} \texttt{jflows} and \texttt{jflows-md} for normalizing flow Boltzmann sampling with molecular potentials. With a JAX backend and OpenXLA compilation, the reported 22-atom alanine dipeptide run completes all ten accepted training stages in 72.7 minutes on one NVIDIA GeForce RTX 5090, without an external target dataset or a prescribed conformational landscape.
 
 %\paragraph{Organization.}
 {\color{blue}The rest of the paper is organized as follows:}
@@ -325,7 +325,7 @@ QT addresses this limitation through three steps. The \emph{melt} scatters the i
 \begin{equation*}
     \hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)
 \end{equation*}
-from the validation set $\mathcal Y=\{x_1,\dots,x_N\}$ and target potential $U$ to the $N$ QT samples $\hat{\mathcal Y}=\{\hat x_1,\dots,\hat x_N\}$. Algorithm~\ref{alg: QT} applies this map once per stage attempt. The output $\hat{\mathcal Y}$ is held fixed as a reservoir during training. At each training step a mini-batch of $B$ samples is drawn uniformly from that reservoir and refreshed by a short MALA chain before entering the computation. We use $\hat\mu$ for the law of this draw-and-refresh operation; its input is the uniform empirical measure on the fixed QT reservoir.
+from the validation set $\mathcal Y=\{{\color{blue}y_1,\dots,y_N}\}$ and target potential $U$ to the $N$ QT samples $\hat{\mathcal Y}=\{{\color{blue}\hat y_1,\dots,\hat y_N}\}$. Algorithm~\ref{alg: QT} applies this map once per stage attempt. The output $\hat{\mathcal Y}$ is held fixed as a reservoir during training. At each training step a mini-batch of $B$ samples is drawn uniformly from that reservoir and refreshed by a short MALA chain before entering the computation. We use $\hat\mu$ for the law of this draw-and-refresh operation; its input is the uniform empirical measure on the fixed QT reservoir.
 
 \begin{algorithm}[htb]
 \setstretch{1.2}
@@ -407,7 +407,7 @@ defining the interpolating potential and measure
 \end{equation*}
 Here $t$ is a dimensionless interpolation parameter. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\mu_k:=\mu_{t_k}$, so $\mu_0$ is the source and $\mu_K$ is the target. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the proposal $\nu_k=(G_k^{-1})_{\#}\mu_{k-1}$ for $\mu_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages.
 
-Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, Algorithm~\ref{alg: step} can screen the proposed stage increment $\Delta t_k$ with an optional classical SMC calculation. Its smallest per-level ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the sample set carried across stages and used in full for training batches, QT, and stage selection; it is not a held-out test set, and neither QT nor the SMC screen first draws a separately sized subset of it.
+Training $G_k$ requires the target surrogate for $\mu_k$ defined in Section~\ref{subsec: annealing}. Before training, Algorithm~\ref{alg: step} can screen the proposed stage increment $\Delta t_k$ with an optional classical SMC calculation. Its smallest per-level ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the validation set is the sample set carried across stages and used for training batches, QT, and stage selection; it is not a held-out test set{\color{blue}, and QT or the SMC screen may act on the whole set or on a separately sized subset of it}.
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
@@ -436,7 +436,7 @@ $t_k \gets t_{\mathrm{init}}$\;
 }
 \end{algorithm}
 
-These SMC ladders involve only the potentials $U_0$ and $U$. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) below supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
+{\color{blue}Throughout, Algorithm~\ref{alg: step} and Algorithm~\ref{alg: annealing} take the same ladder length $M$: one value sets how finely both the screen and the training surrogate resolve a stage, and Algorithm~\ref{alg: boltzmann} passes it to both.} These SMC ladders involve only the potentials $U_0$ and $U$. They use no QT samples, so their per-level ESS can overlook a mode the SMC samples never reach. We therefore use this ESS only to screen a candidate stage; it is a heuristic measure of stage difficulty, not a coverage certificate. The selected-proposal validation in step~(v) below supplies the acceptance gate, while QT supplies the separate wide-coverage set when $\alpha>0$. By default $\tau_{\mathrm{SMC}} = 0$, so Algorithm~\ref{alg: step} returns $t_{\mathrm{init}}$ without running SMC. For a positive floor, it returns the first candidate stage along the shrink sequence whose estimated ESS clears that floor. The shrink factor is $\gamma = 0.7$. As $t_k$ approaches $t_{k-1}$, the stage becomes trivial and its ESS approaches $1$, so a floor below $1$ is attainable under repeated shrinking in exact arithmetic.
 
 
 \subsection{The full training procedure}
@@ -544,7 +544,7 @@ Assuming $\mu_k \ll \nu_k$, we take the stage weight in normalized form, $w_k :=
     \item \emph{Reweighting.} Evaluate the stage weight at each propagated particle, $W_k^i = w_k(Y_k^i)$.
     \item \emph{Resampling.} Draw $X_k^{1:N}$ by multinomial resampling from $\sum_{i=1}^{N} \bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{Y_k^i}$.
 \end{itemize}
-After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{X_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a distribution $\mu$ and a function $\varphi$, $\mu(\varphi) := \int_{\mathbb R^d} \varphi \, \D\mu$ is the integral, or average, of $\varphi$ under $\mu$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$. Since $w_k>0$ and every $G_k$ is a diffeomorphism, the distributions $\mu_0$, $\nu_1,\dots,\nu_K$ and $\mu_1,\dots,\mu_K$ are mutually equivalent, so the null sets these quantities ignore are the same for all of them.
+After stage $K$ the scheme returns the empirical measure $\mu_K^N = \frac1N\sum_{i=1}^{N} \delta_{X_K^i}$ as the estimate of $\mu_K$. This is a simplified model of inference with a trained generator: every $G_k$ is fixed, the accepted schedule is replayed on a fresh particle set with no optimizer update, and the MALA rejuvenation that Algorithm~\ref{alg: boltzmann} applies after each resampling is dropped. No Markov kernel therefore acts between stages, so the error bounded here is the propagation error alone. For a {\color{blue}general} distribution ${\color{blue}\mu_\star}$ and a function $\varphi$, ${\color{blue}\mu_\star}(\varphi) := \int_{\mathbb R^d} \varphi \, \D{\color{blue}\mu_\star}$ is the integral, or average, of $\varphi$ under ${\color{blue}\mu_\star}$. For a bounded observable $\varphi$ write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for its essential supremum on $\mathbb R^d$, taken for $w_k$ with respect to $\nu_k$. Since $w_k>0$ and every $G_k$ is a diffeomorphism, the distributions $\mu_0$, $\nu_1,\dots,\nu_K$ and $\mu_1,\dots,\mu_K$ are mutually equivalent, so the null sets these quantities ignore are the same for all of them.
 
 \begin{theorem}
 \label{thm: propagation}
@@ -562,7 +562,7 @@ with the empty product equal to one.
 \noindent
 Appendix~\ref{sec: appendix-propagation} gives the proof of Theorem~\ref{thm: propagation}. The constant is explicit and independent of $N$, and depends on the stage maps only through the weight suprema; it is a product over stages, summed over the stage at which the error enters.
 
-Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. The bound gives $\lVert \mu_K^N(\varphi) - \mu_K(\varphi) \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the flow and resample inference is \emph{asymptotically unbiased}, and its error is removed by increasing the sample size alone. Classical Monte Carlo sampling of $\mu$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first. The generator of Algorithm~\ref{alg: boltzmann} inherits the property, since its rejuvenation step is MALA and leaves each stage target invariant exactly \citep{delmoral2004feynman}. That step is also what keeps the particles distinct. Multinomial resampling only copies particles, and the stage maps are bijections, so flow and resample alone can never raise the number of distinct configurations: it can only fall from stage to stage, and the returned set is made increasingly of repeats. The MALA sweep after each resampling diffuses the copies apart under independent noise, so the particles carried into the next stage are scattered configurations rather than duplicated ones, and because the kernel is $\mu_k$-invariant this costs no bias.
+Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. The bound gives $\lVert \mu_K^N(\varphi) - \mu_K(\varphi) \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the flow and resample inference is \emph{asymptotically unbiased}, and its error is removed by increasing the sample size alone. Classical Monte Carlo sampling of $\mu$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first. The generator of Algorithm~\ref{alg: boltzmann} inherits the property, since its rejuvenation step is MALA, {\color{blue}whose Metropolis adjustment} leaves each stage target invariant exactly {\color{blue}\citep{metropolis1953equation,hastings1970monte,roberts1996exponential,delmoral2004feynman}}. That step is also what keeps the particles distinct. Multinomial resampling only copies particles, and the stage maps are bijections, so flow and resample alone can never raise the number of distinct configurations: it can only fall from stage to stage, and the returned set is made increasingly of repeats. The MALA sweep after each resampling diffuses the copies apart under independent noise, so the particles carried into the next stage are scattered configurations rather than duplicated ones, and because the kernel is $\mu_k$-invariant this costs no bias.
 
 The structure of that constant in \eqref{eq: propagation-bound} motivates two propagation factors, which characterize how the $L^2$ error propagates across the stages. The first is the square root of the constant, up to the observable,
 \begin{equation}
@@ -620,7 +620,7 @@ We test forward KL against its $\X$-augmented losses $\KL$+$\X_\mu$, $\KL$+$\X_\
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-For every target, we initialize the same neural spline flow (NSF) \citep{durkan2019neural} at the identity and compare the four losses above. The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$, and each training step constructs a target surrogate by one annealing update through the current flow, followed by MALA rejuvenation. For both losses containing the wide-coverage term $\X_{\hat\mu}$, QT acts on a fixed validation set of $5\times10^4$ to $8\times10^4$ points, and the final ESS is computed from flow importance weights on that set. Coverage, with $\kappa=5$ against an independently generated QT reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. Because coverage tests occupancy of the reference balls, a collapsed flow can have ESS near one but cannot have full coverage. Each loss--target pair is one fixed-seed training realization, so the numerical differences below describe these matched runs rather than variation across independent trainings.
+For every target, we initialize the same neural spline flow (NSF) \citep{durkan2019neural} at the identity and compare the four losses above. The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$, and each training step constructs a target surrogate through the current flow on {\color{blue}a $1$-level annealing schedule}, followed by MALA rejuvenation. For both losses containing the wide-coverage term $\X_{\hat\mu}$, QT acts on a fixed validation set of $5\times10^4$ to $8\times10^4$ points, and the final ESS is computed from flow importance weights on that set. Coverage, with $\kappa=5$ against an independently generated QT reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. Because coverage tests occupancy of the reference balls, a collapsed flow can have ESS near one but cannot have full coverage. Each loss--target pair is one fixed-seed training realization, so the numerical differences below describe these matched runs rather than variation across independent trainings.
 
 \begin{figure}[htb]
     \centering
@@ -692,7 +692,7 @@ $d=16,32,48,\ldots,256$. Letting $k=\lfloor\log_2 d\rfloor$, we use
 \end{equation}
 The first $k$ coordinates are symmetric double wells with minima at $\pm\sqrt{\ln 24}$ and barrier approximately $9.9$, while the remaining $d-k$ coordinates are standard Gaussian. The target therefore has exactly $2^k$ equal-weight sign-pattern modes, where $2^k\Le d<2^{k+1}$. Multimodality occupies only a $k$-dimensional subspace, but the log-weight error accumulates across all $d$ coordinates.
 
-All four losses use the same identity-initialized NSF on $[-4,4]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. At every dimension, training uses batch size $250$, $2000$ Adam steps at learning rate $10^{-3}$, and a fixed validation set of size $5000d$. The live target surrogate uses one annealing update followed by $50$ MALA steps of size $2\times10^{-3}$. QT uses $1000d$ samples, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations. Final validation ESS is evaluated on $80000$ fresh source samples. Each loss--dimension pair is one fixed-seed training realization.
+All four losses use the same identity-initialized NSF on $[-4,4]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. At every dimension, training uses batch size $250$, $2000$ Adam steps at learning rate $10^{-3}$, and a fixed validation set of size $5000d$. The live target surrogate uses {\color{blue}a $1$-level annealing schedule} followed by $50$ MALA steps of size $2\times10^{-3}$. QT uses $1000d$ samples, melt scale $2$, and an Armijo L-BFGS quench with initial step $0.5$ and $200$ iterations. Final validation ESS is evaluated on $80000$ fresh source samples. Each loss--dimension pair is one fixed-seed training realization.
 
 \begin{figure}[htb]
     \centering
@@ -719,7 +719,7 @@ The on-site term alone has a single minimum at $0$; the nearest-neighbor couplin
 We take $h=0.0257$ at $L=6$ and $h=0.0144$ at $L=8$, matching the scaling $hL^2\approx0.92$ to produce comparable well imbalance in the targets of the two settings.
 A collective domain-wall barrier separates the two wells, and the minority weight $p_+=\mathbb P(m>0)$ must be learned rather than fixed by symmetry.
 
-PT and mirror MALA provide the references $p_+=0.1251\pm0.0009$ for $L=6$ and $0.1284\pm0.0014$ for $L=8$. Each loss is run at seeds $0,1,2$ using an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$, centered on the barrier. Training uses a fixed validation set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses one annealing update followed by $50$ MALA steps of size $2\times10^{-3}$. For both losses containing $\X_{\hat\mu}$, quench and temper acts on the validation set, with melt scale $2$ and an Armijo L-BFGS quench using initial step $0.1$ and $200$ iterations.
+PT and mirror MALA provide the references $p_+=0.1251\pm0.0009$ for $L=6$ and $0.1284\pm0.0014$ for $L=8$. {\color{blue}Mirror MALA runs MALA in one well of the $h=0$ symmetric action, takes its exact $\boldsymbol\phi\to-\boldsymbol\phi$ image as the other well, and reweights the pair by the tilt.} Each loss is run at seeds $0,1,2$ using an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$, centered on the barrier. Training uses a fixed validation set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses {\color{blue}a $1$-level annealing schedule} followed by $50$ MALA steps of size $2\times10^{-3}$. For both losses containing $\X_{\hat\mu}$, quench and temper acts on the validation set, with melt scale $2$ and an Armijo L-BFGS quench using initial step $0.1$ and $200$ iterations.
 
 \begin{table}[htb]
     \centering
@@ -773,7 +773,7 @@ U(\boldsymbol\theta)
 \end{equation}
 where $\langle jl\rangle$ runs over nearest-neighbor pairs. The source is uniform on the torus and the interpolation is $U_t=tU$. The target distribution $\mu\propto\exp(-U)$ separates into six symmetry-related clock sectors.
 
-Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ samples, and both SMC and QT act directly on this set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$ and a $4$-level annealed surrogate with $100$ MALA steps of size $10^{-3}$. For KLXX, QT uses melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule uses the nondefault settings $t_{\mathrm{safe}}=0.25$, enlarge factor $\Gamma=2$, and gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$.
+Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The validation set contains $4\times10^5$ samples, and both SMC and QT act directly on this set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$ and {\color{blue}ladder length $M=4$, giving a $4$-level annealing schedule for both the SMC screen and the target surrogate,} with $100$ MALA steps of size $10^{-3}$. For KLXX, QT uses melt scale $2\pi$ and an Armijo L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule uses the nondefault settings $t_{\mathrm{safe}}=0.25$, enlarge factor $\Gamma=2$, and gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$.
 
 KLXX uses the same staging schedule with forward KL for fair comparison. That schedule is constructed with forward KL under SMC preselection and an ESS acceptance gate, and KLXX is then trained on the identical accepted values of $t$ without a second gate. Every configuration is a single run, so individual stage ESS values carry single-run fluctuation.
 
@@ -826,14 +826,14 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 \begin{figure}[htb]
     \centering
     \includegraphics[width=0.9\textwidth]{figures/lattice_clock_occupancy_bias.png}
-    \caption{Clock-sector occupancy bias under two fresh-rebuild tests. (a) Mean bias at fixed $N=6.4\times10^5$ across training batch sizes; each bar averages four matched sampling seeds. (b) Mean bias at fixed $B=2000$ versus particle count; at $N=2^k\times10^4$, each mean uses $2^{8-k}$ independent rebuilds, keeping the total work per point at $2.56\times10^6$ particles. Error bars in both panels are $\pm2$ standard errors. The dashed line in (b) is an $N^{-1/2}$ reference.}
+    \caption{Clock-sector occupancy bias under two fresh-rebuild tests. (a) Mean bias at fixed $N=6.4\times10^5$ across training batch sizes; each bar averages four matched sampling seeds. (b) Mean bias at fixed $B=2000$ versus particle count; at $N=2^k\times10^4$, each mean uses $2^{8-k}$ independent rebuilds, keeping the total work per point at $2.56\times10^6$ particles. Error bars in both panels are $\pm2$ standard errors. The dashed line in (b) is an $N^{-1/2}$ reference. {\color{blue}The two panels' numbers align at $B=2000$, $N=6.4\times10^5$.}}
     \label{fig: clock-occupancy}
 \end{figure}
 
 
 At fixed $N$, panel (a) shows that the mean occupancy bias increases as the training batch shrinks for both methods. KLXX has the lower mean at $B=2000$, $1000$, and $250$. At those batch sizes, the forward KL means are $0.00573$, $0.00888$, and $0.02760$, while the KLXX means are $0.00235$, $0.00517$, and $0.01506$. At $B=500$ the ordering reverses slightly, from $0.00963$ for forward KL to $0.01082$ for KLXX, and the intervals defined by $\pm2$ standard errors overlap.
 
-At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.459$ for forward KL and $-0.479$ for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00552$ to $0.00358$ at $N=6.4\times10^5$. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each stage schedule for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
+At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are {\color{blue}$-0.453$} for forward KL and {\color{blue}$-0.545$} for $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from {\color{blue}$0.00573$} to {\color{blue}$0.00235$} at $N=6.4\times10^5$. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each stage schedule for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
 
 
 
@@ -876,12 +876,12 @@ A nonlinear molecule with \(A\) atoms has \(d=3A-6\) internal degrees of freedom
 \qquad d_{\mathrm E}+d_{\mathrm T}=3A-6,
 \label{eq: mixed-molecular-domain}
 \end{equation}
-and the physical reduced potential at inverse temperature \(\beta_{\mathrm T}=(k_BT)^{-1}\) is
+and the physical reduced potential at inverse temperature \(\beta_{\mathrm T}=({\color{blue}k_{\mathrm B}T})^{-1}\) is
 \begin{equation}
-U(q)=\beta_{\mathrm T} E(x(q))-\log J(q),
+U(q)=\beta_{\mathrm T} E(x(q))-\log {\color{blue}J_x}(q),
 \label{eq: molecular-reduced-potential}
 \end{equation}
-where \(J(q)\) is the Cartesian volume Jacobian of the reconstruction, including the whitening maps. The source is Gaussian on the Euclidean block and uniform on the torus. The mixed spline flow uses ordinary rational-quadratic splines on the Euclidean coordinates and circular splines on the torsions.
+where \({\color{blue}J_x}(q)\) is the Cartesian volume Jacobian of the reconstruction, including the whitening maps. The source is Gaussian on the Euclidean block and uniform on the torus. The mixed spline flow uses ordinary rational-quadratic splines on the Euclidean coordinates and circular splines on the torsions.
 
 \begin{table}[htb]
 \centering
@@ -936,7 +936,7 @@ and collect the two regularization parameters in \(\rho=(e,r)\). The correspondi
 \begin{equation}
 U^{\{\rho\}}(q)
 =\beta_{\mathrm T}\!\left[E_r^\star
-+\mathcal C_e\bigl(\Delta E_r(x(q))\bigr)\right]-\log J(q).
++\mathcal C_e\bigl(\Delta E_r(x(q))\bigr)\right]-\log {\color{blue}J_x}(q).
 \label{eq: regularized-molecular-potential}
 \end{equation}
 The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor \(r\) is measured in \(\mathrm{nm}\). The component formulas of the bonded and OBC1/ACE terms are unchanged before the scalar cap is applied to the complete energy. The coordinate Jacobian and domain are not capped. The physical potential \(U\) in \eqref{eq: molecular-reduced-potential} is recovered in the formal limit \(e\to\infty\), \(r\to0\).
@@ -1004,7 +1004,7 @@ The generators below differ only in how each stage proposal is obtained, and eve
 
 We test methane (\(\mathrm{CH_4}\)) through \(n\)-hexane (\(\mathrm{C_6H_{14}}\), straight chain). The regularization paths are listed in Table~\ref{tab: alkane-summary}: fixed-regularization runs start and remain at the common endpoint, while sharpening runs begin at a softer setting and advance linearly to it. The three methods use method-specific adaptive stage schedules, so stage counts and recorded wall times are descriptive rather than fixed-compute comparisons.
 
-All molecular flows use $6$ mixed spline transforms, $32$ bins, conditioner widths $(256,256)$, spline bound $8$, and minimum slope $10^{-3}$, and are initialized at the identity. The validation and batch sizes $(N,B)$ are $(100000,5000)$ for methane, $(120000,6000)$ for ethane, $(160000,8000)$ for propane, and $(200000,10000)$ for butane through hexane. Each accepted flow stage uses $500$ Adam steps for methane through propane, $400$ for butane, and $300$ for pentane and hexane, with learning rate $10^{-3}$ and $25$ warmup steps. Potential-space SMC uses $8$ annealing levels; mixed-domain MALA uses $100$ steps of size $10^{-3}$. QT uses melt scale $1$, $200$ L-BFGS steps with initial step $10^{-2}$, and the complete molecular QT set. The safe start is $0.25$ for methane and ethane and $0.1$ for the larger molecules. The validation gate is $0.4$ throughout; the SMC gate is $0.3$ for methane and ethane, $0.5$ for propane, and $0.8$ for butane through hexane.
+All molecular flows use $6$ mixed spline transforms, $32$ bins, conditioner widths $(256,256)$, spline bound $8$, and minimum slope $10^{-3}$, and are initialized at the identity. The validation and batch sizes $(N,B)$ are $(100000,5000)$ for methane, $(120000,6000)$ for ethane, $(160000,8000)$ for propane, and $(200000,10000)$ for butane through hexane. Each accepted flow stage uses $500$ Adam steps for methane through propane, $400$ for butane, and $300$ for pentane and hexane, with learning rate $10^{-3}$ and $25$ warmup steps. {\color{blue}Every molecular run uses ladder length $M=8$, so the SMC screen and the training surrogate both traverse $8$ annealing levels}; mixed-domain MALA uses $100$ steps of size $10^{-3}$. QT uses melt scale $1$, $200$ L-BFGS steps with initial step $10^{-2}$, and the complete molecular QT set. The safe start is $0.25$ for methane and ethane and $0.1$ for the larger molecules. The validation gate is $0.4$ throughout; the SMC gate is $0.3$ for methane and ethane, $0.5$ for propane, and $0.8$ for butane through hexane.
 
 \begin{table}[htb]
 \centering
@@ -1012,9 +1012,9 @@ All molecular flows use $6$ mixed spline transforms, $32$ bins, conditioner widt
 \toprule
 \multirow{2}{*}{molecule (\(d\))} &
 \multirow{2}{*}{start \(\rho_0\)} &
-\multicolumn{3}{c}{ID} &
-\multicolumn{3}{c}{KL} &
-\multicolumn{3}{c}{KLXX} \\
+\multicolumn{3}{c}{{\color{blue}identity}} &
+\multicolumn{3}{c}{{\color{blue}forward KL}} &
+\multicolumn{3}{c}{{\color{blue}$\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$}} \\
 \cmidrule(lr){3-5}\cmidrule(lr){6-8}\cmidrule(l){9-11}
 & & \(\hat F_\Sigma\) & stages & time
   & \(\hat F_\Sigma\) & stages & time
@@ -1051,7 +1051,7 @@ ethane (18) & \((100,0.15)\)
 & 171.3 & 10 & 17.4 & 170.1 & 10 & 22.7 & \(\mathbf{114.5}\) & 10 & 60.1 \\
 \bottomrule
 \end{tabular}
-\caption{Alkane Boltzmann generator training results, including propagation factor \(\hat F_\Sigma\), the number of accepted stages, and total wall time in minutes. ID applies the identity map at every stage, whereas KL and KLXX may select a trained flow when it improves validation ESS. Each row reports one seed and one regularization path; bold marks the lowest \(\hat F_\Sigma\) among the three methods for that path. Every path ends at \((100,0.15)\), and rows that start at \((100,0.15)\) use no sharpening.}
+\caption{Alkane Boltzmann generator training results, including propagation factor \(\hat F_\Sigma\), the number of accepted stages, and total wall time in minutes. {\color{blue}Identity applies the identity map at every stage, whereas forward KL and KLXX} may select a trained flow when it improves validation ESS. Each row reports one seed and one regularization path; bold marks the lowest \(\hat F_\Sigma\) among the three methods for that path. Every path ends at \((100,0.15)\), and rows that start at \((100,0.15)\) use no sharpening.}
 \label{tab: alkane-summary}
 \end{table}
 
@@ -1070,7 +1070,7 @@ The endpoint-to-physical weights of \eqref{eq: molecular-ress} are nearly unifor
 
 The KLXX curves are unweighted summaries of the finite-endpoint sample sets; the physical energy $E$ is evaluated only as an observable, without endpoint-to-physical resampling. The physical-potential reference uses two seeds and a $0.25\,\mathrm{fs}$ timestep. Methane through propane use $300\,\mathrm K$ Langevin trajectories; butane through hexane use $300$--$800\,\mathrm K$ PT to mix the backbone rotamers. Across the six molecules, the maximum relative difference between KLXX and reference physical-energy means is $0.644\%$. The largest relative difference among the nonzero carbon radius-of-gyration and terminal-distance means is $1.058\%$, and the largest absolute rotamer-fraction difference is $0.051$. These results show agreement for the selected energy, size, and rotamer summaries across the \(\mathrm C_1\)--\(\mathrm C_6\) series. 
 
-All thirty ID, KL, and KLXX run manifests used in Table~\ref{tab: alkane-summary} are complete, but each configuration has one training seed. The reference frames are correlated, and the two-seed ranges are descriptive rather than framewise confidence intervals. The table therefore compares the recorded runs; it does not estimate run-to-run variation or distance between the complete equilibrium measures.
+All thirty {\color{blue}identity, forward KL,} and KLXX run manifests used in Table~\ref{tab: alkane-summary} are complete, but each configuration has one training seed. The reference frames are correlated, and the two-seed ranges are descriptive rather than framewise confidence intervals. The table therefore compares the recorded runs; it does not estimate run-to-run variation or distance between the complete equilibrium measures.
 
 
 \subsection{Additional achiral molecule results}
@@ -1207,7 +1207,7 @@ sample set & \(\alpha_{\mathrm L}\) & \(\beta\)/PPII & \(\alpha_{\mathrm R}\) \\
 $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & 0.0031 & 0.7958 & 0.2012 \\
 ground truth & 0.0033 & 0.7940 & 0.2027 \\
 \midrule
-& \multicolumn{3}{c}{mean free energy over reference-classified bins} \\
+& \multicolumn{3}{c}{{\color{blue}mean free energy by region}} \\
 \cmidrule(l){2-4}
 sample set & low & high & all \\
 \midrule
@@ -1241,7 +1241,7 @@ sample set & gauche\(-\) & gauche\(+\) & trans \\
 $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & 0.1486 & 0.1861 & 0.6652 \\
 OpenMM reference & 0.1425 & 0.1726 & 0.6849 \\
 \midrule
-& \multicolumn{3}{c}{mean free energy over reference-classified bins} \\
+& \multicolumn{3}{c}{{\color{blue}mean free energy by region}} \\
 \cmidrule(l){2-4}
 sample set & low & high & all \\
 \midrule
@@ -1253,7 +1253,7 @@ OpenMM reference & 1.259 & 5.353 & 4.309 \\
 \label{tab: mol-butanediol-reference}
 \end{table}
 
-KLXX and the 2,3-butanediol reference agree closely: the rotamer populations differ by at most \(0.020\), in the dominant trans well; the mean free energies by at most \(0.23\,k_{\mathrm B}T\); and at matched sample count the maxima by \(0.02\,k_{\mathrm B}T\) and \(0.00\,k_{\mathrm B}T\). The residual trans difference is larger than the reference's own sampling error, which the rotamer transition count places near \(0.003\), so it is not attributable to reference noise alone.
+KLXX and the 2,3-butanediol reference agree closely: the rotamer populations differ by at most \(0.020\), in the dominant trans well; the mean free energies {\color{blue}on the heavy-atom torsions} by at most \(0.23\,k_{\mathrm B}T\); and at matched sample count the maxima by \(0.02\,k_{\mathrm B}T\) {\color{blue}on the heavy-atom torsions, \(7.52\) against \(7.54\),} and \(0.00\,k_{\mathrm B}T\) {\color{blue}on the hydroxyl torsions, \(4.04\) against \(4.04\)}. The residual trans difference is larger than the reference's own sampling error, which the rotamer transition count places near \(0.003\), so it is not attributable to reference noise alone.
 
 Ac-Pro-NHMe adds a ring degree of freedom and a cis/trans peptide torsion. Figure~\ref{fig: mol-ac-pro-landscape} compares the accepted stage nearest \(t=0.5\) with the final stage.
 Table~\ref{tab: mol-ac-pro-reference} compares the final KLXX stage against the Ac-Pro-NHMe reference. The two sets agree on the qualitative picture and disagree quantitatively on the minority sector: both populate cis and trans with trans as the majority, and the two cis-to-trans free energy differences are within \(0.53\,\mathrm{kJ/mol}\) of each other, while the cis populations differ by \(0.0244\).
@@ -1270,13 +1270,13 @@ Table~\ref{tab: mol-ac-pro-reference} compares the final KLXX stage against the 
 \small
 \begin{tabular}{lccc}
 \toprule
-sample set & cis & trans & \(\Delta G(\mathrm{cis}-\mathrm{trans})\) \\
+sample set & cis & trans & {\color{blue}free energy} \\
 \midrule
 $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ & 0.1199 & 0.8801 & 4.97 \\
 OpenMM reference & 0.1443 & 0.8557 & 4.44 \\
 \bottomrule
 \end{tabular}
-\caption{Ac-Pro-NHMe peptide torsion populations at the final accepted stage against an independent OpenMM reference, with \(1.5\times10^7\) inference samples and \(2\times10^6\) reference samples. Cis is \(|\omega|<\pi/2\), counted per sample on both sides. Free energy differences are in kJ/mol.}
+\caption{Ac-Pro-NHMe peptide torsion populations at the final accepted stage against an independent OpenMM reference, with \(1.5\times10^7\) inference samples and \(2\times10^6\) reference samples. Cis is \(|\omega|<\pi/2\), counted per sample on both sides. Free energy differences are {\color{blue}cis minus trans,} in kJ/mol.}
 \label{tab: mol-ac-pro-reference}
 \end{table}
 
@@ -1321,7 +1321,7 @@ memory. All reported wall times correspond to this overclocked
 configuration.
 
 {
-	\bibliographystyle{plainnat}
+	\bibliographystyle{abbrvnat}
 	\bibliography{references}
 }
 
@@ -1417,6 +1417,13 @@ This yields the FR gradient flow \eqref{eq: FR-flow} stated in Section~\ref{sec:
 \end{equation*}
 so a unit mass at $t=0$ is preserved for all $t$,
 and the flow is stationary at $\nu_t = \mu$.
+
+{\color{blue}
+\begin{remark}
+\label{rem: subgradient}
+The map $\nu \mapsto \X_\mu(\mu\|\nu)$ is not G\^ateaux differentiable where the weights tie. The integrand $|\log w(x) - \log w(y)|$ has no derivative on $\{z(x) = z(y)\}$, where its subdifferential is the interval $[-1,1]$, and the convention $\operatorname{sgn}(0)=0$ used above selects the element of least norm from that interval. The variation \eqref{eq: appendix-var-X} is therefore a subgradient of $\X_\mu$ rather than a derivative, and \eqref{eq: FR-flow} is a subgradient flow. Throughout this paper we still write gradient flow for simplicity.
+\end{remark}
+}
 
 \subsection{Convergence analysis of the \texorpdfstring{$\X_\mu$}{X-mu}-regularized flow}
 \label{subsec: appendix-FR-convergence}
