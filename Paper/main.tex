@@ -218,7 +218,11 @@ This section turns the abstract loss of the introduction into a training algorit
 \subsection{Training loss with log-ratio variation}
 \label{subsec: total-loss}
 
-By change of variables, the pushforward density is $\nu(y)=\mu_0(G(y))|\det J_G(y)|$, so every term is a functional of the scalar field $z(y)$ in \eqref{eq: logratio-z}. The forward KL is its mean under the target, $\KL(\mu\|\nu)=\mathbb E_{y\sim\mu}[z(y)]$. Set $\vartheta:=\alpha+\beta$. For $\vartheta>0$, let $\xi:=(\alpha\hat\mu+\beta\bar\nu)/\vartheta$ be the normalized mixture, with any zero-weight component omitted. Since $\alpha\hat\mu+\beta\bar\nu=\vartheta\xi$, the double integral in \eqref{eq: X} produces the factor $\vartheta^2$ below. The map-level loss is
+By change of variables, the pushforward density is $\nu(y)=\mu_0(G(y))|\det J_G(y)|$, so every term is a functional of the scalar field $z(y)$ in \eqref{eq: logratio-z}:
+\begin{equation*}
+    z(y)=\log\frac{\mu(y)}{\nu(y)} = U_0(G(y)) - U(y) - \log|\det J_G(y)|.
+\end{equation*}
+The forward KL is its mean under the target, $\KL(\mu\|\nu)=\mathbb E_{y\sim\mu}[z(y)]$. Set $\vartheta:=\alpha+\beta$. For $\vartheta>0$, let $\xi:=(\alpha\hat\mu+\beta\bar\nu)/\vartheta$ be the normalized mixture, with any zero-weight component omitted. Since $\alpha\hat\mu+\beta\bar\nu=\vartheta\xi$, the double integral in \eqref{eq: X} produces the factor $\vartheta^2$ below. The map-level loss is
 \begin{align}
     \mathcal{L}[G]
     &= \underbrace{\mathbb{E}_{y \sim \mu}\bigl[z(y)\bigr]}_{\KL(\mu\|\nu)}
@@ -234,7 +238,7 @@ The three sampling measures entering \eqref{eq: total-loss-G} address complement
     \item \emph{$\hat\mu$: candidate mode coverage.} QT provides log-ratio comparisons on basins represented in its wide-coverage set, including basins absent from the annealed batch. The melt scale $m_e$ in Algorithm~\ref{alg: QT} controls how broadly QT searches.
     \item \emph{$\bar\nu$: proposal support.} Pushforward samples evaluate the log-ratio where the current proposal places mass. The term is intended to reduce variation in target-poor regions; the experiments test whether this is accompanied by less visible leakage.
 \end{itemize}
-Adding these nonnegative terms to the exact target forward KL preserves $\nu=\mu$ as a minimizer. The terms change which samples enter the loss without changing that reference solution.
+Adding these nonnegative terms to the exact target forward KL preserves $\nu=\mu$ as a minimizer. Both $z(y)$ and $\bar\nu$ depend explicitly on the flow $G$, but only the dependence through $z(y)$ enters the differentiation graph of the loss $\mathcal L[G]$ during training.
 
 The forward KL and $\X_\mu$ share one target batch. Evaluate $\mathbf z = (z(y_1),\dots,z(y_B))$, use $\mathrm{mean}(\mathbf z)$ for the forward KL, and use $\mathrm{mean}(|\mathbf z - \mathbf z[\sigma]|)$ for $\X_\mu$, where $\sigma$ is a uniformly random batch permutation. This estimator introduces no additional flow evaluation or differentiation because it reuses the same $\mathbf z$ and the same flow differentiation graph; the only added operations are the random permutation and pairwise difference. When $\vartheta>0$, the last term evaluates one additional batch drawn from $\xi$, applies the same permuted-pair estimator, and multiplies it by $\vartheta^2$. At the KLXX setting, each sample in this additional batch is drawn from $\hat\mu$ or $\bar\nu$ with probability $1/2$.
 
@@ -242,25 +246,27 @@ The loss draws on three measures, but $\bar\nu$ requires no construction beyond 
 
 Two recurring losses are $\KL$+$\X_\mu$, with $\lambda=1$ and $\alpha=\beta=0$, and KLXX, with $\lambda=1$ and $\alpha=\beta=\frac12$. The first adds no sampling measure beyond the target batch, while the second draws the two components of its additional batch with equal probability. We report the full KLXX loss as $\KL$+$\X_\mu$+$\X_{(\hat\mu+\bar\nu)/2}$ when it must be distinguished from the other ablations.
 
+\begin{remark}
 We do not train with log-ratio variation alone, because empirical pairwise terms constrain relative log-ratios only on sampled regions and provide no global density-shaping constraint elsewhere. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} shows the analogous failure: training with LDR-L1 or LDR-L2 alone, without a KL term, produces qualitatively incorrect distributions. Accordingly, every $\X$-regularized loss in this paper includes forward KL.
+\end{remark}
 
 \subsection{Approximating $\mu$ by annealed importance sampling}
 \label{subsec: annealing}
 
-Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples from $\mu$, which are not directly available. We form a surrogate by drawing pushforward samples $y_1,\dots,y_B$ from $\nu=(G^{-1})_{\#}\mu_0$ and reweighting them. In the theory, the normalized importance ratio is $w=\mu/\nu$. Computation uses the proportional weight
+Evaluating the $\mu$-expectations in \eqref{eq: total-loss-G} requires samples from $\mu$, which are not directly available. We form a surrogate by drawing pushforward samples $y_1,\dots,y_B$ from $\nu=(G^{-1})_{\#}\mu_0$ and reweighting them. The importance weight is
 \begin{equation}
-    \widetilde w(y)
-    := \exp\Big( U_0(G(y)) - U(y) - \log|\det J_G(y)| \Big)
-    \propto \frac{\mu(y)}{\nu(y)},
+    w(y)
+    = \exp\Big( U_0(G(y)) - U(y) - \log|\det J_G(y)| \Big)
+    = \frac{\mu(y)}{\nu(y)},
     \qquad y \in \mathbb R^d.
     \label{eq: weight}
 \end{equation}
-Below, $w_i$ denotes these proportional weights because resampling, normalized ESS, and log-ratio differences are scale invariant. In high dimensions, however, $\mu$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We temper the reweighting through $M+1$ bridge distributions
+Below, $w_i$ denotes the importance weight $w(y_i)$ at the sampled point $y_i$. In high dimensions, however, $\mu$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We temper the reweighting through $M+1$ bridge distributions
 \begin{equation}
-    \pi_m(y) \propto \nu(y)^{1-\frac{m}{M}} \mu(y)^{\frac{m}{M}} \propto ((G^{-1})_{\#}\mu_0)(y)\, \widetilde w(y)^{\frac{m}{M}}, \qquad m = 0,1,\dots,M,
+    \pi_m(y) \propto \nu(y)^{1-\frac{m}{M}} \mu(y)^{\frac{m}{M}} \propto ((G^{-1})_{\#}\mu_0)(y)\, w(y)^{\frac{m}{M}}, \qquad m = 0,1,\dots,M,
     \label{eq: pi-m}
 \end{equation}
-so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each level reweights by only $\widetilde w(y)^{1/M}$, reducing the degeneracy of direct importance sampling.
+so that $\pi_0 = \nu$ and $\pi_M = \mu$. Each level reweights by only $w(y)^{1/M}$, reducing the degeneracy of direct importance sampling.
 After each reweighting, we resample and diffuse the duplicates with the Metropolis-adjusted Langevin algorithm (MALA) \citep{roberts1996exponential} before the next level.
 
 
@@ -272,9 +278,9 @@ After each reweighting, we resample and diffuse the duplicates with the Metropol
 \KwOutput{biased target-surrogate batch $y_1,\dots,y_B$ approximating $\mu$}
 
 \For{$m = 1,\dots,M$}{
-    Compute the incremental weights $\widetilde w(y_i)^{1/M}=\exp(z(y_i)/M)$ on $y_1,\dots,y_B$\;
+    Compute the incremental weights $w(y_i)^{1/M}=\exp(z(y_i)/M)$ on $y_1,\dots,y_B$\;
     \tcp{resample}
-    Resample from the weighted set, $y_1',\dots,y_B' \gets \mathrm{resample}\bigl(y_{1:B}, (\widetilde w(y_i)^{1/M})_{i=1}^B\bigr)$\;
+    Resample from the weighted set, $y_1',\dots,y_B' \gets \mathrm{resample}\bigl(y_{1:B}, (w(y_i)^{1/M})_{i=1}^B\bigr)$\;
     \tcp{rejuvenate under the target}
     Diffuse the resampled duplicates by a short MALA chain on $\mu$, $y_{1:B} \gets \mathrm{MALA}(y_{1:B}', U)$\;
 }
@@ -289,6 +295,12 @@ The AIS construction in Algorithm~\ref{alg: annealing} differs from FAB \citep{m
 and therefore contains the positional gradient of the pushforward density at every MCMC step. FAB trains from a prioritized replay buffer of weighted AIS samples with a staleness correction. Reusing this buffer reduces repeated AIS generation but adds storage, prioritized sampling, and correction work. Here every MALA chain instead targets $\mu$ and uses only $-\nabla U$; the flow enters through the initial pushforward samples and evaluations of $z$. Each gradient step starts from a new source batch, so no replay buffer is kept.
 
 The exploration costs also differ. Relative to forward KL, KLXX adds the QT construction and pairwise log-ratio variation evaluations: $\X_\mu$ reuses the target batch, while the mixture term evaluates an additional batch. The fixed $N$-sample QT set of Section~\ref{subsec: QT} supplies separate coverage information, whereas FAB relies on its AIS budget for exploration. FAB's $2$-divergence gives it a stronger tail-coverage incentive.
+
+\begin{remark}
+In principle, AIS or another SMC sampler can propagate from the source $\mu_0$ to the target $\mu$ on its own, with no flow at all. Two drawbacks argue against that choice. First, such a sampler explores only where its own trajectories go, so nothing guarantees coverage of the target modes; the QT set of Section~\ref{subsec: QT} is what supplies candidate modes in KLXX. Second, with no flow to deform the proposal toward the next distribution, each level reweights and resamples at a much lower ESS, and repeated resampling of a degenerate weight set raises the Monte Carlo error of the returned samples.
+
+The Boltzmann generator of Section~\ref{sec: boltzmann} compares each trained flow with the identity proposal and keeps whichever has the larger validation ESS, so an accepted stage is never worse than the identity in that diagnostic, up to the finite validation sample. A trained Boltzmann generator therefore has no reason to perform systematically worse than the identity, which propagates by reweighting, resampling, and MALA alone. Section~\ref{sec: alkane-results} reports the empirical side: the KLXX Boltzmann generator has the smallest propagation factor in all ten recorded alkane settings, while forward KL approaches the identity result as the molecule grows.
+\end{remark}
 
 \subsection{Constructing \texorpdfstring{$\hat\mu$}{mu-hat} by quench and temper}
 \label{subsec: QT}
@@ -322,7 +334,7 @@ On a torus or Euclidean--torus product, periodic coordinates are interpreted mod
 
 We assess the quality of the pushforward samples through two complementary diagnostics. The ESS measures density agreement through the observed importance weights on support reached by the flow. Coverage instead checks whether the pushforward samples reach the regions represented by a fixed QT reference set. A high ESS can coexist with a missing mode, while high coverage does not establish the correct relative density within the reached regions. We therefore report the two diagnostics together.
 
-At evaluation time the trained flow $G$ supplies the pushforward distribution $\nu=(G^{-1})_{\#}\mu_0$ and its tractable density $\nu(y)=\mu_0(G(y))|\det J_G(y)|$. The proportional importance weight $\widetilde w(y)$ in \eqref{eq: weight} can therefore be evaluated on pushforward samples without fitting another density model. Draw $\mathbf y=(y_1,\dots,y_N)$ with $y_i=G^{-1}(x_i)$ and $x_i\sim\mu_0$ independently, and write $\mathbf w=(w_1,\dots,w_N)$ for any common scaling of the corresponding positive weights.
+At evaluation time the trained flow $G$ supplies the pushforward distribution $\nu=(G^{-1})_{\#}\mu_0$ and its tractable density $\nu(y)=\mu_0(G(y))|\det J_G(y)|$. The importance weight $w(y)$ in \eqref{eq: weight} can therefore be evaluated on pushforward samples without fitting another density model. Draw $\mathbf y=(y_1,\dots,y_N)$ with $y_i=G^{-1}(x_i)$ and $x_i\sim\mu_0$ independently, and write $\mathbf w=(w_1,\dots,w_N)$ for the corresponding weights $w_i=w(y_i)$.
 
 The first diagnostic is the ESS, normalized to $(0,1]$ by dividing the classical ESS by the sample count $N$. For the weight vector $\mathbf w$, define
 \begin{equation}
@@ -442,7 +454,7 @@ The stage loss then reads
 \end{align}
 The $\mu_k$-expectations are estimated from the biased annealed surrogate: a batch $\mathcal X$ drawn from $\mathcal Y_{k-1}$ is mapped to the batch of pushforward samples $\bar{\mathcal X}_\nu = G_k^{-1}(\mathcal X)$, approximating $\nu_k$, and annealed toward $\mu_k$ by Algorithm~\ref{alg: annealing} with $G = G_k$. The batch $\mathcal X_{\xi_k}$ is formed by drawing from $\hat\mu_k$ with probability $\alpha/\vartheta$, and from $\bar\nu_k$ with probability $\beta/\vartheta$; the permuted-pair estimate is then multiplied by $\vartheta^2$. The choices $(\lambda,\alpha,\beta)=(0,0,0)$ and $(1,0,0)$ give forward KL and $\KL$+$\X_{\mu}$, respectively; $(1,1,0)$ gives $\KL$+$\X_\mu$+$\X_{\hat\mu}$, and $(1,\frac12,\frac12)$ gives the default KLXX loss.
 
-\item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained set of pushforward samples $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with proportional importance weights represented by
+\item \emph{Validation set update.} Once the candidate $G_k$ is trained, each $y \in \mathcal Y_{k-1}$ is pushed through its inverse to $\tilde y = G_k^{-1}(y)$. This gives the trained set of pushforward samples $\tilde{\mathcal Y}_k^{\mathrm{tr}} = G_k^{-1}(\mathcal Y_{k-1})$ from $\nu_k = (G_k^{-1})_{\#}\mu_{k-1}$, together with the importance weights
 \begin{equation*}
     w_k^{\mathrm{tr}}(\tilde y) := \exp\bigl(z_k(\tilde y)\bigr),
     \qquad \tilde y \in \tilde{\mathcal Y}_k^{\mathrm{tr}} .
