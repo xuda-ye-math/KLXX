@@ -19,8 +19,10 @@ is measured against a quench and temper reference sample set.
 
 Run from the repo root:
     python Codes/2D_Benchmark/Sparse/train.py
-Writes final figures below ``results/`` and the temporary log below
-``artifacts/``.
+Writes ``artifacts/data.npz`` (target energy grid, source samples, and the
+pushforward samples, training ESS history, final ESS and coverage of each
+method) and the log below ``artifacts/``. Render the figures from that file
+with ``result.py``.
 """
 
 import os
@@ -31,12 +33,7 @@ os.environ.setdefault("XLA_PYTHON_CLIENT_PREALLOCATE", "false")
 
 import jax
 import jax.numpy as jnp
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib.colors import LinearSegmentedColormap
 
 from jflows.flow import NSF
 from jflows.potential import Nlog_Gaussian, Nlog_Gaussian_Mixture
@@ -50,12 +47,12 @@ from jflows.utils import (
 
 HERE = Path(__file__).resolve().parent
 ARTIFACTS = HERE / "artifacts"
-RESULTS = HERE / "results"
 LOG = ARTIFACTS / "train.log"
+DATA = ARTIFACTS / "data.npz"
 
 # boundary of the domain
 SIGMA = 0.6            # standard deviation of the isotropic Gaussian source mu_0
-PLT_LIM = 4.0          # half-width of the plot window
+PLT_LIM = 4.0          # half-width of the energy grid stored for the figures
 NSF_LIM = 5.0          # half-width of the NSF spline domain
 
 # NSF flow architecture
@@ -99,25 +96,8 @@ METHODS = (
     "KL+X_mu+X_hat_mu",
     "KL+X_mu+X_mix",
 )
-METHOD_LABEL = {
-    "KL":               "forward KL",
-    "KL+X_mu":          r"forward KL+$\mathrm{X}_\mu$",
-    "KL+X_mu+X_hat_mu": r"forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$",
-    "KL+X_mu+X_mix":    r"forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$",
-}
-METHOD_COLOR = {
-    "KL":               "#1F77B4A0",   # tab:blue
-    "KL+X_mu":          "#2CA02CA0",   # tab:green
-    "KL+X_mu+X_hat_mu": "#D62728A0",   # tab:red
-    "KL+X_mu+X_mix":    "#9467BDA0",   # tab:purple
-}
-
-plt.rcParams.update({
-    "font.size": 10, "axes.labelsize": 11, "axes.titlesize": 11,
-    "legend.fontsize": 9, "xtick.labelsize": 9, "ytick.labelsize": 9,
-    "mathtext.fontset": "cm", "font.family": "serif",
-})
-CMAP = LinearSegmentedColormap.from_list("light_yellow_red", ["#fffefa", "#ffe5e5"])
+GRID_SIZE: int = 300      # energy grid points per axis
+PRIOR_SIZE: int = 5000    # source samples drawn for the figure background
 
 
 # source: Gaussian mu_0
@@ -140,7 +120,6 @@ def log(msg: str) -> None:
 
 def main() -> None:
     ARTIFACTS.mkdir(parents=True, exist_ok=True)
-    RESULTS.mkdir(parents=True, exist_ok=True)
     open(LOG, "w").close()   # fresh log per run (no appending)
     log(f"START Sparse | jax {jax.__version__} | backend {jax.default_backend()} | "
         f"VALID_SZIE={VALID_SZIE} BATCH_SZIE={BATCH_SZIE} TRAIN_STEPS={TRAIN_STEPS} LR={LR} "
@@ -161,7 +140,16 @@ def main() -> None:
     y_hat_ref = jax.block_until_ready(y_hat_ref)
     log(f"QT reference set ready ({REFER_SZIE} samples)")
 
-    runs = {}
+    # figure background: target energy on a grid and a source sample cloud
+    xs = np.linspace(-PLT_LIM, PLT_LIM, GRID_SIZE)
+    X1, X2 = np.meshgrid(xs, xs, indexing="xy")
+    grid = jnp.stack([jnp.asarray(X1.ravel()), jnp.asarray(X2.ravel())], axis=-1)
+    store = {"X1": X1, "X2": X2,
+             "U_grid": np.asarray(u1(grid)).reshape(X1.shape),
+             "prior": np.asarray(u0.samples(jax.random.key(42), PRIOR_SIZE))}
+    np.savez(DATA, **store)
+    log(f"wrote the energy grid and source samples to {DATA}")
+
     for name in METHODS:
         t0 = time.time()
         mon = Monitor(100, f"[{name}] ", log)
@@ -202,55 +190,18 @@ def main() -> None:
         log_weights = importance_weights_log(x_valid, u0, u1, flow, type="G")
         ess = float(compute_ESS_log(log_weights))
         cov = float(coverage(y_push, y_hat_ref, k=COVERAGE_K, chunks=10))
-        runs[name] = {"samples": np.asarray(y_push),
-                      "batch_ess_hist": np.asarray(batch_ess_hist),
-                      "final_ess": ess, "coverage": cov}
+        store[f"samples_{name}"] = np.asarray(y_push)
+        store[f"ess_hist_{name}"] = np.asarray(batch_ess_hist)
+        store[f"final_ess_{name}"] = np.asarray(ess)
+        store[f"coverage_{name}"] = np.asarray(cov)
+        np.savez(DATA, **store)   # rewritten as each method completes
         log(f"[{name}] done in {time.time() - t0:.1f}s   final ESS = {ess:.4f}   "
             f"coverage_k={COVERAGE_K} = {cov:.4f}   (VALID_SZIE = {VALID_SZIE})")
 
-    # ── samples.png: panels of pushforward samples over the target energy ──
-    log("rendering samples.png + ess.png ...")
-    n = 300
-    xs = np.linspace(-PLT_LIM, PLT_LIM, n)
-    X1, X2 = np.meshgrid(xs, xs, indexing="xy")
-    grid = jnp.stack([jnp.asarray(X1.ravel()), jnp.asarray(X2.ravel())], axis=-1)
-    U_grid = np.asarray(u1(grid)).reshape(X1.shape)
-    levels = np.linspace(-2.0, 20.0, 50).tolist()
-    prior_np = np.asarray(u0.samples(jax.random.key(42), 5000))
-
-    fig, axes = plt.subplots(1, 4, figsize=(10, 3))
-    for col, name in enumerate(METHODS):
-        ax = axes[col]
-        ax.contourf(X1, X2, U_grid, levels=levels, cmap=CMAP.reversed(), extend="max")
-        ax.contour(X1, X2, U_grid, levels=levels, colors="gray", linewidths=0.2, alpha=0.2)
-        ax.scatter(prior_np[:, 0], prior_np[:, 1], s=0.04, alpha=0.3, color="gray", zorder=5)
-        s = runs[name]["samples"]
-        ax.scatter(s[:, 0], s[:, 1], s=0.04, alpha=0.35, color=METHOD_COLOR[name], zorder=10)
-        ax.set_xlim(-PLT_LIM, PLT_LIM); ax.set_ylim(-PLT_LIM, PLT_LIM)
-        ax.set_aspect("equal")
-        ax.set_xlabel(r"$x_1$"); ax.set_ylabel(r"$x_2$")
-        ax.set_title(f"{METHOD_LABEL[name]}\n"
-                     f"ESS = $\\mathbf{{{runs[name]['final_ess']:.2f}}}$, "
-                     f"cvrg = $\\mathbf{{{runs[name]['coverage']:.2f}}}$")
-    plt.tight_layout()
-    samples_out = RESULTS / "samples.png"
-    fig.savefig(samples_out, dpi=400, bbox_inches="tight")
-    plt.close(fig)
-    log(f"saved {samples_out}")
-
-    # ── ess.png: per-step training ESS histories ──
-    fig, ax_ess = plt.subplots(1, 1, figsize=(5, 4))
     for name in METHODS:
-        ax_ess.plot(runs[name]["batch_ess_hist"], color=METHOD_COLOR[name],
-                    label=METHOD_LABEL[name], linewidth=0.6)
-    ax_ess.set_xlabel("step"); ax_ess.set_ylabel("ESS")
-    ax_ess.set_xlim(0, TRAIN_STEPS); ax_ess.set_ylim(0, 1)
-    ax_ess.legend(loc="lower right")
-    plt.tight_layout()
-    ess_out = RESULTS / "ess.png"
-    fig.savefig(ess_out, dpi=300, bbox_inches="tight")
-    plt.close(fig)
-    log(f"DONE — figures at {samples_out} and {ess_out}")
+        log(f"{name:<20s} final ESS = {float(store[f'final_ess_{name}']):.4f}   "
+            f"coverage_k={COVERAGE_K} = {float(store[f'coverage_{name}']):.4f}")
+    log(f"DONE — data at {DATA}; render the figures with result.py")
 
 
 if __name__ == "__main__":
