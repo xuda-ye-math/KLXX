@@ -33,9 +33,9 @@ METHODS = (
 )
 METHOD_LABEL = {
     "KL":               "forward KL",
-    "KL+X_mu":          r"forward KL+$\mathrm{X}_\mu$",
-    "KL+X_mu+X_hat_mu": r"forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$",
-    "KL+X_mu+X_mix":    r"forward KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$",
+    "KL+X_mu":          r"forward KL+$\mathrm{X}_\pi$",
+    "KL+X_mu+X_hat_mu": r"forward KL+$\mathrm{X}_\pi$+$\mathrm{X}_{\hat\pi}$",
+    "KL+X_mu+X_mix":    r"forward KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$",
 }
 METHOD_COLOR = {
     "KL":               "#1F77B4A0",   # tab:blue

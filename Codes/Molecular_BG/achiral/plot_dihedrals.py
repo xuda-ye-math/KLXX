@@ -820,7 +820,7 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
             color=BLUE,
             linewidth=2.2,
             linestyle=(0, (6, 3)),
-            label=r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\mu}$",
+            label=r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\pi}$",
         ),
         Line2D(
             [0],
@@ -828,8 +828,8 @@ def plot(arrays: dict[str, np.ndarray]) -> None:
             color=RED,
             linewidth=2.3,
             label=(
-                r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\mu}$+"
-                r"$\mathrm{X}_{(\hat{\mu}+\bar{\nu})/2}$"
+                r"regularized Boltzmann generator: $\mathrm{KL}$+$\mathrm{X}_{\pi}$+"
+                r"$\mathrm{X}_{(\hat{\pi}+\bar{\nu})/2}$"
             ),
         ),
     ]

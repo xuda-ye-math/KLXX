@@ -15,18 +15,18 @@ DIMENSIONS = tuple(range(16, 257, 16))
 
 METHODS = (
     ("KL", "kl", "forward KL", "#1F77B4", "o"),
-    ("KL+X_mu", "klx", r"KL+$\mathrm{X}_\mu$", "#2CA02C", "s"),
+    ("KL+X_mu", "klx", r"KL+$\mathrm{X}_\pi$", "#2CA02C", "s"),
     (
         "KL+X_mu+X_hat_mu",
         "klxx_hat_mu",
-        r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{\hat\mu}$",
+        r"KL+$\mathrm{X}_\pi$+$\mathrm{X}_{\hat\pi}$",
         "#D62728",
         "^",
     ),
     (
         "KL+X_mu+X_mix",
         "klxx_mix",
-        r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$",
+        r"KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$",
         "#9467BD",
         "D",
     ),

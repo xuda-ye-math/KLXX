@@ -31,14 +31,14 @@ METHODS = (
     (
         "klx",
         "forward_klx",
-        r"$\mathrm{KL}$+$\mathrm{X}_{\mu}$",
+        r"$\mathrm{KL}$+$\mathrm{X}_{\pi}$",
         BLUE,
         +1,
     ),
     (
         "klxx",
         "forward_klxx",
-        r"$\mathrm{KL}$+$\mathrm{X}_{\mu}$+$\mathrm{X}_{(\hat{\mu}+\bar{\nu})/2}$",
+        r"$\mathrm{KL}$+$\mathrm{X}_{\pi}$+$\mathrm{X}_{(\hat{\pi}+\bar{\nu})/2}$",
         RED,
         -1,
     ),

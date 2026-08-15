@@ -37,7 +37,7 @@
         align=center,
         text=ink
     },
-    support/.style={panel, text width=3.65cm, minimum height=1cm},
+    support/.style={panel, text width=4.15cm, minimum height=1cm},
     ratio/.style={panel, fill=neutral, text width=8.7cm, minimum height=3.55cm},
     term/.style={panel, minimum height=2.65cm, inner sep=2.2mm},
     output/.style={
@@ -59,44 +59,57 @@
 
 \KLXXBeginDocument
 \begin{tikzpicture}[font=\small]
-    \node[font=\Large\bfseries, text=ink] at (0,4.15)
+    % math glue is fixed, so relations in text-width nodes are not stretched
+    \medmuskip=4mu \thickmuskip=5mu
+
+    \node[font=\Large\bfseries, text=ink] at (0,5.53)
         {KLXX: one log-ratio (KL), two log-ratio variations (XX)};
 
-    \node[support, draw=target, fill=targetfill] (targetbatch) at (-5.33,2.50) {%
-        \textbf{Target samples $\mu$}\\[0.8mm]
-        {\scriptsize annealed importance\\[-0.2mm] sampling}
+    \node[output] (output) at (0,4.38) {%
+        \textbf{Training aim}
+        \quad $\displaystyle \nu=(G^{-1})_{\#}\pi_0\approx\pi$\\[0.5mm]
+        {approximate target distribution with pushforward distribution}
     };
 
-    \node[support, draw=coverage, fill=coveragefill] (qtbatch) at (-5.33,1.08) {%
-        \textbf{QT coverage $\hat\mu$}\\[0.8mm]
-        {\scriptsize candidate modes}
+    \node[support, draw=target, fill=targetfill] (targetbatch) at (-5.08,2.78) {%
+        \textbf{Target samples $\pi$}\\[0.8mm]
+        {\scriptsize annealed importance sampling}
     };
 
-    \node[support, draw=proposal, fill=proposalfill, inner ysep=1.5mm] (modelbatch) at (-5.33,-0.34) {%
+    \node[support, draw=coverage, fill=coveragefill] (qtbatch) at (-5.08,1.08) {%
+        \textbf{QT coverage $\hat\pi$}\\[0.8mm]
+        {\scriptsize melt+\textbf{q}uench+\textbf{t}emper}\\[-0.2mm]
+        {\scriptsize search candidate modes}
+    };
+
+    \node[support, draw=proposal, fill=proposalfill, inner ysep=1.5mm] (modelbatch) at (-5.08,-0.62) {%
         \textbf{Pushforward $\bar\nu$}\\[0.6mm]
-        {\scriptsize $x\sim\mu_0\xrightarrow{\;G^{-1}\;}y\sim\nu$}\\[-0.2mm]
+        {\scriptsize $x\sim\pi_0\xrightarrow{\;G^{-1}\;}y\sim\nu$}\\[-0.2mm]
         {\scriptsize detached from autograd}
     };
 
     \node[ratio] (ratio) at (2.81,1.08) {%
     	\textbf{Pushforward density} \\[5pt]
         $\displaystyle
-        \nu=(G^{-1})_{\#}\mu_0
+        \nu=(G^{-1})_{\#}\pi_0
         \quad\Longrightarrow\quad
-        \nu(y)=\mu_0\bigl(G(y)\bigr)\,\lvert\det J_G(y)\rvert
+        \nu(y)=\pi_0\bigl(G(y)\bigr)\,\lvert\det J_G(y)\rvert
         $ \\[7pt]
         \textbf{Log-ratio term} \\[5pt]
         $\displaystyle
-            z(y):=\log\frac{\mu(y)}{\nu(y)}
+            z(y):=\log\frac{\pi(y)}{\nu(y)}
             =U_0\bigl(G(y)\bigr)-U(y)-\log\lvert\det J_G(y)\rvert$
     };
 
     \draw[flow, draw=target]
-        (targetbatch.east) -- ([yshift=14.2mm]ratio.west);
+        (targetbatch.east) -- ([yshift=17mm]ratio.west);
     \draw[flow, draw=coverage]
         (qtbatch.east) -- (ratio.west);
     \draw[flow, draw=proposal]
-        (modelbatch.east) -- ([yshift=-14.2mm]ratio.west);
+        (modelbatch.east) -- ([yshift=-17mm]ratio.west);
+
+    \draw[flow] (output.south -| ratio.north) --
+        node[right=1mm,note] {train flow $G$} (ratio.north);
 
     \node[stage] (losslabel) at (0,-1.45)
         {KLXX loss};
@@ -110,7 +123,7 @@
     \node[term, draw=target, fill=targetfill, text width=3.20cm]
         (meanterm) at (-5.59,-3.45) {%
         \textbf{Target mean}\\[1.2mm]
-        $\displaystyle \mathbb E_{y\sim\mu}[z(y)]$\\[1.2mm]
+        $\displaystyle \mathbb E_{y\sim\pi}[z(y)]$\\[1.2mm]
         {\scriptsize forward KL $\cdot$ target fit}
     };
 
@@ -120,10 +133,10 @@
         (targetterm) at (-1.09,-3.45) {%
         \textbf{Target variation}\\[1.1mm]
         $\displaystyle
-        \mathbb E_{y,y'\sim\mu}
+        \mathbb E_{y,y'\sim\pi}
         \!\left[\lvert z(y)-z(y')\rvert\right]
         $\\[1.1mm]
-        {\scriptsize $\mathrm X_\mu$ $\cdot$ target-weighted variation}
+        {\scriptsize $\mathrm X_\pi$ $\cdot$ target-weighted variation}
     };
 
     \node[font=\Large, text=line] at (1.35,-3.45) {$+$};
@@ -132,14 +145,14 @@
         \textbf{Mixture variation: \textcolor{coverage}{QT}
         $+$ \textcolor{proposal}{pushforward}}\\[0.7mm]
         $\displaystyle
-        \xi=\frac{\textcolor{coverage}{\hat\mu}
+        \xi=\frac{\textcolor{coverage}{\hat\pi}
         +\textcolor{proposal}{\bar\nu}}{2}
         $\\[0.5mm]
         $\displaystyle
         \mathbb E_{y,y'\sim\xi}
         \!\left[\lvert z(y)-z(y')\rvert\right]
         $\\[0.9mm]
-        {\scriptsize mode coverage vs proposal support}
+        {\scriptsize mode coverage vs pushforward support}
     };
 
     \node[fit=(meanterm)(targetterm)(mixterm), inner sep=0pt] (lossrow) {};
@@ -150,13 +163,5 @@
     \draw[flow] (meanterm.north |- lossbus) -- (meanterm.north);
     \draw[flow] (targetterm.north |- lossbus) -- (targetterm.north);
     \draw[flow] (mixterm.north |- lossbus) -- (mixterm.north);
-    \node[output] (output) at ($(lossrow.south)+(0,-0.92)$) {%
-        \textbf{Training aim}
-        \quad $\displaystyle \nu=(G^{-1})_{\#}\mu_0\approx\mu$\\[0.5mm]
-        {approximate target distribution with pushforward samples}
-    };
-    \draw[flow] (lossrow.south) --
-        node[right,note] {train $G$}
-        (output.north);
 \end{tikzpicture}
 \KLXXEndDocument
