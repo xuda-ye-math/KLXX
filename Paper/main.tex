@@ -385,9 +385,9 @@ Initialize $G$ to the identity map\;
 
 {\color{blue}The QT distribution $\hat\pi$ is the wide-coverage measure for the target distribution $\pi$, and its melt, quench and temper construction was described in Section~\ref{subsec: mixture-variation}. In the discrete setting we implement the quench step with L-BFGS \citep{liu1989limited} and the temper step with the Metropolis-adjusted Langevin algorithm (MALA). Algorithm~\ref{alg: QT} writes the construction as the map}
 \begin{equation*}
-    \hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)
+    \hat{\mathcal Y} = \mathrm{QT}(\mathcal Y_0,U)
 \end{equation*}
-from a sample set $\mathcal Y=\{y_1,\dots,y_N\}$ and the target potential $U$ to the $N$ QT samples $\hat{\mathcal Y}=\{\hat y_1,\dots,\hat y_N\}$.
+from the source samples $\mathcal Y_0=\{y_1,\dots,y_N\}$ and the target potential $U$ to the QT samples $\hat{\mathcal Y}=\{\hat y_1,\dots,\hat y_N\}$.
 
 {\color{blue}When the potential function $U$ is possibly singular, we prefer L-BFGS and MALA over plain gradient descent and unadjusted Langevin dynamics, which are less stable near the singularity.} The QT samples can also be built from a subset of $\mathcal Y_0$, at lower cost.
 
@@ -395,8 +395,8 @@ from a sample set $\mathcal Y=\{y_1,\dots,y_N\}$ and the target potential $U$ to
 \setstretch{1.2}
 \caption{Quench and temper (QT): wide-coverage construction}
 \label{alg: QT}
-\KwInput{sample set $\mathcal Y = \{y_1,\dots,y_N\}$, target potential $U$, melt scale $m_e$}
-\KwOutput{wide-coverage set $\hat{\mathcal Y} = \{\hat y_1,\dots,\hat y_N\}$ forming $\hat\pi$, written $\hat{\mathcal Y} = \mathrm{QT}(\mathcal Y,U)$}
+\KwInput{source sample set $\mathcal Y_0 = \{y_1,\dots,y_N\}$, target potential $U$, melt scale $m_e$}
+\KwOutput{wide-coverage set $\hat{\mathcal Y} = \{\hat y_1,\dots,\hat y_N\}$ forming $\hat\pi$, written $\hat{\mathcal Y} = \mathrm{QT}(\mathcal Y_0,U)$}
 \tcp{melt}
 Scatter the samples $y_i \gets y_i + m_e\zeta_i$ with $\zeta_i \sim \mathcal N(0, I_d)$ i.i.d. and melt scale $m_e > 0$\;
 \tcp{quench}
