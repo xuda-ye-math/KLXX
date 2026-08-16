@@ -37,8 +37,8 @@
         align=center,
         text=ink
     },
-    support/.style={panel, text width=4.15cm, minimum height=1cm},
-    ratio/.style={panel, fill=neutral, text width=8.7cm, minimum height=3.55cm},
+    support/.style={panel, text width=4.75cm, minimum height=1cm},
+    ratio/.style={panel, fill=neutral, text width=9.6cm, minimum height=3.55cm},
     term/.style={panel, minimum height=2.65cm, inner sep=2.2mm},
     output/.style={
         panel,
@@ -54,11 +54,11 @@
         inner xsep=4mm,
         inner ysep=1.1mm
     },
-    note/.style={font=\scriptsize, text=line, fill=white, inner sep=0.5pt}
+    note/.style={font=\small, text=line, fill=white, inner sep=0.5pt}
 }
 
 \KLXXBeginDocument
-\begin{tikzpicture}[font=\small]
+\begin{tikzpicture}
     % math glue is fixed, so relations in text-width nodes are not stretched
     \medmuskip=4mu \thickmuskip=5mu
 
@@ -71,24 +71,24 @@
         {approximate target distribution with pushforward distribution}
     };
 
-    \node[support, draw=target, fill=targetfill] (targetbatch) at (-5.08,2.78) {%
+    \node[support, draw=target, fill=targetfill] (targetbatch) at (-5.54,2.78) {%
         \textbf{Target samples $\pi$}\\[0.8mm]
-        {\scriptsize annealed importance sampling}
+        {annealed importance sampling}
     };
 
-    \node[support, draw=coverage, fill=coveragefill] (qtbatch) at (-5.08,1.08) {%
+    \node[support, draw=coverage, fill=coveragefill] (qtbatch) at (-5.54,1.08) {%
         \textbf{QT coverage $\hat\pi$}\\[0.8mm]
-        {\scriptsize melt+\textbf{q}uench+\textbf{t}emper}\\[-0.2mm]
-        {\scriptsize search candidate modes}
+        {\small melt+\textbf{q}uench+\textbf{t}emper}\\[-0.2mm]
+        {\small search candidate modes}
     };
 
-    \node[support, draw=proposal, fill=proposalfill, inner ysep=1.5mm] (modelbatch) at (-5.08,-0.62) {%
+    \node[support, draw=proposal, fill=proposalfill, inner ysep=1.5mm] (modelbatch) at (-5.54,-0.62) {%
         \textbf{Pushforward $\bar\nu$}\\[0.6mm]
-        {\scriptsize $x\sim\pi_0\xrightarrow{\;G^{-1}\;}y\sim\nu$}\\[-0.2mm]
-        {\scriptsize detached from autograd}
+        {\small $x\sim\pi_0\xrightarrow{\;G^{-1}\;}y\sim\nu$}\\[-0.2mm]
+        {\small detached from autograd}
     };
 
-    \node[ratio] (ratio) at (2.81,1.08) {%
+    \node[ratio] (ratio) at (3.115,1.08) {%
     	\textbf{Pushforward density} \\[5pt]
         $\displaystyle
         \nu=(G^{-1})_{\#}\pi_0
@@ -121,38 +121,35 @@
     \draw[flow] (ratioturn) -- (losslabel.north);
 
     \node[term, draw=target, fill=targetfill, text width=3.20cm]
-        (meanterm) at (-5.59,-3.45) {%
+        (meanterm) at (-6.345,-3.45) {%
         \textbf{Target mean}\\[1.2mm]
         $\displaystyle \mathbb E_{y\sim\pi}[z(y)]$\\[1.2mm]
-        {\scriptsize forward KL $\cdot$ target fit}
+        {\small target fit}
     };
 
-    \node[font=\Large, text=line] at (-3.51,-3.45) {$+$};
+    \node[font=\Large, text=line] at (-4.27,-3.45) {$+$};
 
     \node[term, draw=target, fill=targetfill, text width=3.90cm]
-        (targetterm) at (-1.09,-3.45) {%
+        (targetterm) at (-1.845,-3.45) {%
         \textbf{Target variation}\\[1.1mm]
         $\displaystyle
         \mathbb E_{y,y'\sim\pi}
-        \!\left[\lvert z(y)-z(y')\rvert\right]
+        \big[|z(y)-z(y')|\big]
         $\\[1.1mm]
-        {\scriptsize $\mathrm X_\pi$ $\cdot$ target-weighted variation}
+        {\small target regularization}
     };
 
-    \node[font=\Large, text=line] at (1.35,-3.45) {$+$};
+    \node[font=\Large, text=line] at (0.60,-3.45) {$+$};
 
-    \node[term, text width=5.35cm] (mixterm) at (4.51,-3.45) {%
+    \node[term, text width=6.85cm] (mixterm) at (4.52,-3.45) {%
         \textbf{Mixture variation: \textcolor{coverage}{QT}
         $+$ \textcolor{proposal}{pushforward}}\\[0.7mm]
         $\displaystyle
-        \xi=\frac{\textcolor{coverage}{\hat\pi}
-        +\textcolor{proposal}{\bar\nu}}{2}
-        $\\[0.5mm]
-        $\displaystyle
         \mathbb E_{y,y'\sim\xi}
-        \!\left[\lvert z(y)-z(y')\rvert\right]
+        \big[|z(y)-z(y')|\big],~~ \xi=\frac{\textcolor{coverage}{\hat\pi}
+        	+\textcolor{proposal}{\bar\nu}}{2}
         $\\[0.9mm]
-        {\scriptsize mode coverage vs pushforward support}
+        {\small mode coverage $\cdot$ pushforward support}
     };
 
     \node[fit=(meanterm)(targetterm)(mixterm), inner sep=0pt] (lossrow) {};

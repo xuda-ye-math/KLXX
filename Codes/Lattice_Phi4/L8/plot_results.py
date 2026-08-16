@@ -76,7 +76,7 @@ def main() -> None:
         hw, cw = hist(mag, weights=wn)
         ax.semilogy(cw, hw + 1e-12, color=METHOD_COLOR[name], lw=1.6, label="reweighted")
         ax.semilogy(c0, h0 + 1e-12, color="black", ls=":", lw=1.2,
-                    label="mirror-MALA reference")
+                    label="MALA with symmetry flipping")
         ax.set_title(f"{METHOD_LABEL[name]}\nESS={ess:.2f}, $p_+$={p_plus:.2f}")
         ax.set_xlabel(r"$m$")
         ax.set_ylim(1e-4, 30)

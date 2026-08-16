@@ -41,36 +41,36 @@
     eqpanel/.style={panel, fill=neutral, inner sep=3mm},
     topbar/.style={panel, fill=neutral, text width=13cm,
         minimum height=0.85cm, inner sep=1.8mm},
-    note/.style={font=\scriptsize, text=line, fill=white, inner sep=0.5pt}
+    note/.style={font=\small, text=line, fill=white, inner sep=0.5pt}
 }
 
 \KLXXBeginDocument
-\begin{tikzpicture}[font=\small]
+\begin{tikzpicture}
     % math glue is fixed, so relations in text-width nodes are not stretched
     \medmuskip=4mu \thickmuskip=5mu
 
     % --- prepared once, before the loop ---
     \node[topbar] (inputs) at (0,5.55) {%
         \textbf{Prepared before training}\\[0.5mm]
-        {\scriptsize source samples $\mathcal Y_0\sim\pi_0$ of size $N$ $\cdot$ QT samples $\hat{\mathcal Y}=\mathrm{QT}(\mathcal Y_0,U)$ of size $N$}
+        {\small source samples $\mathcal Y_0\sim\pi_0$ of size $N$ $\cdot$ QT samples $\hat{\mathcal Y}=\mathrm{QT}(\mathcal Y_0,U)$ of size $N$}
     };
 
     % --- first row: the three sample sets ---
     \node[stepbox, draw=proposal, fill=proposalfill] (s1) at (-6.0,3.3) {%
         \textbf{(i) Pushforward $\mathcal X_{\nu}$}\\[0.8mm]
-        {\scriptsize $\mathcal X_0\subset\mathcal Y_0$ of size $B$}\\[-0.2mm]
-        {\scriptsize $\mathcal X_{\nu}=G^{-1}(\mathcal X_0)$}
+        {\small draw $\mathcal X_0\subset\mathcal Y_0$ of size $B$}\\[-0.2mm]
+        {\small compute $\mathcal X_{\nu}=G^{-1}(\mathcal X_0)$}
     };
 
     \node[stepbox, draw=target, fill=targetfill] (s2) at (0,3.3) {%
         \textbf{(ii) Target surrogate $\mathcal X_{\pi}$}\\[0.8mm]
-        {\scriptsize AIS on $\mathcal X_0$}
+        {\small apply AIS on $\mathcal X_0$ to obtain $\mathcal X_{\pi}$}
     };
 
     \node[stepbox, draw=coverage, fill=coveragefill] (s3) at (6.0,3.3) {%
         \textbf{(iii) Mixture $\mathcal X_{\xi}$}\\[0.8mm]
-        {\scriptsize $\mathcal X_{\hat\pi}\subset\hat{\mathcal Y}$ from QT}\\[-0.2mm]
-        {\scriptsize mixed with $\mathcal X_{\nu}$ at $(\alpha,\beta)$}
+        {\small draw $\mathcal X_{\hat\pi}\subset\hat{\mathcal Y}$ from QT}\\[-0.2mm]
+        {\small mixed with $\mathcal X_{\nu}$ at $(\alpha,\beta)$}
     };
 
     \draw[flow] (s1.north |- inputs.south) -- (s1.north);
@@ -82,8 +82,8 @@
     % --- second row: the gradient step and the loss it evaluates ---
     \node[stepbox] (s4) at (-6.0,0.1) {%
         \textbf{(iv) Gradient step}\\[0.8mm]
-        {\scriptsize evaluate $\widehat{\mathcal L}[G]$}\\[-0.2mm]
-        {\scriptsize update $G$ through $z$}
+        {\small evaluate $\widehat{\mathcal L}[G]$ and update $G$}\\[-0.2mm]
+        {\small only $z(y)$ differentiated}
     };
 
     \node[eqpanel] (loss) at (2.3,0.1) {%

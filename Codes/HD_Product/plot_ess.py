@@ -70,9 +70,9 @@ def plot_dimension(ax):
             label=label,
         )
 
-    ax.set_title("(a) Validation ESS", loc="left")
+    ax.set_title("(a) Sample ESS", loc="left")
     ax.set_xlabel(r"dimension $d$")
-    ax.set_ylabel("validation ESS")
+    ax.set_ylabel("sample ESS")
     ax.set_xticks(DIMENSIONS)
     ax.tick_params(axis="x", rotation=45)
     ax.set_xlim(12, 260)

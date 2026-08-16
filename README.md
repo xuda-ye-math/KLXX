@@ -97,6 +97,7 @@ Do not launch production molecular training without explicit authorization.
 ```text
 KLXX/
 ├── Codes/
+│   ├── 1D_QT/              # 1D quench and temper illustration
 │   ├── 2D_Benchmark/       # four analytic mode-discovery benchmarks
 │   ├── HD_Product/         # high-dimensional product multi-well sweep
 │   ├── Lattice_Clock/      # periodic clock-model experiments
@@ -114,6 +115,7 @@ current project tree.
 
 | Folder | Purpose |
 |---|---|
+| `Codes/1D_QT/` | 1D Rastrigin target used to illustrate quench and temper |
 | `Codes/2D_Benchmark/` | Forward KL and X-regularized comparisons on multimodal 2D targets |
 | `Codes/HD_Product/` | Dimension scaling for product multi-well targets |
 | `Codes/Lattice_Phi4/` | Broken-phase lattice phi-four training and reference diagnostics |

@@ -14,7 +14,7 @@ python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 pip install 'jax[cuda13]' 'openmm[cuda13]'
-pip install jflows 'jflows_md[bundles]'
+pip install jflows==0.5.4 'jflows_md[bundles]==0.5.4'
 ```
 
 Quoting the extras prevents shells such as zsh from expanding the brackets.
@@ -30,7 +30,7 @@ published `bundles` extra.
 > than the minimum required by the JAX version being installed.
 
 > **Remark.** PyPI treats hyphens and underscores as equivalent in project
-> names, so `pip install jflows 'jflows-md[bundles]'` performs the same
+> names, so `pip install jflows==0.5.4 'jflows-md[bundles]==0.5.4'` performs the same
 > installation as the second command above. Python imports still use
 > `jflows_md`.
 
