@@ -305,7 +305,7 @@ Since $\bar\nu$ tracks $\nu$ as training updates it, \eqref{eq: surrogate-statio
 
 \begin{theorem}
 \label{thm: accuracy}
-Fix {\color{blue}the coefficients $(\lambda,\vartheta,\alpha,\beta)$} and let $\tilde\pi$ be a positive probability density. Let $\nu_\star$ be a positive density solving \eqref{eq: surrogate-stationary}, {\color{blue}$w_\star = \pi/\nu_\star$ be the importance weight}, with $\mathbb E_{\tilde\pi}[w_\star]<\infty$ and $\mathbb E_{\xi}[w_\star]<\infty$. Then
+Fix {\color{blue}the coefficients $(\lambda,\vartheta,\alpha,\beta)$} and let $\tilde\pi$ be a positive probability density. Let $\nu_\star$ be a positive density solving \eqref{eq: surrogate-stationary}, {\color{blue}and $w_\star = \pi/\nu_\star$ be the importance weight}, with $\mathbb E_{\tilde\pi}[w_\star]<\infty$ and $\mathbb E_{\xi}[w_\star]<\infty$. Then
 \begin{equation}
 	\KL(\pi\|\nu_\star) \Le \KL(\pi\|\tilde\pi)
 	- \lambda\,\mathbb E_{x,y\sim\tilde\pi}\bigl[|w_\star(x)-w_\star(y)|\bigr]
@@ -401,6 +401,10 @@ The QT distribution $\hat\pi$ is the wide-coverage measure for the target distri
 from the source samples $\mathcal Y_0=\{y_1,\dots,y_N\}$ and the target potential $U$ to the QT samples $\hat{\mathcal Y}=\{\hat y_1,\dots,\hat y_N\}$.
 
 When the potential function $U$ is possibly singular, we prefer L-BFGS and MALA over plain gradient descent and unadjusted Langevin dynamics, which are less stable near the singularity. The QT samples can also be built from a subset of $\mathcal Y_0$, at lower cost.
+
+\begin{remark}
+	{\color{blue}L-BFGS is a quasi-Newton method \citep{liu1989limited} and is not a discretization of the quench flow $\dot y = -\nabla U(y)$; its iterates do not follow that trajectory. The quench asks only for the local minimizer at the end of it, and in as few iterations as possible, so the better performance of L-BFGS over gradient descent is worth the departure from the flow.}
+\end{remark}
 
 \begin{algorithm}[htb]
 \setstretch{1.2}
