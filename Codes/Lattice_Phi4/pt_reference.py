@@ -55,11 +55,13 @@ SIZES = ((6, 0.0257), (8, 0.0144))       # (L, h) per lattice size
 # --- parallel-tempering controls ---------------------------------------------
 R = 20                     # replicas
 BETA_MIN = 0.05            # hottest inverse temperature (melts the ~9 kT barrier)
-WALKERS = 512              # independent replica stacks (parallel chains)
-BURN_SWEEPS = 4000         # sweeps before collecting
-KEEP_SWEEPS = 16000        # collected sweeps
+WALKERS = 1024             # independent replica stacks (parallel chains)
+BURN_SWEEPS = 20000        # sweeps before collecting
+KEEP_SWEEPS = 400000       # collected sweeps, unless the time budget stops them first
+KEEP_BUDGET_S = 300.0      # wall-clock cap on the keep phase of one run
 TUNE_EVERY = 100           # sigma-adaptation cadence during burn
-SEED = 7
+SEEDS = (7, 8, 9)          # three independent runs per lattice size
+M_TRACE_EVERY = 200        # thinning of the beta=1 magnetizations written to pt_reference.npz
 
 
 def log(msg: str) -> None:
@@ -89,7 +91,7 @@ def make_action(L: int, h: float):
     return full_energy, nn_sum
 
 
-def run_size(L: int, h: float):
+def run_size(L: int, h: float, seed: int):
     assert L % 2 == 0, "checkerboard sublattice update requires even L"
     full_energy, nn_sum = make_action(L, h)
     betas = jnp.asarray(np.geomspace(1.0, BETA_MIN, R), dtype=jnp.float32)   # (R,)
@@ -139,14 +141,14 @@ def run_size(L: int, h: float):
         swap_mean = 0.5 * (s0.mean() + s1.mean())
         return phi, loc, swap_min, swap_mean
 
-    key = jax.random.key(SEED + L)
+    key = jax.random.key(seed + L)
     key, k0 = jax.random.split(key)
     # split start: half the walkers in the +well, half in the -well (unbiased)
     signs = jnp.where(jnp.arange(WALKERS) < WALKERS // 2, 1.0, -1.0)[None, :, None, None]
     phi = signs + 0.3 * jax.random.normal(k0, (R, WALKERS, L, L))
     sigma = jnp.asarray(0.12 / np.sqrt(np.asarray(betas)))[:, None, None, None]  # (R,1,1,1)
 
-    log(f"L={L} h={h}: START PT  R={R} beta 1..{BETA_MIN} walkers={WALKERS} "
+    log(f"L={L} h={h} seed={seed}: START PT  R={R} beta 1..{BETA_MIN} walkers={WALKERS} "
         f"burn={BURN_SWEEPS} keep={KEEP_SWEEPS}  (split +/- start)")
     t0 = time.time()
     for s in range(1, BURN_SWEEPS + 1):
@@ -163,6 +165,7 @@ def run_size(L: int, h: float):
                     f"  p_+@b1={float((phi[0].mean(axis=(-2,-1))>0).mean()):.3f}"
                     f"  {1000*(time.time()-t0)/s:.0f} ms/sweep")
 
+    t1 = time.time()
     half = KEEP_SWEEPS // 2
     hits = np.zeros(WALKERS, dtype=np.int64)                                # all kept sweeps
     hits2 = np.zeros(WALKERS, dtype=np.int64)                               # 2nd-half only
@@ -170,11 +173,14 @@ def run_size(L: int, h: float):
     tot2 = 0
     sw_min_run = []
     crossings = np.zeros(WALKERS, dtype=np.int64)
+    m_trace = []
     prev_sign = None
     for s in range(1, KEEP_SWEEPS + 1):
         key, ks = jax.random.split(key)
         phi, loc, sw_min, sw_mean = sweep(phi, sigma, ks)
         m1 = np.asarray(phi[0].mean(axis=(-2, -1)))                         # (W,) magnetization at beta=1
+        if s % M_TRACE_EVERY == 0:
+            m_trace.append(m1.astype(np.float32))
         pos = (m1 > 0.0)
         hits += pos
         tot += 1
@@ -185,21 +191,27 @@ def run_size(L: int, h: float):
         if prev_sign is not None:
             crossings += (pos != prev_sign)
         prev_sign = pos
-        if s % 2000 == 0:
-            log(f"  keep {s:>5}/{KEEP_SWEEPS}  p_+(run)={hits.sum()/(tot*WALKERS):.4f}"
+        if s % 20000 == 0 or s == KEEP_SWEEPS:
+            log(f"  keep {s:>6}/{KEEP_SWEEPS}  p_+(run)={hits.sum()/(tot*WALKERS):.4f}"
                 f"  swap_min(2k)={np.min(sw_min_run[-2000:]):.2f}"
-                f"  crossings[mean,min]=[{crossings.mean():.1f},{crossings.min()}]")
+                f"  crossings[mean,min]=[{crossings.mean():.1f},{crossings.min()}]"
+                f"  {time.time()-t1:.0f}s")
+        if time.time() - t1 > KEEP_BUDGET_S:
+            log(f"  keep stopped at {s}/{KEEP_SWEEPS} sweeps on the "
+                f"{KEEP_BUDGET_S:.0f}s budget")
+            break
 
     p_walker = hits / tot
     p_plus = float(p_walker.mean())
     sem = float(p_walker.std(ddof=1) / np.sqrt(WALKERS))
     p_2nd = float((hits2 / tot2).mean())                                    # flatness cross-check
-    log(f"L={L}: DONE  p_+ = {p_plus:.4f} +- {sem:.4f}  (2nd-half {p_2nd:.4f})  "
+    log(f"L={L} seed={seed}: DONE  p_+ = {p_plus:.4f} +- {sem:.4f}  (2nd-half {p_2nd:.4f})  "
         f"crossings[mean,min]=[{crossings.mean():.1f},{crossings.min()}]  "
         f"swap_min(all)={np.min(sw_min_run):.2f}   {time.time()-t0:.0f}s")
-    return dict(L=L, p_plus=p_plus, sem=sem, p_2nd=p_2nd,
+    return dict(L=L, seed=seed, p_plus=p_plus, sem=sem, p_2nd=p_2nd, sweeps=tot,
                 cross_mean=float(crossings.mean()), cross_min=int(crossings.min()),
-                swap_min=float(np.min(sw_min_run)))
+                swap_min=float(np.min(sw_min_run)),
+                m_trace=np.concatenate(m_trace))
 
 
 def main() -> None:
@@ -207,15 +219,30 @@ def main() -> None:
     open(LOG, "w").close()
     log("parallel-tempering phi^4 reference  |  jax " + jax.__version__
         + "  backend " + jax.default_backend())
-    res = [run_size(L, h) for L, h in SIZES]
+    res = []
+    for L, h in SIZES:
+        runs = [run_size(L, h, seed) for seed in SEEDS]
+        out_dir = HERE / f"L{L}" / "artifacts"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        m_all = np.concatenate([r["m_trace"] for r in runs])
+        np.savez_compressed(out_dir / "pt_reference.npz", m_trace=m_all)
+        log(f"L={L}: wrote {out_dir / 'pt_reference.npz'}  (m_trace {m_all.size} "
+            f"pooled over seeds {list(SEEDS)})")
+        res.extend(runs)
     log("=== SUMMARY ===")
     for r in res:
         ok = (r["cross_min"] > 0 and r["swap_min"] > 0.15
               and abs(r["p_plus"] - r["p_2nd"]) < 3 * r["sem"])
-        log(f"  L={r['L']}: p_+ = {r['p_plus']:.4f} +- {r['sem']:.4f}  "
-            f"(2nd-half {r['p_2nd']:.4f})  crossings[mean,min]="
+        log(f"  L={r['L']} seed={r['seed']}: p_+ = {r['p_plus']:.4f} +- {r['sem']:.4f}  "
+            f"(2nd-half {r['p_2nd']:.4f})  sweeps={r['sweeps']}  crossings[mean,min]="
             f"[{r['cross_mean']:.1f},{r['cross_min']}]  swap_min={r['swap_min']:.2f}  "
             f"trust_guards={'PASS' if ok else 'CHECK'}")
+    log("=== ACROSS SEEDS ===")
+    for L, _ in SIZES:
+        p = np.array([r["p_plus"] for r in res if r["L"] == L])
+        log(f"  L={L}: p_+ = {p.mean():.4f} +- {p.std(ddof=1)/np.sqrt(p.size):.4f}  "
+            f"over {p.size} independent runs  (per seed: "
+            + ", ".join(f"{x:.4f}" for x in p) + ")")
 
 
 if __name__ == "__main__":

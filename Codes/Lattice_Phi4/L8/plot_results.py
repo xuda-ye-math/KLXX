@@ -2,7 +2,7 @@
 
 Reads ``artifacts/data.npz`` (per-run magnetizations and normalized
 importance weights `w_{seed}_{method}`, written by train.py) and
-phi4_reference.npz, recomputes the final ESS and reweighted p(m > 0) from
+pt_reference.npz, recomputes the final ESS and reweighted p(m > 0) from
 the stored arrays, and re-renders the seed-FIG_SEED methods figure.
 
 Run from the repo root:
@@ -59,7 +59,7 @@ def hist(m, weights=None):
 
 def main() -> None:
     data = np.load(ARTIFACTS / "data.npz")
-    ref = np.load(ARTIFACTS / "phi4_reference.npz")
+    ref = np.load(ARTIFACTS / "pt_reference.npz")
     h0, c0 = hist(ref["m_trace"].ravel())
 
     n = len(METHODS)
@@ -76,12 +76,12 @@ def main() -> None:
         hw, cw = hist(mag, weights=wn)
         ax.semilogy(cw, hw + 1e-12, color=METHOD_COLOR[name], lw=1.6, label="reweighted")
         ax.semilogy(c0, h0 + 1e-12, color="black", ls=":", lw=1.2,
-                    label="MALA with symmetry flipping")
+                    label="PT reference")
         ax.set_title(f"{METHOD_LABEL[name]}\nESS={ess:.2f}, $p_+$={p_plus:.2f}")
         ax.set_xlabel(r"$m$")
         ax.set_ylim(1e-4, 30)
         if j == 0:
-            ax.set_ylabel(r"$p(m)$")
+            ax.set_ylabel("density")
     handles, labels = axes[0][0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", ncol=3, fontsize=8,
                frameon=False, bbox_to_anchor=(0.5, 1.10))

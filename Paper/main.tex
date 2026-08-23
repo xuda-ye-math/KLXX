@@ -846,7 +846,7 @@ The on-site term alone has a single minimum at $0$; the nearest-neighbor couplin
 We take $h=0.0257$ at $L=6$ and $h=0.0144$ at $L=8$, matching the scaling $hL^2\approx0.92$ to produce comparable well imbalance in the targets of the two settings.
 A collective domain-wall barrier separates the two wells, and the minority weight $p_+=\mathbb P(m>0)$ must be learned rather than fixed by symmetry.
 
-{\color{blue}PT provides} the references $p_+=0.1251\pm0.0009$ for $L=6$ and $0.1284\pm0.0014$ for $L=8${\color{blue}, with 3 independent runs for both $L$}. Each loss is run at seeds $0,1,2$ using an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$, centered on the barrier. Training uses a fixed sample set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses a ladder of length $M=1$ followed by $50$ MALA steps of size $2\times10^{-3}$. {\color{blue}QT acts} on the sample set, with melt scale $2$ and an L-BFGS quench using initial step $0.1$ and $200$ iterations.
+{\color{blue}PT provides} the references $p_+={\color{blue}0.1258\pm0.0001}$ for $L=6$ and ${\color{blue}0.1265\pm0.0002}$ for $L=8${\color{blue}, with 3 independent runs for both $L$}. Each loss is run at seeds $0,1,2$ using an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$; training uses a fixed sample set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses a ladder of length $M=1$ followed by $50$ MALA steps of size $2\times10^{-3}$. {\color{blue}QT acts} on the sample set, with melt scale $2$ and an L-BFGS quench using initial step $0.1$ and $200$ iterations.
 
 \begin{table}[htb]
     \centering
@@ -869,7 +869,7 @@ A collective domain-wall barrier separates the two wells, and the minority weigh
         & $\mathbf{0.896/0.877/0.894}$ & $0.127/0.128/0.127$
         & $\mathbf{0.690/0.676/0.681}$ & $0.131/0.130/0.129$ \\
         \midrule
-        PT reference & --- & $0.1251\pm0.0009$ & --- & $0.1284\pm0.0014$ \\
+        PT reference & --- & ${\color{blue}0.1258\pm0.0001}$ & --- & ${\color{blue}0.1265\pm0.0002}$ \\
         \bottomrule
     \end{tabular}
     \caption{Final ESS and reweighted minority-well weight $p_+$ for three seeds on the two tilted $\phi^4$ targets, $(L,h)=(6,0.0257)$ and $(8,0.0144)$. Integer values $0$ and $1$ indicate collapse onto one well; bold marks the higher ESS among the losses that recover both wells.}
@@ -881,7 +881,7 @@ Forward KL and $\KL$+$\X_\pi$ collapse at every size and seed {\color{blue}(Tabl
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/lattice_phi4_l8_methods.png}
-    \caption{Magnetization density on the $L=8$ lattice at seed $0$. Each panel shows the pushforward density (gray), the reweighted density (color), and the resampled reference density from MALA with symmetry flipping (dotted); the title reports ESS and the reweighted $p_+$.}
+    \caption{Magnetization density on the $L=8$ lattice. Each panel shows the pushforward density (gray), the reweighted density (color), and the {\color{blue}PT reference density} (dotted); the title reports ESS and reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
 
