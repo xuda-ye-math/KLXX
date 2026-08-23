@@ -77,20 +77,18 @@ also included under [`External/`](External/).
 Install them into a virtual environment and activate it as described in
 [`PYTHON.md`](PYTHON.md).
 
-Run a `jflows` experiment from the repository root with:
+Run a `jflows` experiment from the repository root. The 2D Himmelblau
+benchmark of the figure above is the cheapest:
 
 ```bash
-python Codes/Lattice_Clock/train.py
+python Codes/2D_Benchmark/Himmelblau/train.py
 ```
 
-The molecular drivers are full-size and must not be launched without explicit
-authorization:
+The molecular drivers are full-size and should only be launched with sufficient resources:
 
 ```bash
 python Codes/Molecular_BG/alkane_family/methane_9d_raw/train.py
 ```
-
-Do not launch production molecular training without explicit authorization.
 
 ## Repository layout
 
