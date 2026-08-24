@@ -170,7 +170,7 @@ target annealing, QT, and detached pushforward samples \\
 The rest of the paper is organized as follows:
 {\color{blue}Section~\ref{sec: FR}} analyzes the generalized KLXX loss in Fisher--Rao geometry, deriving its gradient flow and the accuracy bound it reaches under a biased target surrogate; Appendices~\ref{sec: appendix-FR} and~\ref{sec: appendix-accuracy} give the proofs. Section~\ref{sec: training} gives the training algorithm. Section~\ref{sec: boltzmann} proposes the adaptive-staging Boltzmann generator and bounds the error of the sample set it returns; Appendix~\ref{sec: appendix-propagation} gives the proof. Sections~\ref{sec: experiments} and~\ref{sec: molecular} report the model and molecular results, respectively, and Section~\ref{sec: conclusions} concludes.
 
-\section{Analysis of the generalized KLXX model}
+\section{Analysis of generalized KLXX loss}
 \label{sec: FR}
 
 In this section we consider a generalized form of the KLXX loss, determined by the parameters $(\lambda,\vartheta,\alpha,\beta)$. {\color{blue}For convenience, we write the loss $\mathcal L$ as a functional of the pushforward distribution $\nu$ rather than of the flow map $G$:}
@@ -179,14 +179,14 @@ In this section we consider a generalized form of the KLXX loss, determined by t
 	& = \mathbb E_{y\sim\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
 	\label{eq: KLXX-general-nu}
 \end{align}
-where the parameters satisfy $\lambda,\vartheta,\alpha,\beta\Ge0$ and $\alpha+\beta=1$, so that the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ is a probability distribution on $\mathbb R^d${\color{blue}, and the log-ratio $z = \log(\pi/\nu)$ in \eqref{eq: log-ratio} carries the entire dependence on $\nu$}. Throughout the paper{\color{blue},} we let one Greek symbol ($\pi$, $\nu$, $\mu$, and so on) carry both a probability distribution and its density with respect to Lebesgue measure on $\mathbb R^d$.
+where the parameters satisfy $\lambda,\vartheta,\alpha,\beta\Ge0$ and $\alpha+\beta=1$, so that the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ is a probability distribution on $\mathbb R^d${\color{blue}. Note that the log-ratio $z = \log(\pi/\nu)$ in \eqref{eq: log-ratio} carries the entire dependence on $\nu$}. Throughout the paper{\color{blue},} we let one Greek symbol ($\pi$, $\nu$, $\mu$, and so on) carry both a probability distribution and its density with respect to Lebesgue measure on $\mathbb R^d$.
 
 The three subsections below take the generalized loss \eqref{eq: KLXX-general-nu} in turn: a formal account of how the mixture variation contributes to mode discovery, a derivation of exponential convergence for the Fisher--Rao gradient flow, and an accuracy bound under a biased target surrogate.
 
 \subsection{Principle of mixture variation}
 \label{subsec: mixture-variation}
 
-The mixture distribution $\xi = \alpha\hat\pi+\beta\bar\nu$ mainly relies on the QT distribution $\hat\pi$ to find the candidate modes of the potential $U$, as elaborated in Section~\ref{sec: intro}. The QT distribution $\hat\pi$ is generated from the source distribution $\pi_0$ in three steps: for each $y\sim \pi_0$,
+The mixture distribution $\xi = \alpha\hat\pi+\beta\bar\nu$ mainly relies on the QT distribution $\hat\pi$ to search the candidate modes of the potential $U$, as described in Section~\ref{sec: intro}. The QT distribution $\hat\pi$ is generated from the source distribution $\pi_0$ in three steps: for each $y\sim \pi_0$,
 \begin{enumerate}
 	\setlength{\itemsep}{0pt}
 	\item \textbf{Melt}: scatter with Gaussian noise, $y = y+m_e\zeta$, with $\zeta\sim \mathcal N(0,I_d)$, at a melt scale $m_e>0$ that carries $y$ beyond the region the source covers;
@@ -195,9 +195,9 @@ The mixture distribution $\xi = \alpha\hat\pi+\beta\bar\nu$ mainly relies on the
 \end{enumerate}
 The three names are taken directly from industrial steelmaking, where a workpiece is melted, quenched, and then tempered in that order.
 
-Only melting carries the coverage: a large $m_e>0$ allows the particles to explore the region and cover all the missing modes, and quenching then uses a local gradient descent to drive these particles into the potential basins. Tempering finally restores a spread around each centre, so that $\hat\pi$ is a distribution over configurations rather than point masses at the minimizers.
+Only melting carries the coverage: a large $m_e>0$ allows the particles to explore the region and cover all the missing modes. Quenching then uses a local gradient descent to drive these particles into the potential basins. Tempering finally restores a spread around each centre, so that $\hat\pi$ is a distribution over configurations rather than point masses at the minimizers.
 
-We use an intuitive example to illustrate the construction. Define the 1D Rastrigin potential
+We illustrate the construction on a one-dimensional example. Define the 1D Rastrigin potential
 \begin{equation*}
 	U(x) = \frac12x^2+4\cos(2\pi x), \qquad x\in \mathbb R,
 \end{equation*}
@@ -212,23 +212,23 @@ Every mode of $\pi$ is covered by $\hat\pi$, including the outer wells the sourc
     \label{fig: 1d-qt}
 \end{figure}%
 
-However, using the QT distribution $\hat\pi$ alone in the log-ratio variation may cause \emph{intermodal leakage}: the trained flow places spurious mass between the target modes. The Sparse target shows this directly, where $\KL$+$\X_\pi$+$\X_{\hat\pi}$ recovers all four modes but leaves visible mass in the intermodal regions (Figure~\ref{fig: sparse}). The reason is that $\X_{\hat\pi}$ weights only the points $\hat\pi$ produces, and those sit in the basins of $U$; it therefore says nothing about the regions the pushforward $\nu$ occupies and $\hat\pi$ does not, which are exactly the intermodal ones. Combining it with the detached pushforward distribution $\bar\nu$ is exactly the treatment. In the log-ratio variation with the mixture distribution $\xi =\alpha\hat\pi+\beta\bar\nu$, the log-ratio $z=\log\frac{\pi}{\nu}$ is penalized to be a constant under both $\hat\pi$ and $\bar\nu$, hence during the training we have approximately
+However, using the QT distribution $\hat\pi$ alone in the log-ratio variation may cause \emph{intermodal leakage}: the trained flow places spurious mass between the target modes. The Sparse target shows this directly, where $\KL$+$\X_\pi$+$\X_{\hat\pi}$ recovers all four modes but leaves visible mass in the intermodal regions (Figure~\ref{fig: sparse}). The reason is that $\X_{\hat\pi}$ weights only the points $\hat\pi$ produces, and those sit in the basins of $U$; it therefore says nothing about the regions the pushforward $\nu$ occupies and $\hat\pi$ does not, which are exactly the intermodal ones. Combining it with the detached pushforward distribution $\bar\nu$ is exactly the treatment. In the log-ratio variation with the mixture distribution $\xi =\alpha\hat\pi+\beta\bar\nu$, the log-ratio $z=\log\frac{\pi}{\nu}$ is penalized to be a constant under both $\hat\pi$ and $\bar\nu$, hence during training we have approximately
 \begin{equation}
 	z(y) = \log\frac{\pi(y)}{\nu(y)} \approx z(y') = \log\frac{\pi(y')}{\nu(y')}, \qquad
 	y\sim \hat\pi,~~y'\sim\nu.
 	\label{eq: approx} 
 \end{equation}
-The relation \eqref{eq: approx} reflects a fundamental collision in the training. On the one hand, $y$ lies in a target mode, which $\hat\pi$ supplies for every mode, and secures a large density $\pi(y)$, so $z(y)$ grows to $+\infty$ if the pushforward $\nu$ does not reach that mode. On the other hand, $y'$ lies wherever the flow sends mass and secures a positive density $\nu(y')$, so $z(y')$ decreases to $-\infty$ if the pushforward reaches the intermodal regions, where $\pi$ is negligible. Demanding that the two agree sets the divergences against each other, and the flow can satisfy both only by reaching every mode and staying out of the intermodal regions. The log-ratio variation with the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ resolves the collision in a clean way: $\hat\pi$ supplies the points at which $z$ must not run high, $\bar\nu$ supplies the points at which it must not run low, and the variation balances the log-ratio across both, thus reducing the intermodal leakage.
+The relation \eqref{eq: approx} reflects a fundamental collision during training. On the one hand, $y$ lies in a target mode, which $\hat\pi$ supplies for every mode, and secures a large density $\pi(y)$, so $z(y)$ grows to $+\infty$ if the pushforward $\nu$ does not reach that mode. On the other hand, $y'$ lies wherever the flow sends mass and secures a positive density $\nu(y')$, so $z(y')$ decreases to $-\infty$ if the pushforward reaches the intermodal regions, where $\pi$ is negligible. Demanding that the two agree sets the divergences against each other, and the flow can satisfy both only by reaching every mode and staying out of the intermodal regions. The log-ratio variation with the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ resolves the collision: $\hat\pi$ supplies the points at which $z$ must not run high, $\bar\nu$ supplies the points at which it must not run low, and the variation balances the log-ratio across both, thus reducing the intermodal leakage.
 
 
 \begin{remark}
-	We do not train with the log-ratio variation alone. A variation constrains only the flatness of $z$ pointwise, while the forward KL \eqref{eq: forward KL} drives the flow globally, since the convexity in Jensen's inequality makes it nonnegative and zero only at $\nu=\pi$. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} reports the analogous failure: training with LDR-L1 or LDR-L2 alone, without a KL term, produces qualitatively incorrect distributions.
+	We do not train with the log-ratio variation alone. A variation constrains only the flatness of $z$ pointwise, while the forward KL \eqref{eq: forward KL} drives the flow globally: by Jensen's inequality it is nonnegative and zero only at $\nu=\pi$. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} reports the analogous failure: training with LDR-L1 or LDR-L2 alone, without a KL term, produces qualitatively incorrect distributions.
 \end{remark}
 
 \subsection{Convergence as Fisher--Rao gradient flow}
 \label{subsec: FR-convergence}
 
-For an arbitrary parameter choice $(\lambda,\vartheta,\alpha,\beta)$, the generalized KLXX loss \eqref{eq: KLXX-general-nu} attains its minimum $0$ at the exact target $\pi$, so it is natural to ask whether the gradient flow it induces converges to $\pi$ exponentially.
+For an arbitrary parameter choice $(\lambda,\vartheta,\alpha,\beta)$, the generalized KLXX loss \eqref{eq: KLXX-general-nu} attains its minimum $0$ at the exact target $\pi$, so we ask whether the gradient flow it induces converges to $\pi$ exponentially.
 In the Wasserstein-2 geometry, the forward KL is not displacement convex, so the Otto--Villani and Bakry--{\'E}mery arguments used for the reverse KL do not apply \citep{otto2000generalization,bakry2014analysis}. We therefore work in the Fisher--Rao (FR) geometry, where the gradient flow has an explicit form. Assume all densities are positive and regular enough for differentiation.
 
 Let $\omega$ be a weighting distribution that is fixed under the variation, and define the \emph{nonlocal correlation} of the importance weight
@@ -236,8 +236,8 @@ Let $\omega$ be a weighting distribution that is fixed under the variation, and 
 	S^{\omega}(x) := \mathbb E_{y\sim\omega}\bigl[\operatorname{sgn}\bigl(w(x)-w(y)\bigr)\bigr] \in [-1,1],
 	\label{eq: FR-S}
 \end{equation}
-which reports where $w(x)$ sits among the weights $\omega$ carries, and $\operatorname{sgn}(\cdot)\in\{0,\pm1\}$ represents the sign of a real number.
-The definition of $S^{\omega}$ naturally applies to the target distribution $\pi$ and to the mixture distribution $\xi=\alpha\hat\pi+\beta\bar\nu$, written as $S^{\pi}$ and $S^{\xi}$.
+which reports where $w(x)$ sits among the weights $\omega$ carries. Here $\operatorname{sgn}(\cdot)\in\{0,\pm1\}$ is the sign of a real number.
+The same definition applies to the target distribution $\pi$ and to the mixture distribution $\xi=\alpha\hat\pi+\beta\bar\nu$, written as $S^{\pi}$ and $S^{\xi}$.
 
 The FR gradient flow of the generalized KLXX loss \eqref{eq: KLXX-general-nu} is a differential equation for a time-dependent pushforward density $\nu_t$, reading
 \begin{equation}
@@ -271,12 +271,12 @@ without assuming log-concavity, a spectral gap, or a growth condition on $\pi$. 
 
 \subsection{Accuracy under biased target surrogate}
 
-In the training of the generalized KLXX loss \eqref{eq: KLXX-general-nu}, the target distribution $\pi$ needs to be approximated by AIS (see Section~\ref{subsec: annealing} for details), so the effective target surrogate used in training is a biased distribution $\tilde\pi$, and the corresponding biased loss is given by
+In training the generalized KLXX loss \eqref{eq: KLXX-general-nu}, AIS approximates the target distribution $\pi$ (Section~\ref{subsec: annealing}), so the target surrogate is a biased distribution $\tilde\pi$. The corresponding biased loss is given by
 \begin{equation}
 	\color{blue}\tilde{\mathcal L}[\nu] = \mathbb E_{y\sim\tilde\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\tilde\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
 	\label{eq: KLXX-biased}
 \end{equation}
-where the log-ratio $z=\log(\pi/\nu)$ is still evaluated against the exact target{\color{blue},} and only the outer measures of the first two terms are replaced{\color{blue} by the biased $\tilde\pi$}. The mixture term carries no surrogate bias: $\xi=\alpha\hat\pi+\beta\bar\nu$ approximates nothing, $\hat\pi$ being supplied by QT and $\bar\nu$ being the detached copy of $\nu$.
+where the log-ratio $z=\log(\pi/\nu)$ is still evaluated against the exact target{\color{blue},} and only the outer measures of the first two terms are replaced {\color{blue} by the biased $\tilde\pi$}. The mixture term carries no surrogate bias: $\xi=\alpha\hat\pi+\beta\bar\nu$ approximates nothing, $\hat\pi$ being supplied by QT and $\bar\nu$ being the detached copy of $\nu$.
 
 {\color{blue}Following the derivation of \eqref{eq: FR-flow} for the unbiased loss, the FR gradient of the biased KLXX loss \eqref{eq: KLXX-biased} with respect to $\nu$ has a similar form,}
 \begin{equation}
@@ -325,10 +325,9 @@ In this section we give the training algorithm for the generalized KLXX loss {\c
 {\color{blue}the normalizing constants being omitted, since they depend on neither $y$ nor $G$.}
 
 {\color{blue}The training algorithm uses two parameters throughout:} the sample size $N$, the size of the sample set that enters and leaves the training and carries the diagnostics; and the batch size $B$, the number of samples per gradient step.
-
 The generalized KLXX loss \eqref{eq: KLXX-general} draws on three sample sets: one from the target distribution $\pi$, one from the QT distribution $\hat\pi$, and one from the detached pushforward distribution $\bar\nu$. The QT samples number $N$ and are constructed before training. The pushforward samples number $B$ and are drawn at each gradient step, {\color{blue}where the target surrogate also approximates} $\pi$ with a batch of $B$ samples.
 
-This section is written in a top-down hierarchy. Section~\ref{subsec: training-algorithm} gives the KLXX training algorithm, which alternates between preparing samples and taking gradient steps; Sections~\ref{subsec: QT} and~\ref{subsec: annealing} then construct the QT and AIS samples it consumes; and Section~\ref{subsec: eval} gives two complementary diagnostics for the training quality.
+The rest of the section is organized as follows. Section~\ref{subsec: training-algorithm} gives the KLXX training algorithm, which alternates between preparing samples and taking gradient steps; Sections~\ref{subsec: QT} and~\ref{subsec: annealing} then construct the QT and AIS samples it consumes; and Section~\ref{subsec: eval} gives two complementary diagnostics for the training quality.
 
 \subsection{KLXX training algorithm}
 \label{subsec: training-algorithm}
@@ -425,13 +424,13 @@ Step (ii) of the KLXX training algorithm (Algorithm~\ref{alg: training}) builds 
 	\qquad y \in \mathbb R^d.
 	\label{eq: weight}
 \end{equation}
-In high dimensions, however, $\pi$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We temper the reweighting through $M+1$ bridging distributions
+In high dimensions, however, $\pi$ and $\nu$ can differ greatly, so the weights can collapse onto a few outliers. We therefore reweight through $M+1$ bridging distributions
 \begin{equation}
 	\mu_m(y) \propto \nu(y)^{1-\frac{m}{M}} \pi(y)^{\frac{m}{M}} \propto ((G^{-1})_{\#}\pi_0)(y)\, w(y)^{\frac{m}{M}}, \qquad m = 0,1,\dots,M,
 	\label{eq: mu-m}
 \end{equation}
 so that $\mu_0 = \nu$ and $\mu_M = \pi$. Each level reweights by only $w(y)^{1/M}$, reducing the degeneracy of direct importance sampling.
-After each reweighting, we resample and diffuse the duplicates before the next level with MALA \citep{roberts1996exponential}{, which is unbiased for $\pi$}.
+After each reweighting, we resample and rejuvenate the duplicates before the next level with MALA \citep{roberts1996exponential}, which is unbiased for $\pi$.
 
 
 \begin{algorithm}[htb]
@@ -451,7 +450,7 @@ After each reweighting, we resample and diffuse the duplicates before the next l
 \end{algorithm}
 \medskip
 \noindent
-A standard SMC sampler targeting the path \eqref{eq: mu-m} would rejuvenate at level $m$ with a Markov kernel invariant for $\mu_m$. For $m<M$, a MALA kernel for $\mu_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$; at $m=M$, this term disappears because $\mu_M=\pi$. AIS (Algorithm~\ref{alg: annealing}) instead applies MALA directly under $\pi$, using only $-\nabla U$ in its proposal. MALA preserves $\pi$ but not the intermediate $\mu_m$, so the output is a biased target surrogate: the construction trades intermediate invariance for a kernel that needs only $-\nabla U$.
+A standard SMC sampler targeting the path \eqref{eq: mu-m} would rejuvenate at level $m$ with a Markov kernel invariant for $\mu_m$. For $m<M$, a MALA kernel for $\mu_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$; at $m=M$, this term disappears because $\mu_M=\pi$. AIS (Algorithm~\ref{alg: annealing}) instead applies MALA directly under $\pi$, using only $-\nabla U$ in its proposal. MALA preserves $\pi$ but not the intermediate $\mu_m$, so the output is a biased target surrogate: the kernel needs only $-\nabla U$, at the cost of not leaving each intermediate $\mu_m$ invariant.
 
 The AIS construction in Algorithm~\ref{alg: annealing} differs from FAB \citep{midgley2022flow}. FAB places the flow inside the chains, and its MCMC transitions target the surrogate $\pi^2/\nu$, whose log-density gradient is
 \begin{equation*}
@@ -459,12 +458,12 @@ The AIS construction in Algorithm~\ref{alg: annealing} differs from FAB \citep{m
 \end{equation*}
 and therefore contains the positional gradient of the pushforward density at every MCMC step. FAB trains from a prioritized replay buffer of weighted AIS samples with a staleness correction. Reusing this buffer reduces repeated AIS generation but adds storage, prioritized sampling, and correction work. Here every MALA chain instead targets $\pi$ and uses only $-\nabla U$; the flow enters through the initial pushforward samples and evaluations of $z$. Each gradient step starts from a new source batch, so no replay buffer is kept.
 
-The exploration costs also differ. Relative to forward KL, KLXX adds the QT construction and the pairwise log-ratio evaluations, of which $\X_\pi$ reuses the target batch and the mixture term evaluates one more. Coverage then comes from the fixed $N$-sample QT set of Section~\ref{subsec: QT}, whereas FAB relies on its AIS budget for exploration and on the stronger tail incentive of its $2$-divergence.
+The exploration costs also differ. Relative to forward KL, KLXX adds the QT construction and the pairwise log-ratio evaluations. The target variation $\X_\pi$ reuses the target batch, and the mixture term evaluates one additional batch. Coverage then comes from the fixed $N$-sample QT set of Section~\ref{subsec: QT}, whereas FAB relies on its AIS budget for exploration and on the stronger tail penalty of its $2$-divergence.
 
 \begin{remark}
-	In principle, AIS or another SMC sampler can propagate from the source $\pi_0$ to the target $\pi$ on its own, with no flow at all. Two drawbacks argue against that choice. First, such a sampler explores only where its own trajectories go, so nothing guarantees coverage of the target modes; the QT set of Section~\ref{subsec: QT} is what supplies candidate modes in KLXX. Second, with no flow to deform the proposal toward the next distribution, each level reweights and resamples at a much lower ESS, and repeated resampling of a degenerate weight set raises the Monte Carlo error of the returned samples.
+	In principle, AIS or another SMC sampler can propagate from the source $\pi_0$ to the target $\pi$ on its own, with no flow at all. That choice has two drawbacks. First, such a sampler explores only where its own trajectories go, so nothing guarantees coverage of the target modes; the QT set of Section~\ref{subsec: QT} is what supplies candidate modes in KLXX. Second, with no flow to deform the proposal toward the next distribution, each level reweights and resamples at a much lower ESS, and repeated resampling of a degenerate weight set raises the Monte Carlo error of the returned samples.
 	
-	The Boltzmann generator of Section~\ref{sec: boltzmann} compares each trained flow with the identity proposal and keeps whichever has the larger sample ESS, so an accepted stage is never worse than the identity in that diagnostic, up to the finite sample set. A trained Boltzmann generator therefore has no reason to perform systematically worse than the identity, which propagates by reweighting, resampling, and MALA alone. Section~\ref{sec: alkane-results} reports the empirical side: the KLXX Boltzmann generator has the smallest propagation factor in all ten recorded alkane settings, while forward KL approaches the identity result as the molecule grows.
+	The Boltzmann generator of Section~\ref{sec: boltzmann} compares each trained flow with the identity proposal and keeps whichever has the larger sample ESS, so an accepted stage is never worse than the identity in that diagnostic, up to the finite sample set. The identity proposal itself propagates by reweighting, resampling, and MALA alone. Section~\ref{sec: alkane-results} reports the corresponding experiments: the KLXX Boltzmann generator has the smallest propagation factor in all ten recorded alkane settings, while forward KL approaches the identity result as the molecule grows.
 \end{remark}
 
 \subsection{Evaluation: ESS, coverage, and importance sampling}
@@ -494,18 +493,18 @@ i.e., the distance from $\hat y_i$ to its $\kappa$-th nearest neighbor in $\hat{
         \exists  1\Le j\Le N : |y_j - \hat y_i| \Le \mathrm{NND}_\kappa(\hat y_i;\hat{\mathcal Y})
     \Bigr\},
 \end{equation}
-i.e., the fraction of points in $\hat{\mathcal Y}$ whose $\kappa$-nearest-neighbor ball contains a point of $\mathcal Y$. A coverage close to $1$ indicates that the finite QT reference set is well covered by the flow, while a coverage well below $1$ exposes missing regions that the ESS alone cannot see. Because the reference set is itself produced by QT, the diagnostic checks only modes found by that reference construction.
+i.e., the fraction of points in $\hat{\mathcal Y}$ whose $\kappa$-nearest-neighbor ball contains a point of $\mathcal Y$. A coverage close to $1$ indicates that the finite QT reference set is well covered by the flow, while a coverage well below $1$ shows missing regions that the ESS alone cannot detect. Because the reference set is itself produced by QT, the diagnostic checks only modes found by that reference construction.
 
-After these diagnostics assess the pushforward samples, the same weights define the resampling step. Normalize them as $p_i=w_i/\sum_{j=1}^{N}w_j$, draw $N$ samples by multinomial resampling from the importance-weighted pushforward samples $(y_i,w_i)_{i=1}^{N}$ with probabilities $p_i$, and apply a short MALA chain under $\pi$ to rejuvenate the duplicates that resampling produces. The resampled samples form an unweighted approximation of the target-weighted empirical measure, while MALA produces fresh configurations and retains $\pi$ as its invariant distribution.
+The same weights define the resampling step. Normalize them as $p_i=w_i/\sum_{j=1}^{N}w_j$. Draw $N$ samples by multinomial resampling from the importance-weighted pushforward samples $(y_i,w_i)_{i=1}^{N}$ with probabilities $p_i$, and apply a short MALA chain under $\pi$ to rejuvenate the duplicates that resampling produces. The resampled samples form an unweighted approximation of the target-weighted empirical measure, while MALA produces fresh configurations and retains $\pi$ as its invariant distribution.
 
 \begin{remark}
-	MALA or other local Monte Carlo methods are necessary to keep the samples distinct after resampling, because each resampling possibly introduces duplicates even when the importance weights are completely uniform, and all the more so in the general case, where the ESS can be low. The same rejuvenation can in principle be applied to the batch subsamples drawn in steps~(i) and~(iii) of the KLXX training algorithm (Algorithm~\ref{alg: training}); we omit it there for simplicity.
+	MALA or another local Monte Carlo method is needed to keep the samples distinct after resampling: even uniform weights can produce duplicates, and a low ESS produces more. The same rejuvenation can in principle be applied to the batch subsamples drawn in steps~(i) and~(iii) of the KLXX training algorithm (Algorithm~\ref{alg: training}); we omit it there for simplicity.
 \end{remark}
 
 Under {\color{blue}standard regularity consistency conditions}, the target-weighted empirical measure and its resampled particle approximation converge to $\pi$ as $N\to\infty$ \citep{liu2001monte,doucet2001introduction}. The $\pi$-invariant MALA refresh preserves this target limit. We call samples with this property \emph{asymptotically unbiased}: their bias against the target vanishes as $N\to\infty$.
 
 \begin{remark}
-{\color{purple}Asymptotic unbiasedness is stated here formally. Theorem~\ref{thm: propagation} proves it rigorously for the Boltzmann generator, with MALA as the rejuvenation kernel.}
+{\color{purple}Asymptotic unbiasedness is stated here informally. Theorem~\ref{thm: propagation} proves it rigorously for the Boltzmann generator, with MALA as the rejuvenation kernel.}
 \end{remark}
 
 \section{Adaptive-staging Boltzmann generator}
@@ -1450,8 +1449,8 @@ configuration.
 \section{Proof of Fisher--Rao gradient flow convergence}
 \label{sec: appendix-FR}
 
-This appendix derives the Fisher--Rao gradient flow \eqref{eq: FR-flow} of the generalized KLXX loss \eqref{eq: KLXX-general} and proves the dissipation identity \eqref{eq: combined-rate} and the exponential decay \eqref{eq: KL-exponential} stated in Section~\ref{subsec: FR-convergence}. We view $\nu$ as a generic probability density evolving under a Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ approaches the target in $\KL(\pi\|\nu_t)$.
-Throughout, we assume the densities are positive and sufficiently regular, and that the expectations displayed below are finite.
+This appendix derives the Fisher--Rao gradient flow \eqref{eq: FR-flow} of the generalized KLXX loss \eqref{eq: KLXX-general-nu} and proves the dissipation identity \eqref{eq: combined-rate} and the exponential decay \eqref{eq: KL-exponential} stated in Section~\ref{subsec: FR-convergence}. We view $\nu$ as a generic probability density evolving under a Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ approaches the target in $\KL(\pi\|\nu_t)$.
+Throughout, we assume the densities are positive and regular enough for differentiation, and that the expectations displayed below are finite.
 
 The FR gradient of a functional $\mathcal F[\nu]$ and the flow it generates are given by
 \begin{equation}
@@ -1461,17 +1460,17 @@ The FR gradient of a functional $\mathcal F[\nu]$ and the flow it generates are 
     \label{eq: appendix-FR-gradient}
 \end{equation}
 The mean subtraction enforces $\int_{\mathbb R^d}\mathrm{grad}^{\mathrm{FR}}\mathcal F\D x = 0$ at unit mass, so the flow preserves probability mass.
-In the generalized KLXX loss \eqref{eq: KLXX-general},
+In the generalized KLXX loss \eqref{eq: KLXX-general-nu},
 the forward KL contributes a local term: its first variation is $\delta\KL(\pi\|\nu)/\delta\nu = -w$, and $\mathbb E_\nu[w] = \int_{\mathbb R^d}\pi\D x = 1$, so \eqref{eq: appendix-FR-gradient} gives
 \begin{equation}
     \mathrm{grad}^{\mathrm{FR}}\bigl[\KL(\pi\|\nu)\bigr](x) = \nu(x)-\pi(x).
     \label{eq: appendix-FR-grad-KL}
 \end{equation}
-The two log-ratio variations are handled at once, because neither weighting density is varied and nothing in the calculation uses that the weighting density and the target coincide.
+The two log-ratio variations are handled at once, because neither weighting distribution is varied and nothing in the calculation uses that the weighting distribution and the target coincide.
 
 \begin{lemma}
 \label{lem: appendix-variation}
-Let $\omega$ be a probability density that does not depend on $\nu$, and let $S^{\omega}$ be its nonlocal correlation \eqref{eq: FR-S}. Then
+Let $\omega$ be a weighting distribution that does not depend on $\nu$, and let $S^{\omega}$ be its nonlocal correlation \eqref{eq: FR-S}. Then
 \begin{equation}
     \frac{\delta \X_\omega(\pi\|\nu)}{\delta\nu}(x) = -2\,\frac{\omega(x)}{\nu(x)}\,S^{\omega}(x),
     \qquad
@@ -1501,11 +1500,11 @@ the two terms being equal after exchanging $x$ and $y$ and using the antisymmetr
 so the mean subtraction in \eqref{eq: appendix-FR-gradient} contributes $\mathbb E_\nu\bigl[-2(\omega/\nu)S^{\omega}\bigr] = -2\int_{\mathbb R^d}\omega S^{\omega}\D x = 0$, and the FR gradient is $\nu\cdot\bigl(-2(\omega/\nu)S^{\omega}\bigr)$.
 \end{proof}
 
-The mixture $\xi=\alpha\hat\pi+\beta\bar\nu$ depends on $\nu$ through $\bar\nu$, but it is detached from the gradient calculation, so the lemma applies at $\omega=\xi$ as it does at $\omega=\pi$. Adding \eqref{eq: appendix-FR-grad-KL} to the two variations, the FR gradient of the generalized loss is
+The mixture $\xi=\alpha\hat\pi+\beta\bar\nu$ depends on $\nu$ through $\bar\nu$, but $\bar\nu$ is detached and takes no part in the gradient calculation, so $\xi$ is held fixed when the variation is taken. The lemma therefore applies at $\omega=\xi$ as it does at $\omega=\pi$. Adding \eqref{eq: appendix-FR-grad-KL} to the two variations, the FR gradient of the generalized loss is
 \begin{equation*}
     \mathrm{grad}^{\mathrm{FR}}[\mathcal L](x) = \nu(x)-\pi(x) - 2\lambda\,\pi(x)S^{\pi}(x) - 2\vartheta\,\xi(x)S^{\xi}(x) ,
 \end{equation*}
-which is the flow \eqref{eq: FR-flow}. It is a nonlocal differential equation: its right-hand side at $x$ needs the entire profile of the importance weight, under $\pi$ through $S^{\pi}$ and under $\xi$ through $S^{\xi}$. Integrating it and using \eqref{eq: appendix-S-mean-zero} at both weighting densities, the two correlation terms drop out and
+and the flow \eqref{eq: FR-flow} is $\partial_t\nu_t=-\,\mathrm{grad}^{\mathrm{FR}}\mathcal L(\nu_t)$. It is a nonlocal differential equation: its right-hand side at $x$ needs the entire profile of the importance weight, under $\pi$ through $S^{\pi}$ and under $\xi$ through $S^{\xi}$. Integrating it and using \eqref{eq: appendix-S-mean-zero} at both weighting distributions, the two correlation terms drop out and
 \begin{equation*}
     \frac{\D}{\D t}\!\int_{\mathbb R^d}\!\nu_t(x)\D x = 1 - \!\int_{\mathbb R^d}\!\nu_t(x)\D x ,
 \end{equation*}
@@ -1516,14 +1515,14 @@ so a unit mass at $t=0$ is preserved for all $t$. Mass neutrality of the correla
 The integrand $|z(x)-z(y)|$ has no derivative on the tie set $\{z(x)=z(y)\}$, where its subdifferential is $[-1,1]$ and the convention $\operatorname{sgn}(0)=0$ selects the element of least norm. This costs differentiability of $\nu\mapsto\X_\omega(\pi\|\nu)$ only where the tie set carries positive $\omega\otimes\omega$ mass, the diagonal alone being null; it does so at $\nu=\pi$, where $w\equiv1$ and every pair ties. Writing $u=\log\nu$ makes $z(x)-z(y)$ affine in $u$, so $\X_\omega$ is convex in $u$ and the second identity of \eqref{eq: appendix-FR-grad-X} is a subgradient there. Accordingly \eqref{eq: FR-flow} is a differential inclusion, and we still write gradient flow for simplicity.
 \end{remark}
 
-We take $\KL(\pi\|\nu_t)$ as the error and differentiate it along \eqref{eq: FR-flow}. The sign of the contribution each log-ratio variation makes to that derivative is settled by one identity, which the mixture term needs at a weighting density other than the target.
+Lemma~\ref{lem: appendix-variation} gives the FR gradient of each log-ratio variation, and those terms already stand in the flow \eqref{eq: FR-flow}. We differentiate $\KL(\pi\|\nu_t)$ along that flow. The contribution of each variation to $\frac{\D}{\D t}\KL(\pi\|\nu_t)$ is then an inner product of the importance weight $w_t$ against $S^{\omega}$, and the following identity determines its sign. The mixture term needs the identity at the weighting distribution $\xi=\alpha\hat\pi+\beta\bar\nu$.
 
 \begin{lemma}
 \label{lem: appendix-correlation}
-Let $\omega$ be a probability density with $\mathbb E_{\omega}[w]<\infty$. Then
+Let $\omega$ be a weighting distribution with $\mathbb E_{\omega}[w]<\infty$. Then
 \begin{equation}
     \mathbb E_{x\sim\omega}\bigl[w(x)S^{\omega}(x)\bigr]
-    = \tfrac12\,\mathbb E_{x,y\sim\omega}\bigl[|w(x)-w(y)|\bigr] \Ge 0 ,
+    = \frac12\,\mathbb E_{x,y\sim\omega}\bigl[|w(x)-w(y)|\bigr] \Ge 0 ,
     \label{eq: appendix-correlation}
 \end{equation}
 with equality if and only if $w$ is $\omega$-almost-everywhere constant.
@@ -1538,8 +1537,8 @@ By the definition \eqref{eq: FR-S} of $S^{\omega}$,
 which is finite because $\mathbb E_\omega[w]<\infty$. Symmetrizing in $x\leftrightarrow y$ and using the antisymmetry of the sign,
 \begin{equation*}
     \mathbb E_{x\sim\omega}\bigl[w(x)S^{\omega}(x)\bigr]
-    = \tfrac12\,\mathbb E_{x,y\sim\omega}\bigl[(w(x)-w(y))\operatorname{sgn}\bigl(w(x)-w(y)\bigr)\bigr]
-    = \tfrac12\,\mathbb E_{x,y\sim\omega}\bigl[|w(x)-w(y)|\bigr] .
+    = \frac12\,\mathbb E_{x,y\sim\omega}\bigl[(w(x)-w(y))\operatorname{sgn}\bigl(w(x)-w(y)\bigr)\bigr]
+    = \frac12\,\mathbb E_{x,y\sim\omega}\bigl[|w(x)-w(y)|\bigr] .
 \end{equation*}
 The last expression vanishes exactly when $w(x)=w(y)$ for $\omega\otimes\omega$-almost every pair.
 \end{proof}
@@ -1560,7 +1559,7 @@ The elementary inequality $u\log u\Le u^2-u$ for $u>0$, applied at $u=w_t$ and i
 \begin{equation*}
     \frac{\D}{\D t}\KL(\pi\|\nu_t) \Le -\chi^2(\pi\|\nu_t) \Le -\KL(\pi\|\nu_t) ,
 \end{equation*}
-and Gr\"onwall's inequality yields the exponential decay \eqref{eq: KL-exponential}, with no structural assumption on $\pi$ and uniformly in $(\lambda,\vartheta,\alpha,\beta)$. This contrasts with the Wasserstein-2 geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
+and Gr\"onwall's inequality yields the exponential decay \eqref{eq: KL-exponential}, without assuming log-concavity, a spectral gap, or a growth condition on $\pi$, and uniformly in $(\lambda,\vartheta,\alpha,\beta)$. This is a statement in density space: the rate is the one forward KL already carries, and what the variations change is the structure of the flow rather than its speed. This contrasts with the Wasserstein-2 geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
 
 \section{Proof of accuracy under biased target surrogate}
 \label{sec: appendix-accuracy}
@@ -1618,7 +1617,7 @@ The inequality $\varrho\log\varrho\Ge\varrho-1$ for $\varrho>0$ bounds the last 
 Substituting \eqref{eq: appendix-varrho} into the remaining integral returns the right side of \eqref{eq: appendix-rho-minus-one}, and Lemma~\ref{lem: appendix-correlation}, applied at $\omega=\tilde\pi$ and at $\omega=\xi$ with $\nu=\nu_\star$, absorbs the factor two in each term, giving \eqref{eq: accuracy-bound}.
 \end{proof}
 
-Identity \eqref{eq: appendix-rho-minus-one} also settles how much \eqref{eq: accuracy-bound} can subtract. Since $\tilde\pi\varrho=\nu_\star$ and $\nu_\star w_\star=\pi$, the left side of \eqref{eq: appendix-rho-minus-one} evaluates exactly, and Lemma~\ref{lem: appendix-correlation} turns its right side into the two discrepancies, so {\color{blue}the two subtracted terms} sum to $1-\mathbb E_{\tilde\pi}[w_\star]$, the value quoted after Theorem~\ref{thm: accuracy}. Both are nonnegative, which forces $\mathbb E_{\tilde\pi}[w_\star]\Le1$, and $\mathbb E_{\tilde\pi}[w_\star]>0$ then leaves the subtraction strictly below one nat. Equality holds at $\lambda=\vartheta=0$, and when either coefficient is positive only in the degenerate case $\tilde\pi=\nu_\star=\pi$: the equality case of Lemma~\ref{lem: appendix-correlation} makes $w_\star$ constant $\tilde\pi$-almost everywhere when $\lambda>0$ and $\xi$-almost everywhere when $\vartheta>0$, both densities are positive, and $\int\pi=\int\nu_\star=1$ then forces $w_\star\equiv1$, whence $S^{\tilde\pi}_\star=S^{\xi}_\star=0$ and \eqref{eq: surrogate-stationary} gives $\nu_\star=\tilde\pi=\pi$.
+Identity \eqref{eq: appendix-rho-minus-one} also settles how much \eqref{eq: accuracy-bound} can subtract. Since $\tilde\pi\varrho=\nu_\star$ and $\nu_\star w_\star=\pi$, the left side of \eqref{eq: appendix-rho-minus-one} evaluates exactly, and Lemma~\ref{lem: appendix-correlation} turns its right side into the two discrepancies, so {\color{blue}the two subtracted terms} sum to $1-\mathbb E_{\tilde\pi}[w_\star]$, the value quoted after Theorem~\ref{thm: accuracy}. Both are nonnegative, which forces $\mathbb E_{\tilde\pi}[w_\star]\Le1$, and $\mathbb E_{\tilde\pi}[w_\star]>0$ then leaves the subtraction strictly less than $1$. Equality holds at $\lambda=\vartheta=0$, and when either coefficient is positive only in the degenerate case $\tilde\pi=\nu_\star=\pi$: the equality case of Lemma~\ref{lem: appendix-correlation} makes $w_\star$ constant $\tilde\pi$-almost everywhere when $\lambda>0$ and $\xi$-almost everywhere when $\vartheta>0$, both densities are positive, and $\int\pi=\int\nu_\star=1$ then forces $w_\star\equiv1$, whence $S^{\tilde\pi}_\star=S^{\xi}_\star=0$ and \eqref{eq: surrogate-stationary} gives $\nu_\star=\tilde\pi=\pi$.
 
 \begin{remark}
 \label{rem: appendix-domination}
