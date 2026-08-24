@@ -1635,9 +1635,9 @@ The two finiteness hypotheses of Theorem~\ref{thm: accuracy} are mild, and one s
 \section{\color{purple} Proof of propagation factor analysis}
 \label{sec: appendix-propagation}
 
-Section~\ref{sec: propagation-analysis} states the error bound and the propagation factors read from it. This appendix proves Theorem~\ref{thm: propagation} for the scheme stated there, with a general rejuvenation kernel; Appendix~\ref{subsec: appendix-factor} examines the factor the experiments report.
+Section~\ref{sec: propagation-analysis} states the error bound and the propagation factor $F_{\Sigma+}$ read from it. This appendix proves Theorem~\ref{thm: propagation} for the scheme stated there, with a general Markov rejuvenation kernel; Appendix~\ref{subsec: appendix-factor} examines the factors $F_{\Sigma}$ and $\hat F_{\Sigma}$ the experiments report.
 
-Throughout, the accepted schedule and the trained maps $G_1,\dots,G_K$ are held fixed: the theorem describes inference with a trained Boltzmann generator, replayed on a fresh particle set with no further selection or training. The proof keeps every stage in its own equivalence class and never leaves the triple $(\pi_k,\nu_k,w_k)$. The identities that carry the error across a stage, \eqref{eq: appendix-transfer} below, ask only how one stage relates to the next, so adding a kernel rebuilds no object in the proof. That the rejuvenation costs nothing rests on two things: the invariance of $Q_k$, and the inability of a Markov kernel to widen the range of a bounded function.
+Throughout, the accepted schedule and the trained maps $G_1,\dots,G_K$ are held fixed: the theorem describes inference with a trained Boltzmann generator, replayed on a fresh particle set with no further selection or training. The proof works one stage at a time and uses only the triple $(\pi_k,\nu_k,w_k)$ and the identities \eqref{eq: appendix-transfer} relating consecutive stages, so the rejuvenation kernel adds no new object to the argument.
 
 \subsection{Notation and what one stage does}
 \label{subsec: appendix-notation}
@@ -1658,7 +1658,7 @@ so that the invariance assumed of $Q_k$ reads $\pi_kQ_k=\pi_k$. Each $G_k$ is a 
     \quad (k=1,\dots,K) .
     \label{eq: appendix-empirical}
 \end{equation}
-The particles enter stage $k$ distributed approximately as $\pi_{k-1}$ and are counted by $\pi_{k-1}^N$; the stage map moves them, and between that move and the resampling they sit at the pushforward positions $Y_k^i$, distributed approximately as $\nu_k$ and counted by $\nu_k^N$. Thus $\pi_k^N$ collects the particles carried out of stage $k$, and $\nu_k^N$ the pushforward particles that stage $k$ reweights. The estimate the scheme returns is $\pi_K^N$, and $\pi_0^N$ is the empirical measure of the $N$ initial draws. Each superscript-$N$ measure is the empirical counterpart of the distribution of the same name, and the proof is a bookkeeping of how far apart the two stay.
+Here $\pi_k^N$ counts the particles carried out of stage $k$, and $\nu_k^N$ the pushforward particles that stage $k$ reweights. In particular $\pi_0^N$ is the empirical measure of the $N$ initial draws, and $\pi_K^N$ is the estimate the scheme returns. Each measure carrying the superscript $N$ is the empirical counterpart of the distribution of the same name, and the proof bounds the distance between the two.
 
 One stage does three things to $\pi_{k-1}^N$, and between them they contribute two terms to the recurrence. The \emph{flow pushforward} adds no randomness and loses nothing, because $G_k^{-1}$ is a deterministic map: it carries the whole empirical measure across,
 \begin{equation}
@@ -1667,9 +1667,9 @@ One stage does three things to $\pi_{k-1}^N$, and between them they contribute t
     \nu_k = (G_k^{-1})_{\#}\pi_{k-1} ,
     \label{eq: appendix-pushforward}
 \end{equation}
-the second identity being the definition of $\nu_k$. The \emph{importance sampling} contributes both terms of the recurrence: its weighting adds no randomness but distorts the measure, and the distortion is driven by the error already present, while its resampling injects fresh randomness. The \emph{rejuvenation} injects randomness too, but together with the resampling it is one independent draw per particle, and on average the two return the weighted particles put through $Q_k$. So the pushforward contributes the identity that moves the error across a stage, the weighting contributes the inherited term, and the two randomizing draws contribute the single Monte Carlo term of the recurrence proved in Appendix~\ref{subsec: appendix-proof}.
+the second identity being the definition of $\nu_k$. The \emph{importance sampling} contributes both terms of the recurrence: its weighting adds no randomness but distorts the measure, and the distortion is driven by the error already present, while its resampling injects fresh randomness. The \emph{rejuvenation} injects randomness too, but together with the resampling it is one independent draw per particle, and on average the two return the weighted particles put through $Q_k$. The recurrence is proved in Appendix~\ref{subsec: appendix-proof}.
 
-The pushforward identity is what replaces the change of variables one would otherwise perform, and it is what carries the whole burden of keeping the stage index. By the definition of $(G_k^{-1})_{\#}$, integrating $h$ against $\nu_k$ is integrating $h\circ G_k^{-1}$ against $\pi_{k-1}$, and the same holds for the empirical measures because $Y_k^i=G_k^{-1}(X_{k-1}^i)$; taking $h$ to be an indicator matches the null sets of the two distributions, so $h$ and $h\circ G_k^{-1}$ have the same essential range. Hence
+By the definition of $(G_k^{-1})_{\#}$, integrating $h$ against $\nu_k$ is integrating $h\circ G_k^{-1}$ against $\pi_{k-1}$, and the same holds for the empirical measures because $Y_k^i=G_k^{-1}(X_{k-1}^i)$; taking $h$ to be an indicator matches the null sets of the two distributions, so $h$ and $h\circ G_k^{-1}$ have the same essential range. Hence
 \begin{equation}
     \nu_k^N\langle h\rangle = \pi_{k-1}^N\langle h\circ G_k^{-1}\rangle,
     \qquad
@@ -1702,14 +1702,14 @@ The weighted distribution from which stage $k$ resamples, with $W_k^i=w_k(Y_k^i)
     = \frac{\nu_k^N\langle w_kh\rangle}{\nu_k^N\langle w_k\rangle} ,
     \label{eq: appendix-weighted}
 \end{equation}
-so that $\mathcal A_k(h)$ is the average of $h$ under the weighted particles, a random number once $h$ is fixed. It is the hinge of the proof: applied to $Q_kh$ it is the mean, given the pushforward particles, of what the resampling and rejuvenation draw, so it stands between the error inherited from earlier stages and the error those draws inject. The same ratio in \eqref{eq: appendix-weighted} taken at $\nu_k$ instead of $\nu_k^N$ returns $\pi_k\langle h\rangle$, since $\nu_k\langle w_kh\rangle = \pi_k\langle h\rangle$ and $\nu_k\langle w_k\rangle=1$; so the denominator is one for the exact sequence and random for the particle one. 
+so that $\mathcal A_k(h)$ is a random number once $h$ is fixed. Applied to $Q_kh$, it is the conditional mean of $\pi_k^N\langle h\rangle$ given the pushforward particles, and therefore separates the error inherited from earlier stages from the error the resampling and rejuvenation inject. The same ratio in \eqref{eq: appendix-weighted} taken at $\nu_k$ instead of $\nu_k^N$ returns $\pi_k\langle h\rangle$, since $\nu_k\langle w_kh\rangle = \pi_k\langle h\rangle$ and $\nu_k\langle w_k\rangle=1$.
 
 \subsection{Proof of Theorem~\ref{thm: propagation}}
 \label{subsec: appendix-proof}
 
 The proof is an induction on the stage index. Two facts about the importance weight $w_k$ are used throughout. First, $\nu_k\langle w_k\rangle = 1$, because $w_k=\pi_k/\nu_k$ and $\pi_k$ is a probability distribution. Second, $\nu_k^N\langle w_k\rangle$ lies almost surely in $(0,\lVert w_k\rVert_\infty]$, by the null sets recorded in Appendix~\ref{subsec: appendix-notation}, so no normalization vanishes or diverges.
 
-The next lemma bounds the error of the weighted average \eqref{eq: appendix-weighted} by the errors of $\nu_k^N$ against $\nu_k$ on two fixed functions, and so accounts for the error the weighting propagates. The difficulty it removes is that $\mathcal A_k(h)$ is a ratio, and a ratio of two noisy averages is not an average of any fixed function against $\nu_k^N$, which is the one form the pushforward particles are known to control. The device is to center the observable at its exact stage average and weight it, giving the function $g_k$ below, whose exact average vanishes; the numerator error and the denominator error can then be read off separately as ordinary deviations of $\nu_k^N$ from $\nu_k$.
+The next lemma bounds the error of the weighted average \eqref{eq: appendix-weighted} by the errors of $\nu_k^N$ against $\nu_k$. The difficulty is that $\mathcal A_k(h)$ is a ratio, and a ratio of two noisy averages is not an average of any fixed function against $\nu_k^N$, which is the one form the pushforward particles are known to control. We therefore center the observable at its exact stage average and weight it, giving the function $g_k$ below, whose exact average vanishes; the numerator error and the denominator error are then ordinary deviations of $\nu_k^N$ from $\nu_k$.
 
 \begin{lemma}
 \label{lem: onestep}
@@ -1748,7 +1748,7 @@ For the oscillations, $\pi_k\langle h\rangle\in[\operatorname{ess\,inf}h,\operat
 We are now ready to prove Theorem~\ref{thm: propagation}.
 
 \begin{proof}
-The argument reduces the whole schedule to a single scalar per stage. We measure how wrong the stage-$k$ particles are by one number $\varepsilon_k$, show that $\varepsilon_k$ obeys a linear recurrence in which the two randomizing draws together contribute a fixed amount and the previous stage enters multiplied by $3\lVert w_k\rVert_\infty$, and then unroll that recurrence. Taking a worst case over observables is what makes a single number possible: the recurrence has to apply at stage $k$ to the functions $g_k$ and $w_k$, which are not the observable the theorem asks about, so the quantity being recursed on must already cover every bounded function at once. Oscillation is the right scale for it, because that is the unit in which both the resampling bound and the lemma are stated.
+The argument assigns one number $\varepsilon_k$ to each stage, establishes a linear recurrence for it, and unrolls that recurrence. The recurrence is applied at stage $k$ to the functions $g_k$ and $w_k$, not to the observable of the theorem, so $\varepsilon_k$ is defined as a worst case over all bounded observables at once. Oscillation is the scale used, because both the resampling bound and Lemma~\ref{lem: onestep} are stated in it.
 
 Define $\varepsilon_k$ by the worst-case $L^2$ error of the stage-$k$ particles over observables of unit oscillation,
 \begin{equation}
