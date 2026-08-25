@@ -269,6 +269,10 @@ without assuming log-concavity, a spectral gap, or a growth condition on $\pi$. 
 	The uniform rate \eqref{eq: KL-exponential} does not say how fast training converges. It describes a flow in density space. Training instead descends in the parameters of the flow map $G$, and that descent moves the density along a different path. The flow time $t$ is also not a step count. How far one step advances depends on the magnitude of the parameter gradient, and \eqref{eq: KL-exponential} does not control it.
 \end{remark}
 
+\begin{remark}
+	\color{blue}The melting step is a design choice: Gaussian noise suits most target distributions with Gaussian tails, which is the case considered in this paper. The Gaussian noise can be wasteful when the target concentrates near a low-dimensional manifold, since most of the scattered samples land in the ambient space. Melt and quench can then be replaced by a particle dynamics carrying a pairwise repulsion, which spreads the particles apart instead of scattering each one on its own. The repulsive term of Stein variational gradient descent \citep{liu2016stein} is of this kind, and the history-dependent bias of metadynamics \citep{laio2002escaping} serves the same purpose in molecular simulation.
+\end{remark}
+
 \subsection{Accuracy under biased target surrogate}
 
 In training the generalized KLXX loss \eqref{eq: KLXX-general-nu}, AIS approximates the target distribution $\pi$ (Section~\ref{subsec: annealing}), so the target surrogate is a biased distribution $\tilde\pi$. The corresponding biased loss is given by
@@ -1416,6 +1420,7 @@ In the single-seed alkane runs, KLXX has the smallest factor in every matched se
 
 The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets; a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals. Among the chiral results, alanine dipeptide is checked against published ground truth, and 2,3-butanediol and Ac-Pro-NHMe against references of our own. The Ac-Pro-NHMe comparison agrees on the qualitative picture and leaves a quantitative gap in the cis population. The propagation bound makes that gap a finite-sample term; resolving it would require an inference set beyond the budget of this study, so we report it open.
 
+{\color{blue}Future work includes tuning the KLXX loss for better performance and testing more challenging cases such as a Lennard--Jones system and distributions on low-dimensional manifolds. We will also compare KLXX with other Boltzmann-generator type methods, including FAB, LDR, and TA-BG.} 
 
 \section*{Acknowledgments}
 
@@ -1439,6 +1444,7 @@ configuration.
 	\bibliography{references}
 }
 
+\clearpage
 \appendix
 
 \section{Proof of Fisher--Rao gradient flow convergence}
