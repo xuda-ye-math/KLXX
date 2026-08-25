@@ -542,7 +542,7 @@ Training $G_k$ requires the target surrogate for $\pi_k$ defined in Section~\ref
 
 \begin{algorithm}[htb]
     \setstretch{1.2}
-\caption{Aaptive SMC screen: selection of stage increment $\Delta t_k$}
+\caption{Adaptive SMC screen: selection of stage increment $\Delta t_k$}
 \label{alg: step}
 \KwInput{potentials $U_0, U$, stage point $t_{k-1}$, sample set $\mathcal Y_{k-1} = \{y_1,\dots,y_N\}$ approximating $\pi_{k-1}$, ladder length $M$, SMC ESS floor $\tau_{\mathrm{SMC}} = 0$, shrink factor $\gamma=0.7$, initial guess $t_{\mathrm{init}}$}
 \KwOutput{next stage point $t_{k}$, giving the stage increment $\Delta t_k = t_k - t_{k-1}$}
