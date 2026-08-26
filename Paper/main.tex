@@ -142,6 +142,8 @@ Constrained mass transport instead constrains the KL divergence and the entropy 
 
 A separate family replaces the loss altogether. Energy-only methods such as iDEM alternate a sampling loop with a score- or velocity-fitting loop and a replay buffer \citep{akhound2024iterated,woo2024iefm}. Adjoint sampling learns a diffusion sampler from the energy alone by stochastic optimal control \citep{havens2025adjoint}. Controlled stochastic differential equations, denoising diffusions, and flow-matching models learn a drift or velocity rather than a bijection \citep{zhang2022path,vargas2023denoising,berner2024optimal,nusken2021solving,richter2024improved}. Annealing enters this family as well: NETS augments AIS with a learned drift \citep{albergo2024nets}, and a temperature sequence of diffusion models can be annealed at inference time \citep{akhoundsadegh2025progressive}. These stochastic transports can be more expressive than the invertible architectures used here, but their terminal density often requires per-sample ODE integration \citep{he2025notrick}. We retain a bijection because the exact pushforward density, importance ratio, ESS, and reweighting are central to every term of \eqref{eq: KLXX-G} and to the final estimator. Table~\ref{tab: loss-methods} summarizes these distinctions.
 
+{\color{red}A further family keeps an exact likelihood but drops the bijection. Autoregressive Boltzmann generators factorize the density as $p(x)=\prod_j p(x_j\mid x_{<j})$, so the likelihood needs neither a Jacobian determinant nor an ODE solve, and no map is inverted \citep{rehman2026autoregressive}. They are trained by likelihood on molecular dynamics data, whereas the generator of Section~\ref{sec: boltzmann} uses no external samples.}
+
 \begin{table}[htb]
 \centering
 {\small
@@ -155,6 +157,7 @@ FAB & $2$-divergence ($\pi^2/\nu$) & AIS on $\pi^2/\nu$; MCMC differentiates $\n
 LDR & $\KL(\pi\|\nu)+\mathbb E_\pi[|z-\mathbb E_\pi z|^p]$ & fixed energy-labeled data; no extra pushforward samples \\
 AFT, CRAFT & $\KL$ per annealing step & one flow per step, trained on the weighted particles \\
 iDEM & energy matching & iterative sampler; stochastic transport; replay buffer \\
+{\color{red}ArBG} & {\color{red}maximum likelihood} & {\color{red}autoregressive model; molecular dynamics data} \\
 \multirow{2}{*}{KLXX} &
 \multirow{2}{*}{$\KL(\pi\|\nu)$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$} &
 target annealing, QT, and detached pushforward samples \\
