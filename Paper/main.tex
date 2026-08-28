@@ -1,7 +1,7 @@
 \documentclass{article}
 \input{preamble}
-\newcommand{\RJ}[1]{\textcolor{blue}{[RJ: #1]}}
-\newcommand{\XY}[1]{\textcolor{purple}{[XY: #1]}}
+\newcommand{\RJ}[1]{[RJ: #1]}
+\newcommand{\XY}[1]{[XY: #1]}
 
 \title{Forward KL Can Be Better: Normalizing Flow Boltzmann Sampling with Log-Ratio Variation}
 \author[1]{Qi Feng}
@@ -16,7 +16,7 @@
 \maketitle
 
 \begin{abstract}
-Normalizing flow Boltzmann generators retain a tractable pushforward density, but training with forward KL depends on target samples that may be biased or omit modes. A flow can miss target mass while its observed importance weights give a high effective sample size. We introduce the log-ratio variation $\X_\omega$, the mean absolute pairwise difference of the target-to-{pushforward} log-density ratio under a weighting measure $\omega$, and use it to define KLXX, a new loss function. Its two X's are {\color{blue}two log-ratio variations} added to the forward KL, one weighted by the target surrogate {\color{blue}to improve accuracy}, the other by a mixture of quench and temper samples with pushforward samples {\color{blue}to search candidate modes}. We derive exponential convergence in Fisher--Rao geometry and a fixed-surrogate error bound for KLXX, then use KLXX in an adaptive-staging Boltzmann generator with exact importance reweighting and sharpening of the regularized molecular potential. We bound that generator's sampling error and {\color{purple}prove it asymptotically unbiased} in the sample size. From that bound we read a propagation factor that summarizes how error accumulates across stages. In the model and molecular tests, KLXX improves mode coverage and stagewise diagnostics, and selected observables agree with independent molecular simulations. The log-ratio variations thus supply information that a straightforward KL loss can omit.
+Normalizing flow Boltzmann generators retain a tractable pushforward density, but training with forward KL depends on target samples that may be biased or omit modes. As a result, a flow can miss target mass while its observed importance weights give a high effective sample size. We introduce the log-ratio variation $\X_\omega$, the mean absolute pairwise difference of the target-to-{pushforward} log-density ratio under a weighting measure $\omega$, and use it to define KLXX, a new loss function. Two log-ratio variations are added to the forward KL (denoted by the two X's): one weighted by the target surrogate to improve accuracy, the other by a mixture of quench and temper samples with pushforward samples to search candidate modes. We derive {\color{blue}the Fisher--Rao gradient flow of KLXX, where both variations contribute nonpositive dissipation,} and a fixed-surrogate error bound for KLXX. {\color{blue}We} use KLXX in an adaptive-staging Boltzmann generator, with exact importance reweighting and sharpening of the regularized molecular potential. We bound that generator's sampling error {\color{purple}when the stage weights are essentially bounded}, and prove it asymptotically unbiased in the sample size. From that bound we read a propagation factor that summarizes how error accumulates across stages. In the model and molecular tests, KLXX improves mode coverage and stagewise diagnostics, and selected observables agree with independent molecular simulations. The log-ratio variations thus supply information that a straightforward KL loss usually omits.
 \end{abstract}
 
 % ===================== Graphical abstract =====================
@@ -35,12 +35,12 @@ Normalizing flow Boltzmann generators retain a tractable pushforward density, bu
 \section{Introduction}
 \label{sec: intro}
 
-Sampling from a target distribution $\pi \propto \exp(-U)$ on $\mathbb R^d$ is a recurring problem in molecular simulation, Bayesian inference, and statistical physics \citep{frenkel2002understanding,robert2004monte,landau2014guide}. When $\pi$ is high-dimensional and multimodal, its mass splits among basins of $U$ separated by barriers. Local sampling kernels, including Metropolis--Hastings \citep{metropolis1953equation,hastings1970monte}, Langevin dynamics \citep{langevin1908theorie,leimkuhler2015molecular}, Nos{\'e}--Hoover dynamics \citep{nose1984unified,hoover1985canonical}, and Hamiltonian Monte Carlo \citep{duane1987hybrid}, evolve from the current configuration and can therefore remain confined to one basin over accessible simulation times. When this occurs, finite-time estimates are biased toward the visited basin and give no direct account of the mass that was never reached.
+Sampling from a target distribution $\pi \propto \exp(-U)$ on $\mathbb R^d$ is a recurring problem in many fields including molecular simulation, Bayesian inference, and statistical physics \citep{frenkel2002understanding,robert2004monte,landau2014guide}. When $\pi$ is high-dimensional and multimodal, its mass splits among basins of $U$ separated by barriers. Local sampling kernels, including Metropolis--Hastings \citep{metropolis1953equation,hastings1970monte}, Langevin dynamics \citep{langevin1908theorie,leimkuhler2015molecular}, Nos{\'e}--Hoover dynamics \citep{nose1984unified,hoover1985canonical}, and Hamiltonian Monte Carlo \citep{duane1987hybrid}, evolve from the initial localized configuration and can therefore remain confined to one basin over accessible simulation times. When this occurs, finite-time estimates are biased toward the visited basin and give no direct account of the mass that was never reached.
 
 Tempering and particle methods address this problem by connecting a tractable distribution to $\pi$ through intermediate distributions. Parallel tempering (PT) and replica exchange run copies of the system at several temperatures and exchange neighboring configurations, so a basin reached at high temperature can enter the low-temperature ensemble \citep{swendsen1986replica,geyer1991markov,hukushima1996exchange}. Annealed importance sampling (AIS) moves along a bridge of intermediate distributions while accumulating importance weights \citep{neal2001annealed}. Sequential Monte Carlo (SMC) uses a similar bridge but resamples and rejuvenates a weighted particle set at each level \citep{doucet2001introduction,delmoral2006sequential}. For a prescribed chemical process, umbrella sampling biases selected reaction coordinates to cross the relevant barriers and reweights the biased samples to recover a free energy profile \citep{torrie1977umbrella,kastner2011umbrella}. Nested sampling instead rewrites the normalizing integral as a one-dimensional quadrature over a likelihood threshold \citep{skilling2006nested}.
 
-Recent work improves PT through three distinct mechanisms. Nonreversible swap schedules and tuned temperature grids accelerate round trips \citep{syed2022nonreversible}; variational-reference methods adapt the reference endpoint and its connecting path \citep{surjanovic2022variational}; and neural transports improve communication between adjacent distributions with limited overlap \citep{zhang2025accelerated}. Replica exchange has also been scaled beyond molecular simulation to stochastic-gradient samplers: replica exchange Langevin diffusion accelerates nonconvex optimization \citep{chen2019accelerating,dong2021replica}, its stochastic-gradient variant corrects the swap test for noisy energy estimates \citep{deng2020nonconvex}, and later variants reduce estimator variance to restore swap rates \citep{deng2021variance}. These accelerations strengthen communication between neighboring distributions and can transmit a discovered basin efficiently, but two limits remain: a basin that no chain has visited cannot enter the target ensemble \citep{woodard2009conditions,chehab2024provable}, and the mass of a visited basin is still estimated through occupation frequencies rather than reweighting.
-A complementary strategy is to learn a global transport from an easily sampled reference to the target, thereby generating independent, nonlocal proposals.
+Recent work improves PT through three distinct mechanisms. Nonreversible swap schedules and tuned temperature grids accelerate round trips \citep{syed2022nonreversible}; variational-reference methods adapt the reference endpoint and its connecting path \citep{surjanovic2022variational}; and neural transports improve communication between adjacent distributions with limited overlap \citep{zhang2025accelerated}. Replica exchange has also been scaled beyond molecular simulation to stochastic-gradient samplers: replica exchange Langevin diffusion accelerates nonconvex optimization \citep{chen2019accelerating,dong2021replica}, its stochastic-gradient variant corrects the swap test for noisy energy estimates \citep{deng2020nonconvex}, and later variants reduce estimator variance to restore swap rates \citep{deng2021variance}. These accelerations strengthen communication between neighboring distributions and can transmit a discovered basin efficiently, but two inherent limits remain: a basin that no chain has visited cannot enter the target ensemble \citep{woodard2009conditions,chehab2024provable}, and the mass of a visited basin is still estimated through occupation frequencies rather than reweighting.
+A more universal strategy is to learn a global transport from an easily sampled reference to the target, thereby generating independent, nonlocal proposals.
 
 Boltzmann generators sample the target distribution with a learned transport map \citep{noe2019boltzmann}, dropping the long-time Monte Carlo iterations entirely. Let $\pi_0\propto\exp(-U_0)$ be an easily sampled reference distribution, usually Gaussian; we train an invertible normalizing flow $G:\mathbb R^d\to\mathbb R^d$ \citep{rezende2015variational,papamakarios2017masked,kingma2018glow} to fit the target-to-source transport relation $G_{\#}\pi\approx\pi_0$. The inverse map then sends independent source draws toward the target, and their pushforward distribution is $\nu:=(G^{-1})_{\#}\pi_0$. Its density is
 \begin{equation}
@@ -52,19 +52,19 @@ where $J_G(y)$ is the Jacobian matrix of $G$ at $y$. The importance weight $w(y)
 	z(y) := \log w(y) = \log \frac{\pi(y)}{\nu(y)} =  U_0(G(y)) - U(y) - \log|\det J_G(y)| + \mathrm{const},
 	\label{eq: log-ratio}
 \end{equation}
-where the constant comes from the two normalizers and depends on neither $y$ nor $G$. The same weights define the effective sample size (ESS), a diagnostic of density agreement on the support reached by $\nu$ \citep{liu2001monte,doucet2001introduction,martino2017rethinking}. A high ESS guarantees accuracy in the flow's reached regions, but not full mode coverage of the potential $U$.
+where the constant comes from the two normalizers independent of both $y$ and $G$. The same weights define the effective sample size (ESS), a diagnostic of density agreement on the support reached by $\nu$ \citep{liu2001monte,doucet2001introduction,martino2017rethinking}. A high ESS guarantees accuracy in the flow's reached regions, but not full mode coverage of the potential $U$.
 
 
 The choice of loss has a strong effect on the training quality. The original Boltzmann generator \citep{noe2019boltzmann} and its variational-inference predecessor \citep{rezende2015variational} minimize the reverse Kullback--Leibler (KL) divergence
 \begin{equation}
-    \text{(reverse)}\quad \KL(\nu\|\pi) = \int_{\mathbb R^d} \nu(y) \log \frac{\nu(y)}{\pi(y)} \D y \,{\color{blue}= -\,\mathbb E_{y\sim\nu}\bigl[z(y)\bigr]},
+    \text{(reverse)}\quad \KL(\nu\|\pi) = \int_{\mathbb R^d} \nu(y) \log \frac{\nu(y)}{\pi(y)} \D y \,= -\,\mathbb E_{y\sim\nu}\bigl[z(y)\bigr],
     \label{eq: reverse KL}
 \end{equation}
 which needs samples only from $\nu$ and evaluations of $U$. The empirical gradient is therefore accessible, but the divergence is mode-seeking \citep{wainwright2008graphical}: a mode absent from $\nu$ contributes no samples and hence no gradient. A flow can then collapse onto a subset of the target modes \citep{wu2020stochastic,felardos2023designing}. Existing approaches interleave Markov chain Monte Carlo (MCMC) kernels with deterministic layers, encode target symmetries in the architecture, reduce gradient variance near the optimum, or anneal from a smoother potential \citep{wu2020stochastic,kohler2020equivariant,vaitl2022gradients,schopmans2025temperature}. These changes can improve exploration, but their success still depends on whether the resulting sampler reaches each relevant mode.
 
 The opposing loss minimizes the forward KL,
 \begin{equation}
-    \text{(forward)}\quad \KL(\pi\|\nu) = \int_{\mathbb R^d} \pi(y) \log \frac{\pi(y)}{\nu(y)} \D y \,{\color{blue}= \mathbb E_{y\sim\pi}\bigl[z(y)\bigr]},
+    \text{(forward)}\quad \KL(\pi\|\nu) = \int_{\mathbb R^d} \pi(y) \log \frac{\pi(y)}{\nu(y)} \D y \,= \mathbb E_{y\sim\pi}\bigl[z(y)\bigr],
     \label{eq: forward KL}
 \end{equation}
 which is mass-covering for exact distributions: it diverges if $\nu$ vanishes where $\pi$ has positive mass \citep{wainwright2008graphical}. Its empirical form, however, needs samples from the target distribution $\pi$. Existing work resolves this circularity in several ways. Maximum likelihood uses configurations from a reference thermodynamic state \citep{wirnsberger2020targeted}; adaptive flow samplers train on a running Markov chain and use the flow as a global proposal \citep{gabrie2022adaptive}; molecular flows can fit a molecular-dynamics trajectory \citep{klein2023equivariant}; and transferable architectures amortize coverage across related molecules \citep{klein2024transferable}. Persistent chains and coupled-target regression provide other approximations to the missing target expectation \citep{naesseth2020markovian,rehman2026regflow}. Because an empirical loss reflects only the regions represented by its sample source, the mass-covering property of the exact divergence does not prevent empirical mode omission. This tension motivates a loss that retains forward KL while using samples from more than one distribution.
@@ -78,13 +78,13 @@ To address these gaps, we propose KLXX, a forward KL loss augmented by \emph{log
 	\biggl|\log\frac{\pi(y)}{\nu(y)} - \log\frac{\pi(y')}{\nu(y')}\biggr| \D y\D y'.
 	\label{eq: X}
 \end{equation}
-The log-ratio variation is the mean absolute pairwise difference of the log-ratio $z(y)$ in \eqref{eq: log-ratio}, with both points drawn independently from a given distribution $\omega$.
-The principal idea in $\X_\omega$ is that the log-ratio $z(y)$ should be {\color{blue}almost surely zero on the support of $\omega$}, while the difference allows the cancellation of the unknown normalizers.
+The log-ratio variation is the mean absolute pairwise difference of the log-ratio $z(y)$ in \eqref{eq: log-ratio}, with both points drawn independently from a given distribution $\omega$. {\color{blue}For a real random variable this functional is the Gini mean difference \citep{yitzhaki2003gini}; here it is taken of the log-ratio.}
+The principal idea in $\X_\omega$ is that the log-ratio $z(y)$ should be almost surely zero on the support of $\omega$, while the difference allows the cancellation of the unknown normalizers.
 As the name KLXX implies, two variation terms of the form \eqref{eq: X} are appended:
 
 \textbf{Target variation}: $\X_\omega$ with $\omega = \pi$, the target distribution. It regularizes the forward KL loss at no additional cost: it reuses the target samples the forward KL already draws, and it improves the accuracy, and hence the ESS, of the pushforward samples.
 
-\textbf{Mixture variation}: $\X_\omega$ with $\omega = (\hat\pi + \bar\nu)/2$, the equal mixture of the quench and temper (QT) distribution $\hat\pi$ and the detached pushforward distribution $\bar\nu$, {\color{blue}which is identical to $\nu$ but does not enter the differentiation graph}. Here, the QT distribution $\hat\pi$ {\color{blue}proactively searches the candidate modes of $U$} and serves as our {\color{blue}major remedy} against mode collapse. It is built in three steps:
+\textbf{Mixture variation}: $\X_\omega$ with $\omega = (\hat\pi + \bar\nu)/2$, the equal mixture of the quench and temper (QT) distribution $\hat\pi$ and the detached pushforward distribution $\bar\nu$, which is identical to $\nu$ but does not enter the differentiation graph. Here, the QT distribution $\hat\pi$ proactively searches the candidate modes of $U$ and serves as our major remedy against mode collapse. It is built in three steps:
 	\begin{equation*}
 		y\sim \pi_0 \longrightarrow \boxed{\small
 		\begin{gathered}
@@ -103,7 +103,7 @@ As the name KLXX implies, two variation terms of the form \eqref{eq: X} are appe
 		\end{gathered}
 		} \longrightarrow y\sim \hat \pi
 	\end{equation*}
-Each sample $y$ from the source distribution $\pi_0$ is first scattered by Gaussian noise at a melt scale $m_e>0$, which carries it beyond the region the source covers. Gradient descent on $U$ then drives it into a local basin. A short Langevin run finally spreads the samples around that basin. A positive $m_e$ is what lets the QT distribution $\hat\pi$ find candidate modes of $U$ that the source distribution $\pi_0$ does not reach. The QT distribution $\hat\pi$ is then paired with the detached pushforward distribution $\bar\nu$, in order to restrain the intermodal leakage between the modes QT has found.
+Each sample $y$ from the source distribution $\pi_0$ is first scattered by Gaussian noise at a melt scale $m_e>0$, which carries it beyond the region the source covers. Gradient descent on $U$ then drives it into a local basin. A short Langevin run finally spreads the samples around that basin. A positive $m_e$ enables the QT distribution $\hat\pi$ to find candidate modes of $U$ that the source distribution $\pi_0$ does not reach. The QT distribution $\hat\pi$ is then paired with the detached pushforward distribution $\bar\nu$, in order to restrain the intermodal leakage between the modes QT has found.
 
 The graphical abstract summarizes the forward KL, the target variation, and the mixture variation, together with the distribution each of them uses. Formally, in terms of the flow map $G$, the KLXX loss reads
 \begin{align}
@@ -118,11 +118,11 @@ where the log-ratio $z(y)$ defined in \eqref{eq: log-ratio} depends explicitly o
 	\setlength{\itemsep}{0pt}
 	\item We introduce a new KLXX loss \eqref{eq: KLXX-G}, whose components mix QT and pushforward distributions. Pairwise differences remove the unknown target normalizer, and the log-ratio variation retains $\nu=\pi$ as a minimizer. The target variation reuses the forward KL batch, while the mixture variation supplies candidate-mode and pushforward support information absent from that batch.
 
-	\item We derive the Fisher--Rao gradient flow of the generalized KLXX loss under a general choice of parameters, and prove that the forward KL decays exponentially in time. For a biased target surrogate, the two log-ratio variations improve the KL bound at the stationary distribution of the biased KLXX loss, and Theorem~\ref{thm: accuracy} exhibits that improvement under a mild condition.
+	\item We derive the Fisher--Rao gradient flow of the generalized KLXX loss under a general choice of parameters, {\color{blue}and identify the dissipation it induces: the two log-ratio variations enter as strictly negative terms unless the importance weight is already constant.} For a biased target surrogate, the two log-ratio variations improve the KL bound at the stationary distribution of the biased KLXX loss, and Theorem~\ref{thm: accuracy} exhibits that improvement under a mild condition.
 
 	\item We demonstrate that QT can reach target basins outside the regions covered by the source and annealed samples. In the Himmelblau and Sparse tests, the two losses trained without QT miss remote wells, while both QT-based losses recover every mode; mixing QT and pushforward samples also reduces visible intermodal leakage (Figures~\ref{fig: himmelblau} and~\ref{fig: sparse}). We therefore report ESS together with coverage, since uniform weights on reached modes do not imply complete coverage.
 
-	\item We build an adaptive-staging Boltzmann generator based on KLXX without any external data or replay buffer, using only oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$; annealing and QT generate the required samples on the fly. We also bound the error of the sample set it returns: Theorem~\ref{thm: propagation} controls the error at rate $N^{-1/2}$ for every bounded observable with a constant independent of $N$, {\color{purple}so the scheme is asymptotically unbiased}. Reading that constant stagewise defines the propagation factors, which quantify how the error accumulates across the accepted stages; the experiments report the computable factor $\hat F_\Sigma$, assembled from the per-stage ESS. For molecular potentials, an additional continuation sharpens a regularized interaction core toward the desired endpoint.
+	\item We build an adaptive-staging Boltzmann generator based on KLXX that uses only oracle access to the target potential $U(x)$ and its gradient $\nabla U(x)$, with annealing and QT generating the required samples on the fly. {\color{blue}Training keeps no replay buffer across steps and never differentiates through an MCMC transition: each step draws its own samples, and the mixture measure is detached.} We also bound the error of the sample set it returns. {\color{blue}Following the standard non-asymptotic analysis \citep{delmoral2004feynman,chopin2020introduction}, Theorem~\ref{thm: propagation} controls the error} at rate $N^{-1/2}$ for every bounded observable with a constant independent of $N$, so the scheme is asymptotically unbiased{\color{purple}, provided each stage weight is essentially bounded}. Reading that constant stagewise defines the propagation factors, which quantify how the error accumulates across the accepted stages; the experiments report the computable factor $\hat F_\Sigma$, assembled from the per-stage ESS. For molecular potentials, an additional continuation sharpens a regularized interaction core.
 \end{enumerate}
 In addition, we develop Python packages \texttt{jflows} and \texttt{jflows-md} for normalizing flow Boltzmann sampling with molecular potentials. With a JAX backend \citep{jax2018github}, the reported 22-atom alanine dipeptide run completes all ten accepted training stages in 72.7 minutes on one NVIDIA GeForce RTX 5090.
 
@@ -130,9 +130,9 @@ In addition, we develop Python packages \texttt{jflows} and \texttt{jflows-md} f
 \subsection{Comparison to related works}
 \label{subsec: loss-related}
 
-The highlight of the KLXX loss \eqref{eq: KLXX-G} is the mixture of the QT distribution $\hat\pi$ with the detached pushforward distribution $\bar\nu$, which is what remedies mode collapse. The remaining ingredients draw on several ideas already present in normalizing flow training, and we compare them here.
+The highlight of the KLXX loss \eqref{eq: KLXX-G} is the mixture of the QT distribution $\hat\pi$ with the detached pushforward distribution $\bar\nu$, which remedies mode collapse. The following ingredients draw on several ideas already present in normalizing flow training, and we compare them here.
 
-The closest related loss is that of flow annealed importance sampling bootstrap (FAB) \citep{midgley2022flow}, which couples AIS and flow training but replaces the forward KL by the $\alpha$-divergence at $\alpha=2$. Its integrand is proportional to $\pi^2/\nu$, {\color{blue}and thus the training minimizes the importance-weight variance}. FAB targets $\pi^2/\nu$ with AIS and reuses those samples through a prioritized replay buffer that must be maintained across training; its MCMC transitions differentiate the flow density. KLXX instead retains the forward KL and adds nonnegative log-ratio variations, so its additional cost is the QT construction and the variation evaluations under the mixture measure; it uses no replay buffer. The $2$-divergence gives the stronger tail penalty, whereas KLXX obtains its coverage information from QT.
+The closest related loss is that of flow annealed importance sampling bootstrap (FAB) \citep{midgley2022flow}, which couples AIS and flow training but replaces the forward KL by the $\alpha$-divergence at $\alpha=2$. Its integrand is proportional to $\pi^2/\nu$, and thus the training minimizes the importance-weight variance. FAB targets $\pi^2/\nu$ with AIS and reuses those samples through a prioritized replay buffer that must be maintained across training; its MCMC transitions differentiate the flow density. KLXX instead retains the forward KL and adds nonnegative log-ratio variations, so its additional cost is the QT construction and the variation evaluations under the mixture measure; it uses no replay buffer. The $2$-divergence gives the stronger tail penalty, whereas KLXX obtains its coverage information from QT.
 
 Centered log-ratio penalties also arise in log-variance losses for learned diffusion samplers \citep{richter2024improved} and in LDR losses for Boltzmann generators \citep{schopmans2026ldr}. The present construction therefore belongs to a broader family of log-ratio regularizers. The target-weighted comparison is quantitative: LDR-L1 uses the centered penalty $\mathbb E_\pi|z-\mathbb E_\pi z|$, and Jensen's inequality together with the triangle inequality gives $\mathbb E_\pi|z-\mathbb E_\pi z|\Le\X_\pi(\pi\|\nu)\Le2\mathbb E_\pi|z-\mathbb E_\pi z|$, so at the same coefficient $\KL$+$\X_\pi$ and LDR-L1 are comparable up to a factor of two. This suggests similar training performance, although the losses are not equivalent. The two design differences are that $\X_\pi$ pairs the forward KL integrand at two independent target points, which yields the double integral in \eqref{eq: X}, and that KLXX evaluates a second variation under a mixture of QT and pushforward samples rather than under fixed energy-labeled data.
 
@@ -142,7 +142,7 @@ Constrained mass transport instead constrains the KL divergence and the entropy 
 
 A separate family replaces the loss altogether. Energy-only methods such as iDEM alternate a sampling loop with a score- or velocity-fitting loop and a replay buffer \citep{akhound2024iterated,woo2024iefm}. Adjoint sampling learns a diffusion sampler from the energy alone by stochastic optimal control \citep{havens2025adjoint}. Controlled stochastic differential equations, denoising diffusions, and flow-matching models learn a drift or velocity rather than a bijection \citep{zhang2022path,vargas2023denoising,berner2024optimal,nusken2021solving,richter2024improved}. Annealing enters this family as well: NETS augments AIS with a learned drift \citep{albergo2024nets}, and a temperature sequence of diffusion models can be annealed at inference time \citep{akhoundsadegh2025progressive}. These stochastic transports can be more expressive than the invertible architectures used here, but their terminal density often requires per-sample ODE integration \citep{he2025notrick}. We retain a bijection because the exact pushforward density, importance ratio, ESS, and reweighting are central to every term of \eqref{eq: KLXX-G} and to the final estimator. Table~\ref{tab: loss-methods} summarizes these distinctions.
 
-{\color{red}A further family keeps an exact likelihood but drops the bijection. Autoregressive Boltzmann generators factorize the density as $p(x)=\prod_j p(x_j\mid x_{<j})$, so the likelihood needs neither a Jacobian determinant nor an ODE solve, and no map is inverted \citep{rehman2026autoregressive}. They are trained by likelihood on molecular dynamics data, whereas the generator of Section~\ref{sec: boltzmann} uses no external samples.}
+A further family keeps an exact likelihood but drops the bijection. Autoregressive Boltzmann generators factorize the density as $p(x)=\prod_j p(x_j\mid x_{<j})$, so the likelihood needs neither a Jacobian determinant nor an ODE solve, and no map is inverted \citep{rehman2026autoregressive}. They are trained by likelihood on molecular dynamics data, whereas the generator of Section~\ref{sec: boltzmann} uses no external samples.
 
 \begin{table}[htb]
 \centering
@@ -157,7 +157,7 @@ FAB & $2$-divergence ($\pi^2/\nu$) & AIS on $\pi^2/\nu$; MCMC differentiates $\n
 LDR & $\KL(\pi\|\nu)+\mathbb E_\pi[|z-\mathbb E_\pi z|^p]$ & fixed energy-labeled data; no extra pushforward samples \\
 AFT, CRAFT & $\KL$ per annealing step & one flow per step, trained on the weighted particles \\
 iDEM & energy matching & iterative sampler; stochastic transport; replay buffer \\
-{\color{red}ArBG} & {\color{red}maximum likelihood} & {\color{red}autoregressive model; molecular dynamics data} \\
+ArBG & maximum likelihood & autoregressive model; molecular dynamics data \\
 \multirow{2}{*}{KLXX} &
 \multirow{2}{*}{$\KL(\pi\|\nu)$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$} &
 target annealing, QT, and detached pushforward samples \\
@@ -171,18 +171,18 @@ target annealing, QT, and detached pushforward samples \\
 
 %\paragraph{Organization.}
 The rest of the paper is organized as follows:
-{\color{blue}Section~\ref{sec: FR}} analyzes the generalized KLXX loss in Fisher--Rao geometry, deriving its gradient flow and the accuracy bound it reaches under a biased target surrogate; Appendices~\ref{sec: appendix-FR} and~\ref{sec: appendix-accuracy} give the proofs. Section~\ref{sec: training} gives the training algorithm. Section~\ref{sec: boltzmann} proposes the adaptive-staging Boltzmann generator and bounds the error of the sample set it returns; Appendix~\ref{sec: appendix-propagation} gives the proof. Sections~\ref{sec: experiments} and~\ref{sec: molecular} report the model and molecular results, respectively, and Section~\ref{sec: conclusions} concludes.
+Section~\ref{sec: FR} analyzes the generalized KLXX loss in Fisher--Rao geometry, deriving its gradient flow and the accuracy bound it reaches under a biased target surrogate; Appendices~\ref{sec: appendix-FR} and~\ref{sec: appendix-accuracy} give the proofs. Section~\ref{sec: training} gives the training algorithm. Section~\ref{sec: boltzmann} proposes the adaptive-staging Boltzmann generator and bounds the error of the sample set it returns; Appendix~\ref{sec: appendix-propagation} gives the proof. Sections~\ref{sec: experiments} and~\ref{sec: molecular} report the model and molecular results, respectively.  Section~\ref{sec: conclusions} gives the conclusion.
 
-\section{Analysis of generalized KLXX loss}
+\section{Analysis of the generalized KLXX loss}
 \label{sec: FR}
 
-In this section we consider a generalized form of the KLXX loss, determined by the parameters $(\lambda,\vartheta,\alpha,\beta)$. {\color{blue}For convenience, we write the loss $\mathcal L$ as a functional of the pushforward distribution $\nu$ rather than of the flow map $G$:}
+In this section we consider a generalized form of the KLXX loss \eqref{eq: KLXX-G}, determined by the parameters $(\lambda,\vartheta,\alpha,\beta)$. For convenience, we write the loss $\mathcal L$ as a functional of the pushforward distribution $\nu$ rather than of the flow map $G$:
 \begin{align}
-	{\color{blue}\mathcal L[\nu]} & =  \KL(\pi\|\nu) + \lambda\,\X_\pi(\pi\|\nu) + \vartheta\,\X_{\alpha\hat\pi+\beta\bar\nu}(\pi\|\nu) \notag \\
+	\mathcal L[\nu] & =  \KL(\pi\|\nu) + \lambda\,\X_\pi(\pi\|\nu) + \vartheta\,\X_{\alpha\hat\pi+\beta\bar\nu}(\pi\|\nu) \notag \\
 	& = \mathbb E_{y\sim\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
 	\label{eq: KLXX-general-nu}
 \end{align}
-where the parameters satisfy $\lambda,\vartheta,\alpha,\beta\Ge0$ and $\alpha+\beta=1$, so that the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ is a probability distribution on $\mathbb R^d${\color{blue}. Note that the log-ratio $z = \log(\pi/\nu)$ in \eqref{eq: log-ratio} carries the entire dependence on $\nu$}. Throughout the paper{\color{blue},} we let one Greek symbol ($\pi$, $\nu$, $\mu$, and so on) carry both a probability distribution and its density with respect to Lebesgue measure on $\mathbb R^d$.
+where the parameters satisfy $\lambda,\vartheta,\alpha,\beta\Ge0$ and $\alpha+\beta=1$, so that the mixture $\xi = \alpha\hat\pi+\beta\bar\nu$ is a probability distribution on $\mathbb R^d$. Note that the log-ratio $z = \log(\pi/\nu)$ in \eqref{eq: log-ratio} carries the entire dependence on $\nu$. Throughout the paper, we use one Greek symbol ($\pi$, $\nu$, $\mu$, \emph{etc.}) to denote both a probability distribution and its density with respect to Lebesgue measure on $\mathbb R^d$ with no further confusion.
 
 The three subsections below take the generalized loss \eqref{eq: KLXX-general-nu} in turn: a formal account of how the mixture variation contributes to mode discovery, a derivation of exponential convergence for the Fisher--Rao gradient flow, and an accuracy bound under a biased target surrogate.
 
@@ -193,12 +193,12 @@ The mixture distribution $\xi = \alpha\hat\pi+\beta\bar\nu$ mainly relies on the
 \begin{enumerate}
 	\setlength{\itemsep}{0pt}
 	\item \textbf{Melt}: scatter with Gaussian noise, $y = y+m_e\zeta$, with $\zeta\sim \mathcal N(0,I_d)$, at a melt scale $m_e>0$ that carries $y$ beyond the region the source covers;
-	\item \textbf{Quench}: descend the potential, $\dot y = -\nabla U(y)$, until $y$ settles at a local minimizer of $U$, that is, at the centre of whichever basin the melted particle landed in;
-	\item \textbf{Temper}: run a short Langevin trajectory, $\dot y = -\nabla U(y)+\sqrt 2\,\dot B_t$, which spreads $y$ around that centre at the target temperature.
+	\item \textbf{Quench}: descend the potential, $\dot y = -\nabla U(y)$, until $y$ settles at a local minimizer of $U$, that is, at the center of whichever basin the melted particle landed in;
+	\item \textbf{Temper}: run a short Langevin trajectory, $\dot y = -\nabla U(y)+\sqrt 2\,\dot B_t$, which spreads $y$ around that center at the target temperature.
 \end{enumerate}
-The three names are taken directly from industrial steelmaking, where a workpiece is melted, quenched, and then tempered in that order.
+The three names are taken directly from industrial steelmaking, where a workpiece is melted, quenched, and then tempered in that order. {\color{blue}The same three operations appear in the energy-landscape literature: melt and quench together are basin hopping \citep{wales1997global}, and the quench is the steepest-descent map carrying a configuration to the local minimum known as its inherent structure \citep{stillinger1982hidden}.}
 
-Only melting carries the coverage: a large $m_e>0$ allows the particles to explore the region and cover all the missing modes. Quenching then uses a local gradient descent to drive these particles into the potential basins. Tempering finally restores a spread around each centre, so that $\hat\pi$ is a distribution over configurations rather than point masses at the minimizers.
+Only melting carries the coverage: a large $m_e>0$ allows the particles to explore the region and cover all the missing modes. Quenching then uses a local gradient descent to drive these particles into the potential basins. Tempering finally restores a spread around each center, so that $\hat\pi$ is a distribution over configurations rather than point masses at the minimizers.
 
 We illustrate the construction on a one-dimensional example. Define the 1D Rastrigin potential
 \begin{equation*}
@@ -228,10 +228,14 @@ The relation \eqref{eq: approx} reflects a fundamental collision during training
 	We do not train with the log-ratio variation alone. A variation constrains only the flatness of $z$ pointwise, while the forward KL \eqref{eq: forward KL} drives the flow globally: by Jensen's inequality it is nonnegative and zero only at $\nu=\pi$. Appendix~D.2 of the LDR study \citep{schopmans2026ldr} reports the analogous failure: training with LDR-L1 or LDR-L2 alone, without a KL term, produces qualitatively incorrect distributions.
 \end{remark}
 
-\subsection{Convergence as Fisher--Rao gradient flow}
+\begin{remark}
+	The melting step is a design choice: Gaussian noise suits most target distributions with Gaussian tails, which is the case considered in this paper. The Gaussian noise can be wasteful when the target concentrates near a low-dimensional manifold, since most of the scattered samples land in the ambient space. Melt and quench can then be replaced by a particle dynamics carrying a pairwise repulsion, which spreads the particles apart instead of scattering each one on its own. The repulsive term of Stein variational gradient descent \citep{liu2016stein} is of this kind, and the history-dependent bias of metadynamics \citep{laio2002escaping} serves the same purpose in molecular simulation.
+\end{remark}
+
+\subsection{{\color{blue}Fisher--Rao gradient of the KLXX loss}}
 \label{subsec: FR-convergence}
 
-For an arbitrary parameter choice $(\lambda,\vartheta,\alpha,\beta)$, the generalized KLXX loss \eqref{eq: KLXX-general-nu} attains its minimum $0$ at the exact target $\pi$, so we ask whether the gradient flow it induces converges to $\pi$ exponentially.
+For an arbitrary parameter choice $(\lambda,\vartheta,\alpha,\beta)$, the generalized KLXX loss \eqref{eq: KLXX-general-nu} attains its minimum $0$ at the exact target $\pi$, {\color{blue}so we ask what the gradient flow it induces dissipates, and how the two variations enter that dissipation.}
 In the Wasserstein-2 geometry, the forward KL is not displacement convex, so the Otto--Villani and Bakry--{\'E}mery arguments used for the reverse KL do not apply \citep{otto2000generalization,bakry2014analysis}. We therefore work in the Fisher--Rao (FR) geometry, where the gradient flow has an explicit form. Assume all densities are positive and regular enough for differentiation.
 
 Let $\omega$ be a weighting distribution that is fixed under the variation, and define the \emph{nonlocal correlation} of the importance weight
@@ -242,7 +246,7 @@ Let $\omega$ be a weighting distribution that is fixed under the variation, and 
 which reports where $w(x)$ sits among the weights $\omega$ carries. Here $\operatorname{sgn}(\cdot)\in\{0,\pm1\}$ is the sign of a real number.
 The same definition applies to the target distribution $\pi$ and to the mixture distribution $\xi=\alpha\hat\pi+\beta\bar\nu$, written as $S^{\pi}$ and $S^{\xi}$.
 
-The FR gradient flow of the generalized KLXX loss \eqref{eq: KLXX-general-nu} is a differential equation for a time-dependent pushforward density $\nu_t$, reading
+The FR gradient flow of the generalized KLXX loss \eqref{eq: KLXX-general-nu} is a differential equation for a time-dependent pushforward density $\nu_t$, satisfying
 \begin{equation}
 	\partial_t\nu_t(x) = -\,\mathrm{grad}^{\mathrm{FR}}\mathcal L(\nu_t) = \pi(x)-\nu_t(x) + 2\lambda\,\pi(x)S^{\pi}_t(x) + 2\vartheta\,\xi(x)S^{\xi}_t(x),
 	\label{eq: FR-flow}
@@ -254,44 +258,35 @@ where the nonlocal correlations are evaluated with the importance weight $w_t=\p
 	S^{\xi}_t(x) = \mathbb E_{y\sim\xi}\bigl[\operatorname{sgn}\bigl(w_t(x)-w_t(y)\bigr)\bigr].
 	\label{eq: FR-S-t}
 \end{equation}
-{\color{blue}The mixture $\xi=\alpha\hat\pi+\beta\bar\nu$ depends on $\nu_t$ through $\bar\nu$, but $\bar\nu$ is detached and takes no part in the gradient calculation, so $\xi$ is held fixed when the variation is taken.} Differentiating $\KL(\pi\|\nu_t)$ along \eqref{eq: FR-flow} gives the dissipation relation of the forward KL
+The mixture $\xi=\alpha\hat\pi+\beta\bar\nu$ depends on $\nu_t$ through $\bar\nu$, but $\bar\nu$ is detached and takes no part in the gradient calculation, so $\xi$ is held fixed when the variation is taken. Differentiating $\KL(\pi\|\nu_t)$ along \eqref{eq: FR-flow} gives the dissipation relation of the forward KL
 \begin{equation}
 	\frac{\D}{\D t}\KL(\pi\|\nu_t) = -\chi^2(\pi\|\nu_t)
 	- \lambda\,\mathbb E_{x,y\sim\pi}\bigl[|w_t(x)-w_t(y)|\bigr]
 	- \vartheta\,\mathbb E_{x,y\sim\xi}\bigl[|w_t(x)-w_t(y)|\bigr],
 	\label{eq: combined-rate}
 \end{equation}
-where $\chi^2(\pi\|\nu):=\mathbb E_{\nu}\bigl[(w-1)^2\bigr]$ is the chi-squared divergence. Since both variations {\color{blue}enter \eqref{eq: combined-rate} as nonpositive terms} and $\chi^2(\pi\|\nu_t)\Ge\KL(\pi\|\nu_t)$, Gr\"onwall's inequality yields
-\begin{equation}
-	\KL(\pi\|\nu_t) \Le e^{-t}\,\KL(\pi\|\nu_0), \qquad t \Ge 0,
-	\label{eq: KL-exponential}
-\end{equation}
-without assuming log-concavity, a spectral gap, or a growth condition on $\pi$. This is a statement in density space: the rate is the one forward KL already carries, and what the variations change is the structure of the flow rather than its speed. Appendix~\ref{sec: appendix-FR} gives the derivation of the gradient flow \eqref{eq: FR-flow} and the proof details.
+where $\chi^2(\pi\|\nu):=\mathbb E_{\nu}\bigl[(w-1)^2\bigr]$ is the chi-squared divergence. {\color{blue}Identity \eqref{eq: combined-rate} is what the two variations contribute. At $\lambda=\vartheta=0$ the flow \eqref{eq: FR-flow} is the linear equation $\partial_t\nu_t=\pi-\nu_t$ and the dissipation is the single term $-\chi^2(\pi\|\nu_t)$. Since $\chi^2(\pi\|\nu_t)\Ge\KL(\pi\|\nu_t)$, discarding them leaves the decay $\KL(\pi\|\nu_t)\Le e^{-t}\KL(\pi\|\nu_0)$ that the forward KL already carries on its own; we record it only to note that the variations do not slow the flow.} Appendix~\ref{sec: appendix-FR} gives the derivation of the gradient flow \eqref{eq: FR-flow} and the proof details.
 
 \begin{remark}
-	The uniform rate \eqref{eq: KL-exponential} does not say how fast training converges. It describes a flow in density space. Training instead descends in the parameters of the flow map $G$, and that descent moves the density along a different path. The flow time $t$ is also not a step count. How far one step advances depends on the magnitude of the parameter gradient, and \eqref{eq: KL-exponential} does not control it.
-\end{remark}
-
-\begin{remark}
-	\color{blue}The melting step is a design choice: Gaussian noise suits most target distributions with Gaussian tails, which is the case considered in this paper. The Gaussian noise can be wasteful when the target concentrates near a low-dimensional manifold, since most of the scattered samples land in the ambient space. Melt and quench can then be replaced by a particle dynamics carrying a pairwise repulsion, which spreads the particles apart instead of scattering each one on its own. The repulsive term of Stein variational gradient descent \citep{liu2016stein} is of this kind, and the history-dependent bias of metadynamics \citep{laio2002escaping} serves the same purpose in molecular simulation.
+	{\color{blue}Identity \eqref{eq: combined-rate}} does not say how fast training converges. It describes a flow in density space. Training instead descends in the parameters of the flow map $G$, and that descent moves the density along a different path. The flow time $t$ is also not a step count. How far one step advances depends on the magnitude of the parameter gradient, and {\color{blue}\eqref{eq: combined-rate}} does not control it. {\color{blue}Fisher--Rao geometry works in unconstrained density space and therefore cannot see mode collapse, which is a pathology of the parametrization and of the optimizer; nothing in this section uses any property of the QT construction of Section~\ref{subsec: QT}.}
 \end{remark}
 
 \subsection{Accuracy under biased target surrogate}
 
 In training the generalized KLXX loss \eqref{eq: KLXX-general-nu}, AIS approximates the target distribution $\pi$ (Section~\ref{subsec: annealing}), so the target surrogate is a biased distribution $\tilde\pi$. The corresponding biased loss is given by
 \begin{equation}
-	\color{blue}\tilde{\mathcal L}[\nu] = \mathbb E_{y\sim\tilde\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\tilde\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
+	\tilde{\mathcal L}[\nu] = \mathbb E_{y\sim\tilde\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\tilde\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
 	\label{eq: KLXX-biased}
 \end{equation}
-where the log-ratio $z=\log(\pi/\nu)$ is still evaluated against the exact target{\color{blue},} and only the outer measures of the first two terms are replaced {\color{blue} by the biased $\tilde\pi$}. The mixture term carries no surrogate bias: $\xi=\alpha\hat\pi+\beta\bar\nu$ approximates nothing, $\hat\pi$ being supplied by QT and $\bar\nu$ being the detached copy of $\nu$.
+where the log-ratio $z=\log(\pi/\nu)$ is still evaluated against the exact target, and only the outer measures of the first two terms are replaced  by the biased $\tilde\pi$. The mixture term carries no surrogate bias: $\xi=\alpha\hat\pi+\beta\bar\nu$ approximates nothing, $\hat\pi$ being supplied by QT and $\bar\nu$ being the detached copy of $\nu$.
 
-{\color{blue}Following the derivation of \eqref{eq: FR-flow} for the unbiased loss, the FR gradient of the biased KLXX loss \eqref{eq: KLXX-biased} with respect to $\nu$ has a similar form,}
+Following the derivation of \eqref{eq: FR-flow} for the unbiased loss, the FR gradient of the biased KLXX loss \eqref{eq: KLXX-biased} with respect to $\nu$ has a similar form,
 \begin{equation}
-	\color{blue}\mathrm{grad}^{\mathrm{FR}}[\tilde{\mathcal L}](x) = \nu(x)-\tilde\pi(x) - 2\lambda\,\tilde\pi(x)S^{\tilde\pi}(x) - 2\vartheta\,\xi(x)S^{\xi}(x),
+	\mathrm{grad}^{\mathrm{FR}}[\tilde{\mathcal L}](x) = \nu(x)-\tilde\pi(x) - 2\lambda\,\tilde\pi(x)S^{\tilde\pi}(x) - 2\vartheta\,\xi(x)S^{\xi}(x),
 	\label{eq: FR-grad-biased}
 \end{equation}
-{\color{blue}where $S^{\tilde\pi}$ and $S^{\xi}$ are the nonlocal correlations defined in \eqref{eq: FR-S}.}
-{\color{blue}Let $\nu_\star$ be a stationary density of $\tilde {\mathcal L}$, at which the gradient \eqref{eq: FR-grad-biased} vanishes. Collecting the two $\tilde\pi$ terms gives}
+where $S^{\tilde\pi}$ and $S^{\xi}$ are the nonlocal correlations defined in \eqref{eq: FR-S}.
+Let $\nu_\star$ be a stationary density of $\tilde {\mathcal L}$, at which the gradient \eqref{eq: FR-grad-biased} vanishes. Collecting the two $\tilde\pi$ terms gives
 \begin{equation}
 	\nu_\star(x) = \tilde\pi(x)\bigl(1 + 2\lambda\,S^{\tilde\pi}_\star(x)\bigr) + 2\vartheta\,\xi(x)\,S^{\xi}_\star(x),
 	\label{eq: surrogate-stationary}
@@ -306,7 +301,7 @@ Since $\bar\nu$ tracks $\nu$ as training updates it, \eqref{eq: surrogate-statio
 
 \begin{theorem}
 \label{thm: accuracy}
-Fix {\color{blue}the coefficients $(\lambda,\vartheta,\alpha,\beta)$} and let $\tilde\pi$ be a positive probability density. Let $\nu_\star$ be a positive density solving \eqref{eq: surrogate-stationary}, {\color{blue}and $w_\star = \pi/\nu_\star$ be the importance weight}, with $\mathbb E_{\tilde\pi}[w_\star]<\infty$ and $\mathbb E_{\xi}[w_\star]<\infty$. Then
+Fix the coefficients $(\lambda,\vartheta,\alpha,\beta)$ and let $\tilde\pi$ be a positive probability density. Let $\nu_\star$ be a positive density solving \eqref{eq: surrogate-stationary}, and $w_\star = \pi/\nu_\star$ be the importance weight, with $\mathbb E_{\tilde\pi}[w_\star]<\infty$ and $\mathbb E_{\xi}[w_\star]<\infty$. Then
 \begin{equation}
 	\KL(\pi\|\nu_\star) \Le \KL(\pi\|\tilde\pi)
 	- \lambda\,\mathbb E_{x,y\sim\tilde\pi}\bigl[|w_\star(x)-w_\star(y)|\bigr]
@@ -316,23 +311,27 @@ Fix {\color{blue}the coefficients $(\lambda,\vartheta,\alpha,\beta)$} and let $\
 \end{theorem}
 Both subtracted discrepancies are nonnegative, so the two log-ratio variations improve the error that a fixed biased surrogate leaves behind, under two different weightings of the same ratio $w_\star$.
 
+{\color{blue}The size of that improvement is capped. Appendix~\ref{sec: appendix-accuracy} shows the two subtracted terms sum to $1-\mathbb E_{\tilde\pi}[w_\star]$, and nonnegativity forces $\mathbb E_{\tilde\pi}[w_\star]\in(0,1]$, so the subtraction is at most one whatever the coefficients and the dimension. The bound is therefore informative only when the surrogate is already close to the target. It also compares $\nu_\star$ with that one surrogate, at one choice of $(\lambda,\vartheta)$. The weight $w_\star$ depends on the coefficients, so the theorem does not rank one coefficient choice against another, nor one surrogate against another.}
+
+{\color{blue}Theorem~\ref{thm: accuracy} holds a single $\tilde\pi$ fixed, while Algorithm~\ref{alg: training} rebuilds the target surrogate at every gradient step. The two are connected by averaging: the surrogate the flow descends against over a training run is the time average of the per-step AIS sample sets, and it is that averaged distribution that plays the role of $\tilde\pi$ in the theorem. A single step sees one draw from it; the run sees the average.}
+
 % ===================== Sections 3-4: training + generator =====================
 \section{Flow training with generalized KLXX loss}
 \label{sec: training}
 
-In this section we give the training algorithm for the generalized KLXX loss {\color{blue}\eqref{eq: KLXX-general-nu}}. Recall that the source and target distributions are $\pi_0\propto \exp(-U_0)$ and $\pi\propto \exp(-U)$, and that the flow map $G:\mathbb R^d\to\mathbb R^d$ is trained to fit the transport relation {\color{blue}$\nu=(G^{-1})_{\#}\pi_0\approx\pi$}. {\color{blue}Hence the generalized KLXX loss in terms of $G$ reads}
+In this section we give the training algorithm for the generalized KLXX loss \eqref{eq: KLXX-general-nu}. Recall that the source and target distributions are $\pi_0\propto \exp(-U_0)$ and $\pi\propto \exp(-U)$, and that the flow map $G:\mathbb R^d\to\mathbb R^d$ is trained to fit the transport relation $\nu=(G^{-1})_{\#}\pi_0\approx\pi$. Hence the generalized KLXX loss in terms of $G$ reads
 \begin{equation}
-	\color{blue}\mathcal L[G] = \mathbb E_{y\sim\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
+	\mathcal L[G] = \mathbb E_{y\sim\pi}\big[z(y)\big] +  \lambda\, \mathbb E_{y,y'\sim\pi}\big[|z(y)-z(y')|\big] + \vartheta\, \mathbb E_{y,y'\sim \alpha\hat\pi+\beta\bar\nu}\big[|z(y)-z(y')|\big],
 	\label{eq: KLXX-general}
 \end{equation}
-{\color{blue}where the log-ratio $z(y)$ defined in \eqref{eq: log-ratio} takes the explicit form}
+where the log-ratio $z(y)$ defined in \eqref{eq: log-ratio} takes the explicit form
 \begin{equation*}
-	\color{blue}z(y) = \log\frac{\pi(y)}{\nu(y)} = U_0(G(y)) - U(y) - \log|\det J_G(y)|,
+	z(y) = \log\frac{\pi(y)}{\nu(y)} = U_0(G(y)) - U(y) - \log|\det J_G(y)|,
 \end{equation*}
-{\color{blue}the normalizing constants being omitted, since they depend on neither $y$ nor $G$.}
+the normalizing constants being omitted, since they depend on neither $y$ nor $G$.
 
-{\color{blue}The training algorithm uses two parameters throughout:} the sample size $N$, the size of the sample set that enters and leaves the training and carries the diagnostics; and the batch size $B$, the number of samples per gradient step.
-The generalized KLXX loss \eqref{eq: KLXX-general} draws on three sample sets: one from the target distribution $\pi$, one from the QT distribution $\hat\pi$, and one from the detached pushforward distribution $\bar\nu$. The QT samples number $N$ and are constructed before training. The pushforward samples number $B$ and are drawn at each gradient step, {\color{blue}where the target surrogate also approximates} $\pi$ with a batch of $B$ samples.
+The training algorithm uses two parameters throughout: the sample size $N$, the size of the sample set that enters and leaves the training and carries the diagnostics; and the batch size $B$, the number of samples per gradient step.
+The generalized KLXX loss \eqref{eq: KLXX-general} draws on three sample sets: one from the target distribution $\pi$, one from the QT distribution $\hat\pi$, and one from the detached pushforward distribution $\bar\nu$. The QT samples number $N$ and are constructed before training. The pushforward samples number $B$ and are drawn at each gradient step, where the target surrogate also approximates $\pi$ with a batch of $B$ samples.
 
 The rest of the section is organized as follows. Section~\ref{subsec: training-algorithm} gives the KLXX training algorithm, which alternates between preparing samples and taking gradient steps; Sections~\ref{subsec: QT} and~\ref{subsec: annealing} then construct the QT and AIS samples it consumes; and Section~\ref{subsec: eval} gives two complementary diagnostics for the training quality.
 
@@ -343,7 +342,7 @@ We begin from a sample set $\mathcal Y_0$ of size $N$ approximating the source d
 \begin{enumerate}[(i)]
 	\setlength{\itemsep}{0pt}
 	\item Draw a random batch $\mathcal X_0\subset \mathcal Y_0$ of size $B$ and apply the pushforward to obtain $\mathcal X_{\nu} = G^{-1}(\mathcal X_0)$;
-	\item Apply AIS (Algorithm~\ref{alg: annealing}) to {\color{blue}$\mathcal X_\nu$} to obtain the target surrogate samples $\mathcal X_{\pi}$;
+	\item Apply AIS (Algorithm~\ref{alg: annealing}) to $\mathcal X_\nu$ to obtain the target surrogate samples $\mathcal X_{\pi}$;
 	\item Draw $B$ subsamples $\mathcal X_{\hat\pi}\subset \hat{\mathcal Y}$ from the QT samples, and mix $\mathcal X_{\hat\pi}$ and $\mathcal X_{\nu}$ with probabilities $\alpha$ and $\beta$ to obtain the mixture set $\mathcal X_{\xi}$;
 	\item Evaluate the empirical loss on the target surrogate samples $\mathcal X_{\pi}$ and the mixture samples $\mathcal X_{\xi}$,
 	\begin{equation}
@@ -354,7 +353,7 @@ We begin from a sample set $\mathcal Y_0$ of size $N$ approximating the source d
 	\end{equation}
 	and take one gradient step on $G$, in which only $z(y) $ is differentiated.
 \end{enumerate}
-By convention $\mathcal X$ always has size $B$ and $\mathcal Y$ has size $N$. {\color{blue}The sets $\mathcal Y_0$ and $\hat{\mathcal Y}$ are determined before training, and $\mathcal X_{\pi}$ and $\mathcal X_{\xi}$ are updated at each gradient step since their construction depends on $G$.}
+By convention $\mathcal X$ always has size $B$ and $\mathcal Y$ has size $N$. The sets $\mathcal Y_0$ and $\hat{\mathcal Y}$ are determined before training, and $\mathcal X_{\pi}$ and $\mathcal X_{\xi}$ are updated at each gradient step since their construction depends on $G$.
 For a batch sample set $\mathcal X = \{y_1,\dots,y_B\}$, the empirical averages of $z(y)$ and $|z(y)-z(y')|$ appearing in \eqref{eq: KLXX-empirical} are defined by
 \begin{equation}
 	\widehat{\mathbb E}_{y\in \mathcal X} \big[z(y)\big] := \frac1B \sum_{i=1}^B z(y_i), \qquad \widehat{\mathbb E}_{y,y'\in \mathcal X} \big[|z(y)-z(y')|\big] := \frac1B\sum_{i=1}^B |z(y_i) - z(y_{\sigma(i)})|,
@@ -373,7 +372,7 @@ Initialize $G$ to the identity map\;
     \tcp{(i) pushforward}
     Draw a random batch $\mathcal X_0\subset\mathcal Y_0$ of size $B$ and set $\mathcal X_{\nu}\gets G^{-1}(\mathcal X_0)$\;
     \tcp{(ii) target surrogate}
-    Apply AIS (Algorithm~\ref{alg: annealing}) to {\color{blue}$\mathcal X_\nu$} to obtain $\mathcal X_{\pi}$\;
+    Apply AIS (Algorithm~\ref{alg: annealing}) to $\mathcal X_\nu$ to obtain $\mathcal X_{\pi}$\;
     \tcp{(iii) mixture}
     Draw $B$ subsamples $\mathcal X_{\hat\pi}\subset\hat{\mathcal Y}$, and mix $\mathcal X_{\hat\pi}$ and $\mathcal X_{\nu}$ with probabilities $\alpha$ and $\beta$ to form $\mathcal X_{\xi}$\;
     \tcp{(iv) gradient step}
@@ -383,7 +382,7 @@ Initialize $G$ to the identity map\;
         +\lambda\,\widehat{\mathbb E}_{y,y'\in\mathcal X_\pi}\bigl[|z(y)-z(y')|\bigr]
         +\vartheta\,\widehat{\mathbb E}_{y,y'\in\mathcal X_{\xi}}\bigl[|z(y)-z(y')|\bigr],
     \]
-    {\color{blue}where the log-ratio $z(y) =  U_0(G(y)) - U(y) - \log|\det J_G(y)|$.}
+    where the log-ratio $z(y) =  U_0(G(y)) - U(y) - \log|\det J_G(y)|$.
 }
 \end{algorithm}
 
@@ -403,7 +402,7 @@ from the source samples $\mathcal Y_0=\{y_1,\dots,y_N\}$ and the target potentia
 When the potential function $U$ is possibly singular, we prefer L-BFGS and MALA over plain gradient descent and unadjusted Langevin dynamics, which are less stable near the singularity. The QT samples can also be built from a subset of $\mathcal Y_0$, at lower cost.
 
 \begin{remark}
-	{\color{blue}L-BFGS is a quasi-Newton method \citep{liu1989limited} and is not a discretization of the quench flow $\dot y = -\nabla U(y)$; its iterates do not follow that trajectory. The quench asks only for the local minimizer at the end of it, and in as few iterations as possible, so the better performance of L-BFGS over gradient descent is worth the departure from the flow.}
+	L-BFGS is a quasi-Newton method \citep{liu1989limited} and is not a discretization of the quench flow $\dot y = -\nabla U(y)$; its iterates do not follow that trajectory. The quench asks only for the local minimizer at the end of it, and in as few iterations as possible, so the better performance of L-BFGS over gradient descent is worth the departure from the flow.
 \end{remark}
 
 \begin{algorithm}[htb]
@@ -508,10 +507,10 @@ The same weights define the resampling step. Normalize them as $p_i=w_i/\sum_{j=
 	MALA or another local Monte Carlo method is needed to keep the samples distinct after resampling: even uniform weights can produce duplicates, and a low ESS produces more. The same rejuvenation can in principle be applied to the batch subsamples drawn in steps~(i) and~(iii) of the KLXX training algorithm (Algorithm~\ref{alg: training}); we omit it there for simplicity.
 \end{remark}
 
-Under {\color{blue}standard regularity consistency conditions}, the target-weighted empirical measure and its resampled particle approximation converge to $\pi$ as $N\to\infty$ \citep{liu2001monte,doucet2001introduction}. The $\pi$-invariant MALA rejuvenation preserves this target limit. We call samples with this property \emph{asymptotically unbiased}: their bias against the target vanishes as $N\to\infty$.
+Under standard regularity consistency conditions, the target-weighted empirical measure and its resampled particle approximation converge to $\pi$ as $N\to\infty$ \citep{liu2001monte,doucet2001introduction}. The $\pi$-invariant MALA rejuvenation preserves this target limit. We call samples with this property \emph{asymptotically unbiased}: their bias against the target vanishes as $N\to\infty$.
 
 \begin{remark}
-{\color{purple}Asymptotic unbiasedness is stated here informally. Theorem~\ref{thm: propagation} proves it rigorously for the Boltzmann generator, with MALA as the rejuvenation kernel.}
+Asymptotic unbiasedness is stated here informally. Theorem~\ref{thm: propagation} proves it rigorously for the Boltzmann generator, with MALA as the rejuvenation kernel.
 \end{remark}
 
 \section{Adaptive-staging Boltzmann generator}
@@ -543,7 +542,7 @@ defining the interpolating potential and measure
 \qquad \pi_t(x)\propto\exp(-U_t(x)),
     \qquad t\in[0,1].
 \end{equation*}
-Here $t$ is a dimensionless interpolation parameter. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\pi_k:=\pi_{t_k}$. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the pushforward distribution $\nu_k=(G_k^{-1})_{\#}\pi_{k-1}$ for $\pi_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages {\color{blue}and thus computational cost}.
+Here $t$ is a dimensionless interpolation parameter. The discrete values $t_k$ are stage points, and stage $k$ is the transition from $t_{k-1}$ to $t_k$. At the accepted stage points, write $\pi_k:=\pi_{t_k}$. Stage $k$ trains a target-to-source map $G_k$, whose inverse induces the pushforward distribution $\nu_k=(G_k^{-1})_{\#}\pi_{k-1}$ for $\pi_k$. The number of stages $K$ is selected during the run. The central scheduling choice is the stage increment $\Delta t_k=t_k-t_{k-1}$: a large increment can be hard to fit, whereas a small increment adds stages and thus computational cost.
 
 Training $G_k$ requires the target surrogate for $\pi_k$ defined in Section~\ref{subsec: annealing}. Before training, the adaptive SMC screen (Algorithm~\ref{alg: step}) may run an optional classical SMC calculation on the proposed increment $\Delta t_k$. Its smallest per-level ESS measures overlap along that candidate stage for the current sample set. This is a difficulty diagnostic, not a mode-coverage guarantee. The screen floor $\tau_{\mathrm{SMC}}$ lies in $[0,1)$, and setting it to zero disables the screen. Throughout this section, the sample set is carried across stages and used for training batches, QT, and stage selection; QT or the SMC screen may also act on a separately sized subset.
 
@@ -600,12 +599,12 @@ The coefficients $(\lambda,\vartheta,\alpha,\beta)$ are fixed for the run. Takin
 The identity proposal keeps $\mathcal Y_{k-1}$ unchanged and has weights $w_k^{\mathrm{id}}(y)=\exp\big(U_{t_{k-1}}(y)-U_{t_k}(y)\big)$. We select the pair with the larger ESS over the sample set and denote it by $(\tilde{\mathcal Y}_k,w_k)$, taking the stage map to be $G_k$ or the identity accordingly. If $\ESS(w_k) < \tau_{\mathrm v}$, with default $\tau_{\mathrm v} = 0.6$, we discard the candidate, shrink to $t_k \gets t_{k-1} + \gamma\,(t_k - t_{k-1})$, and repeat steps (ii)--(iv) at the reduced stage increment. Otherwise we draw $N$ samples from $\tilde{\mathcal Y}_k$ with weights $w_k$ and rejuvenate them by MALA under $U_{t_k}$, giving the next sample set $\mathcal Y_k\approx\pi_k$.
 \end{enumerate}
 
-\begin{algorithm}[p]
+\begin{algorithm}
     \setstretch{1.1}
 \caption{Adaptive-staging Boltzmann generator training}
 \label{alg: boltzmann}
 \small
-\KwInput{potentials $U_0,U$; sizes $N,B\Ge2$; loss coefficients $(\lambda,\vartheta,\alpha,\beta)$; ladder length $M$; ESS floors $\tau_{\mathrm{SMC}}=0$, $\tau_{\mathrm v}=0.6$; factors $\gamma=0.7$, $\Gamma=1.5$; safe start $t_{\mathrm{safe}}=0.2$}
+\KwInput{potentials $U_0,U$; sizes $N,B\Ge2$; loss coefficients $(\lambda,\vartheta,\alpha,\beta)$; ladder length $M$; ESS floors $\tau_{\mathrm{SMC}}=0$, {\color{purple}$\tau_{\mathrm v}=0.4$}; factors $\gamma=0.7$, $\Gamma=1.5$; safe start $t_{\mathrm{safe}}=0.2$}
 \KwOutput{completed stage schedule $0=t_0<\cdots<t_K=1$ and selected stage maps $\{G_k\}_{k=1}^{K}$}
 
 \tcp{sample set, $\mathcal Y_k \approx \pi_k$}
@@ -652,26 +651,36 @@ The accepted stage schedule defines a Boltzmann generator for $\pi$. The process
 \subsection{Propagation factor analysis}
 \label{sec: propagation-analysis}
 
-Algorithm~\ref{alg: boltzmann} traverses the interpolation distributions $\{\pi_k\}_{k=0}^K$, training a flow map $G_k$ for each stage from $\pi_{k-1}$ to $\pi_k$. We next ask how the Monte Carlo sampling error accumulates across these stages. {\color{blue}Let $w_k = \pi_k/\nu_k$ be the importance weight at stage $k$, written as the ratio of the target density $\pi_k$ and the pushforward density $\nu_k$. Assume $w_k$ is well defined so that importance sampling is available at every stage.}
+Algorithm~\ref{alg: boltzmann} traverses the interpolation distributions $\{\pi_k\}_{k=0}^K$, training a flow map $G_k$ for each stage from $\pi_{k-1}$ to $\pi_k$. We next ask how the Monte Carlo sampling error accumulates across these stages. Let $w_k = \pi_k/\nu_k$ be the importance weight at stage $k$, written as the ratio of the target density $\pi_k$ and the pushforward density $\nu_k$. Assume $w_k$ is well defined so that importance sampling is available at every stage. {\color{blue}Algorithm~\ref{alg: inference} states the inference scheme.} Here $Q_k$ is any Markov kernel leaving $\pi_k$ invariant; the MALA of step (iv) in Algorithm~\ref{alg: boltzmann} is one such kernel, and nothing below uses more than that invariance.
 
-To generate $N$ samples for the target distribution $\pi_K$, draw $X_0^1,\dots,X_0^N$ independently from the source distribution $\pi_0$ and repeat, for $k=1,\dots,K$:
-\begin{itemize}
-	\setlength{\itemsep}{0pt}
-	\item \emph{{\color{purple}Flow pushforward}.} Apply the inverse stage map to each particle, $Y_k^i = G_k^{-1}(X_{k-1}^i)$.
-	\item \emph{{\color{purple}Importance sampling}.} Evaluate the stage weight at each {\color{purple}pushforward} particle, $W_k^i = w_k(Y_k^i)$, {\color{purple}and draw independent $Z_k^1,\dots,Z_k^N$ by multinomial resampling from $\sum_{i=1}^{N}\bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{Y_k^i}$}.
-	\item {\color{purple}\emph{Rejuvenation.} Rejuvenate each resampled particle, $X_k^i \sim Q_k(Z_k^i,\cdot)$, independently across $i$.}
-\end{itemize}
-{\color{purple}Here $Q_k$ is any Markov kernel leaving $\pi_k$ invariant; the MALA of step (iv) in Algorithm~\ref{alg: boltzmann} is one such kernel, and nothing below uses more than that invariance.}
+\begin{algorithm}[htb]
+\setstretch{1.2}
+\color{blue}
+\caption{{\color{blue}Inference scheme of the Boltzmann generator}}
+\label{alg: inference}
+\KwInput{source distribution $\pi_0$, stage maps $G_1,\dots,G_K$, stage weights $w_1,\dots,w_K$, rejuvenation kernels $Q_1,\dots,Q_K$, sample size $N$}
+\KwOutput{sample set $X_K^1,\dots,X_K^N$ for the target distribution $\pi_K$}
+Draw $X_0^1,\dots,X_0^N$ independently from the source distribution $\pi_0$\;
+\For{$k=1,\dots,K$}{
+	\tcp{flow pushforward}
+	Apply the inverse stage map to each particle, $Y_k^i = G_k^{-1}(X_{k-1}^i)$\;
+	\tcp{importance sampling}
+	Evaluate the stage weight at each pushforward particle, $W_k^i = w_k(Y_k^i)$\;
+	Draw independent $Z_k^1,\dots,Z_k^N$ by multinomial resampling from $\sum_{i=1}^{N}\bigl(W_k^i/\sum_{l=1}^{N} W_k^l\bigr)\,\delta_{Y_k^i}$\;
+	\tcp{rejuvenation}
+	Rejuvenate each resampled particle, $X_k^i \sim Q_k(Z_k^i,\cdot)$, independently across $i$\;
+}
+\end{algorithm}
 
 After stage $K$ the scheme returns the empirical measure
 \begin{equation}
 	\pi_K^N = \frac1N\sum_{i=1}^{N} \delta_{X_K^i}
 \end{equation}
-as the estimate of $\pi_K$. For a general distribution $\mu$ and a function $\varphi$, we write $\mu\langle \varphi\rangle := \int_{\mathbb R^d} \varphi \, \D\mu$ {\color{purple}for} the integral. For a bounded observable $\varphi$ we write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for {\color{purple}the essential supremum of $|h|$} on $\mathbb R^d$, taken {\color{blue}for $\varphi$ with respect to $\pi_K$ and} for $w_k$ with respect to $\nu_k$.
+as the estimate of $\pi_K$. For a general distribution $\mu$ and a function $\varphi$, we write $\mu\langle \varphi\rangle := \int_{\mathbb R^d} \varphi \, \D\mu$ for the integral. For a bounded observable $\varphi$ we write $\operatorname{osc}(\varphi) = \operatorname{ess\,sup}\varphi - \operatorname{ess\,inf}\varphi$, and for a function $h$ write $\lVert h \rVert_\infty$ for the essential supremum of $|h|$ on $\mathbb R^d$, taken for $\varphi$ with respect to $\pi_K$ and for $w_k$ with respect to $\nu_k$.
 
 \begin{theorem}
 \label{thm: propagation}
-Suppose that, for every stage $k=1,\dots,K$, $w_k>0$, the $\nu_k$-essential supremum $\lVert w_k \rVert_\infty$ is finite{\color{purple}, and $Q_k$ is a Markov kernel leaving $\pi_k$ invariant}. Then for every bounded observable $\varphi$ and every $N \Ge 1$,
+Suppose that, for every stage $k=1,\dots,K$, $w_k>0$, the $\nu_k$-essential supremum $\lVert w_k \rVert_\infty$ is finite, and $Q_k$ is a Markov kernel leaving $\pi_k$ invariant. Then for every bounded observable $\varphi$ and every $N \Ge 1$,
 \begin{equation}
     \mathbb E\Bigl[\bigl(\pi_K^N\langle \varphi\rangle - \pi_K\langle \varphi\rangle\bigr)^{2}\Bigr]
     \Le \frac{C}{N},
@@ -683,29 +692,33 @@ Suppose that, for every stage $k=1,\dots,K$, $w_k>0$, the $\nu_k$-essential supr
 with the empty product equal to one.
 \end{theorem}
 \noindent
-Appendix~\ref{sec: appendix-propagation} gives the proof of Theorem~\ref{thm: propagation}. The constant is explicit and independent of $N$, and depends on the stage maps only through the weight suprema; it is a product over stages, summed over the stage at which the error enters. {\color{purple}Rejuvenation does not enlarge the constant. Given the pushforward particles, the resampling and the kernel draw amount to a single draw per particle. A Markov kernel also cannot widen the range of a bounded function.}
+Appendix~\ref{sec: appendix-propagation} gives the proof of Theorem~\ref{thm: propagation}. The constant is explicit, independent of $N$, and depends on the stage maps only through the weight suprema. Rejuvenation does not enlarge it: given the pushforward particles, the resampling and the kernel draw amount to a single draw per particle, and a Markov kernel cannot widen the range of a bounded function.
 
-Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. {\color{blue}Writing $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the scheme,} the bound gives $\lVert \pi_K^N\langle \varphi\rangle - \pi_K\langle \varphi\rangle \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the inference is \emph{asymptotically unbiased}, and its error is removed by increasing the sample size alone. Classical Monte Carlo sampling of $\pi$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first. {\color{purple}The generator of Algorithm~\ref{alg: boltzmann} is covered directly, its rejuvenation being MALA, whose Metropolis adjustment leaves each stage target invariant exactly} \citep{metropolis1953equation,hastings1970monte,roberts1996exponential,delmoral2004feynman}. The rejuvenation also keeps the particles distinct: resampling only copies and the stage maps are bijections, so without it the number of distinct configurations could only fall from stage to stage, and the independent noise then scatters the copies apart again without enlarging the bound.
+\begin{remark}
+{\color{purple}The theorem describes Algorithm~\ref{alg: inference}, the inference scheme with the trained maps held fixed. The direct output of Algorithm~\ref{alg: boltzmann} is not covered: its samples can be correlated with the schedule, since the same particles select the stages and the flow-versus-identity proposal before being propagated. The inference sets reported in Section~\ref{sec: molecular} replay the frozen stage flows on independent particles.}
+\end{remark}
 
-{\color{blue}The constant $C$ in Theorem~\ref{thm: propagation} is a square up to the observable, and its square root is defined as the \emph{propagation factor} of the training schedule,}
+Theorem~\ref{thm: propagation} also settles how the scheme behaves in $N$. Writing $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the scheme, the bound gives $\lVert \pi_K^N\langle \varphi\rangle - \pi_K\langle \varphi\rangle \rVert_2 \Le \sqrt{C/N}$ for every bounded observable, which also bounds the bias and vanishes as $N$ grows: the inference is \emph{asymptotically unbiased}, and its error is removed by increasing the sample size alone. Classical Monte Carlo sampling of $\pi$ instead requires the simulation time to grow and, for unadjusted integrators, the time step to vanish; a Metropolis-adjusted kernel such as MALA removes the second requirement but not the first \citep{metropolis1953equation,hastings1970monte,roberts1996exponential,delmoral2004feynman}. The rejuvenation also keeps the particles distinct: resampling only copies and the stage maps are bijections, so without it the number of distinct configurations could only fall from stage to stage, and the independent noise scatters the copies apart again.
+
+The constant $C$ in Theorem~\ref{thm: propagation} is a square up to the observable, and its square root is defined as the \emph{propagation factor} of the training schedule,
 \begin{equation}
     F_{\Sigma+}
     := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} 3\lVert w_j \rVert_\infty ,
     \label{eq: propagation-factor-plus}
 \end{equation}
-{\color{blue}so that the inequality \eqref{eq: propagation-bound} equivalently reads}
+so that the inequality \eqref{eq: propagation-bound} equivalently reads
 \begin{equation*}
     \bigl\lVert \pi_K^N\langle \varphi\rangle - \pi_K\langle \varphi\rangle \bigr\rVert_2
     \Le \frac{\operatorname{osc}(\varphi)}{2}\, \frac{F_{\Sigma+}}{\sqrt N}.
 \end{equation*}
-{\color{blue}The propagation factor multiplies the error itself rather than its square.}
+The propagation factor multiplies the error itself rather than its square.
 
-{\color{blue}$F_{\Sigma+}$ is built from the essential supremum of each stage weight, and that is what makes it impractical. One rare configuration of large weight fixes the supremum, so $\lVert w_j \rVert_\infty$ can be enormous at a stage that otherwise behaves well; for a singular potential it is difficult to estimate accurately, and need not be finite at all. We therefore estimate the training difficulty by a second propagation factor, assembled from the ESS of each accepted stage, a quantity the run computes anyway.} For the stage weight, the ESS of \eqref{eq: ESS} reads
+$F_{\Sigma+}$ is built from the essential supremum of each stage weight, and that is what makes it impractical. One rare configuration of large weight fixes the supremum, so $\lVert w_j \rVert_\infty$ can be enormous at a stage that otherwise behaves well; for a singular potential it is difficult to estimate accurately, and need not be finite at all. We therefore estimate the training difficulty by a second propagation factor, assembled from the ESS of each accepted stage, a quantity the run computes anyway. For the stage weight, the ESS of \eqref{eq: ESS} reads
 \begin{equation}
     \ESS(w_k) := \frac{1}{\int_{\mathbb R^d} w_k(x)^2 \, \nu_k(x) \, \D x} \in (0,1] ,
     \label{eq: propagation-ESS}
 \end{equation}
-{\color{blue}and replacing each supremum by the reciprocal square root of the stage ESS, and dropping the factors $3$, which arise from the recurrence in the proof and carry no information about the problem, gives}
+and replacing each supremum by the reciprocal square root of the stage ESS, and dropping the factors $3$, which arise from the recurrence in the proof and carry no information about the problem, gives
 \begin{equation}
     F_{\Sigma}
     := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} \frac{1}{\sqrt{\ESS(w_j)}} .
@@ -718,32 +731,30 @@ The substitution is ordered stagewise. Since $\lVert w_j \rVert_\infty \Ge \int 
     \quad\Longrightarrow\quad
     F_\Sigma \Le F_{\Sigma+} .
 \end{equation*}
-{\color{blue}The ordering of the inequality is reversed, so $F_\Sigma$ is not a bound on the constant of \eqref{eq: propagation-bound}. Every summand in \eqref{eq: propagation-factor-sigma} is at least one, so $F_\Sigma \Ge K+1$, even when every stage proposal equals its target.}
+The ordering of the inequality is reversed, so $F_\Sigma$ is not a bound on the constant of \eqref{eq: propagation-bound}. Every summand in \eqref{eq: propagation-factor-sigma} is at least one, so $F_\Sigma \Ge K+1$, even when every stage proposal equals its target.
 
-{\color{blue}The calculation of $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$. A Boltzmann generator run already evaluates the stage weight vectors $W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(Y_j^i)$, and the sample ESS of each vector is read off them at no further cost, giving the propagation factor that the experiments report,}
+The calculation of $F_\Sigma$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$. A Boltzmann generator run already evaluates the stage weight vectors $W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(Y_j^i)$, and the sample ESS of each vector is read off them at no further cost, giving the propagation factor that the experiments report,
 \begin{equation}
     \hat F_{\Sigma} := \sum_{k=0}^{K}\ \prod_{j=k+1}^{K} \frac{1}{\sqrt{\ESS(W_j)}} ,
     \label{eq: propagation-factor-hat}
 \end{equation}
-invariant to the scale of the weights and therefore available when the target is known only up to a constant. {\color{blue}It is not, however, a bound on $F_\Sigma$ at finite $N$. Appendix~\ref{subsec: appendix-factor} takes up how far $F_\Sigma$ can sit from $F_{\Sigma+}$ and why it is nevertheless the quantity to report.}
-{\color{blue}$F_\Sigma$} summarizes weight degeneracy along one accepted schedule, and does not measure the difficulty of the target. The sample size required by importance sampling grows exponentially in the KL divergence between target and proposal \citep{chatterjee2018sample}, and with the intrinsic dimension of the problem \citep{agapiou2017importance}; neither dependence appears in $F_\Sigma$.
+invariant to the scale of the weights and therefore available when the target is known only up to a constant. It is not, however, a bound on $F_\Sigma$ at finite $N$. Appendix~\ref{subsec: appendix-factor} takes up how far $F_\Sigma$ can sit from $F_{\Sigma+}$.
+$F_\Sigma$ summarizes weight degeneracy along one accepted schedule, and does not measure the difficulty of the target. The sample size required by importance sampling grows exponentially in the KL divergence between target and proposal \citep{chatterjee2018sample}, and with the intrinsic dimension of the problem \citep{agapiou2017importance}; neither dependence appears in $F_\Sigma$.
 
-Our propagation factor analysis is closely related to the asymptotic study of AFT \citep{arbel2021annealed} and CRAFT \citep{matthews2022craft}. Under uniformly bounded incremental weights, AFT establishes convergence in probability. Under further assumptions, among them convergence of the flows, it also establishes a central limit theorem whose asymptotic variance satisfies a recurrence: the variance injected at one annealing step, plus the previous step's variance carried through that step. The constant of \eqref{eq: propagation-bound} is the unrolled form of such a recurrence, with the sum over the stage at which the error enters and the product over the stages it must still traverse, but bounded rather than exact. That is what makes the rate $N^{-1/2}$ and the constant explicit at finite $N$ for the Boltzmann generator of Algorithm~\ref{alg: boltzmann}. The same reading favors $F_\Sigma$ over $F_{\Sigma+}$, since the injected term of that recurrence is a second moment of the incremental weights, the quantity the stage ESS of \eqref{eq: propagation-ESS} measures, whereas an essential supremum is not.
+{\color{blue}The argument behind Theorem~\ref{thm: propagation} is not new. A sum over the stage at which the error enters, times a product over the stages it must still traverse, is standard for Feynman--Kac particle systems \citep{delmoral2004feynman,chopin2020introduction}, and is the form of the variance recurrence AFT \citep{arbel2021annealed} and CRAFT \citep{matthews2022craft} obtain as a central limit theorem. Our scheme is such a system, with the trained stage map composed with the rejuvenation kernel as the mutation and the stage weight $w_k$ as the potential, so \eqref{eq: propagation-bound} is that recurrence unrolled, bounded rather than exact, and explicit at finite $N$.}
 
-%\bibliographystyle{abbrvnat}
-%\bibliography{references}
-%\end{document}
+{\color{blue}This is the evidence for reporting $\hat F_\Sigma$, although it is not an upper bound. The term injected at a stage is a second moment of the incremental weights, which the stage ESS of \eqref{eq: propagation-ESS} measures exactly, so $\hat F_\Sigma$ is read off the weight vectors a run already evaluates and takes the form the analyses above give. An essential supremum is not a second moment, which is why $F_{\Sigma+}$ reads the recurrence less faithfully. The summation also records what a product cannot: its $k=0$ term is the whole product $\prod_{j=1}^{K}\ESS(w_j)^{-1/2}$ and every later term is at least one, so $F_\Sigma$ exceeds that product by the error resampling injects at each later stage.}
 
 % ===================== Section 5: model problems =====================
 \section{Numerical experiments on model problems}
 \label{sec: experiments}
 
-We test forward KL against three instances of the generalized KLXX loss \eqref{eq: KLXX-general}: $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, corresponding to different choices of the coefficients $(\lambda,\vartheta,\alpha,\beta)$. The last is KLXX, whose mixture variation weights the QT distribution $\hat\pi$ and the pushforward $\bar\nu$ equally. The tests are the 2D benchmark distributions, the high-dimensional product multi-well, the lattice $\phi^4$ field theory, and the $p$-state clock model. They vary in dimension and in how the modes are distributed. Where a fake ESS can be an issue, we report ESS together with the coverage diagnostic.
+We test forward KL against three choices of the generalized KLXX loss \eqref{eq: KLXX-general}: $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, corresponding to different coefficients $(\lambda,\vartheta,\alpha,\beta)$. The last is KLXX, whose mixture variation weights the QT distribution $\hat\pi$ and the pushforward $\bar\nu$ equally. The tests include the 2D benchmark distributions, the high-dimensional product multi-well, the lattice $\phi^4$ field theory, and the $p$-state clock model. They vary in dimension and in how the modes are distributed. When a fake ESS appears, we report ESS together with the coverage diagnostic.
 
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
 
-For every target, we initialize the same neural spline flow (NSF) \citep{durkan2019neural} at the identity and compare the four losses above. The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$, and each training step constructs a target surrogate through the current flow on a ladder of length $M=1$, followed by MALA rejuvenation. {\color{blue}QT acts} on a fixed sample set of $5\times10^4$ to $8\times10^4$ points. Coverage, with $\kappa=5$ against an independently generated QT reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. Because coverage tests occupancy of the reference balls, a collapsed flow can have ESS near one but cannot have full coverage. Each loss--target pair is one fixed-seed training realization, so the numbers below are for these matched runs, not variation across independent trainings.
+For every target, we initialize the same neural spline flow (NSF) \citep{durkan2019neural} at the identity and compare the four losses above. The flow has $32$ spline bins, $6$ transforms, and conditioner widths $(128,128)$, and each training step constructs a target surrogate through the current flow on a ladder of length $M=1$, followed by MALA rejuvenation. QT acts on a fixed sample set of $5\times10^4$ to $8\times10^4$ points. Coverage, with $\kappa=5$ against an independently generated QT reference set, measures the fraction of reference configurations represented by the pushforward samples through the nearest-neighbor test of Section~\ref{subsec: eval}. Because coverage tests occupancy of the reference balls, a collapsed flow can have ESS near one but cannot have full coverage. Each loss--target pair is one fixed-seed training realization, so the numbers below are for these matched runs, not variation across independent trainings.
 
 \begin{figure}[htb]
     \centering
@@ -753,7 +764,7 @@ For every target, we initialize the same neural spline flow (NSF) \citep{durkan2
 \end{figure}
 
 \paragraph{Two-Moon.}
-The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$ {\color{blue}(Figure~\ref{fig: two-moon})}. With batch size $500$, $200$ Adam steps, and learning rate $10^{-3}$, forward KL reaches ESS $0.8934$, adding $\X_\pi$ leaves it at $0.8929$, and KLXX reaches $0.9087$. The loss $\KL$+$\X_\pi$+$\X_{\hat\pi}$ falls to $0.8313$, since QT supplies no mode that the target surrogate is missing.
+The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so all four losses attain coverage $1$ (Figure~\ref{fig: two-moon}). With batch size $500$, $200$ Adam steps, and learning rate $10^{-3}$, forward KL reaches ESS $0.8934$, adding $\X_\pi$ leaves it at $0.8929$, and KLXX reaches $0.9087$. The loss $\KL$+$\X_\pi$+$\X_{\hat\pi}$ falls to $0.8313$, since QT supplies no mode that the target surrogate is missing.
 
 \begin{figure}[htb]
     \centering
@@ -763,7 +774,7 @@ The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so al
 \end{figure}
 
 \paragraph{Three-Well.}
-The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and initially covering no basin {\color{blue}(Figure~\ref{fig: threewell})}. Training uses batch size $1000$, $500$ steps, and learning rate $10^{-3}$. Forward KL and $\KL$+$\X_\pi$ populate the two favored wells and report ESS $0.9769$ and $0.9939$, respectively, while their coverage remains $0.7595$. The QT set also represents the suppressed third well, and both losses that use it cover all three wells at comparable ESS.
+The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and initially covering no basin (Figure~\ref{fig: threewell}). Training uses batch size $1000$, $500$ steps, and learning rate $10^{-3}$. Forward KL and $\KL$+$\X_\pi$ populate the two favored wells and report ESS $0.9769$ and $0.9939$, respectively, while their coverage remains $0.7595$. The QT set also represents the suppressed third well, and both losses that use it cover all three wells at comparable ESS.
 
 \begin{figure}[htb]
     \centering
@@ -797,7 +808,7 @@ The target is a four-component Gaussian mixture with component standard deviatio
         Sparse     & $0.903\,(0.534)$ & $0.957\,(0.534)$ & $0.878\,(1.000)$ & $\mathbf{0.956}\,(1.000)$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the highest ESS among methods whose sample panel covers every target mode. The coverage diagnostic slightly undercounts the visibly occupied third mode on Three-Well.}
+    \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the highest ESS among methods whose sample panel covers every target mode. {\color{blue}Mode completeness is read from the panels rather than from the coverage number, which undercounts the visibly occupied third mode on Three-Well.}}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
@@ -824,7 +835,7 @@ All four losses use the same identity-initialized NSF on $[-4,4]^d$, with $16$ b
     \label{fig: highd-ess}
 \end{figure}
 
-In each of the $64$ evaluated pairs of loss and dimension, all $2^k$ sign patterns of the double-well coordinates occur among the fresh evaluation samples, including all $256$ patterns for each of the four losses at $d=256$. Figure~\ref{fig: highd-ess} shows that each of the three losses with log-ratio variation has higher final sample ESS than forward KL at every one of the sixteen dimensions. At $d=256$, the final values are $0.4322$ for forward KL, $0.5608$ for $\KL$+$\X_\pi$, $0.5979$ for $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $0.5687$ for $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. The two losses containing $\hat\pi$ behave similarly across dimensions. During the $d=256$ training realization, the batch ESS of $\KL$+$\X_\pi$, evaluated on the training batch after each gradient step, rises more slowly than that of forward KL over the first several hundred steps and overtakes it only near step $800$. Adding $\X_{\hat\pi}$ removes that delay: both losses containing $\hat\pi$ overtake forward KL earlier, and the mixture term does so first. All three losses with log-ratio variation then continue to improve after forward KL begins to plateau.
+{\color{blue}The coverage diagnostic of Section~\ref{subsec: eval} is not used here. Nearest-neighbor radii concentrate as the dimension grows, so a $\kappa$-nearest-neighbor ball ceases to separate covered from uncovered regions, and the sign pattern of the double-well coordinates is the exact mode label for this target and is read directly.} In each of the $64$ evaluated pairs of loss and dimension, all $2^k$ sign patterns of the double-well coordinates occur among the fresh evaluation samples, including all $256$ patterns for each of the four losses at $d=256$. Figure~\ref{fig: highd-ess} shows that each of the three losses with log-ratio variation has higher final sample ESS than forward KL at every one of the sixteen dimensions. At $d=256$, the final values are $0.4322$ for forward KL, $0.5608$ for $\KL$+$\X_\pi$, $0.5979$ for $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $0.5687$ for $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. The two losses containing $\hat\pi$ behave similarly across dimensions. During the $d=256$ training realization, the batch ESS of $\KL$+$\X_\pi$, evaluated on the training batch after each gradient step, rises more slowly than that of forward KL over the first several hundred steps and overtakes it only near step $800$. Adding $\X_{\hat\pi}$ removes that delay: both losses containing $\hat\pi$ overtake forward KL earlier, and the mixture term does so first. All three losses with log-ratio variation then continue to improve after forward KL begins to plateau.
 
 \subsection{Lattice \texorpdfstring{$\phi^4$}{phi4} field theory: fake ESS at a collective barrier}
 \label{subsec: phi4}
@@ -835,14 +846,14 @@ U(\boldsymbol\phi)
 +\sum_{j=1}^{d}\left[\phi_j^2+\frac12(\phi_j^2-1)^2\right]
 +h\sum_{j=1}^{d}\phi_j.
 \end{equation*}
-The on-site term alone has a single minimum at $0$; the nearest-neighbor coupling is what makes a uniform configuration bistable, with effective per-site potential $-0.6\phi^2+\frac12(\phi^2-1)^2$ and wells near $\pm1.26$. The magnetization of a configuration is
+The on-site term alone has a single minimum at $0$; the nearest-neighbor coupling is what makes a uniform configuration bistable. The magnetization of a configuration is
 \begin{equation*}
     m(\boldsymbol\phi)=\frac1d\sum_{j=1}^{d}\phi_j .
 \end{equation*}
 We take $h=0.0257$ at $L=6$ and $h=0.0144$ at $L=8$, matching the scaling $hL^2\approx0.92$ to produce comparable well imbalance in the targets of the two settings.
 A collective domain-wall barrier separates the two wells, and the minority weight $p_+=\mathbb P(m>0)$ must be learned rather than fixed by symmetry.
 
-{\color{blue}PT provides} the references $p_+={\color{blue}0.1258\pm0.0001}$ for $L=6$ and ${\color{blue}0.1265\pm0.0002}$ for $L=8${\color{blue}, with 3 independent runs for both $L$}. Each loss is run at seeds $0,1,2$ using an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$; training uses a fixed sample set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses a ladder of length $M=1$ followed by $50$ MALA steps of size $2\times10^{-3}$. {\color{blue}QT acts} on the sample set, with melt scale $2$ and an L-BFGS quench using initial step $0.1$ and $200$ iterations.
+PT provides the references $p_+=0.1258\pm0.0001$ for $L=6$ and $0.1265\pm0.0002$ for $L=8$, with 3 independent runs for both $L$. Each loss uses an identity-initialized NSF on $[-3,3]^d$, with $16$ bins, $6$ transforms, and conditioner widths $(256,256)$. The source is $\mathcal N(0,0.5^2 I_d)$; training uses a fixed sample set of $10^5$ source samples, batch size $500$, and $2000$ Adam steps at learning rate $10^{-3}$. The target surrogate uses a ladder of length $M=1$ followed by $50$ MALA steps of size $2\times10^{-3}$. QT acts on the sample set, with melt scale $2$ and an L-BFGS quench using initial step $0.1$ and $200$ iterations.
 
 \begin{table}[htb]
     \centering
@@ -862,26 +873,26 @@ A collective domain-wall barrier separates the two wells, and the minority weigh
         & $0.875/0.873/0.871$ & $0.127/0.128/0.127$
         & $0.636/0.645/0.654$ & $0.125/0.124/0.124$ \\
         $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$
-        & $\mathbf{0.896/0.877/0.894}$ & $0.127/0.128/0.127$
-        & $\mathbf{0.690/0.676/0.681}$ & $0.131/0.130/0.129$ \\
+        & $0.896/0.877/0.894$ & $0.127/0.128/0.127$
+        & $0.690/0.676/0.681$ & $0.131/0.130/0.129$ \\
         \midrule
-        PT reference & --- & ${\color{blue}0.1258\pm0.0001}$ & --- & ${\color{blue}0.1265\pm0.0002}$ \\
+        PT reference & --- & $0.1258\pm0.0001$ & --- & $0.1265\pm0.0002$ \\
         \bottomrule
     \end{tabular}
-    \caption{Final ESS and reweighted minority-well weight $p_+$ for three seeds on the two tilted $\phi^4$ targets, $(L,h)=(6,0.0257)$ and $(8,0.0144)$. Integer values $0$ and $1$ indicate collapse onto one well; bold marks the higher ESS among the losses that recover both wells.}
+    \caption{Final ESS and reweighted minority-well weight $p_+$ for three seeds on the two tilted $\phi^4$ targets, $(L,h)=(6,0.0257)$ and $(8,0.0144)$. Integer values $0$ and $1$ indicate collapse onto one well.}
     \label{tab: phi4}
 \end{table}
 
-Forward KL and $\KL$+$\X_\pi$ collapse at every size and seed {\color{blue}(Table~\ref{tab: phi4})}. Their target surrogate starts from the pushforward samples and does not cross the collective barrier within the run, so the second well remains absent and reweighting gives $p_+=0$ or $1$. Nevertheless, $\KL$+$\X_\pi$ has the highest ESS at both sizes, and it is a fake ESS: it is earned on the single well the flow reaches, and the missing one does not enter it. KLXX populates both wells, so its ESS is not a fake ESS.
+Forward KL and $\KL$+$\X_\pi$ collapse at every size and seed (Table~\ref{tab: phi4}). Their target surrogate starts from the pushforward samples and does not cross the collective barrier within the run, so the second well remains absent and reweighting gives $p_+=0$ or $1$. Nevertheless, $\KL$+$\X_\pi$ has the highest ESS at both sizes, and it is a fake ESS: it is earned on the single well the flow reaches, and the missing one does not enter it. KLXX populates both wells, so its ESS  accurately reflects the quality of the samples.
 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/lattice_phi4_l8_methods.png}
-    \caption{Magnetization density on the $L=8$ lattice. Each panel shows the pushforward density (gray), the reweighted density (color), and the {\color{blue}PT reference density} (dotted); the title reports ESS and reweighted $p_+$.}
+    \caption{Magnetization density on the $L=8$ lattice. Each panel shows the pushforward density (gray), the reweighted density (color), and the PT reference density (dotted); the title reports ESS and reweighted $p_+$.}
     \label{fig: phi4-methods}
 \end{figure}
 
-The two losses that use the QT samples $\hat\pi$ populate both wells at every seed, with recovered $p_+$ between $0.1238$ and $0.1312$, within $0.005$ of {\color{blue}the reference} at the corresponding lattice size. In these finite-capacity fits, recovering both wells is accompanied by some mass in the suppressed region between them and lower ESS. At $L=8$, KLXX has the higher ESS and less visible mass in that region {\color{blue}(Figure~\ref{fig: phi4-methods})}, matching the role of the pushforward samples in the mixture variation.
+The two losses that use the QT samples $\hat\pi$ populate both wells at every seed, with recovered $p_+$ between $0.1238$ and $0.1312$, within $0.005$ of the reference at the corresponding lattice size. In these finite-capacity fits, recovering both wells is accompanied by some mass in the suppressed region between them and lower ESS. At $L=8$, KLXX has the higher ESS and less visible mass in that region (Figure~\ref{fig: phi4-methods}), matching the role of the pushforward samples in the mixture variation.
 
 \subsection{Boltzmann generator on \texorpdfstring{$p$}{p}-state clock model}
 \label{subsec: clock}
@@ -898,7 +909,7 @@ where $\langle jl\rangle$ runs over nearest-neighbor pairs. The source is unifor
 
 Each stage uses an identity-initialized neural circular spline flow with $16$ bins, $6$ autoregressive transforms, and conditioner widths $(256,256)$. The sample set contains $4\times10^5$ samples, and both SMC and QT act directly on this set. Every stage uses $3000$ Adam steps at learning rate $10^{-3}$ and ladder length $M=4$ for both the adaptive SMC screen and the target surrogate, with $100$ MALA steps of size $10^{-3}$. For KLXX, QT uses melt scale $2\pi$ and an L-BFGS quench with initial step $10^{-2}$ and $100$ iterations. The clock stage schedule uses the nondefault settings $t_{\mathrm{safe}}=0.25$, enlarge factor $\Gamma=2$, and gates $\tau_{\mathrm{SMC}}=0.7$ and $\tau_{\mathrm v}=0.4$. We report batch sizes $B=2000,1000,500,250$.
 
-KLXX uses the same stage schedule as forward KL for fair comparison. That schedule is constructed with forward KL under the adaptive SMC screen and the ESS gate, and KLXX is then trained on the identical accepted values of $t$ without a second ESS gate. Every configuration is a single run, so individual stage ESS values carry single-run fluctuation.
+KLXX uses the same stage schedule as forward KL for fair comparison. That schedule is constructed with forward KL under the adaptive SMC screen with the ESS gate $\tau_{\mathrm v}=0.4$, and KLXX is trained on the identical accepted values of $t$. Every configuration is a single run, so individual stage ESS values carry single-run fluctuation.
 
 The principal diagnostic is the sample ESS of each accepted stage. The propagation factor $\hat F_\Sigma$ of \eqref{eq: propagation-factor-hat} summarizes stagewise weight degeneracy across the stage sequence; smaller is better. It is not a full-chain ESS or an endpoint error estimate. Table~\ref{tab: clock-summary} reports every accepted stage and the resulting factor.
 
@@ -954,10 +965,9 @@ To quantify whether staged resampling preserves the sixfold symmetry, we perform
 \end{figure}
 
 
-At fixed $N$, panel (a) {\color{blue}of Figure~\ref{fig: clock-occupancy}} shows that the mean occupancy bias increases as the training batch shrinks for both methods. KLXX has the lower mean at $B=2000$, $1000$, and $250$. At those batch sizes, the forward KL means are $0.00573$, $0.00888$, and $0.02760$, while the KLXX means are $0.00235$, $0.00517$, and $0.01506$. At $B=500$ the ordering reverses slightly, from $0.00963$ for forward KL to $0.01082$ for KLXX, and the intervals defined by $\pm2$ standard errors overlap.
+At fixed $N$, panel (a) of Figure~\ref{fig: clock-occupancy} shows that the mean occupancy bias increases as the training batch shrinks for both methods. KLXX has the lower mean at $B=2000$, $1000$, and $250$. At those batch sizes, the forward KL means are $0.00573$, $0.00888$, and $0.02760$, while the KLXX means are $0.00235$, $0.00517$, and $0.01506$. At $B=500$ the ordering reverses slightly, from $0.00963$ for forward KL to $0.01082$ for KLXX, and the intervals defined by $\pm2$ standard errors overlap.
 
-At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.453$ for forward KL and $-0.545$ for $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00573$ to $0.00235$ at $N=6.4\times10^5$. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector. The rebuild seeds measure sampling variability; each stage schedule for a given method and batch size is one training run, so the between-method differences do not estimate variation over independently trained models.
-
+At fixed $B=2000$, panel (b) follows the Monte Carlo rate: the log--log slopes of occupancy bias against $N$ are $-0.453$ for forward KL and $-0.545$ for $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. The absence of a visible bias floor is consistent with sampling fluctuation rather than a particle-count-independent sector imbalance over the tested range. The KLXX curve is lower at all seven reported sizes, reducing the mean bias from $0.03735$ to $0.02397$ at $N=10^4$ and from $0.00573$ to $0.00235$ at $N=6.4\times10^5$. Together with the six peaks in Figure~\ref{fig: clock-marginals}, these tests show that the staged samples are not confined to one global sector.
 
 
 % ===================== Section 6: molecular targets =====================
@@ -988,10 +998,10 @@ E_{\mathrm{vac}}(x)
  \left\lbrace 4\epsilon_{ij}\left[
  \left(\frac{\sigma_{ij}}{r_{ij}}\right)^{12}
  -\left(\frac{\sigma_{ij}}{r_{ij}}\right)^6\right]
- +k_{\mathrm e}\frac{q_iq_j}{r_{ij}}\right\rbrace .
+ +k_{\mathrm e}\frac{Q_iQ_j}{r_{ij}}\right\rbrace .
 \label{eq: molecular-amber-energy}
 \end{align}
-Here $b$, $a$, and $\tau$ index bonds, angles, and proper or improper torsions, while $i,j$ index nonbonded atom pairs after topology-defined exclusions and scaling. The symbols $r_b^0$, $\theta_a^0$, $k_b$, $k_a$, $V_\tau$, $n_\tau$, and $\gamma_\tau$ are force-field equilibrium values and coefficients; $\sigma_{ij}$, $\epsilon_{ij}$, and $q_i$ are the nonbonded parameters. OBC1 supplies the generalized-Born electrostatic solvation term \citep{onufriev2004gb}, and ACE supplies the nonpolar term \citep{schaefer1996ace}. All terms in \eqref{eq: molecular-energy} belong to the sampled potential.
+Here $b$, $a$, and $\tau$ index bonds, angles, and proper or improper torsions, while $i,j$ index nonbonded atom pairs after topology-defined exclusions and scaling. The symbols $r_b^0$, $\theta_a^0$, $k_b$, $k_a$, $V_\tau$, $n_\tau$, and $\gamma_\tau$ are force-field equilibrium values and coefficients; $\sigma_{ij}$, $\epsilon_{ij}$, and {\color{purple}$Q_i$} are the nonbonded parameters. OBC1 supplies the generalized-Born electrostatic solvation term \citep{onufriev2004gb}, and ACE supplies the nonpolar term \citep{schaefer1996ace}. All terms in \eqref{eq: molecular-energy} belong to the sampled potential.
 
 A nonlinear molecule with \(A\) atoms has \(d=3A-6\) internal degrees of freedom after rigid translation and rotation are removed. A fixed internal-coordinate tree reconstructs \(x=x(q)\) from whitened bond and angle coordinates and periodic torsions. Write $d_{\mathrm E}$ and $d_{\mathrm T}$ for the numbers of nonperiodic Euclidean coordinates and periodic torsions, respectively, and let $\mathbb T=\mathbb R/(2\pi\mathbb Z)$. Consequently,
 \begin{equation*}
@@ -1061,7 +1071,7 @@ U^{\{\rho\}}(q)
 +\mathcal C_e\bigl(\Delta E_r(x(q))\bigr)\right]-\log J_x(q).
 \label{eq: regularized-molecular-potential}
 \end{equation}
-The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor \(r\) is measured in \(\mathrm{nm}\). The bonded and OBC1/ACE terms keep their component formulas, and the scalar cap is applied to the complete energy. The coordinate Jacobian and domain are not capped. The physical potential \(U\) in \eqref{eq: molecular-reduced-potential} is recovered in the formal limit \(e\to\infty\), \(r\to0\).
+The threshold \(e\) is measured in \(\mathrm{kJ\,mol^{-1}}\), and the pair floor \(r\) is measured in \(\mathrm{nm}\). The bonded and OBC1/ACE terms keep their component formulas, and the scalar cap is applied to the complete energy. The physical potential \(U\) in \eqref{eq: molecular-reduced-potential} is recovered in the formal limit \(e\to\infty\), \(r\to0\).
 
 A run ends at a finite regularization setting \(\rho\) rather than at that formal limit. For endpoint samples $q_1,\ldots,q_N$, define the endpoint-to-physical weights and the corresponding regularization ESS (RESS) by
 \begin{equation}
@@ -1113,7 +1123,7 @@ The second arrow of \eqref{eq: molecular-stage-arrows} holds $t=t_k$ fixed and a
 \end{equation}
 Sharpening is accepted only when its ESS over the sample set clears the ESS gate, after which the samples are resampled and rejuvenated by MALA under $U_{t_k,t_k}$; a proposal or a sharpening step that fails its ESS gate shrinks $t_k-t_{k-1}$ and retries. This arrow therefore carries the change of regularization by exact reweighting rather than by the map. It raises barriers without requiring the map to do so. A softer core flattens the short-range repulsion and the high-energy tail, and can connect modes that remain separated at the endpoint. Advancing $s$ toward $t_k$ removes those extra connections.
 
-The propagation factor of \eqref{eq: propagation-factor-hat} is evaluated on both arrows of \eqref{eq: molecular-stage-arrows}. An accepted stage on a sharpening path reweights and resamples twice, so it supplies two of the weight vectors $W_j$: the weight $w_k$ of the map selected at that stage, from the first arrow, and the sharpening weight $w_k^{\mathrm{sharp}}$ of \eqref{eq: molecular-sharpening-weight}, each evaluated on the $N$ samples. A run of $K$ accepted stages therefore supplies $2K$ weight vectors, $K$ from the proposals and $K$ from sharpening, and the sum and products of $\hat F_\Sigma$ run over them in the order the generator performs them. On a fixed regularization path the sharpening weight is identically one, and the step still enters the sequence because the generator resamples there. As before, $\hat F_\Sigma$ summarizes stagewise weight degeneracy; it is not a source-to-endpoint ESS or an endpoint error estimator.
+The propagation factor of \eqref{eq: propagation-factor-hat} is evaluated on both arrows of \eqref{eq: molecular-stage-arrows}. An accepted stage on a sharpening path reweights and resamples twice, so it supplies two of the weight vectors $W_j$: the weight $w_k$ of the map selected at that stage, from the first arrow, and the sharpening weight $w_k^{\mathrm{sharp}}$ of \eqref{eq: molecular-sharpening-weight}, each evaluated on the $N$ samples. {\color{blue}Two limits on how this number may be read apply throughout this section. The factor measures weight degeneracy along one accepted schedule, not the accuracy of the samples returned, and Appendix~\ref{subsec: appendix-factor} shows a ratio of two factors is not a prediction of the ratio of two errors. The per-stage ESS is also read on the same sample set that selected the stage proposal, so it is optimistic: by the selection rule of Section~\ref{sec: boltzmann} an accepted stage is never worse than the identity in that diagnostic. A smaller factor therefore reports a better-conditioned schedule, and nothing more.} A run of $K$ accepted stages therefore supplies $2K$ weight vectors, $K$ from the proposals and $K$ from sharpening, and the sum and products of $\hat F_\Sigma$ run over them in the order the generator performs them. On a fixed regularization path the sharpening weight is identically one, and the step still enters the sequence because the generator resamples there. As before, $\hat F_\Sigma$ summarizes stagewise weight degeneracy; it is not a source-to-endpoint ESS or an endpoint error estimator.
 
 Temperature-annealed Boltzmann generators (TA-BG) \citep{schopmans2025temperature} address the same barrier problem through a different continuation coordinate: TA-BG lowers the temperature toward the physical target, whereas sharpening holds the temperature fixed and anneals the regularization $\rho_s$. Sharpening changes the singular core more strongly, since changing temperature rescales the physical energy but preserves its divergent short-range form. Before the endpoint, the sharpening states are not those of a physical molecular system, whereas the TA-BG intermediates remain canonical distributions of the same potential at explicitly defined elevated temperatures.
 
@@ -1176,11 +1186,11 @@ ethane (18) & \((100,0.15)\)
 \end{table}
 
 
-Within the single-seed runs, KLXX has the smallest factor in all ten settings. Forward KL selects trained maps through methane and part of ethane. From propane onward, every accepted forward KL stage selects the identity proposal, and its factor is close to the identity result. KLXX selects the trained map at every accepted stage through pentane. At hexane, it selects trained maps in \(6\) of \(12\) fixed-path stages and \(8\) of \(10\) sharpening stages.
+Within the single-seed runs, KLXX has the smallest factor in all ten settings. Forward KL selects trained maps through methane and part of ethane. From propane onward, every accepted forward KL stage selects the identity proposal, and its factor is close to the identity result. KLXX selects the trained map at every accepted stage through pentane. At hexane, it selects trained maps in \(6\) of \(12\) fixed-path stages and \(8\) of \(10\) sharpening stages. {\color{blue}The table compares schedules: it records which loss keeps the stage weights better conditioned along the accepted path. The accuracy of the resulting samples is checked separately against an independent physical-potential reference in Figure~\ref{fig: alkane-macroscopic}.}
 
 The difference between the fixed and sharpening paths increases with molecule size in these runs. The KLXX fixed-path factor divided by the sharpening-path factor is \(1.03\), \(1.04\), \(1.19\), and \(1.66\) for propane through hexane. The butane, pentane, and hexane KLXX sharpening runs take \(3.10\), \(2.24\), and \(2.65\) times the recorded forward KL wall time. The KLXX sharpening paths have the lowest factor among the larger-molecule comparisons; they also incur additional QT, reweighting, and flow-training cost.
 
-The endpoint-to-physical weights of \eqref{eq: molecular-ress} are nearly uniform on the final KLXX sample sets: $1-\operatorname{RESS}=0$ numerically from methane through butane, $9.5\times10^{-6}$ for pentane, and $2.3\times10^{-5}$ for hexane. These values measure overlap on the sampled sets.
+The endpoint-to-physical weights of \eqref{eq: molecular-ress} are nearly uniform on the final KLXX sample sets: $1-\operatorname{RESS}=0$ numerically from methane through butane, $9.5\times10^{-6}$ for pentane, and $2.3\times10^{-5}$ for hexane. {\color{blue}The exact zeros are not rounding: on those sample sets no configuration triggers the soft cap or the pair floor, so $w^{\mathrm{phys}}\equiv1$ identically and the endpoint distribution coincides with the physical one there.} These values measure overlap on the sampled sets.
 
 \begin{figure}[htb]
 \centering
@@ -1189,9 +1199,9 @@ The endpoint-to-physical weights of \eqref{eq: molecular-ress} are nearly unifor
 \label{fig: alkane-macroscopic}
 \end{figure}
 
-The KLXX curves {\color{blue} of Figure~\ref{fig: alkane-macroscopic}} are unweighted summaries of the finite-endpoint sample sets; the physical energy $E$ is evaluated only as an observable, without endpoint-to-physical resampling. The physical-potential reference uses two seeds and a $0.25\,\mathrm{fs}$ timestep. Methane through propane use $300\,\mathrm K$ Langevin trajectories; butane through hexane use $300$--$800\,\mathrm K$ PT to mix the backbone rotamers. Across the six molecules, the maximum relative difference between KLXX and reference physical-energy means is $0.644\%$. The largest relative difference among the nonzero carbon radius-of-gyration and terminal-distance means is $1.058\%$, and the largest absolute rotamer-fraction difference is $0.051$. These results show agreement for the selected energy, size, and rotamer summaries across the \(\mathrm C_1\)--\(\mathrm C_6\) series. 
+The KLXX curves  of Figure~\ref{fig: alkane-macroscopic} are unweighted summaries of the finite-endpoint sample sets; the physical energy $E$ is evaluated only as an observable, without endpoint-to-physical resampling. The physical-potential reference uses two seeds and a $0.25\,\mathrm{fs}$ timestep. Methane through propane use $300\,\mathrm K$ Langevin trajectories; butane through hexane use $300$--$800\,\mathrm K$ PT to mix the backbone rotamers. Across the six molecules, the maximum relative difference between KLXX and reference physical-energy means is $0.644\%$. The largest relative difference among the nonzero carbon radius-of-gyration and terminal-distance means is $1.058\%$, and the largest absolute rotamer-fraction difference is $0.051$. These results show agreement for the selected energy, size, and rotamer summaries across the \(\mathrm C_1\)--\(\mathrm C_6\) series. 
 
-All thirty identity, forward KL, and KLXX runs in Table~\ref{tab: alkane-summary} are complete, but each configuration has one training seed. The reference frames are correlated, and the two-seed ranges are descriptive rather than framewise confidence intervals. The table therefore compares the recorded runs.
+All thirty identity, forward KL, and KLXX runs in Table~\ref{tab: alkane-summary} are complete, and each configuration has one training seed. The reference frames are correlated, and the two-seed ranges are descriptive rather than framewise confidence intervals. The table therefore compares the recorded runs.
 
 
 \subsection{Additional achiral molecule results}
@@ -1229,7 +1239,7 @@ neutral diethanolamine (48) & \((50,0.20)\) & \((100,0.10)\)
 \end{table}
 
 
-Comparing $\KL$+$\X_\pi$ with KLXX, the latter has the smaller propagation factor for all three molecules. Relative to $\KL$+$\X_\pi$, it reduces \(\hat F_\Sigma\) by factors of \(1.34\), \(2.70\), and \(2.15\) for NMA, glycerol, and neutral diethanolamine, respectively, and reaches \(t=1\) in fewer accepted stages in every case. The corresponding KLXX runs require \(2.02\), \(2.16\), and \(1.86\) times the recorded wall time. Thus the factor reduction is accompanied by the additional QT and optimization work in KLXX.
+Comparing $\KL$+$\X_\pi$ with KLXX, the latter has the smaller propagation factor for all three molecules. Relative to $\KL$+$\X_\pi$, it reduces \(\hat F_\Sigma\) by factors of \(1.34\), \(2.70\), and \(2.15\) for NMA, glycerol, and neutral diethanolamine, respectively, and reaches \(t=1\) in fewer accepted stages in every case. The corresponding KLXX runs require \(2.02\), {\color{purple}\(2.17\)}, and {\color{purple}\(1.87\)} times the recorded wall time. Thus the factor reduction is accompanied by the additional QT and optimization work in KLXX. {\color{blue}The reduction is a statement about the schedule, and it costs nothing in accuracy: Figure~\ref{fig: mol-achiral-dihedrals} plots both losses against the OpenMM PT references, and both track them on the reported marginals.}
 
 Figure~\ref{fig: mol-achiral-stage-ess} resolves each factor into its accepted-stage contributions. Because the two losses use method-specific adaptive stage schedules, the individual arcs are descriptive rather than transition-matched comparisons. Sharpening can have the smaller ESS at intermediate stages, so the total factor includes both ESS values reported on each arc.
 
@@ -1303,7 +1313,7 @@ Figure~\ref{fig: mol-chiral-conformations} shows one representative final-stage 
 \label{fig: mol-chiral-conformations}
 \end{figure}
 
-All three chiral targets carry an independent equilibrium reference; the first is published and the other two are our own. For alanine dipeptide it is the implicit-solvent trajectory data released with the FAB study \citep{midgley2022flow}, generated for the same Hamiltonian and used here as ground truth, with \(10^7\) samples. For 2,3-butanediol it is a PT run on the unregularized physical potential at \(300\,\mathrm K\), six temperatures on a geometric \(300\)--\(800\,\mathrm K\) grid, retaining \(10^5\) frames over \(50.0\,\mathrm{ns}\) after a discarded \(0.5\,\mathrm{ns}\) equilibration, with mean per-pair exchange probability \(0.529\) and \(2.2\times10^4\) transitions among the three central rotamers. For Ac-Pro-NHMe the ACE-PRO amide barrier is about \(26\,k_{\mathrm B}T\), so neither a plain trajectory nor PT crosses it. Its reference instead adds to the \(300\,\mathrm K\) Langevin dynamics a Metropolis rigid \(\pi\) rotation of the proline side of the amide bond; that move is an involution with unit Jacobian, so the jump is exact and the target is never deformed. It retains \(2\times10^6\) samples over \(501.0\,\mathrm{ns}\) at \(0.2028\) jump acceptance{\color{blue}, giving \(4.06\times10^{5}\) accepted cis/trans jumps and a blocking standard error of \(0.0003\) on \(p_{\mathrm{cis}}\)}.
+All three chiral targets carry an independent equilibrium reference; the first is published and the other two are our own. For alanine dipeptide it is the implicit-solvent trajectory data released with the FAB study \citep{midgley2022flow}, generated for the same Hamiltonian and used here as ground truth, with \(10^7\) samples. For 2,3-butanediol it is a PT run on the unregularized physical potential at \(300\,\mathrm K\), six temperatures on a geometric \(300\)--\(800\,\mathrm K\) grid, retaining \(10^5\) frames over \(50.0\,\mathrm{ns}\) after a discarded \(0.5\,\mathrm{ns}\) equilibration, with mean per-pair exchange probability \(0.529\) and \(2.2\times10^4\) transitions among the three central rotamers. For Ac-Pro-NHMe the ACE-PRO amide barrier is about \(26\,k_{\mathrm B}T\), so neither a plain trajectory nor PT crosses it. Its reference instead adds to the \(300\,\mathrm K\) Langevin dynamics a Metropolis rigid \(\pi\) rotation of the proline side of the amide bond; that move is an involution with unit Jacobian, so the jump is exact and the target is never deformed. It retains \(2\times10^6\) samples over \(501.0\,\mathrm{ns}\) at \(0.2028\) jump acceptance, giving \(4.06\times10^{5}\) accepted cis/trans jumps and a blocking standard error of \(0.0003\) on \(p_{\mathrm{cis}}\).
 
 \paragraph{Results comparison.}
 Figure~\ref{fig: mol-adp-ramachandran} tracks the alanine dipeptide Ramachandran surface along four accepted sharpening stages.
@@ -1404,26 +1414,28 @@ OpenMM reference & 0.1443 & 0.8557 & 4.44 \\
 \paragraph{Ac-Pro-NHMe residual gap.}
 Ac-Pro-NHMe is the most difficult of the three chiral targets. Its two peptide sectors are separated by the ACE-PRO amide barrier of about \(26\,k_{\mathrm B}T\). Neither Langevin dynamics nor PT crosses that barrier. Even the reference needs a Metropolis rigid \(\pi\) rotation of the proline side of the amide bond before it can equilibrate the two sectors. The KLXX Boltzmann generator uses no reference frames, no bias potential, no elevated temperature, and no conformational prior. It still populates both peptide sectors, keeps the \(S\) proline \(\mathrm C_\alpha\), and orders the sectors correctly.
 
-The residual gap is consistent with a finite sample rather than with a systematic error in the method. By Theorem~\ref{thm: propagation}, {\color{purple}the inference of Algorithm~\ref{alg: boltzmann}} is asymptotically unbiased {\color{blue}whenever the stage weight suprema are finite}. Its error is {\color{blue}then} bounded at rate \(N^{-1/2}\) for every bounded observable and is removed by enlarging the sample alone. A discrepancy that survives at fixed \(N\) is therefore the finite-sample term and should shrink as \(N\) grows. Its size is not predicted by the propagation factors of Table~\ref{tab: mol-chiral-summary}. There \(\hat F_\Sigma\) is \(176.7\) for Ac-Pro-NHMe against \(68.08\) for alanine dipeptide, a ratio of about \(2.6\). Both comparisons are basin populations, hence bounded observables with \(\operatorname{osc}(\varphi)=1\). The observable is not what separates the two residuals. The factor does not carry over from one molecule to the other. As Section~\ref{sec: propagation-analysis} and Appendix~\ref{subsec: appendix-factor} state, \(\hat F_\Sigma\) is assembled from the per-stage ESS. It is not an upper bound on the constant of \eqref{eq: propagation-bound}. That constant depends on the stage weights through their suprema. The \(r^{-12}\) Lennard--Jones core of \eqref{eq: molecular-amber-energy} is what makes large weights available here. {\color{blue}Every molecular run uses the regularized potential \eqref{eq: regularized-molecular-potential}. The pair floor \(r\) softens that core, and the soft cap \(\mathcal C_e\) reduces the growth of the complete reference-relative energy to logarithmic. The weight suprema the constant depends on can nonetheless be very large, and the constant with them,} while the reported factor stays small. A factor larger by \(2.6\) therefore does not predict a bias larger by \(2.6\). The near-singular core of the potential explains the residual gap more plausibly than the dimension of the target.
+The residual gap is consistent with a finite sample rather than with a systematic error in the method. By Theorem~\ref{thm: propagation}, {\color{blue}the inference scheme of Algorithm~\ref{alg: inference}} is asymptotically unbiased whenever the stage weight suprema are finite. Its error is then bounded at rate \(N^{-1/2}\) for every bounded observable and is removed by enlarging the sample alone. A discrepancy that survives at fixed \(N\) is therefore the finite-sample term and should shrink as \(N\) grows. {\color{purple}Read at $\operatorname{osc}(\varphi)=1$, the scale $\hat F_\Sigma/(2\sqrt N)$ is \(0.011\) for alanine dipeptide, \(0.006\) for 2,3-butanediol, and \(0.023\) for Ac-Pro-NHMe. The alanine dipeptide gap of \(0.002\) and the Ac-Pro-NHMe gap of \(0.024\) sit at or below their scales, while the 2,3-butanediol rotamer gap of \(0.020\) sits above its own, so that residual is not explained this way and its origin is left open. Since $\hat F_\Sigma$ is not a bound, none of the three readings is decisive.} Its size is not predicted by the propagation factors of Table~\ref{tab: mol-chiral-summary}.
+Every molecular run uses the regularized potential \eqref{eq: regularized-molecular-potential}: the pair floor \(r\) softens the near-singular core, and the soft cap \(\mathcal C_e\) reduces the growth of the complete reference-relative energy to logarithmic.
+There \(\hat F_\Sigma\) is \(176.7\) for Ac-Pro-NHMe against \(68.08\) for alanine dipeptide, a ratio of about \(2.6\). As Section~\ref{sec: propagation-analysis} and Appendix~\ref{subsec: appendix-factor} state, \(\hat F_\Sigma\) is assembled from the per-stage ESS and is not an upper bound on the constant of \eqref{eq: propagation-bound}, so a factor larger by \(2.6\) does not predict a bias larger by \(2.6\). The near-singular core of the potential explains the residual gap more plausibly than the dimension of the target.
 
-The direct test is a larger inference set, which we do not run. The replay cost grows in proportion to the sample count. This target is already the most expensive of the three. Pushing \(N\) far enough to resolve a difference of \(0.02\) in a population of \(0.14\) is beyond the budget of this study. We leave the gap open rather than close it by tuning.
+The direct test for the accuracy of the Ac-Pro-NHMe is a larger inference set, which we do not run. The replay cost grows in proportion to the sample count. This target is already the most expensive of the three. Pushing \(N\) far enough to resolve a difference of \(0.02\) in a population of \(0.14\) is beyond the budget of this study. We leave the gap open rather than close it by tuning.
 
 
 % ===================== Section 7: Conclusions + Acknowledgement =====================
 \section{Conclusions}
 \label{sec: conclusions}
 
-Forward KL is mass-covering for exact distributions, but its sampled loss sees only the target regions supplied to it. This gap can produce a fake ESS, transfer surrogate error to the flow, and leave target-poor pushforward regions weakly constrained. Log-ratio variation addresses these failures by comparing the exact log-density ratio at pairs of samples. The weighting measure determines which regions are compared: target samples measure density variation on reached target regions, QT samples add candidate modes, and pushforward samples expose regions occupied by the pushforward distribution. KLXX combines these log-ratio variations while retaining the exact target as a minimizer and a tractable pushforward density.
+Forward KL is mass-covering for exact distributions, but its sampled loss sees only the target regions supplied to it. This gap can produce a fake ESS, transfer surrogate error to the flow, and leave target-poor pushforward regions weakly constrained. Log-ratio variation addresses these failures by comparing the exact log-density ratio at pairs of samples. The weighting measure determines which regions are compared: target samples measure density variation on reached target regions, QT samples discover candidate modes, and pushforward samples expose regions occupied by the pushforward distribution. KLXX combines these log-ratio variations while retaining the exact target as a minimizer and a tractable pushforward density.
 
-The theory covers the generalized KLXX loss at any coefficients $(\lambda,\vartheta,\alpha,\beta)$. In FR geometry it induces a gradient flow along which the forward KL decays as $e^{-t}$, with no log-concavity, spectral gap, or growth assumption on $\pi$, and both log-ratio variations enter the dissipation \eqref{eq: combined-rate} as nonpositive terms. Under a fixed biased target surrogate, Theorem~\ref{thm: accuracy} subtracts one nonnegative discrepancy for each variation from the stationary error bound, requiring only that two importance-weight expectations be finite. These are statements in density space, and they do not prove finite-step behavior for KLXX trained by Adam on a parametrized flow map. Theorem~\ref{thm: propagation} is separate: it bounds the $L^2$ error of {\color{purple}the scheme of Algorithm~\ref{alg: boltzmann}} at rate $N^{-1/2}$ for every bounded observable, with a constant independent of $N$, so the scheme is asymptotically unbiased. The propagation factors read from that constant summarize stagewise weight degeneracy, and the reported $\hat F_\Sigma$ is a computable substitute rather than a bound on the error constant.
+The theory covers the generalized KLXX loss at any coefficients $(\lambda,\vartheta,\alpha,\beta)$. In FR geometry it induces a gradient flow whose dissipation \eqref{eq: combined-rate} carries both log-ratio variations as nonpositive terms, with no log-concavity, spectral gap, or growth assumption on $\pi$. {\color{blue}That analysis is structural background: it lives in density space and says nothing about the parametrization, the optimizer, or the QT construction that supplies the modes.} Under a fixed biased target surrogate, Theorem~\ref{thm: accuracy} subtracts one nonnegative discrepancy for each variation from the stationary error bound, requiring only that two importance-weight expectations be finite. These are statements in density space, and they do not prove finite-step behavior for KLXX trained by Adam on a parametrized flow map. Theorem~\ref{thm: propagation} is separate: it bounds the $L^2$ error of the inference scheme of Algorithm~\ref{alg: boltzmann} at rate $N^{-1/2}$ for every bounded observable, with a constant independent of $N$, so the scheme is asymptotically unbiased{\color{purple}, provided each stage weight is $\nu_k$-essentially bounded}. The propagation factors read from that constant summarize stagewise weight degeneracy, and the reported $\hat F_\Sigma$ is a computable substitute rather than a bound on the error constant.
 
-The 2D and $\phi^4$ tests are consistent with the roles of the target, QT, and pushforward samples. The product test shows higher sample ESS for every loss with log-ratio variation at every tested dimension. On the shared clock stage schedules, KLXX has higher sample ESS on every shared stage and a smaller propagation factor at every reported batch size.
+The 2D and $\phi^4$ tests are consistent with the roles of the target, QT, and pushforward samples. The product test shows higher sample ESS for every loss with log-ratio variation at every tested dimension. On the shared clock stage schedules, KLXX has higher sample ESS on every shared stage and a smaller propagation factor at every reported batch size. {\color{blue}The $\phi^4$ and clock experiments carry the accuracy evidence, comparing methods on an observable against a trustworthy reference.}
 
-In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity result as molecule size grows. Sharpening lowers the KLXX factor for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\pi$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins. The alanine dipeptide sample set matches the published equilibrium reference of \citet{midgley2022flow} on the Ramachandran basins, including the sparse \(\phi>0\) half-plane. For Ac-Pro-NHMe, reached with no external data and no conformational prior, the generator populates both peptide sectors and orders them correctly. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with the extra support information in the two log-ratio variations. They are not a theorem of universal dominance or a fixed-compute comparison.
+{\color{blue}The molecular tables compare schedules, and the accompanying figures compare samples against independent references.} In the single-seed alkane runs, KLXX has the smallest factor in every matched setting, while forward KL approaches the identity result as molecule size grows. Sharpening lowers the KLXX factor for the larger alkanes. For NMA, glycerol, and neutral diethanolamine, KLXX also has a smaller factor than $\KL$+$\X_\pi$ and reaches the endpoint in fewer accepted stages. The three chiral KLXX runs reach \(t=1\), retain their specified stereochemical components, and populate multiple torsional basins. The alanine dipeptide sample set matches the published equilibrium reference of \citet{midgley2022flow} on the Ramachandran basins, including the sparse \(\phi>0\) half-plane. For Ac-Pro-NHMe, reached with no external data and no conformational prior, the generator populates both peptide sectors and orders them correctly. Selected alkane observables and achiral dihedral marginals agree with independent physical-potential simulations on the reported diagnostics. These findings are consistent with the extra support information in the two log-ratio variations. They are not a theorem of universal dominance or a fixed-compute comparison.
 
 The clock and molecular configurations require additional training seeds to measure run-to-run variation. The finite alkane endpoints have nearly uniform endpoint-to-physical weights on the reported sample sets; a continuation to $U$ would remove the remaining regularization. The additional achiral figures report selected one-dimensional marginals. Among the chiral results, alanine dipeptide is checked against published ground truth, and 2,3-butanediol and Ac-Pro-NHMe against references of our own. The Ac-Pro-NHMe comparison agrees on the qualitative picture and leaves a quantitative gap in the cis population. The propagation bound makes that gap a finite-sample term; resolving it would require an inference set beyond the budget of this study, so we report it open.
 
-{\color{blue}Future work includes tuning the KLXX loss for better performance and testing more challenging cases such as a Lennard--Jones system and distributions on low-dimensional manifolds. We will also compare KLXX with other Boltzmann-generator type methods, including FAB, LDR, and TA-BG.} 
+Future work includes tuning the KLXX loss for better performance and testing more challenging cases such as a Lennard--Jones system and distributions on low-dimensional manifolds. We will also compare KLXX with other Boltzmann-generator type methods, including FAB, LDR, and TA-BG. 
 
 \section*{Acknowledgments}
 
@@ -1442,6 +1454,9 @@ limit with clock offsets of $+250$\,MHz on the core and $+2000$\,MHz on the
 memory. All reported wall times correspond to this overclocked
 configuration.
 
+\subsection*{Declaration of AI use}
+The authors used Claude Opus 5 (Anthropic) to assist with writing and testing the codes. All data and numerical results reported in this paper are generated directly by our Python scripts and are presented without any embellishment. The authors have reviewed all AI-assisted content and take full responsibility for the correctness of the results.
+
 {
 	\bibliographystyle{abbrvnat}
 	\bibliography{references}
@@ -1453,7 +1468,7 @@ configuration.
 \section{Proof of Fisher--Rao gradient flow convergence}
 \label{sec: appendix-FR}
 
-This appendix derives the Fisher--Rao gradient flow \eqref{eq: FR-flow} of the generalized KLXX loss \eqref{eq: KLXX-general-nu} and proves the dissipation identity \eqref{eq: combined-rate} and the exponential decay \eqref{eq: KL-exponential} stated in Section~\ref{subsec: FR-convergence}. We view $\nu$ as a generic probability density evolving under a Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ approaches the target in $\KL(\pi\|\nu_t)$.
+This appendix derives the Fisher--Rao gradient flow \eqref{eq: FR-flow} of the generalized KLXX loss \eqref{eq: KLXX-general-nu} and proves the dissipation identity \eqref{eq: combined-rate} {\color{blue}stated in Section~\ref{subsec: FR-convergence}}. We view $\nu$ as a generic probability density evolving under a Riemannian metric on the space of densities \citep{ambrosio2008gradient,villani2009optimal} and ask how fast $\nu_t$ approaches the target in $\KL(\pi\|\nu_t)$.
 Throughout, we assume the densities are positive and regular enough for differentiation, and that the expectations displayed below are finite.
 
 The FR gradient of a functional $\mathcal F[\nu]$ and the flow it generates are given by
@@ -1563,7 +1578,7 @@ The elementary inequality $u\log u\Le u^2-u$ for $u>0$, applied at $u=w_t$ and i
 \begin{equation*}
     \frac{\D}{\D t}\KL(\pi\|\nu_t) \Le -\chi^2(\pi\|\nu_t) \Le -\KL(\pi\|\nu_t) ,
 \end{equation*}
-and Gr\"onwall's inequality yields the exponential decay \eqref{eq: KL-exponential}, without assuming log-concavity, a spectral gap, or a growth condition on $\pi$, and uniformly in $(\lambda,\vartheta,\alpha,\beta)$. This is a statement in density space: the rate is the one forward KL already carries, and what the variations change is the structure of the flow rather than its speed. This contrasts with the Wasserstein-2 geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
+and Gr\"onwall's inequality yields {\color{blue}$\KL(\pi\|\nu_t)\Le e^{-t}\KL(\pi\|\nu_0)$}, without assuming log-concavity, a spectral gap, or a growth condition on $\pi$, and uniformly in $(\lambda,\vartheta,\alpha,\beta)$. This is a statement in density space: the rate is the one forward KL already carries, and what the variations change is the structure of the flow rather than its speed. This contrasts with the Wasserstein-2 geometry, where the forward KL is not displacement convex and an analogous exponential rate is unavailable without further assumptions.
 
 \section{Proof of accuracy under biased target surrogate}
 \label{sec: appendix-accuracy}
@@ -1621,22 +1636,22 @@ The inequality $\varrho\log\varrho\Ge\varrho-1$ for $\varrho>0$ bounds the last 
 Substituting \eqref{eq: appendix-varrho} into the remaining integral returns the right side of \eqref{eq: appendix-rho-minus-one}, and Lemma~\ref{lem: appendix-correlation}, applied at $\omega=\tilde\pi$ and at $\omega=\xi$ with $\nu=\nu_\star$, absorbs the factor two in each term, giving \eqref{eq: accuracy-bound}.
 \end{proof}
 
-Identity \eqref{eq: appendix-rho-minus-one} also settles how much \eqref{eq: accuracy-bound} can subtract. Since $\tilde\pi\varrho=\nu_\star$ and $\nu_\star w_\star=\pi$, the left side of \eqref{eq: appendix-rho-minus-one} evaluates exactly, and Lemma~\ref{lem: appendix-correlation} turns its right side into the two discrepancies, so {\color{blue}the two subtracted terms} sum to $1-\mathbb E_{\tilde\pi}[w_\star]$, the value quoted after Theorem~\ref{thm: accuracy}. Both are nonnegative, which forces $\mathbb E_{\tilde\pi}[w_\star]\Le1$, and $\mathbb E_{\tilde\pi}[w_\star]>0$ then leaves the subtraction strictly less than $1$. Equality holds at $\lambda=\vartheta=0$, and when either coefficient is positive only in the degenerate case $\tilde\pi=\nu_\star=\pi$: the equality case of Lemma~\ref{lem: appendix-correlation} makes $w_\star$ constant $\tilde\pi$-almost everywhere when $\lambda>0$ and $\xi$-almost everywhere when $\vartheta>0$, both densities are positive, and $\int\pi=\int\nu_\star=1$ then forces $w_\star\equiv1$, whence $S^{\tilde\pi}_\star=S^{\xi}_\star=0$ and \eqref{eq: surrogate-stationary} gives $\nu_\star=\tilde\pi=\pi$.
+Identity \eqref{eq: appendix-rho-minus-one} also settles how much \eqref{eq: accuracy-bound} can subtract. Since $\tilde\pi\varrho=\nu_\star$ and $\nu_\star w_\star=\pi$, the left side of \eqref{eq: appendix-rho-minus-one} evaluates exactly, and Lemma~\ref{lem: appendix-correlation} turns its right side into the two discrepancies, so the two subtracted terms sum to $1-\mathbb E_{\tilde\pi}[w_\star]$, the value quoted after Theorem~\ref{thm: accuracy}. Both are nonnegative, which forces $\mathbb E_{\tilde\pi}[w_\star]\Le1$, and $\mathbb E_{\tilde\pi}[w_\star]>0$ then leaves the subtraction strictly less than $1$. Equality holds at $\lambda=\vartheta=0$, and when either coefficient is positive only in the degenerate case $\tilde\pi=\nu_\star=\pi$: the equality case of Lemma~\ref{lem: appendix-correlation} makes $w_\star$ constant $\tilde\pi$-almost everywhere when $\lambda>0$ and $\xi$-almost everywhere when $\vartheta>0$, both densities are positive, and $\int\pi=\int\nu_\star=1$ then forces $w_\star\equiv1$, whence $S^{\tilde\pi}_\star=S^{\xi}_\star=0$ and \eqref{eq: surrogate-stationary} gives $\nu_\star=\tilde\pi=\pi$.
 
 \begin{remark}
 \label{rem: appendix-domination}
-The two finiteness hypotheses of Theorem~\ref{thm: accuracy} are mild, and one sufficient condition is worth recording. Suppose the mixture is dominated by the surrogate, $\xi\Le c\,\tilde\pi$ pointwise for some constant $c$, and $\lambda+c\vartheta<\tfrac12$; note that $\xi\Le c\tilde\pi$ implies $c\Ge1$, since both densities integrate to one. Both correlations lie in $[-1,1]$, being averages of signs under probability densities, so \eqref{eq: appendix-varrho} gives $\varrho\Ge1-2\lambda-2c\vartheta>0$, that is $\nu_\star\Ge(1-2\lambda-2c\vartheta)\tilde\pi>0$. Dividing $\pi$ by this bound and integrating gives $\mathbb E_{\tilde\pi}[w_\star]\Le(1-2\lambda-2c\vartheta)^{-1}$ and, using the domination once more, $\mathbb E_{\xi}[w_\star]\Le c\,(1-2\lambda-2c\vartheta)^{-1}$.
+The two finiteness hypotheses of Theorem~\ref{thm: accuracy} are mild, and one sufficient condition is worth recording. Suppose the mixture is dominated by the surrogate, $\xi\Le c\,\tilde\pi$ pointwise for some constant $c$, and $\lambda+c\vartheta<\tfrac12$; note that $\xi\Le c\tilde\pi$ implies $c\Ge1$, since both densities integrate to one. Both correlations lie in $[-1,1]$, being averages of signs under probability densities, so \eqref{eq: appendix-varrho} gives $\varrho\Ge1-2\lambda-2c\vartheta>0$, that is $\nu_\star\Ge(1-2\lambda-2c\vartheta)\tilde\pi>0$. {\color{purple}The condition is sufficient but conservative, and positivity does not in fact require it. If $\nu_\star(x)$ approaches zero at some $x$ with $\pi(x)>0$, then $w_\star(x)\to\infty$, so $w_\star(x)$ exceeds $w_\star(y)$ for almost every $y$ and both $S^{\tilde\pi}_\star(x)$ and $S^{\xi}_\star(x)$ tend to $+1$; the right-hand side of \eqref{eq: surrogate-stationary} then tends to $\tilde\pi(x)(1+2\lambda)+2\vartheta\xi(x)>0$. Positivity is therefore self-enforcing at any $\lambda,\vartheta\Ge0$.} Dividing $\pi$ by this bound and integrating gives $\mathbb E_{\tilde\pi}[w_\star]\Le(1-2\lambda-2c\vartheta)^{-1}$ and, using the domination once more, $\mathbb E_{\xi}[w_\star]\Le c\,(1-2\lambda-2c\vartheta)^{-1}$.
 \end{remark}
 
 
-\section{\color{purple} Proof of propagation factor analysis}
+\section{ Proof of propagation factor analysis}
 \label{sec: appendix-propagation}
 
-Section~\ref{sec: propagation-analysis} states the error bound and the propagation factor $F_{\Sigma+}$ read from it. This appendix proves Theorem~\ref{thm: propagation} for the scheme stated there, with a general Markov rejuvenation kernel. Appendix~\ref{subsec: appendix-factor} discusses the factors $F_{\Sigma}$ and $\hat F_{\Sigma}$ that the experiments report.
+Section~\ref{sec: propagation-analysis} states the error bound and the propagation factor $F_{\Sigma+}$ read from it. This appendix proves Theorem~\ref{thm: propagation} for {\color{blue}the inference scheme of Algorithm~\ref{alg: inference}}, with a general Markov rejuvenation kernel. Appendix~\ref{subsec: appendix-factor} discusses the factors $F_{\Sigma}$ and $\hat F_{\Sigma}$ that the experiments report.
 
 The accepted schedule from $\pi_0$ to $\pi_K$ and the trained maps $G_1,\dots,G_K$ are held fixed. The theorem concerns inference with a trained Boltzmann generator, on a fresh particle set, with no further selection or training. The proof proceeds one stage at a time. It uses the triple $(\pi_k,\nu_k,w_k)$ and the identities \eqref{eq: appendix-transfer} that relate consecutive stages. The only property of the rejuvenation kernel that enters is invariance.
 
-\subsection{Notation and what one stage does}
+\subsection{Notations and what one stage does}
 \label{subsec: appendix-notation}
 
 We write $\lVert\cdot\rVert_2$ for the $L^2$ norm over all the randomness of the scheme, namely the $N$ initial draws and, at every stage, the resampling draws and the kernel draws. As in Section~\ref{sec: propagation-analysis}, $\mu\langle \varphi\rangle:=\int_{\mathbb R^d}\varphi\,\D\mu$ denotes the integral. The Markov kernel $Q_k$ acts on a bounded measurable function from the left side and on a distribution from the right side,
@@ -1845,7 +1860,7 @@ Squaring gives \eqref{eq: propagation-bound}, concluding the proof of Theorem~\r
 
 The experiments report $\hat F_\Sigma$, the sample counterpart of $F_\Sigma$. The ordering $F_\Sigma\Le F_{\Sigma+}$ of Section~\ref{sec: propagation-analysis} is the first point: $F_\Sigma$ is a lower bound on the factor of Theorem~\ref{thm: propagation}, so substituting it into \eqref{eq: propagation-bound} gives a statement the theorem does not support. $F_\Sigma$ is not an error bound.
 
-The gap can be arbitrarily large: an ESS is a second moment, while a supremum is not. Reading the ESS of \eqref{eq: propagation-ESS} in measure form, take one stage and drop its index, writing $\nu$ for the pushforward distribution and $w$ for the stage weight. Split $\mathbb R^d$ into two Borel sets of $\nu$-probabilities $1-p$ and $p$, and let $w$ take the values $(1-\Lambda p)/(1-p)$ and $\Lambda$ on them, with $1<\Lambda<p^{-1}$, so that $\int w\,\D\nu=1$ and $w>0$. Then $\lVert w\rVert_\infty=\Lambda$, whereas
+The gap can be arbitrarily large. Reading the ESS of \eqref{eq: propagation-ESS} in measure form, take one stage and drop its index, writing $\nu$ for the pushforward distribution and $w$ for the stage weight. Split $\mathbb R^d$ into two Borel sets of $\nu$-probabilities $1-p$ and $p$, and let $w$ take the values $(1-\Lambda p)/(1-p)$ and $\Lambda$ on them, with $1<\Lambda<p^{-1}$, so that $\int w\,\D\nu=1$ and $w>0$. Then $\lVert w\rVert_\infty=\Lambda$, whereas
 \begin{equation}
     \frac{1}{\ESS(w)} = \int_{\mathbb R^d} w^2\,\D\nu = \frac{(1-\Lambda p)^{2}}{1-p} + p\Lambda^{2} .
     \label{eq: appendix-twopoint}
@@ -1863,9 +1878,6 @@ $F_\Sigma$ is nevertheless the reasonable quantity to report. The ESS is the nat
 \end{equation}
 so $F_\Sigma$ is assembled from the per-stage chi-squared divergences, and a stage contributes nothing beyond the floor exactly when its proposal equals its target. What it keeps from Theorem~\ref{thm: propagation} is the structure of the constant rather than its value: the same sum over the stage at which an error enters, the same product over the stages it must still traverse, with the problem-independent factors $3$ removed.
 
-It is also the more stable of the two to {\color{blue}estimate from a sample, being a second moment of the whole stage weight vector rather than its largest entry}. Neither factor can be computed directly, and {\color{blue}only $F_\Sigma$ is given a sample counterpart: \eqref{eq: propagation-factor-hat} reads $\hat F_\Sigma$ off} the stage weight vectors $W_j=(W_j^1,\dots,W_j^N)$ that a run already evaluates. The reported $\hat F_\Sigma$ decreases when a stage ESS improves and increases when the schedule lengthens, combining the two things that make one accepted schedule harder than another.
-
 Section~\ref{sec: propagation-analysis} already limits the reading of $\hat F_\Sigma$ twice: $\hat F_\Sigma$ is not a bound on $F_\Sigma$ at finite $N$, and the factor does not measure the difficulty of the target. Two runs that traverse the same stage schedule are the most directly comparable, since they share the same least value $K+1$ and their per-stage ESS values are matched one to one. Across schedules of different length the factor still orders runs by accumulated stagewise weight degeneracy, but the comparison also carries the difference in stage count, and a ratio of two factors is in neither case a prediction of the ratio of two errors.
-
 
 \end{document}
