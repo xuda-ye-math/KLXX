@@ -1,7 +1,7 @@
 # KLXX
 
-Research code and numerical evidence for log-ratio variation in forward KL
-normalizing flow Boltzmann generators.
+Research code and numerical evidence for *Mode Coverage in Normalizing Flow
+Boltzmann Generators via Log-Ratio Variation*.
 
 - Paper: [`Paper/main.pdf`](Paper/main.pdf)
 - LaTeX source: [`Paper/main.tex`](Paper/main.tex)
