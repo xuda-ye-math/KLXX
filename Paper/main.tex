@@ -169,6 +169,8 @@ target annealing, QT, and detached pushforward samples \\
 \label{tab: loss-methods}
 \end{table}
 
+{\color{blue}We compare against forward KL and its log-ratio variants rather than against the methods of Section~\ref{subsec: loss-related}, and the reason is that the comparison would not be like for like. Training without external data is itself a constraint: much forward KL work fits a flow to target samples produced beforehand, so a method given those samples and one given only $U$ and $\nabla U$ are solving different problems. Molecular flows are fitted to molecular dynamics trajectories \citep{klein2023equivariant,klein2024transferable}, sequential Boltzmann generators to biased molecular dynamics samples \citep{tan2025sequential}, and autoregressive Boltzmann generators by likelihood on peptide simulation datasets \citep{rehman2026autoregressive}; LDR is trained either on simulation datasets or purely variationally \citep{schopmans2026ldr}. The remaining candidates differ in what their training loop must carry. FAB estimates the $2$-divergence, which has high gradient variance when estimated from flow samples, the difficulty its annealed importance sampling and prioritized replay buffer are designed to control \citep{midgley2022flow}; both add per-step cost, and evaluating the flow density at buffer points requires the Jacobian log-determinant, and its gradient, at configurations the current proposal did not produce. An independent study reports FAB reaching comparable accuracy on peptides at roughly three times the target energy evaluations, and resolving the metastable states of its largest system only partially \citep{schopmans2025temperature}. iDEM carries a replay buffer of the same kind and learns a diffusion sampler, so no exact pushforward density is available for importance reweighting \citep{akhound2024iterated}. LDR-L1 is within a factor of two of $\KL$+$\X_\pi$ at the same coefficient, so it is already represented among the losses we run \citep{schopmans2026ldr}. We therefore restrict the comparison to forward KL and the log-ratio variations built on it, and leave a matched-budget study of the other families to future work. The mixture variation is in any case not a competitor to them: it is a way of feeding known candidate modes into a loss, and it can be added to any flow-based sampler for a given target, whatever the architecture and whatever the principal loss.}
+
 %\paragraph{Organization.}
 The rest of the paper is organized as follows:
 Section~\ref{sec: FR} analyzes the generalized KLXX loss in Fisher--Rao geometry, deriving its gradient flow and the accuracy bound it reaches under a biased target surrogate; Appendices~\ref{sec: appendix-FR} and~\ref{sec: appendix-accuracy} give the proofs. Section~\ref{sec: training} gives the training algorithm. Section~\ref{sec: boltzmann} proposes the adaptive-staging Boltzmann generator and bounds the error of the sample set it returns; Appendix~\ref{sec: appendix-propagation} gives the proof. Sections~\ref{sec: experiments} and~\ref{sec: molecular} report the model and molecular results, respectively.  Section~\ref{sec: conclusions} gives the conclusion.
@@ -749,7 +751,7 @@ $F_\Sigma$ summarizes weight degeneracy along one accepted schedule, and does no
 \section{Numerical experiments on model problems}
 \label{sec: experiments}
 
-We test forward KL against three choices of the generalized KLXX loss \eqref{eq: KLXX-general}: $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, corresponding to different coefficients $(\lambda,\vartheta,\alpha,\beta)$. The last is KLXX, whose mixture variation weights the QT distribution $\hat\pi$ and the pushforward $\bar\nu$ equally. The tests include the 2D benchmark distributions, the high-dimensional product multi-well, the lattice $\phi^4$ field theory, and the $p$-state clock model. They vary in dimension and in how the modes are distributed. When a fake ESS appears, we report ESS together with the coverage diagnostic.
+We test forward KL against three choices of the generalized KLXX loss \eqref{eq: KLXX-general}: $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, corresponding to different coefficients $(\lambda,\vartheta,\alpha,\beta)$. The last is KLXX, whose mixture variation weights the QT distribution $\hat\pi$ and the pushforward $\bar\nu$ equally. The tests include the 2D benchmark distributions, the high-dimensional product multi-well, the lattice $\phi^4$ field theory, and the $p$-state clock model. They vary in dimension and in how the modes are distributed. When a fake ESS appears, we report ESS together with the coverage diagnostic. {\color{blue}We also compare against FAB \citep{midgley2022flow} on the 2D benchmarks, but not on higher-dimensional tests: its AIS procedure has to draw its samples along an exact path to $\pi^2/\nu$, where MALA rejuvenations on intermediate distributions explicitly require the gradient of the flow density, which makes each step far more expensive than one of the forward KL family.}
 
 \subsection{2D benchmark distributions}
 \label{subsec: 2d-benchmark}
@@ -759,7 +761,7 @@ For every target, we initialize the same neural spline flow (NSF) \citep{durkan2
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_two_moon_samples.png}
-    \caption{Two-Moon target. Columns, from left to right, are forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. Each panel overlays the pushforward samples on the target energy and reports final ESS and coverage. Gray points show the source.}
+    \caption{Two-Moon target. Columns, from left to right, are {\color{blue}FAB,} forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. Each panel overlays the pushforward samples on the target energy and reports final ESS and coverage. Gray points show the source.}
     \label{fig: two-moon}
 \end{figure}
 
@@ -769,7 +771,7 @@ The source is $\mathcal N(0,I_2)$ and both crescents lie within its reach, so al
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_three_well_samples.png}
-    \caption{Three-Well target. From left to right, the panels show forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. Each panel overlays the pushforward samples on the target energy and reports final ESS and coverage; gray points show the source.}
+    \caption{Three-Well target. From left to right, the panels show {\color{blue}FAB,} forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$. Each panel overlays the pushforward samples on the target energy and reports final ESS and coverage; gray points show the source.}
     \label{fig: threewell}
 \end{figure}
 
@@ -779,7 +781,7 @@ The source is $\mathcal N(0,0.25^2 I_2)$, narrower than the well separation and 
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_himmelblau_samples.png}
-    \caption{Himmelblau target. Columns show forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$; each panel shows the pushforward samples over the target energy with final ESS and coverage, and gray points show the source.}
+    \caption{Himmelblau target. Columns show {\color{blue}FAB,} forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$; each panel shows the pushforward samples over the target energy with final ESS and coverage, and gray points show the source.}
     \label{fig: himmelblau}
 \end{figure}
 
@@ -788,7 +790,7 @@ The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approxim
 \begin{figure}[htb]
     \centering
     \includegraphics[width=\textwidth]{figures/2d_sparse_samples.png}
-    \caption{Sparse target. Columns show forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, with the pushforward samples overlaid on the target energy; panel titles report final ESS and coverage, and gray points show the source.}
+    \caption{Sparse target. Columns show {\color{blue}FAB,} forward KL, $\KL$+$\X_\pi$, $\KL$+$\X_\pi$+$\X_{\hat\pi}$, and $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$, with the pushforward samples overlaid on the target energy; panel titles report final ESS and coverage, and gray points show the source.}
     \label{fig: sparse}
 \end{figure}
 
@@ -796,23 +798,25 @@ The source is $\mathcal N(0,I_2)$, whereas the four wells lie at radius approxim
 \paragraph{Sparse.}
 The target is a four-component Gaussian mixture with component standard deviation $0.08$: two modes lie near the source center and two lie in opposite corners, more than five source standard deviations away. With source standard deviation $0.6$, batch size $1000$, $1000$ steps, and learning rate $5\times10^{-3}$, forward KL and $\KL$+$\X_\pi$ cover only the central pair, at coverage $0.5335$ and ESS $0.9031$ and $0.9567$. The loss $\KL$+$\X_\pi$+$\X_{\hat\pi}$ restores all four modes but places visible mass between them, at ESS $0.8783$, while KLXX attains coverage $1$ with less intermodal mass and ESS $0.9559$.
 
+{\color{blue}We also run FAB \citep{midgley2022flow} on all four targets, with the same flow, source, target, batch size, step count, learning rate and MALA parameters as the losses above, so the runs differ only in the objective. Its annealing follows the geometric path from the pushforward distribution to $\pi^2/\nu$ through $\pi$, and it carries the prioritized replay buffer of the reference implementation. FAB discovers modes that forward KL does not, reaching the third Three-Well basin and one further mode on Himmelblau and on Sparse, which is what the mass-covering $2$-divergence is for. It does not reach every mode: one Himmelblau well stays empty at coverage $0.736$, and one far Sparse mode at $0.768$. Minimizing the $2$-divergence is minimizing importance weight variance, so at convergence FAB should hold the highest ESS here, and on Three-Well it does, at $0.985$; but it converges more slowly and each step costs more, and the shortest run, Two-Moon at $200$ steps, ends at $0.637$ against $0.83$ or above for every other method. The four targets support the intended division of labor in the KLXX loss: KLXX reaches every mode on every target, at the highest ESS among the mode-complete methods on three of the four.}
+
 \begin{table}[htb]
     \centering
-    \begin{tabular}{lcccc}
+    \begin{tabular}{lccccc}
         \toprule
-        target & KL & $\KL$+$\X_\pi$ & $\KL$+$\X_\pi$+$\X_{\hat\pi}$ & $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$ \\
+        target & {\color{blue}FAB} & KL & $\KL$+$\X_\pi$ & $\KL$+$\X_\pi$+$\X_{\hat\pi}$ & $\KL$+$\X_\pi$+$\X_{(\hat\pi+\bar\nu)/2}$ \\
         \midrule
-        Two-Moon   & $0.893\,(1.000)$ & $0.893\,(1.000)$ & $0.831\,(1.000)$ & $\mathbf{0.909}\,(1.000)$ \\
-        Three-Well & $0.977\,(0.760)$ & $0.994\,(0.760)$ & $0.968\,(0.977)$ & $\mathbf{0.982}\,(0.971)$ \\
-        Himmelblau & $0.981\,(0.516)$ & $0.960\,(0.516)$ & $0.962\,(1.000)$ & $\mathbf{0.973}\,(1.000)$ \\
-        Sparse     & $0.903\,(0.534)$ & $0.957\,(0.534)$ & $0.878\,(1.000)$ & $\mathbf{0.956}\,(1.000)$ \\
+        Two-Moon   & {\color{blue}$0.637\,(1.000)$} & $0.893\,(1.000)$ & $0.893\,(1.000)$ & $0.831\,(1.000)$ & $\mathbf{0.909}\,(1.000)$ \\
+        Three-Well & {\color{blue}$\mathbf{0.985}\,(0.961)$} & $0.977\,(0.760)$ & $0.994\,(0.760)$ & $0.968\,(0.977)$ & $0.982\,(0.971)$ \\
+        Himmelblau & {\color{blue}$0.889\,(0.736)$} & $0.981\,(0.516)$ & $0.960\,(0.516)$ & $0.962\,(1.000)$ & $\mathbf{0.973}\,(1.000)$ \\
+        Sparse     & {\color{blue}$0.690\,(0.768)$} & $0.903\,(0.534)$ & $0.957\,(0.534)$ & $0.878\,(1.000)$ & $\mathbf{0.956}\,(1.000)$ \\
         \bottomrule
     \end{tabular}
     \caption{Final ESS, with $\kappa=5$ coverage in parentheses, on the four 2D targets. Bold marks the highest ESS among methods whose sample panel covers every target mode. {\color{blue}Mode completeness is read from the panels rather than from the coverage number, which undercounts the visibly occupied third mode on Three-Well.}}
     \label{tab: 2d-benchmark-summary}
 \end{table}
 
-The four targets support the intended division of labor. Adding $\X_\pi$ leaves ESS near the forward KL value on Two-Moon, where coverage is already complete. QT samples supply information about modes absent from the target surrogate. Adding the pushforward samples to that mixture reduces visible intermodal mass relative to $\KL$+$\X_\pi$+$\X_{\hat\pi}$. KLXX has the highest mode-complete ESS on every target in Table~\ref{tab: 2d-benchmark-summary}.
+The four targets support the intended division of labor in KLXX. Adding $\X_\pi$ leaves ESS near the forward KL value on Two-Moon, where coverage is already complete. QT samples supply information about modes absent from the target surrogate. Adding the pushforward samples to that mixture reduces visible intermodal mass relative to $\KL$+$\X_\pi$+$\X_{\hat\pi}$. KLXX has the highest mode-complete ESS on every target in Table~\ref{tab: 2d-benchmark-summary}.
 
 \subsection{High-dimensional product multi-well}
 \label{subsec: highd}
