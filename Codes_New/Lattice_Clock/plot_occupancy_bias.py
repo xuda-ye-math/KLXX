@@ -81,14 +81,6 @@ def load_batch_summary(
         means: dict[str, np.ndarray] = {}
         sems: dict[str, np.ndarray] = {}
         for method in METHODS:
-            own = np.asarray(data[f"bias_{method}_k{SHARED_K}"], dtype=np.float64)
-            if own.shape == shared[method].shape:
-                log(f"shared point {method}: scaling archive vs batch-size archive, "
-                    f"max |difference| over seeds = {float(np.max(np.abs(own - shared[method]))):.3e} "
-                    f"(the batch-size values are plotted in both panels)")
-            else:
-                log(f"shared point {method}: seed counts differ "
-                    f"({own.shape} vs {shared[method].shape}); batch-size values plotted")
             summaries = [
                 summarize(data[f"bias_{method}_B{batch_size}"])
                 for batch_size in batch_sizes
@@ -138,6 +130,14 @@ def load_scaling_summary(
         means: dict[str, np.ndarray] = {}
         sems: dict[str, np.ndarray] = {}
         for method in METHODS:
+            own = np.asarray(data[f"bias_{method}_k{SHARED_K}"], dtype=np.float64)
+            if own.shape == shared[method].shape:
+                log(f"shared point {method}: scaling archive vs batch-size archive, "
+                    f"max |difference| over seeds = {float(np.max(np.abs(own - shared[method]))):.3e} "
+                    f"(the batch-size values are plotted in both panels)")
+            else:
+                log(f"shared point {method}: seed counts differ "
+                    f"({own.shape} vs {shared[method].shape}); batch-size values plotted")
             summaries = [
                 summarize(
                     shared[method] if k == SHARED_K
