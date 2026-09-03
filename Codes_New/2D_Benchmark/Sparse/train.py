@@ -70,7 +70,7 @@ LR: float = 5e-3       # Adam learning rate
 # data pipeline (annealing + MALA rejuvenation)
 LADDER: int = 1        # annealing levels per target batch
 MC_DT: float = 2e-3  # Langevin step size
-MC_STEPS_1: int = 50   # Langevin steps per SMC level / per hat_pi MALA refresh
+MC_STEPS_1: int = 20   # Langevin steps per SMC level / per hat_pi MALA refresh
 MC_STEPS_2: int = 50   # Langevin steps of the quench-and-temper pool temper
 
 # quench and temper (the wide-coverage measure hat_pi)
@@ -159,19 +159,19 @@ def main() -> None:
             flow, batch_ess_hist = train_FAB_G(
                 x_valid, u0, u1, flow0,
                 batch_size=BATCH_SZIE, steps_total=STEPS_TOTAL, lr=LR,
-                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1,
+                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1, mc_steps_2=MC_STEPS_2,
                 mc_adjust=True, monitor=mon)
         elif name == "KL":
             flow, batch_ess_hist = train_forward_KLX_G(
                 x_valid, u0, u1, flow0,
                 batch_size=BATCH_SZIE, steps_total=STEPS_TOTAL, lr=LR,
-                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1,
+                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1, mc_steps_2=MC_STEPS_2,
                 coeff_lambda=0.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_pi":
             flow, batch_ess_hist = train_forward_KLX_G(
                 x_valid, u0, u1, flow0,
                 batch_size=BATCH_SZIE, steps_total=STEPS_TOTAL, lr=LR,
-                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1,
+                ladder=LADDER, mc_dt=MC_DT, mc_steps_1=MC_STEPS_1, mc_steps_2=MC_STEPS_2,
                 coeff_lambda=1.0, mc_adjust=True, monitor=mon)
         elif name == "KL+X_pi+X_hat_pi":
             flow, batch_ess_hist = train_forward_KLXX_G(
