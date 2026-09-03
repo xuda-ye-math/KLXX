@@ -70,7 +70,8 @@ def main():
         flow, _ = train_FAB_G(
             x_valid, B.source, B.target, flow0,
             batch_size=B.BATCH_SZIE, steps_total=B.STEPS_TOTAL, lr=B.LR,
-            ladder=B.LADDER, mc_dt=B.MC_DT, mc_steps_1=B.MC_STEPS_1, mc_adjust=True,
+            ladder=B.LADDER, mc_dt=B.MC_DT, mc_steps_1=B.MC_STEPS_1, mc_steps_2=B.MC_STEPS_2,
+            mc_adjust=True,
             monitor=Monitor(500, f"[s{seed} {NAME}] ", log), seed=seed,
             u_clip=B.U_CLIP, g_clip=B.G_CLIP,
         )
