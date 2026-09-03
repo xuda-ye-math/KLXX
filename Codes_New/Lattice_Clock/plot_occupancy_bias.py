@@ -6,18 +6,16 @@ right panel shows particle-count scaling at fixed ``B=2000``.  Both panels
 are rendered from the merged artifact archives, with no sampler or GPU work.
 
 The two panels share one configuration, ``B=2000`` at ``N=640000``, and each
-archive holds a four-repetition sample of it.  The samples use the same four
-seeds but not the same random stream: the two drivers chunk the MALA
-rejuvenation at 80000 and at 160000, so the per-chunk keys
-``fold_in(key_k, 2000 + chunk)`` are relabelled and the trajectories separate
-at the first rejuvenation.  Both are valid estimates of the same quantity.
-The shared point is therefore taken once, from the batch-size archive, so the
-panels agree there by construction rather than by coincidence.
+archive holds a four-repetition sample of it.  Both drivers use the same four
+seeds, the same stage flows, and the same chunk of 80000 rows for the MALA
+rejuvenation, so the per-chunk keys ``fold_in(key_k, 2000 + chunk)`` coincide
+and the two samples are the same computation.  The shared point is taken once,
+from the batch-size archive.
 
 Run from the repository root:
-    python Codes/Lattice_Clock/plot_occupancy_bias.py
+    python Codes_New/Lattice_Clock/plot_occupancy_bias.py
 
-Writes ``Codes/Lattice_Clock/results/occupancy_bias.png``.
+Writes ``Codes_New/Lattice_Clock/results/occupancy_bias.png``.
 """
 
 import time
@@ -33,9 +31,9 @@ BATCH_DATA = ARTIFACTS / "occupancy_bias_N640000" / "data.npz"
 SCALING_DATA = ARTIFACTS / "occupancy_bias_B2000" / "data.npz"
 OUTPUT = RESULTS / "occupancy_bias.png"
 
-METHODS = ("kl", "klxx")
-LABEL = {"kl": "forward KL", "klxx": "KLXX"}
-COLOR = {"kl": "tab:blue", "klxx": "tab:red"}
+METHODS = ("klx", "klxx")
+LABEL = {"klx": r"KL+$\mathrm{X}_\pi$", "klxx": "KLXX"}
+COLOR = {"klx": "tab:blue", "klxx": "tab:red"}
 EXPECTED_N = 640000
 EXPECTED_B_VALUES = (2000, 1000, 500, 250)
 EXPECTED_BASE_SIZE = 10000

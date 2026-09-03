@@ -1,6 +1,6 @@
 """Monte Carlo scaling of the staged-sampler occupancy bias (B=2000 runs).
 
-Runs the exact staged sampler of each trained B=2000 stage schedule—forward KL and KLXX,
+Runs the exact staged sampler of each trained B=2000 stage schedule—KL+X_pi and KLXX,
 per stage: load the stage flow G_k (artifacts/<method>_B2000/flows.eqx, no
 retraining), push the chunked compiled inverse, logw = U_{k-1}(x) - U_k(y)
 + ladj, multinomial resample PER TEST BLOCK, MALA rejuvenation on U_k — at
@@ -12,7 +12,7 @@ work 2.56M particles per row), and reports the mean occupancy bias
 for both losses against the N^{-1/2} (pure finite-size) Monte Carlo
 reference.
 
-Memory control: one compiled chunk shape (160k) for every heavy op, eager
+Memory control: one compiled chunk shape (80k) for every heavy op, eager
 per-chunk loops with prompt frees, sector statistics on host, and a full
 buffer + compile-cache release between the two methods.
 
@@ -21,13 +21,13 @@ two hours. Each method writes a temporary raw archive below
 ``artifacts/occupancy_bias_B2000``; a zero-GPU merge produces the combined raw
 NPZ and final Markdown/CSV tables below ``results/``. The figure is rendered
 separately from the merged raw NPZ.
-Reads ``artifacts/{kl,klxx}_B2000/data.npz`` (schedule + config) and the
+Reads ``artifacts/{klx,klxx}_B2000/data.npz`` (schedule + config) and the
 corresponding ``flows.eqx`` files.
 
 Run from the repo root:
-    python Codes/Lattice_Clock/occupancy_bias_B2000.py --method kl
-    python Codes/Lattice_Clock/occupancy_bias_B2000.py --method klxx
-    python Codes/Lattice_Clock/occupancy_bias_B2000.py --merge
+    python Codes_New/Lattice_Clock/occupancy_bias_B2000.py --method klx
+    python Codes_New/Lattice_Clock/occupancy_bias_B2000.py --method klxx
+    python Codes_New/Lattice_Clock/occupancy_bias_B2000.py --merge
 """
 
 import argparse
@@ -53,13 +53,13 @@ from jflows.potential import Nlog_Uniform, linear_combination
 from jflows.utils import langevin, resample
 from potential import Clock, magnetization
 
-METHODS = ("kl", "klxx")
+METHODS = ("klx", "klxx")
 METHOD_LABEL = {
-    "kl":   "forward KL",
-    "klxx": r"KL+$\mathrm{X}_\mu$+$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$",
+    "klx":   r"KL+$\mathrm{X}_\pi$",
+    "klxx": r"KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$",
 }
-METHOD_COLOR = {"kl": "tab:blue", "klxx": "tab:purple"}
-SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+METHOD_COLOR = {"klx": "tab:blue", "klxx": "tab:purple"}
+SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
 
 # physics + MC config from the paired B=2000 artifacts
 with np.load(ARTIFACTS / "klxx_B2000" / "data.npz", allow_pickle=False) as _ref:
@@ -70,10 +70,10 @@ with np.load(ARTIFACTS / "klxx_B2000" / "data.npz", allow_pickle=False) as _ref:
     J, H = float(_ref["J"]), float(_ref["H"])
     MC_DT, MC_STEPS = float(_ref["mc_dt"]), int(_ref["mc_steps"])
     _t_hist_ref = np.asarray(_ref["t_hist"])
-with np.load(ARTIFACTS / "kl_B2000" / "data.npz", allow_pickle=False) as _kl:
+with np.load(ARTIFACTS / "klx_B2000" / "data.npz", allow_pickle=False) as _kl:
     if "schedule_contract" not in _kl.files or \
             str(_kl["schedule_contract"]) != SCHEDULE_CONTRACT:
-        raise ValueError("B=2000 kl artifact has an incompatible schedule contract")
+        raise ValueError("B=2000 klx artifact has an incompatible schedule contract")
     if not np.array_equal(np.asarray(_kl["t_hist"]), _t_hist_ref):
         raise ValueError("B=2000 kl and klxx artifacts use different t_hist values")
 
@@ -85,7 +85,7 @@ BASE_SZIE = 10000
 MAX_REPORT_K = 6
 KS = list(range(MAX_REPORT_K + 1))       # N = BASE_SZIE * 2^k, k = 0..6
 REPS = {k: 2 ** (8 - k) for k in KS}     # equal total work per row
-CHUNK_SIZE = 160000                      # one compiled shape for the heavy ops (200k OOMs the compiled inverse)
+CHUNK_SIZE = 80000                       # one compiled shape for the heavy ops; the same chunk as occupancy_bias_N640000.py, so the shared point B=2000, N=640000 is the same computation in both
 
 ANALYSIS = ARTIFACTS / "occupancy_bias_B2000"
 STATUS = ANALYSIS / "status.log"
@@ -295,7 +295,7 @@ def write_summary(raw: dict, rows: dict[str, list[dict]], suffix: str) -> None:
     slopes = {}
     with open(md_out, "w") as f:
         f.write("# Occupancy-bias Monte Carlo scaling (L=8 clock, staged "
-                "sampler, B=2000, forward KL and KLXX)\n\nerr = (1/6) sum_s "
+                "sampler, B=2000, KL+X_pi and KLXX)\n\nerr = (1/6) sum_s "
                 "|p_s - 1/6|; equal total work per row (10000*256 "
                 "particles); 2^(8-k) independent tests at N=10000*2^k; "
                 "k=0,...,6.\n")

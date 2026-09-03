@@ -1,9 +1,13 @@
-"""Train paired forward KL and KLXX generators for the L=8 clock model.
+"""Train paired KL+X_pi and KLXX generators for the L=8 clock model.
 
-Forward KL selects an adaptive stage schedule. KLXX uses the same accepted stage schedule as
-a fixed schedule, with ``POOL_SIZE=0`` so quench and temper acts on the complete
-validation set. An optional argument from 1 to 5 selects one batch-size
-pair. Outputs are written below ``artifacts/`` for the analysis scripts.
+KL+X_pi (the baseline) selects an adaptive stage schedule. KLXX uses the same
+accepted stage schedule as a fixed schedule, with ``POOL_SIZE=0`` so quench and
+temper acts on the complete validation set. The population returned by each
+generator after its last accepted stage is evaluated directly (sector
+occupancy, kNN coverage against the quench-and-temper reference set); no
+composed stage map is formed. An optional argument from 1 to 5 selects one
+batch-size pair. Outputs are written below ``artifacts/`` for the analysis
+scripts.
 """
 
 import gc
@@ -22,12 +26,12 @@ import numpy as np
 
 from jflows.train import Monitor
 from jflows.boltzmann import (
-    boltzmann_forward_KL_G,
+    boltzmann_forward_KLX_G,
     boltzmann_forward_KLXX_G_fixed,
 )
 from jflows.flow import NCSF
 from jflows.potential import Nlog_Uniform
-from jflows.utils import compute_ESS_log, quench_and_temper
+from jflows.utils import quench_and_temper
 from potential import Clock, sector_occupancy, torus_coverage
 
 HERE = Path(__file__).resolve().parent
@@ -49,7 +53,7 @@ TRANSFORMS: int = 6
 HIDDEN_FEATURES = (256, 256)
 
 # training
-VALID_SZIE: int = 400000
+VALID_SZIE: int = 500000
 BATCH_SZIE_LIST = (2000, 1000, 500, 250, 125)
 POOL_SIZE: int = 0
 STEPS_TOTAL_LIST = (3000, 3000, 3000, 3000, 3000)
@@ -58,13 +62,13 @@ LR: float = 1e-3
 # Langevin / annealing (MALA everywhere, at the target on every SMC level)
 LADDER: int = 4        # SMC levels of the training batch
 MC_DT: float = 1e-3  # Langevin step size
-MC_STEPS_1: int = 100  # MALA steps on the intermediate SMC levels only
+MC_STEPS_1: int = 20  # MALA steps on the intermediate SMC levels only
 MC_STEPS_2: int = 100  # MALA steps of every other rejuvenation: last SMC level, QT batch draw, QT temper, stage advance
 
 # quench and temper (the wide-coverage measure hat_pi)
 MELT: float = 2 * math.pi  # wrapped-Gaussian melt: uniform on the torus
 OPT_DT: float = 1e-2        # L-BFGS trial step size (armijo)
-OPT_STEPS: int = 100       # L-BFGS iterations
+OPT_STEPS: int = 50       # L-BFGS iterations
 
 # loss coefficients (klxx): the 0.5.4 run used coeff_alpha = coeff_beta = 0.5, i.e. a
 # mixture weight (alpha + beta)^2 = 1 and a QT proportion alpha / (alpha + beta) = 0.5
@@ -76,26 +80,25 @@ COEFF_ALPHA: float = 0.5   # QT proportion of the mixture
 U_CLIP: float = 1e3    # potential screen: samples with target > U_CLIP drop from the loss
 G_CLIP: float = 1e2    # global gradient-norm clip (spike guard before Adam)
 
-# adaptive stage schedule (bg_param of the kl driver; klxx inherits accepted t_hist)
+# adaptive stage schedule (bg_param of the klx driver; klxx inherits accepted t_hist)
 BG_PARAM = {
     "t_safe": 0.25,        # first stage point (the safe start)
     "shrink_factor": 0.7,  # rejected stage: t_k <- t_prev + shrink (t_k - t_prev)
-    "enlarge_factor": 2.0, # accepted stage: extrapolation growth factor
+    "enlarge_factor": 1.5, # accepted stage: extrapolation growth factor
     "tau_valid": 0.4,      # validation ESS gate
     "t_tol": 1e-3,         # snap the initial guess to t = 1 when 1 - t_k < t_tol
     "max_stages": 30,      # stage-count safety cap
     "max_retry": 12,       # training attempts per stage before giving up
 }
 
-# evaluation
-EVAL_SZIE: int = 80000   # evaluation sample count for the composed stage maps
+# evaluation (on the population returned after the last accepted stage)
 MODE_FRAC: float = 0.01  # a sector counts as found if it holds >= MODE_FRAC/P mass
 KNN_K: int = 5         # k of the kNN coverage reference set
 CHUNKS: int = 16        # chunk count for the drivers' full-set evaluations
 MONITOR_EVERY: int = 50
 
-METHODS = ("kl", "klxx")
-SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+METHODS = ("klx", "klxx")
+SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
 
 
 # source: uniform on the torus; target: the clock model
@@ -108,14 +111,6 @@ def log(msg: str) -> None:
     print(line, flush=True)
     with open(LOG, "a") as fh:
         fh.write(line + "\n")
-
-
-def compose_pushforward(flows, x):
-    y, ladj_sum = x, jnp.zeros(x.shape[0], dtype=x.dtype)
-    for flow in flows:
-        y, ladj = eqx.filter_jit(flow.inv_and_ladj)(y)
-        ladj_sum = ladj_sum + ladj
-    return y, u0(x) - u1(y) + ladj_sum
 
 
 def attempt_history(stages, name, dtype):
@@ -140,7 +135,6 @@ def main(test: int | None = None) -> None:
         f"u_clip={U_CLIP} g_clip={G_CLIP} bg={BG_PARAM}")
 
     x_valid = u0.samples(jax.random.key(2), VALID_SZIE)
-    x_eval = u0.samples(jax.random.key(3), EVAL_SZIE)
     flow0 = NCSF(jax.random.key(0), a=[-NSF_LIM] * D, b=[NSF_LIM] * D,
                  bins=BINS, transforms=TRANSFORMS,
                  hidden_features=HIDDEN_FEATURES).zeros()
@@ -158,7 +152,7 @@ def main(test: int | None = None) -> None:
         f"in {time.time() - t0:.1f}s")
 
     for batch_size, steps_total in pairs:
-        t_hist_kl = None
+        t_hist_klx = None
         for method in METHODS:
             tag = f"{method}_B{batch_size}"
             run_dir = ARTIFACTS / tag
@@ -168,21 +162,22 @@ def main(test: int | None = None) -> None:
                 f"steps_total={steps_total}) ===")
             t0 = time.time()
             mon = Monitor(MONITOR_EVERY, f"[{tag}] ", log)
-            if method == "kl":
-                y, stages = boltzmann_forward_KL_G(
+            if method == "klx":
+                y, stages = boltzmann_forward_KLX_G(
                     x_valid, u0, u1, flow0,
                     batch_size=batch_size,
                     steps_total=steps_total, lr=LR, ladder=LADDER,
                     mc_dt=MC_DT, mc_steps_1=MC_STEPS_1, mc_steps_2=MC_STEPS_2,
+                    coeff_lambda=COEFF_LAMBDA,
                     mc_adjust=True,
                     monitor=mon, bg_param=BG_PARAM, chunks=CHUNKS,
                     checkpoint=False, u_clip=U_CLIP, g_clip=G_CLIP)
-                t_hist_kl = [float(s["t"]) for s in stages]
-            else:  # KLXX: fixed schedule on the accepted forward KL stage schedule
-                if not t_hist_kl or t_hist_kl[-1] != 1.0:
-                    raise RuntimeError(f"{tag}: completed forward KL t_hist is required")
-                log(f"[{tag}] fixed t_hist from forward KL: "
-                    f"{[f'{t:.4f}' for t in t_hist_kl]}")
+                t_hist_klx = [float(s["t"]) for s in stages]
+            else:  # KLXX: fixed schedule on the accepted KL+X_pi stage schedule
+                if not t_hist_klx or t_hist_klx[-1] != 1.0:
+                    raise RuntimeError(f"{tag}: completed KL+X_pi t_hist is required")
+                log(f"[{tag}] fixed t_hist from KL+X_pi: "
+                    f"{[f'{t:.4f}' for t in t_hist_klx]}")
                 y, stages = boltzmann_forward_KLXX_G_fixed(
                     x_valid, u0, u1, flow0,
                     pool_size=POOL_SIZE,
@@ -193,7 +188,7 @@ def main(test: int | None = None) -> None:
                     # experiment contract stores the accepted stage schedule
                     # under the legacy identifier `t_hist`.
                     mc_dt=MC_DT, mc_steps_1=MC_STEPS_1, mc_steps_2=MC_STEPS_2,
-                    t_list=t_hist_kl,
+                    t_list=t_hist_klx,
                     coeff_lambda=COEFF_LAMBDA, coeff_theta=COEFF_THETA,
                     coeff_alpha=COEFF_ALPHA,
                     mc_adjust=True,
@@ -208,8 +203,8 @@ def main(test: int | None = None) -> None:
                 reached = float(t_hist[-1]) if len(t_hist) else 0.0
                 raise RuntimeError(f"{tag}: incomplete stage schedule at t={reached:.4f}")
             if method == "klxx" and not np.array_equal(
-                    t_hist, np.asarray(t_hist_kl, dtype=np.float64)):
-                raise RuntimeError(f"{tag}: t_hist differs from paired forward KL")
+                    t_hist, np.asarray(t_hist_klx, dtype=np.float64)):
+                raise RuntimeError(f"{tag}: t_hist differs from paired KL+X_pi")
             valid_selected_ess = np.array(
                 [s["valid_selected_ess"] for s in stages], dtype=np.float64
             )
@@ -238,14 +233,9 @@ def main(test: int | None = None) -> None:
             )
 
             flows = [stage["flow"] for stage in stages]
-            y_push, logw = jax.block_until_ready(
-                compose_pushforward(flows, x_eval)
-            )
-            final_ess = float(compute_ESS_log(logw))
-            sec_push = sector_occupancy(np.asarray(y_push), P, MODE_FRAC)
-            sec_valid = sector_occupancy(np.asarray(y[:EVAL_SZIE]), P, MODE_FRAC)
-            knn_cov = torus_coverage(np.asarray(y_push[:10000]),
-                                     np.asarray(hat_ref[:2000]), k=KNN_K)
+            y_np = np.asarray(y)
+            sec_valid = sector_occupancy(y_np, P, MODE_FRAC)
+            knn_cov = torus_coverage(y_np[:10000], np.asarray(hat_ref[:2000]), k=KNN_K)
 
             np.savez_compressed(
                 out,
@@ -268,23 +258,19 @@ def main(test: int | None = None) -> None:
                 valid_trained_ess_hist=valid_trained_ess_hist,
                 valid_identity_ess_hist=valid_identity_ess_hist,
                 attempt_status_hist=attempt_status_hist,
-                complete=True, final_ess=final_ess,
-                sectors_push=int(sec_push[0] * P), tv_push=sec_push[1],
-                counts_push=np.array(sec_push[2]), abs_m_push=sec_push[3],
+                complete=True,
                 sectors_valid=int(sec_valid[0] * P), tv_valid=sec_valid[1],
                 counts_valid=np.array(sec_valid[2]), abs_m_valid=sec_valid[3],
                 knn_coverage=knn_cov, wall_s=wall,
-                samples_push=np.asarray(y_push, dtype=np.float32),
-                samples_valid=np.asarray(y[:EVAL_SZIE], dtype=np.float32),
-                logw_push=np.asarray(logw, dtype=np.float32),
+                samples_valid=y_np.astype(np.float32),
             )
             eqx.tree_serialise_leaves(run_dir / "flows.eqx", flows)
             log(f"##### {tag} DONE K={len(stages)} complete=True "
                 f"t_hist={[f'{t:.3f}' for t in t_hist]} "
-                f"final_ESS={final_ess:.4f} "
-                f"sectors(push)={int(sec_push[0] * P)}/{P} tv={sec_push[1]:.3f} "
-                f"|m|={sec_push[3]:.3f} knn={knn_cov:.3f} wall={wall:.0f}s #####")
-            del y, stages, flows, y_push, logw
+                f"last_stage_ESS={valid_selected_ess[-1]:.4f} "
+                f"sectors(valid)={int(sec_valid[0] * P)}/{P} tv={sec_valid[1]:.3f} "
+                f"|m|={sec_valid[3]:.3f} knn={knn_cov:.3f} wall={wall:.0f}s #####")
+            del y, y_np, stages, flows
             gc.collect()
             jax.clear_caches()
             log(f"{tag}: buffers + compile cache released")

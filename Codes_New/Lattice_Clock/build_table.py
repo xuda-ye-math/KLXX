@@ -1,7 +1,7 @@
 """Build the paired per-stage ESS table from ``train.py`` artifacts.
 
 The clock comparison is defined by selected-proposal validation ESS over the
-complete validation set at every accepted forward KL stage. KLXX must use the
+complete validation set at every accepted KL+X_pi stage. KLXX must use the
 same accepted stage schedule stored in ``t_hist``. The aggregate
 reported by the experiment is the propagation factor
 
@@ -14,7 +14,7 @@ in the paper layout, plus machine-readable CSV files.
 
 Run from the repository root after all paired runs finish::
 
-    python Codes/Lattice_Clock/build_table.py
+    python Codes_New/Lattice_Clock/build_table.py
 """
 
 from __future__ import annotations
@@ -29,13 +29,13 @@ import numpy as np
 HERE = Path(__file__).resolve().parent
 ARTIFACTS = HERE / "artifacts"
 RESULTS = HERE / "results"
-SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
 MIN_BATCH_SIZE = 250
 METHOD_LABELS = {
-    "kl": "forward KL",
+    "klx": r"KL+$\mathrm{X}_\pi$",
     "klxx": (
-        r"KL+$\mathrm{X}_\mu$+"
-        r"$\mathrm{X}_{(\hat\mu+\bar\nu)/2}$"
+        r"KL+$\mathrm{X}_\pi$+"
+        r"$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$"
     ),
 }
 
@@ -123,10 +123,10 @@ def load_pairs() -> list[tuple[Run, Run]]:
             raise ValueError(
                 f"B={batch_size}: paired artifacts incomplete; missing {missing}"
             )
-        kl = runs[(batch_size, "kl")]
+        kl = runs[(batch_size, "klx")]
         klxx = runs[(batch_size, "klxx")]
         if not np.array_equal(kl.t_hist, klxx.t_hist):
-            raise ValueError(f"B={batch_size}: forward KL and KLXX t_hist differ")
+            raise ValueError(f"B={batch_size}: KL+X_pi and KLXX t_hist differ")
         pairs.append((kl, klxx))
     return pairs
 
@@ -169,7 +169,7 @@ def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
         kl_f_better = kl.factor < klxx.factor
         klxx_f_better = klxx.factor < kl.factor
         lines.append(
-            f"| {METHOD_LABELS['kl']} | "
+            f"| {METHOD_LABELS['klx']} | "
             + " | ".join(kl_cells)
             + f" | {_fmt_factor(kl.factor, kl_f_better)} |"
         )
@@ -231,7 +231,7 @@ def main() -> None:
     for kl, klxx in pairs:
         print(
             f"B={kl.batch_size}: stages={len(kl.ess)} "
-            f"forward KL F_hat_sigma={kl.factor:.1f} "
+            f"KL+X_pi F_hat_sigma={kl.factor:.1f} "
             f"(GM={kl.geometric_mean:.3f}) | "
             f"KLXX F_hat_sigma={klxx.factor:.1f} "
             f"(GM={klxx.geometric_mean:.3f})"

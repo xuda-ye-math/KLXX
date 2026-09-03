@@ -15,7 +15,7 @@ run-scoped artifacts are overwritten with the fresh rebuild:
     artifacts/klxx_B2000/marginals/densities_N2000000.npz
 
 Run from the repo root:
-    python Codes/Lattice_Clock/plot_clock_marginals.py
+    python Codes_New/Lattice_Clock/plot_clock_marginals.py
 Writes ``results/clock_marginals.png``; progress is recorded with the
 temporary artifacts.
 """
@@ -42,7 +42,7 @@ BINS = 241
 CHUNK_SIZE = 160000     # one compiled shape for the staged rebuild
 BLOCK = 200000          # histogram accumulation block (memory control)
 L = 8
-SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
 
 
 def log(msg: str) -> None:

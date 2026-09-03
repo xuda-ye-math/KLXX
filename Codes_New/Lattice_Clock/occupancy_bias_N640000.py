@@ -1,7 +1,7 @@
 """Batch-size scaling of staged-sampler occupancy bias at N=640000.
 
 For each trained schedule with B in {2000, 1000, 500, 250}, run the same
-staged sampler used by ``occupancy_bias_B2000.py`` for both losses (forward KL
+staged sampler used by ``occupancy_bias_B2000.py`` for both losses (KL+X_pi
 and KLXX): load the saved stage flows without retraining, apply each inverse map,
 reweight and multinomially resample, then rejuvenate with MALA at the new
 stage potential.  Report
@@ -17,9 +17,9 @@ below ``artifacts/occupancy_bias_N640000``; ``--merge`` combines them into a
 plot-ready NPZ and writes CSV/Markdown summaries below ``results/``.
 
 Run from the repository root:
-    python Codes/Lattice_Clock/occupancy_bias_N640000.py --method kl
-    python Codes/Lattice_Clock/occupancy_bias_N640000.py --method klxx
-    python Codes/Lattice_Clock/occupancy_bias_N640000.py --merge
+    python Codes_New/Lattice_Clock/occupancy_bias_N640000.py --method klx
+    python Codes_New/Lattice_Clock/occupancy_bias_N640000.py --method klxx
+    python Codes_New/Lattice_Clock/occupancy_bias_N640000.py --merge
 """
 
 import argparse
@@ -45,8 +45,8 @@ from jflows.potential import Nlog_Uniform, linear_combination
 from jflows.utils import langevin, resample
 from potential import Clock, magnetization
 
-METHODS = ("kl", "klxx")
-SCHEDULE_CONTRACT = "paired_kl_t_hist_v1"
+METHODS = ("klx", "klxx")
+SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
 
 # Physics and MALA configuration shared by every trained artifact.
 with np.load(ARTIFACTS / "klxx_B2000" / "data.npz", allow_pickle=False) as _ref:
@@ -125,9 +125,9 @@ def read_run_config(method: str, batch_size: int) -> tuple[list[float], Path]:
 
 
 def validate_artifacts() -> None:
-    """Check every requested forward KL/KLXX artifact pair before GPU work starts."""
+    """Check every requested KL+X_pi/KLXX artifact pair before GPU work starts."""
     for batch_size in B_VALUES:
-        t_hist_kl, _ = read_run_config("kl", batch_size)
+        t_hist_kl, _ = read_run_config("klx", batch_size)
         t_hist_klxx, _ = read_run_config("klxx", batch_size)
         if not np.array_equal(t_hist_kl, t_hist_klxx):
             raise ValueError(
