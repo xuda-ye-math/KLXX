@@ -32,7 +32,10 @@ SCALING_DATA = ARTIFACTS / "occupancy_bias_B2000" / "data.npz"
 OUTPUT = RESULTS / "occupancy_bias.png"
 
 METHODS = ("klx", "klxx")
-LABEL = {"klx": r"KL+$\mathrm{X}_\pi$", "klxx": "KLXX"}
+LABEL = {
+    "klx": r"KL+$\mathrm{X}_\pi$",
+    "klxx": r"KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$",
+}
 COLOR = {"klx": "tab:blue", "klxx": "tab:red"}
 EXPECTED_N = 640000
 EXPECTED_B_VALUES = (2000, 1000, 500, 250)   # what the archive holds
@@ -62,7 +65,7 @@ def summarize(values: np.ndarray) -> tuple[float, float]:
 
 def load_batch_summary(
 ) -> tuple[list[int], dict[str, np.ndarray], dict[str, np.ndarray]]:
-    """Load four-seed bias summaries at fixed particle count."""
+    """Load four-seed bias summaries at fixed sample size."""
     with np.load(BATCH_DATA, allow_pickle=False) as data:
         particle_count = int(data["N"])
         batch_sizes = [int(value) for value in data["B_values"]]
@@ -266,7 +269,7 @@ def main() -> None:
         label=r"$N^{-1/2}$ reference",
         zorder=2,
     )
-    ax.set_title("(b) Particle-count scaling", loc="left")
+    ax.set_title(r"(b) Sample-size scaling ($B=2000$)", loc="left")
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.xaxis.set_major_locator(FixedLocator(particle_counts))
@@ -304,7 +307,7 @@ def main() -> None:
         rotation_mode="anchor",
         fontsize=7,
     )
-    ax.set_xlabel(r"particle count $N$")
+    ax.set_xlabel(r"sample size $N$")
     ax.set_ylabel("occupancy bias")
     ax.grid(alpha=0.2, linewidth=0.6, zorder=0)
     ax.legend(loc="upper right", framealpha=0.9, fontsize=7.4)

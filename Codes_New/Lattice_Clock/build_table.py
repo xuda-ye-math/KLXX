@@ -3,14 +3,15 @@
 The clock comparison is defined by selected-proposal validation ESS over the
 complete validation set at every accepted KL+X_pi stage. KLXX must use the
 same accepted stage schedule stored in ``t_hist``. The aggregate
-reported by the experiment is the propagation factor
+reported by the experiment is the factor
 
-    F_hat_Sigma = sum_{k=0}^{K} product_{j=k+1}^{K} ESS_j**(-1/2),
+    F_hat = product_{j=1}^{K} ESS_j**(-1/2),
 
-with the empty product equal to one, so that the summand at k = K is one and
-F_hat_Sigma >= K + 1. This is not the direct ESS of a composed map. This
-script implements that reporting contract and writes a centered Markdown table
-in the paper layout, plus machine-readable CSV files.
+the numerical value of F, the product of the stage factors, which relates to
+the variance of the flow map (F_Sigma is reserved for the w_infinity bound of
+the theorem). This is not the direct ESS of a composed map. This script
+implements that reporting contract and writes a centered Markdown table in the
+paper layout, plus machine-readable CSV files.
 
 Run from the repository root after all paired runs finish::
 
@@ -49,18 +50,8 @@ class Run:
 
     @property
     def factor(self) -> float:
-        """Propagation factor ``sum_k prod_{j>k} ESS_j**(-1/2)``.
-
-        Accumulated over the accepted stages from the last one backwards, so
-        that the running product carries the suffix ``prod_{j=k+1}^{K}`` and
-        the ``k = K`` summand is the empty product.
-        """
-        total = 1.0
-        suffix = 1.0
-        for ess in self.ess[::-1]:
-            suffix /= float(np.sqrt(ess))
-            total += suffix
-        return total
+        """Factor ``F_hat = prod_j ESS_j**(-1/2)`` over the accepted stages."""
+        return float(np.prod(1.0 / np.sqrt(self.ess)))
 
     @property
     def geometric_mean(self) -> float:
@@ -137,7 +128,7 @@ def _fmt_ess(value: float, better: bool) -> str:
 
 
 def _fmt_factor(value: float, better: bool) -> str:
-    text = f"{value:.1f}"
+    text = f"{value:.2f}"
     return f"**{text}**" if better else text
 
 
@@ -147,7 +138,7 @@ def _markdown_table(pairs: list[tuple[Run, Run]]) -> str:
     lines = [
         '<div align="center">',
         "",
-        "| stage $k$ | " + " | ".join(stage_headers) + r" | $\hat F_\Sigma$ |",
+        "| stage $k$ | " + " | ".join(stage_headers) + r" | $\hat F$ |",
         "| :--- | " + " | ".join([":-:"] * (max_stages + 1)) + " |",
     ]
     for kl, klxx in pairs:
@@ -198,7 +189,7 @@ def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
     with (RESULTS / "factors.csv").open("w", newline="") as handle:
         writer = csv.writer(handle, lineterminator="\n")
         writer.writerow(
-            ["batch_size", "method", "stages", "geometric_mean_ess", "F_hat_sigma"]
+            ["batch_size", "method", "stages", "geometric_mean_ess", "F_hat"]
         )
         for kl, klxx in pairs:
             for run in (kl, klxx):
@@ -260,12 +251,11 @@ def main() -> None:
     table = _markdown_table(pairs)
     (RESULTS / "tables.md").write_text(
         "# p-state clock — per-stage ESS on a shared stage schedule\n\n"
-        "The final column is the propagation factor "
-        "$\\hat F_\\Sigma = \\sum_{k=0}^{K} \\prod_{j=k+1}^{K} "
-        "\\mathrm{ESS}_j^{-1/2}$; smaller is better. It "
-        "summarizes stagewise weight degeneracy and is not a full-chain "
-        "ESS or endpoint error estimate. Every ESS is the selected-proposal "
-        "validation ESS over the complete validation set.\n\n"
+        "The final column is the factor "
+        "$\\hat F = \\prod_{j=1}^{K} \\mathrm{ESS}_j^{-1/2}$; smaller is "
+        "better. It summarizes stagewise weight degeneracy and is not a "
+        "full-chain ESS or endpoint error estimate. Every ESS is the "
+        "selected-proposal validation ESS over the complete validation set.\n\n"
         + table
         + "\n"
         + _scaling_section()
@@ -276,9 +266,9 @@ def main() -> None:
     for kl, klxx in pairs:
         print(
             f"B={kl.batch_size}: stages={len(kl.ess)} "
-            f"KL+X_pi F_hat_sigma={kl.factor:.1f} "
+            f"KL+X_pi F_hat={kl.factor:.2f} "
             f"(GM={kl.geometric_mean:.3f}) | "
-            f"KLXX F_hat_sigma={klxx.factor:.1f} "
+            f"KLXX F_hat={klxx.factor:.2f} "
             f"(GM={klxx.geometric_mean:.3f})"
         )
 
