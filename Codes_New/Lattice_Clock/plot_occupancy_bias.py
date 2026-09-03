@@ -35,7 +35,8 @@ METHODS = ("klx", "klxx")
 LABEL = {"klx": r"KL+$\mathrm{X}_\pi$", "klxx": "KLXX"}
 COLOR = {"klx": "tab:blue", "klxx": "tab:red"}
 EXPECTED_N = 640000
-EXPECTED_B_VALUES = (2000, 1000, 500, 250)
+EXPECTED_B_VALUES = (2000, 1000, 500, 250)   # what the archive holds
+PLOT_B_VALUES = (2000, 1000, 500)           # B = 250 is too noisy to plot
 EXPECTED_BASE_SIZE = 10000
 MAX_REPORT_K = 6
 # The panels meet at B=2000, N=640000. Both archives measure it; the scaling
@@ -78,16 +79,21 @@ def load_batch_summary(
         if seeds.shape != (4,):
             raise ValueError(f"{BATCH_DATA}: seed shape {seeds.shape}, expected (4,)")
 
+        plotted = [b for b in batch_sizes if b in PLOT_B_VALUES]
+        if tuple(plotted) != PLOT_B_VALUES:
+            raise ValueError(
+                f"{BATCH_DATA}: cannot plot {PLOT_B_VALUES}, archive has {batch_sizes}"
+            )
         means: dict[str, np.ndarray] = {}
         sems: dict[str, np.ndarray] = {}
         for method in METHODS:
             summaries = [
                 summarize(data[f"bias_{method}_B{batch_size}"])
-                for batch_size in batch_sizes
+                for batch_size in plotted
             ]
             means[method] = np.asarray([value[0] for value in summaries])
             sems[method] = np.asarray([value[1] for value in summaries])
-    return batch_sizes, means, sems
+    return plotted, means, sems
 
 
 def load_scaling_summary(
@@ -220,7 +226,7 @@ def main() -> None:
         )
     )
     ax.yaxis.set_minor_locator(NullLocator())
-    ax.set_ylim(0.0, 0.035)
+    ax.set_ylim(0.0, 0.02)
     ax.set_xlabel(r"training batch size $B$")
     ax.set_ylabel("occupancy bias")
     ax.grid(axis="y", alpha=0.2, linewidth=0.6, zorder=0)

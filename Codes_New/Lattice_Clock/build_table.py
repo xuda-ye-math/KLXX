@@ -30,7 +30,7 @@ HERE = Path(__file__).resolve().parent
 ARTIFACTS = HERE / "artifacts"
 RESULTS = HERE / "results"
 SCHEDULE_CONTRACT = "paired_klx_t_hist_v1"
-MIN_BATCH_SIZE = 250
+MIN_BATCH_SIZE = 500   # B = 250 and B = 125 are too noisy to report
 METHOD_LABELS = {
     "klx": r"KL+$\mathrm{X}_\pi$",
     "klxx": (
@@ -208,6 +208,49 @@ def _write_csv(pairs: list[tuple[Run, Run]]) -> None:
                 )
 
 
+SCALING_DATA = ARTIFACTS / "occupancy_bias_B2000" / "data.npz"
+
+
+def _scaling_section() -> str:
+    """Fit the occupancy bias to err = C / sqrt(N) over the particle-count scaling."""
+    if not SCALING_DATA.exists():
+        return ""
+    rows = []
+    with np.load(SCALING_DATA, allow_pickle=False) as data:
+        base_size = int(data["BASE_SZIE"])
+        ks = [int(value) for value in data["ks"]]
+        counts = np.asarray([base_size * 2**k for k in ks], dtype=np.float64)
+        for method, label in METHOD_LABELS.items():
+            means = np.asarray(
+                [float(data[f"bias_{method}_k{k}"].mean()) for k in ks],
+                dtype=np.float64,
+            )
+            amplitude = means * np.sqrt(counts)
+            constant = float(np.exp(np.mean(np.log(amplitude))))
+            exponent = float(-np.polyfit(np.log(counts), np.log(means), 1)[0])
+            deviation = float(
+                np.max(np.abs(constant * counts**-0.5 - means) / means)
+            )
+            rows.append((label, constant, exponent, deviation))
+    header = (
+        "## Occupancy-bias amplitude\n\n"
+        f"The staged sampler's occupancy bias over N = {int(counts[0]):,} to "
+        f"{int(counts[-1]):,} particles follows the Monte Carlo law "
+        "$\\mathrm{err} \\simeq C / \\sqrt{N}$. $C$ is the geometric mean of "
+        "$\\sqrt{N}\\,\\mathrm{err}$ over the seven particle counts; the "
+        "free-fit exponent is reported as a check on the assumed $-1/2$ power, "
+        "and the last column is the largest relative departure of the fitted "
+        "law from the measured mean.\n\n<div align=\"center\">\n\n"
+        "| loss | $C$ | free-fit exponent | max. deviation |\n"
+        "| :--- | :-: | :-: | :-: |\n"
+    )
+    body = "".join(
+        f"| {label} | {constant:.2f} | {exponent:.3f} | {deviation * 100:.0f}% |\n"
+        for label, constant, exponent, deviation in rows
+    )
+    return header + body + "\n</div>\n"
+
+
 def main() -> None:
     pairs = [
         pair for pair in load_pairs()
@@ -224,6 +267,8 @@ def main() -> None:
         "ESS or endpoint error estimate. Every ESS is the selected-proposal "
         "validation ESS over the complete validation set.\n\n"
         + table
+        + "\n"
+        + _scaling_section()
     )
     _write_csv(pairs)
 

@@ -103,7 +103,7 @@ def plot_training(ax):
     ax.set_xlabel("step")
     ax.set_ylabel("batch ESS")
     ax.set_xlim(0, steps_total)
-    ax.set_ylim(0, 0.7)
+    ax.set_ylim(0, 0.8)
     ax.legend(loc="lower right")
 
 
