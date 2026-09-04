@@ -1,0 +1,35 @@
+# p-state clock — per-stage ESS on a shared stage schedule
+
+The final column is the factor $\hat F = \prod_{j=1}^{K} \mathrm{ESS}_j^{-1/2}$; smaller is better. It summarizes stagewise weight degeneracy and is not a full-chain ESS or endpoint error estimate. Every ESS is the selected-proposal validation ESS over the complete validation set.
+
+<div align="center">
+
+| stage $k$ | 1 | 2 | 3 | 4 | 5 | 6 | 7 | $\hat F$ |
+| :--- | :-: | :-: | :-: | :-: | :-: | :-: | :-: | :-: |
+| $t_k$ ($B = 2000$) | 0.250 | 0.625 | 0.754 | 0.889 | 1.000 | — | — | — |
+| KL+$\mathrm{X}_\pi$ | 0.885 | 0.431 | 0.492 | 0.433 | **0.666** | — | — | 4.30 |
+| KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$ | **0.937** | **0.553** | **0.554** | **0.456** | 0.662 | — | — | **3.40** |
+| $t_k$ ($B = 1500$) | 0.250 | 0.512 | 0.648 | 0.789 | 0.937 | 1.000 | — | — |
+| KL+$\mathrm{X}_\pi$ | 0.855 | 0.613 | 0.614 | 0.404 | 0.412 | **0.838** | — | 4.72 |
+| KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$ | **0.919** | **0.708** | **0.681** | **0.440** | **0.419** | 0.832 | — | **3.83** |
+| $t_k$ ($B = 1000$) | 0.250 | 0.512 | 0.648 | 0.747 | 0.851 | 1.000 | — | — |
+| KL+$\mathrm{X}_\pi$ | 0.813 | 0.530 | 0.562 | 0.573 | 0.507 | **0.448** | — | 5.63 |
+| KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$ | **0.888** | **0.636** | **0.627** | **0.617** | **0.528** | 0.441 | — | **4.43** |
+| $t_k$ ($B = 500$) | 0.250 | 0.434 | 0.569 | 0.668 | 0.772 | 0.882 | 1.000 | — |
+| KL+$\mathrm{X}_\pi$ | 0.715 | 0.607 | 0.566 | 0.593 | 0.490 | 0.443 | **0.529** | 7.73 |
+| KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$ | **0.816** | **0.696** | **0.637** | **0.642** | **0.502** | **0.460** | 0.516 | **6.01** |
+
+</div>
+
+## Occupancy-bias amplitude
+
+The staged sampler's occupancy bias over N = 10,000 to 640,000 particles follows the Monte Carlo law $\mathrm{err} \simeq C / \sqrt{N}$. $C$ is the geometric mean of $\sqrt{N}\,\mathrm{err}$ over the seven particle counts; the free-fit exponent is reported as a check on the assumed $-1/2$ power, and the last column is the largest relative departure of the fitted law from the measured mean.
+
+<div align="center">
+
+| loss | $C$ | free-fit exponent | max. deviation |
+| :--- | :-: | :-: | :-: |
+| KL+$\mathrm{X}_\pi$ | 2.67 | 0.484 | 10% |
+| KL+$\mathrm{X}_\pi$+$\mathrm{X}_{(\hat\pi+\bar\nu)/2}$ | 2.11 | 0.521 | 19% |
+
+</div>

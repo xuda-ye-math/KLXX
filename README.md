@@ -7,8 +7,7 @@ Boltzmann Generators via Log-Ratio Variation*.
 - LaTeX source: [`Paper/main.tex`](Paper/main.tex)
 - Python environment: [`PYTHON.md`](PYTHON.md)
 
-The two illustrations below bracket the numerical suite, showing the simplest
-and the hardest target it covers.
+The illustration below shows the simplest target the numerical suite covers.
 
 <p align="center">
   <img src="Paper/figures/2d_himmelblau_samples.png" width="1050" alt="Mode discovery on the analytic Himmelblau benchmark under four training objectives">
@@ -40,10 +39,11 @@ benchmark of the figure above is the cheapest:
 python Codes/2D_Benchmark/Himmelblau/train.py
 ```
 
-The molecular drivers are full-size and should only be launched with sufficient resources:
+The molecular drivers train a staged Boltzmann generator and should only be
+launched with sufficient resources. They take the loss as an argument:
 
 ```bash
-python Codes/Molecular_BG/alkane_family/methane_9d_raw/train.py
+python Codes/Achiral/NMA_30D/train.py --method klxx
 ```
 
 ## Repository layout
@@ -54,16 +54,23 @@ KLXX/
 │   ├── 1D_QT/              # 1D quench and temper illustration
 │   ├── 2D_Benchmark/       # four analytic mode-discovery benchmarks
 │   ├── HD_Product/         # high-dimensional product multi-well sweep
-│   ├── Lattice_Clock/      # periodic clock-model experiments
+│   ├── HD_100_Lambda/      # target-variation coefficient sweep at d=100
 │   ├── Lattice_Phi4/       # L=6 and L=8 tilted phi-four experiments
-│   └── Molecular_BG/       # alkane, achiral, and chiral molecular experiments
+│   ├── Lattice_Clock/      # periodic clock-model experiments
+│   └── Achiral/            # NMA, glycerol and diethanolamine generators
 ├── External/               # jflows and jflows_md sources as git submodules
-├── Paper/                  # manuscript and tracked paper figures
+├── Paper/                  # manuscript and paper figures
 └── PYTHON.md               # authoritative pip-only environment guide
 ```
 
-The former archived molecular baselines and controls are not part of the
-current project tree.
+Each experiment folder keeps its raw arrays under `artifacts/` and its figures
+under `results/`. Every file in `Paper/figures/` is a hard link to the figure
+in the `results/` folder that produced it, so the manuscript and the code tree
+cannot drift apart on the same machine. A fresh clone receives two independent
+copies, since Git records content rather than links.
+
+The alkane, chiral, and alanine dipeptide experiments of earlier revisions are
+not part of the current project tree.
 
 ## Numerical suites
 
@@ -74,7 +81,8 @@ current project tree.
 | `Codes/HD_Product/` | Dimension scaling for product multi-well targets |
 | `Codes/Lattice_Phi4/` | Broken-phase lattice phi-four training and reference diagnostics |
 | `Codes/Lattice_Clock/` | Mixed periodic flow, adaptive stage schedule, and occupancy diagnostics |
-| `Codes/Molecular_BG/` | Current regularized molecular experiments |
+| `Codes/HD_100_Lambda/` | Sweep of the target-variation coefficient at d=100 |
+| `Codes/Achiral/` | Adaptive-staging Boltzmann generators on three achiral molecules |
 
 Every active driver documents its exact invocation at the top of the
 file. Long runs save raw numerical arrays and checkpoints separately from
@@ -82,11 +90,12 @@ plotting so figures can be regenerated without retraining.
 
 ## Molecular boundary
 
-Tracked runtime bundles live within the corresponding experiment directories
-under `Codes/Molecular_BG/alkane_family/`, `Codes/Molecular_BG/achiral/`, and
-`Codes/Molecular_BG/chiral/`. The reported targets comprise the methane through
-hexane alkane family; NMA, glycerol, and neutral diethanolamine; and the three
-chiral targets `(2R,3R)`-2,3-butanediol, alanine dipeptide, and Ac-Pro-NHMe.
+The reported molecular targets are NMA at `d=30`, glycerol at `d=36`, and
+neutral diethanolamine at `d=48`, each in its own folder under
+`Codes/Achiral/`. A folder holds the runtime bundle in `bundle/`, the driver
+`train.py`, its constants in `parameters.py`, and `pt_reference.py`, which
+generates the parallel-tempering reference that the dihedral marginals are
+compared against.
 
 Training uses the pure-JAX `Molecular_Potential` and does not reconstruct a
 Hamiltonian from a PDB. OpenMM/ParmEd are installed for validation and optional

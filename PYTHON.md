@@ -93,35 +93,7 @@ sibling path, such as
 a complete runtime input: training and evaluation do not require AmberTools,
 and the pure-JAX molecular potential does not invoke OpenMM at runtime.
 
-## System specifications
-
-The following snapshot records the machine used for the reported computations
-on 2026-07-24.
-
-### Hardware and operating system
-
-<div align="center">
-
-| component | specification |
-|---|---|
-| CPU | AMD Ryzen 9 9950X3D, 16 cores and 32 threads, up to 5.76 GHz |
-| GPU | MSI GeForce RTX 5090 32G Gaming Trio OC; NVIDIA GeForce RTX 5090 with 32,607 MiB VRAM; NVIDIA driver 610.43.03 |
-| RAM | 64 GB installed as two 32 GB DDR5-6000 CL36 modules; 6000 MT/s effective data rate, corresponding to a 3000 MHz DDR clock; Linux reports 60.2 GiB usable |
-| motherboard | MSI MPG X870E Carbon WiFi (MS-7E49) |
-| operating system | Arch Linux, rolling release, x86-64 |
-| kernel | Linux 7.1.4-arch1-1 |
-
-</div>
-
-The GPU runs an overclocked profile: a 600 W TDP, a `+250` MHz GPU core clock
-offset, and a `+2000` MHz VRAM clock offset.
-
-The RAM description is based on the two detected DDR5 SPD devices and their
-`KF560C36-32` module strings. The unprivileged kernel interfaces expose the
-module rating but not an independent live memory-controller clock, so
-3000 MHz is the clock corresponding to the rated DDR5-6000 profile.
-
-### Software environment
+## Software environment
 
 The package versions below were read directly from the installed environment:
 
