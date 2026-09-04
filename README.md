@@ -24,50 +24,6 @@ quench and temper candidates instead recovers every well, and mixing
 pushforward samples into that weighting additionally suppresses the mass left
 stranded between modes.
 
-<p align="center">
-  <img src="Paper/figures/molecular_adp_ramachandran.png" width="800" alt="Alanine dipeptide Ramachandran free energy surfaces across accepted stages">
-</p>
-
-Alanine dipeptide backbone free energy over the φ and ψ torsions at four
-accepted stages of the KLXX Boltzmann generator, the hardest example. Every
-surface here comes from KLXX and from no other sampler. Each panel bins
-inference samples, obtained from the KLXX-trained flow saved at that stage, into
-a two-dimensional torsion histogram and reports the negative logarithm of the
-normalized occupancy in units of kBT relative to the observed minimum; unvisited
-bins are left white. Read across the panels, the surfaces show how the
-interpolation carries the generator from a smooth source landscape to the
-resolved basins and barriers of the target.
-
-The panels show the path; the table below shows where it ends. The final-stage
-KLXX sample set is compared against published ground truth on the same 100-bin
-φ/ψ grid with the same wrapped smoothing, with 10⁷ samples on each side.
-
-<div align="center">
-
-<table>
-<thead>
-<tr><th>quantity</th><th>KLXX</th><th>ground truth</th></tr>
-</thead>
-<tbody>
-<tr><td>α_L basin population (φ &gt; 0)</td><td>0.0031</td><td>0.0033</td></tr>
-<tr><td>β/PPII basin population (ψ &gt; 0)</td><td>0.7958</td><td>0.7940</td></tr>
-<tr><td>α_R basin population (ψ &lt; 0)</td><td>0.2012</td><td>0.2027</td></tr>
-<tr><td>maximum free energy</td><td>10.40</td><td>10.40</td></tr>
-</tbody>
-</table>
-
-</div>
-
-Free energies are in units of kBT. The three basin populations differ by at
-most 0.0018, including the α_L basin that carries only 0.3% of the total, and
-both surfaces reach the same maximum. Each surface is normalized to its own
-most populated bin, so only per-method values are quoted; a difference between
-two such surfaces would carry an arbitrary additive offset.
-Together the figure and the table are the accuracy claim for KLXX on this
-target: the panels show that the staged construction reaches the right
-landscape, and the table shows that the landscape it reaches matches an
-independent reference.
-
 ## Active implementation
 
 The experiments use the published JAX packages

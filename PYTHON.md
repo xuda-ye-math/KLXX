@@ -14,7 +14,7 @@ python -m venv .venv
 . .venv/bin/activate
 python -m pip install --upgrade pip
 pip install 'jax[cuda13]' 'openmm[cuda13]'
-pip install jflows==0.5.4 'jflows_md[bundles]==0.5.4'
+pip install jflows==0.6.0 'jflows_md[bundles]==0.6.1'
 ```
 
 Quoting the extras prevents shells such as zsh from expanding the brackets.
@@ -30,7 +30,7 @@ published `bundles` extra.
 > than the minimum required by the JAX version being installed.
 
 > **Remark.** PyPI treats hyphens and underscores as equivalent in project
-> names, so `pip install jflows==0.5.4 'jflows-md[bundles]==0.5.4'` performs the same
+> names, so `pip install jflows==0.6.0 'jflows-md[bundles]==0.6.1'` performs the same
 > installation as the second command above. Python imports still use
 > `jflows_md`.
 
@@ -125,11 +125,12 @@ module rating but not an independent live memory-controller clock, so
 
 The package versions below were read directly from the installed environment:
 
-- Python: 3.14.6
-- `jax[cuda13]`: 0.11.0
+- Python: 3.14.7
+- `jax[cuda13]`: 0.11.1
 - `equinox`: 0.13.8
-- `openmm[cuda13]`: 8.5.2
+- `openmm[cuda13]`: 8.6.0
 - `numpy`: 2.4.6
-- `scipy`: 1.18.0
-- `jflows`: 0.5.4
-- `jflows_md[bundles]`: 0.5.4
+- `scipy`: 1.18.1
+- `parmed`: 4.3.1
+- `jflows`: 0.6.0
+- `jflows_md[bundles]`: 0.6.1

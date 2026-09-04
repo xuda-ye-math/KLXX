@@ -54,9 +54,9 @@ HIDDEN_FEATURES = (256, 256)
 
 # training
 VALID_SZIE: int = 500000
-BATCH_SZIE_LIST = (2000, 1000, 500, 250, 125)
+BATCH_SZIE_LIST = (2000, 1500, 1000, 500)
 POOL_SIZE: int = 0
-STEPS_TOTAL_LIST = (3000, 3000, 3000, 3000, 3000)
+STEPS_TOTAL_LIST = (3000, 3000, 3000, 3000)
 LR: float = 1e-3
 
 # Langevin / annealing (MALA everywhere, at the target on every SMC level)
