@@ -13,6 +13,9 @@ the ending regularization `RG_PARAM`.
     python train.py --method klxx    # KLXX (quench-and-temper mixture term)
     python train.py --method klxm    # KL + X over the equal mixture of ground-truth
                                      # subsamples and the detached pushforward (klxm.py)
+    python train.py --method klxxt   # KL + X_pi + X_(pi+nu_bar)/2: the KLXX loss with the
+                                     # reference itself as the quench-and-temper set, in
+                                     # blocks of POOL_ROWS rows, one block per TRAIN_STEPS/blocks steps
 
 Outputs: artifacts/<method>_data_driven/ (the converted reference is shared in
 artifacts/target_data.npy; the flow and the batch ESS history),
@@ -41,7 +44,10 @@ import numpy as np
 from jflows.train import Monitor
 from jflows_md import Mixed_NSF, Molecular_Bundle, Molecular_Potential
 from jflows_md.boltzmann import Manual_Reject, _identity_weights, _push_and_weights
-from jflows_md.train import train_forward_KLL1_G, train_forward_KLX_G, train_forward_KLXX_G
+from jflows_md.train import (
+    REJECT_CHECK_STEPS, _scan_klxx_chunk, train_forward_KLL1_G, train_forward_KLX_G, train_forward_KLXX_G,
+)
+from jflows_md.utils.anneal import flow_target_batch
 from jflows_md.utils.screen import compute_ESS_log
 
 import parameters as P
@@ -50,7 +56,9 @@ from klxm import train_klxm_G
 
 HERE = Path(__file__).resolve().parent
 BUNDLE = HERE / "bundle"
-LABELS = {"kl": "forward KL", "klx": "KL+X_pi", "kll1": "KL+L1", "klxx": "KLXX", "klxm": "KL+X_mix"}
+LABELS = {"kl": "forward KL", "klx": "KL+X_pi", "kll1": "KL+L1", "klxx": "KLXX", "klxm": "KL+X_mix",
+          "klxxt": "KL+X_pi+X_(pi+nu_bar)/2 with the reference as the QT set"}
+POOL_ROWS = 1_000_000   # klxxt: reference rows on the device as the pool at a time
 
 
 def reference_atom_names(handle):
@@ -115,6 +123,49 @@ def reference_internal(path, target, atom_names, log):
     return np.load(path, mmap_mode="r")
 
 
+def train_klxx_true_target(x_valid, source, target, flow, domain, y_data, monitor, reject, log):
+    """The package's KLXX scan with the reference rows as the quench-and-temper set.
+
+    ``_run_chunks`` over ``_scan_klxx_chunk`` as ``train_forward_KLXX_G`` runs
+    it (key base 37), except that the pool is block k of ``y_data`` for the k-th
+    ``steps_per_block`` steps, so the whole reference serves as the pool over
+    the run with one block on the device at a time.
+    """
+    blocks = -(-y_data.shape[0] // POOL_ROWS)
+    steps_per_block = -(-P.TRAIN_STEPS // blocks)
+    log(f"pool: the reference in {blocks} blocks of {POOL_ROWS} rows, one block per {steps_per_block} steps")
+    params, static = eqx.partition(flow, eqx.is_inexact_array)
+    state = (params, jax.tree.map(jnp.zeros_like, params), jax.tree.map(jnp.zeros_like, params),
+             jnp.asarray(0, dtype=jnp.int32))
+    key = jax.random.fold_in(jax.random.key(37), P.SEED)
+    history, done, block = [], 0, -1
+    while done < P.TRAIN_STEPS:
+        if done // steps_per_block != block:
+            block = done // steps_per_block
+            hat_pool = y_data[block * POOL_ROWS:(block + 1) * POOL_ROWS]
+            log(f"pool block {block + 1} of {blocks}: reference rows {block * POOL_ROWS}:{block * POOL_ROWS + hat_pool.shape[0]}, "
+                f"from step {done + 1}")
+        length = min(REJECT_CHECK_STEPS, P.TRAIN_STEPS - done)
+        state, ess = jax.block_until_ready(_scan_klxx_chunk(
+            x_valid, hat_pool, source, target, state, static, domain, key,
+            step_offset=jnp.asarray(done, dtype=jnp.int32), chunk=length,
+            batch_fn=flow_target_batch, batch_size=P.BATCH_SIZE, steps_total=P.TRAIN_STEPS, lr=P.LR,
+            ladder=1, mc_dt=P.MC_DT, mc_steps_1=0, mc_steps_2=P.MC_STEPS_2,
+            coeff_lambda=1.0, coeff_theta=1.0, coeff_alpha=0.5,
+            mc_image_radius=P.MC_IMAGE_RADIUS, monitor=monitor, checkpoint=P.CHECKPOINT,
+            u_clip=P.U_CLIP, g_clip=P.G_CLIP, lr_warmup=P.LR_WARMUP,
+            screen_fraction=P.SCREEN_FRACTION, t_start=0.0, t_end=1.0, target_data=y_data,
+        ))
+        history.append(ess)
+        done += length
+        if done < P.TRAIN_STEPS and reject.peek():
+            break
+    history = jnp.concatenate(history)
+    if done < P.TRAIN_STEPS:
+        history = jnp.concatenate([history, jnp.full((P.TRAIN_STEPS - done,), jnp.nan, dtype=history.dtype)])
+    return eqx.combine(state[0], static), history
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--method", choices=tuple(LABELS), default="klx")
@@ -164,7 +215,11 @@ def main():
     )
     started = time.perf_counter()
     with reject:
-        if args.method == "klxm":
+        if args.method == "klxxt":
+            trained, history = train_klxx_true_target(
+                x_valid, source, target, flow, domain, y_data, monitor, reject, log,
+            )
+        elif args.method == "klxm":
             trained, history = train_klxm_G(
                 x_valid, source, target, flow, domain, y_data, P.BATCH_SIZE, P.TRAIN_STEPS,
                 P.LR, coeff_theta=1.0, coeff_alpha=0.5,
