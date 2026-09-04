@@ -229,7 +229,7 @@ def main() -> None:
         )
     )
     ax.yaxis.set_minor_locator(NullLocator())
-    ax.set_ylim(0.0, 0.02)
+    ax.set_ylim(0.0, 0.016)
     ax.set_xlabel(r"training batch size $B$")
     ax.set_ylabel("occupancy bias")
     ax.grid(axis="y", alpha=0.2, linewidth=0.6, zorder=0)
