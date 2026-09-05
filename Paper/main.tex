@@ -467,7 +467,7 @@ After each reweighting, we resample and rejuvenate the duplicates before the nex
 \noindent
 An SMC sampler that leaves every level of the path \eqref{eq: mu-m} invariant would rejuvenate at level $m$ with a Markov kernel invariant for $\mu_m$. For $m<M$, a MALA kernel for $\mu_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$; at $m=M$, this term disappears because $\mu_M=\pi$. Algorithm~\ref{alg: annealing} instead applies MALA directly under $\pi$, using only $-\nabla U$ in its proposal. The price is that it preserves $\pi$ rather than the intermediate $\mu_m$, so the output is a biased target surrogate.
 
-The SMC construction in Algorithm~\ref{alg: annealing} differs from the AIS of FAB \citep{midgley2022flow}. FAB places the flow inside the chains, and its MCMC transitions target the surrogate $\pi^2/\nu$, whose log-density gradient is
+The SMC construction in Algorithm~\ref{alg: annealing} differs from the AIS of FAB \citep{midgley2022flow}. FAB places the flow inside the chains, and its MCMC transitions target $\pi^2/\nu$, whose log-density gradient is
 \begin{equation*}
 	\nabla_y \log \frac{\pi^2(y)}{\nu(y)} = -2\nabla U(y) - \nabla_y \log\nu(y),
 \end{equation*}
