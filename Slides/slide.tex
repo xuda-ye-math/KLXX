@@ -324,6 +324,22 @@ Brin Mathematics Research Center, UMD}
 	 KLXX ($0.906$, red line) sits above every value the sweep attains. Tuning one coefficient does not reproduce the mixture variation.
 \end{frame}
 
+\begin{frame}{Lattice $\phi^4$: a Collective Barrier}
+	\small
+	Tilted scalar $\phi^4$ action on a periodic $L\times L$ lattice, $d=L^2$, at $L=6$, $h=0.0257$:
+	\begin{equation*}
+		U(\bm\phi) = -0.8\sum_{\langle jl\rangle}\phi_j\phi_l
+		+ \sum_{j=1}^{d}\Bigl[\phi_j^2+\tfrac12(\phi_j^2-1)^2\Bigr] + h\sum_{j=1}^{d}\phi_j ,
+		\quad
+		m(\bm\phi) = \frac1d\sum_{j=1}^{d}\phi_j .
+	\end{equation*}
+	A domain-wall barrier separates the two wells; the minority weight $p_+=\mathbb P(m>0)$ must be learned. Only $\hat\pi$-based losses recover the minority weight.
+	\begin{center}
+		\includegraphics[width=\textwidth]{figures/lattice_phi4_l6_methods.png}
+	\end{center}
+\end{frame}
+
+
 \begin{frame}{Boltzmann Generator on Three Molecules}
 	\small
 	\begin{itemize}
@@ -350,6 +366,7 @@ Brin Mathematics Research Center, UMD}
 		\item Propagation factor $\hat F=\prod_k\ESS_k^{-1/2}$, from the sample ESS of each accepted stage; smaller is better.
 	\end{itemize}
 \end{frame}
+
 
 \begin{frame}{Dihedral Marginals against Parallel Tempering}
 	\small

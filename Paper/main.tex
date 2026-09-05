@@ -803,7 +803,7 @@ $d=16,32,48,\ldots,256$. Letting $k=\lfloor\log_2 d\rfloor$, we use
 \end{equation}
 The first $k$ coordinates are symmetric double wells with minima at $\pm\sqrt{\ln 24}$ and barrier approximately $9.9$, while the remaining $d-k$ coordinates are standard Gaussian. The target therefore has exactly $2^k$ equal-weight modes, where $2^k\Le d<2^{k+1}$. Multimodality occupies only a $k$-dimensional subspace, but the log-weight error accumulates across all $d$ coordinates.
 
-All five losses use the same identity-initialized NSF on $[-4,4]^d$. The fifth loss is LDR-L1, the forward KL with the centered penalty $\mathbb E_\pi|z-\mathbb E_\pi z|$ at coefficient $1$, written $\KL$+L1 below. At every dimension, training uses batch size $300$, $2000$ steps, and a fixed sample set of size $5000d$, of which QT uses $1000d$ samples at melt scale $m_e=2$; the surrogate ladder has length $M=2$. FAB is run at every dimension with the same flow, source, batch size and step count. Final sample ESS is evaluated on $80000$ fresh source samples. Each loss--dimension pair is one fixed-seed training realization.
+All five losses use the same identity-initialized NSF on $[-4,4]^d$. The fifth loss is LDR-L1, the forward KL with the centered penalty $\mathbb E_\pi|z-\mathbb E_\pi z|$ at coefficient $1$, written $\KL$+L1 below. At every dimension, training uses batch size $300$, $2000$ steps, and a fixed sample set of size $5000d$, of which QT uses $1000d$ samples at melt scale $m_e=2$; the SMC ladder has $M=2$. FAB is run at every dimension with the same flow, source, batch size and step count. Final sample ESS is evaluated on $80000$ fresh source samples. Each loss--dimension pair is one fixed-seed training realization.
 
 \begin{figure}[htb]
     \centering
@@ -824,7 +824,7 @@ with $\lambda=0$ being forward KL; KLXX at the coefficients used everywhere else
 target for comparison.
 
 All runs share an identity-initialized NSF on $[-4,4]^{100}$. Training uses batch size $300$, $2000$ steps, and a fixed
-sample set of $5\times10^{5}$ source samples, of which QT uses $10^{5}$ at melt scale $m_e=2$; the surrogate
+sample set of $5\times10^{5}$ source samples, of which QT uses $10^{5}$ samples at melt scale $m_e=2$; the SMC
 ladder has length $M=2$. Final sample ESS is evaluated on
 $80000$ fresh source samples, and each coefficient is one fixed-seed training realization.
 
@@ -991,7 +991,7 @@ At fixed $B=2000$, panel (b) follows the Monte Carlo rate, with log--log slopes 
 \subsection{Boltzmann generator on achiral molecules}
 \label{subsec: achiral}
 
-The targets above are analytic or lattice systems. We close with three molecules in implicit solvent at $300\,\mathrm K$, in mixed internal coordinates: $N$-methylacetamide (NMA, $d=30$), glycerol ($d=36$), and neutral diethanolamine ($d=48$). NMA uses the Amber ff96 force field and the other two use GAFF2 with AM1-BCC charges; all three carry the OBC1 implicit solvent with the ACE nonpolar term, with no cutoff and no bond constraints.
+The targets above are analytic or lattice systems. We close with three molecules in implicit solvent at $300\,\mathrm K$, in the mixed internal coordinates of \citet{noe2019boltzmann}, whitened as that work does: $N$-methylacetamide (NMA, $d=30$), glycerol ($d=36$), and neutral diethanolamine ($d=48$). Here $d$ counts the internal degrees of freedom: a molecule of $N_{\mathrm a}$ atoms has $d=3N_{\mathrm a}-6$ once global translation and rotation are removed, so the three carry $12$, $14$ and $18$ atoms. NMA uses the Amber ff96 force field and the other two use GAFF2 with AM1-BCC charges; all three carry the OBC1 implicit solvent with the ACE nonpolar term, with no cutoff and no bond constraints.
 
 The Lennard--Jones core grows as $r^{-12}$, so an early flow proposal can land at energies far outside the thermally occupied region. The stages therefore follow a regularized path instead of the direct interpolation used above. Flooring every nonbonded pair distance at $r$, and capping the reference-relative energy $\Delta E$ above a threshold $e$ by $e\bigl[1+\log(\Delta E/e)\bigr]$, gives a regularized potential $U^{\rho}$ with $\rho=(e,r)$, measured in $\mathrm{kJ\,mol^{-1}}$ and $\mathrm{nm}$. With $\rho_t=(1-t)\rho_0+t\rho_1$, the stage target is
 \begin{equation}
