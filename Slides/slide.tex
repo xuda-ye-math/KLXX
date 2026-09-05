@@ -77,23 +77,40 @@ Brin Mathematics Research Center, UMD}
 
 \begin{frame}{Boltzmann Generators: a Global Transport}
 	\small
-	One invertible map in place of a long chain. [No\'e et al., \textit{Science} 2019]
+	One invertible map in place of a Monte Carlo chain. [No\'e et al., \textit{Science} 2019]
 	\begin{itemize}
 		\setlength{\itemsep}{6pt}
 		\item Source $\pi_0\propto e^{-U_0}$, Gaussian. Normalizing flow $G$ trained so that $G_{\#}\pi\approx\pi_0$.
-		\item Pushforward $\nu:=(G^{-1})_{\#}\pi_0$ has a tractable density $\nu(y)=\pi_0(G(y))\bigl|\det J_G(y)\bigr|$.
-		\item Weight $w(y)=\pi(y)/\nu(y)$, and the log-ratio $z=\log w$:
-		\begin{equation*}
-			{\blue z(y)} = U_0(G(y)) - U(y) - \log\bigl|\det J_G(y)\bigr|.
-		\end{equation*}
-		\item Forward KL is exactly $\KL(\pi\|\nu) = \mathbb E_{y\sim\pi}\bigl[{\blue z(y)}\bigr]$.
- 		\item Reweighting by $w$ corrects the estimate where the flow puts samples, {\red never a region it misses}. Effective sample size $\ESS(w)=(\sum_i w_i)^2/(N\sum_i w_i^2)$ is read on the support reached.
+		\item Pushforward $\nu:=(G^{-1})_{\#}\pi_0$, tractable density $\nu(y)=\pi_0(G(y))\bigl|\det J_G(y)\bigr|$.
+		\item Conventional losses: reverse and forward KL,
+		\begin{align*}
+			\text{(reverse)}~~~ \KL(\nu\|\pi) & = \int_{\mathbb R^d} \nu(y) \log \frac{\nu(y)}{\pi(y)} \D y, \\
+			\text{(forward)}~~~ \KL(\pi\|\nu) & = \int_{\mathbb R^d} \pi(y) \log \frac{\pi(y)}{\nu(y)} \D y.
+		\end{align*}
+		\item Reverse KL: {\red silent} where $\nu$ misses a mode of $\pi$.
+		\item Forward KL: needs Monte Carlo samples of $\pi$ to train, and inherits their error.
 	\end{itemize}
+\end{frame}
+
+\begin{frame}{Forward KL Can Still Have Mode Collapse}
+	\small
+	\begin{itemize}
+		\setlength{\itemsep}{5pt}
+		\item Weight $w(y)=\pi(y)/\nu(y)$, log-ratio $z=\log w$:
+		\begin{equation*}
+			{\blue z(y)} = U_0(G(y)) - U(y) - \log\bigl|\det J_G(y)\bigr| ,
+			\qquad \KL(\pi\|\nu) = \mathbb E_{y\sim\pi}\bigl[{\blue z(y)}\bigr] .
+		\end{equation*}
+		\item Effective sample size $\ESS(w)=(\sum_i w_i)^2/(N\sum_i w_i^2)$ does not guarantee mode coverage. It can be {\red fake}.
+	\end{itemize}
+	\begin{center}
+		\includegraphics[width=0.9\textwidth]{figures/himmelblau_collapse_fake_ess.png}
+	\end{center}
 \end{frame}
 
 \begin{frame}{The Log-Ratio Variation}
 	\small
-	Wanted: a term added to the forward KL that evaluates at points from any distribution we can generate, needs {\blue no normalizing constant} of $\pi$, and keeps $\nu=\pi$ a minimizer.
+	Wanted: a term added to the forward KL. Evaluated at points from any distribution we can generate, needs {\blue no normalizing constant} of $\pi$, keeps $\nu=\pi$ a minimizer.
 	\begin{block}{Log-ratio variation at a weighting distribution $\omega$}
 		\begin{equation*}
 			\X_\omega(\pi\|\nu)
@@ -104,9 +121,9 @@ Brin Mathematics Research Center, UMD}
 	\end{block}
 	\begin{itemize}
 		\setlength{\itemsep}{6pt}
-		\item Normalizers cancel. A constant shift of $z$ leaves every difference unchanged.
-		\item $\X_\omega(\pi\|\nu)=0$ exactly when $z$ is constant $\omega$-a.s., i.e.\ $\nu\propto\pi$ on the support of $\omega$.
-		\item $\omega$ says where flatness is demanded, and it need not be $\pi$. This is the whole freedom the design uses.
+		\item Normalizers cancel: a constant shift of $z$ leaves every difference unchanged.
+		\item $\X_\omega(\pi\|\nu)=0$ exactly when $z$ is constant $\omega$-a.s., i.e.\ $\nu\propto\pi$.
+		\item $\omega$ says where flatness is demanded, and {\red it need not be $\pi$}. That freedom is the whole design.
 	\end{itemize}
 \end{frame}
 

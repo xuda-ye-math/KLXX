@@ -23,6 +23,7 @@ from matplotlib.colors import LinearSegmentedColormap
 HERE = Path(__file__).resolve().parent
 DATA = HERE / "artifacts" / "himmelblau_collapse.npz"
 OUT = HERE / "himmelblau_collapse.png"
+OUT_MARKED = HERE / "himmelblau_collapse_fake_ess.png"
 
 plt.rcParams.update({
     # the benchmark style, fonts enlarged for projection
@@ -77,5 +78,15 @@ plt.tight_layout()
 fig.subplots_adjust(wspace=0.05)
 fig.savefig(OUT, dpi=400, bbox_inches="tight")
 print(f"wrote {OUT}")
+
+# second copy for the frame that names the phenomenon: the forward KL panel
+# holds a high ESS on two wells of four, so it is marked at the source centre
+axes[2].text(0.0, 0.0, "Fake ESS", color="#D62728",
+             fontsize=15, fontweight="bold", style="italic",
+             ha="center", va="center", zorder=20,
+             bbox=dict(boxstyle="round,pad=0.28", facecolor="white",
+                       edgecolor="#D62728", linewidth=0.9, alpha=0.88))
+fig.savefig(OUT_MARKED, dpi=400, bbox_inches="tight")
+print(f"wrote {OUT_MARKED}")
 for key in ("reverse_KL", "forward_KL"):
     print(f"  {key}: ESS = {float(data[f'final_ess_{key}']):.4f}")

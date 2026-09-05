@@ -25,7 +25,7 @@ XLIM = 5.0
 
 plt.rcParams.update({
     "font.size": 15, "axes.labelsize": 16, "axes.titlesize": 14,
-    "legend.fontsize": 17, "xtick.labelsize": 15, "ytick.labelsize": 15,
+    "legend.fontsize": 11, "xtick.labelsize": 15, "ytick.labelsize": 15,
     "mathtext.fontset": "cm", "font.family": "serif",
 })
 
