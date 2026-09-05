@@ -96,7 +96,7 @@ The KLXX loss is the forward KL \eqref{eq: forward KL} augmented by two \emph{lo
 	\biggl|\log\frac{\pi(y)}{\nu(y)} - \log\frac{\pi(y')}{\nu(y')}\biggr| \D y\D y'.
 	\label{eq: X}
 \end{equation}
-This is the mean absolute pairwise difference of the log-ratio $z(y)$ in \eqref{eq: log-ratio}, with both points drawn independently from $\omega$; for a real random variable the functional is the Gini mean difference \citep{yitzhaki2003gini}. The pairwise difference cancels the unknown normalizers, and $\X_\omega(\pi\|\nu)=0$ exactly when $z$ is $\omega$-almost surely constant. The normalizing constants of \eqref{eq: log-ratio} are therefore omitted: they depend on neither $y$ nor $G$, so they drop out of every log-ratio difference and shift the forward KL by a fixed amount. The two variations are:
+This is the mean absolute pairwise difference of the log-ratio $z(y)$ in \eqref{eq: log-ratio}, with both points drawn independently from $\omega$; for a real random variable the functional is the Gini mean difference \citep{yitzhaki2003gini}. The pairwise difference cancels the unknown normalizers, and $\X_\omega(\pi\|\nu)=0$ exactly when $z$ is $\omega$-almost surely constant. The normalizing constants of \eqref{eq: log-ratio} are therefore omitted: they depend on neither $y$ nor $G$, so they shift the forward KL by a fixed amount. The two variations are:
 
 \textbf{Target variation}: $\X_\omega$ with $\omega = \pi$, the target distribution. It is evaluated on the target samples the forward KL already draws.
 
@@ -465,7 +465,7 @@ After each reweighting, we resample and rejuvenate the duplicates before the nex
 \end{algorithm}
 \medskip
 \noindent
-An SMC sampler that leaves every level of the path \eqref{eq: mu-m} invariant would rejuvenate at level $m$ with a Markov kernel invariant for $\mu_m$. For $m<M$, a MALA kernel for $\mu_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$; at $m=M$, this term disappears because $\mu_M=\pi$. Algorithm~\ref{alg: annealing} instead applies MALA directly under $\pi$, using only $-\nabla U$ in its proposal. The kernel needs only $-\nabla U$, and the price is that it preserves $\pi$ rather than the intermediate $\mu_m$, so the output is a biased target surrogate.
+An SMC sampler that leaves every level of the path \eqref{eq: mu-m} invariant would rejuvenate at level $m$ with a Markov kernel invariant for $\mu_m$. For $m<M$, a MALA kernel for $\mu_m$ would require $\nabla_y\log\nu(y)$ and hence positional derivatives of the flow density, including $\nabla_y\log|\det J_G(y)|$; at $m=M$, this term disappears because $\mu_M=\pi$. Algorithm~\ref{alg: annealing} instead applies MALA directly under $\pi$, using only $-\nabla U$ in its proposal. The price is that it preserves $\pi$ rather than the intermediate $\mu_m$, so the output is a biased target surrogate.
 
 The SMC construction in Algorithm~\ref{alg: annealing} differs from the AIS of FAB \citep{midgley2022flow}. FAB places the flow inside the chains, and its MCMC transitions target the surrogate $\pi^2/\nu$, whose log-density gradient is
 \begin{equation*}
@@ -499,9 +499,9 @@ To detect such missing modes, we pair the ESS with the coverage diagnostic of \c
 \begin{equation}
     \mathrm{NND}(\hat y_i;{\hat{\mathcal Y}}) = \inf\Big\{ r \Ge 0 :
     \# \big\{1\Le j \Le P: 0 < |\hat y_i - \hat y_j| < r\big\} \Ge 5
-    \Big\},
+    \Big\}.
 \end{equation}
-i.e., the distance from $\hat y_i$ to its fifth nearest neighbor in $\hat{\mathcal Y}$. The coverage of $\mathcal Y$ in $\hat{\mathcal Y}$ is then
+The coverage of $\mathcal Y$ in $\hat{\mathcal Y}$ is then
 \begin{equation}
     \mathrm{Coverage}({\mathcal Y;\hat{\mathcal Y}}) =
     \frac{1}{P} \sum_{i=1}^{P} \mathbf 1\Bigl\{
@@ -510,7 +510,7 @@ i.e., the distance from $\hat y_i$ to its fifth nearest neighbor in $\hat{\mathc
 \end{equation}
 i.e., the fraction of points in $\hat{\mathcal Y}$ whose $5$-nearest-neighbor ball contains a point of $\mathcal Y$. A coverage close to $1$ indicates that the finite QT reference set is well covered by the flow, while a coverage well below $1$ shows missing regions that the ESS alone cannot detect. Because the reference set is itself produced by QT, the diagnostic checks only modes found by that reference construction.
 
-The same weights select the particles that the resampling step of Section~\ref{subsec: annealing} keeps. Normalize them as $p_i=w_i/\sum_{j=1}^{N}w_j$. Draw $N$ samples by multinomial resampling from the importance-weighted pushforward samples $(y_i,w_i)_{i=1}^{N}$ with probabilities $p_i$, and apply a short MALA chain under $\pi$ to rejuvenate the duplicates that resampling produces. The resampled samples form an unweighted approximation of the target-weighted empirical measure, while MALA produces fresh configurations and retains $\pi$ as its invariant distribution.
+The same weights select the particles that the resampling step of Section~\ref{subsec: annealing} keeps. Normalize them as $p_i=w_i/\sum_{j=1}^{N}w_j$. Draw $N$ samples by multinomial resampling from the importance-weighted pushforward samples $(y_i,w_i)_{i=1}^{N}$ with probabilities $p_i$, and apply a short MALA chain under $\pi$ to rejuvenate the duplicates that resampling produces. The resampled samples form an unweighted approximation of the target-weighted empirical measure, while MALA retains $\pi$ as its invariant distribution.
 
 \begin{remark}
 	MALA or another local Monte Carlo method is needed to keep the samples distinct after resampling: even uniform weights can produce duplicates, and a low ESS produces more. The QT subsample of step~(iii) of the KLXX training algorithm (Algorithm~\ref{alg: training}) is rejuvenated the same way: the points drawn from $\hat{\mathcal Y}$ are advanced by a short MALA chain under the target before they enter the mixture. The source batch of step~(i) is not.
@@ -694,7 +694,6 @@ so that the inequality \eqref{eq: propagation-bound} equivalently reads
     \bigl\lVert \pi_K^N\langle \varphi\rangle - \pi_K\langle \varphi\rangle \bigr\rVert_2
     \Le \frac{\operatorname{osc}(\varphi)}{2}\, \frac{F_\Sigma}{\sqrt N}.
 \end{equation*}
-The propagation factor multiplies the error itself rather than its square.
 
 $F_\Sigma$ is built from the essential supremum of each stage weight, which makes it impractical. One rare configuration of large weight fixes the supremum, so $\lVert w_j \rVert_\infty$ can be enormous at a stage that otherwise behaves well; for a singular potential it is difficult to estimate accurately, and need not be finite at all. We therefore estimate the training difficulty by a second propagation factor, assembled from the ESS of each accepted stage, a quantity the run computes anyway. For the stage weight, the ESS of \eqref{eq: ESS} reads
 \begin{equation}
@@ -707,14 +706,7 @@ The factor $F$ keeps the leading product of \eqref{eq: propagation-factor-sigma}
     := \prod_{j=1}^{K} \frac{1}{\sqrt{\ESS(w_j)}} .
     \label{eq: propagation-factor-F}
 \end{equation}
-Each substitution moves in a known direction. Since $\lVert w_j \rVert_\infty \Ge \int w_j \, \D\nu_j = 1$,
-\begin{equation*}
-    \frac{1}{\ESS(w_j)} = \int_{\mathbb R^d} w_j^2 \, \D\nu_j \Le \lVert w_j \rVert_\infty \Le \lVert w_j \rVert_\infty^{2}
-    \quad\text{for every accepted stage } j
-    \quad\Longrightarrow\quad
-    F \Le F_\Sigma .
-\end{equation*}
-The inequality runs the wrong way for a bound: $F$ lies below $F_\Sigma$, so it does not bound the constant of \eqref{eq: propagation-bound}. The factor $F$ also drops both the summation over the stage at which an error enters and the factors $3$, and it reads each weight through its second moment rather than its supremum. Every factor in \eqref{eq: propagation-factor-F} is at least one, so $F \Ge 1$, with equality exactly when every stage proposal equals its target.
+Each substitution only lowers the factor, since $\int_{\mathbb R^d} w_j^2 \, \D\nu_j \Le \lVert w_j \rVert_\infty \Le \lVert w_j \rVert_\infty^{2}$ by $\lVert w_j \rVert_\infty \Ge \int_{\mathbb R^d} w_j \, \D\nu_j = 1$. Hence $F \Le F_\Sigma$, and $F$ does not bound the constant of \eqref{eq: propagation-bound}. Every factor in \eqref{eq: propagation-factor-F} is at least one, so $F \Ge 1$, with equality exactly when every stage proposal equals its target.
 
 The calculation of $F$ requires the $\nu_j$-integral $\int w_j^2 \, \D\nu_j$. A Boltzmann generator run already evaluates the stage weight vectors $W_j = (W_j^1,\dots,W_j^N)$ with $W_j^i = w_j(Y_j^i)$, and the sample ESS of each vector is read off them at no further cost, giving the propagation factor that the experiments report,
 \begin{equation}
@@ -726,7 +718,7 @@ $F$ summarizes the weight degeneracy of the composed flow along one accepted sch
 
 The argument behind Theorem~\ref{thm: propagation} already appears in the particle-system literature. A sum over the stage at which the error enters, times a product over the stages it must still traverse, is the standard form for Feynman--Kac particle systems \citep{delmoral2004feynman,chopin2020introduction}, and is the form of the variance recurrence AFT \citep{arbel2021annealed} and CRAFT \citep{matthews2022craft} obtain as a central limit theorem. Our scheme is such a system, with the trained stage map composed with the rejuvenation kernel as the mutation and the stage weight $w_k$ as the potential, so \eqref{eq: propagation-bound} is that recurrence unrolled, bounded rather than exact, and explicit at finite $N$.
 
-In the variance recurrence of those analyses, the term injected at a stage is a second moment of the stage weight, the quantity the stage ESS of \eqref{eq: propagation-ESS} measures. This is why $F$ is assembled from stage ESS values, and why an essential supremum, read in the worst case rather than in the mean square, gives the more conservative $F_\Sigma$. Being a product of factors at least one, $F$ grows with every extra stage, so two losses are comparable only on a shared schedule, as in Section~\ref{subsec: clock}. The experiments print its sample value $\hat F$, since $F$ itself needs the exact integrals $\int w_j^2\D\nu_j$.
+In the variance recurrence of those analyses, the term injected at a stage is a second moment of the stage weight, the quantity the stage ESS of \eqref{eq: propagation-ESS} measures. This is why $F$ is assembled from stage ESS values. Being a product of factors at least one, $F$ grows with every extra stage, so two losses are comparable only on a shared schedule, as in Section~\ref{subsec: clock}. The experiments print its sample value $\hat F$, since $F$ itself needs the exact integrals $\int w_j^2\D\nu_j$.
 
 % ===================== Section 5: model problems =====================
 \section{Numerical experiments}
