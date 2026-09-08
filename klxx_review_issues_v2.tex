@@ -1,0 +1,462 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%  Correctness review, round 2 (revised manuscript)
+%
+%  "Mode Coverage in Normalizing Flow Boltzmann Generators via Log-Ratio
+%   Variation"  (Feng, Lai, Qi, Ye)  --  formerly "Forward KL Can Be Better"
+%
+%  Standalone: compiles with pdflatex. Manuscript objects are referred to by
+%  descriptive name; the reference key maps each name to its \label.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass[11pt]{article}
+
+\usepackage[margin=1.05in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{enumitem}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black]{hyperref}
+
+\newcommand{\R}{\mathbb R}
+\newcommand{\E}{\mathbb E}
+\newcommand{\D}{\,\mathrm d}
+\newcommand{\KL}{\mathrm{KL}}
+\newcommand{\ESS}{\mathrm{ESS}}
+\newcommand{\X}{\mathcal X}
+\newcommand{\osc}{\operatorname{osc}}
+\newcommand{\Le}{\leqslant}
+\newcommand{\Ge}{\geqslant}
+\newcommand{\lab}[1]{\texttt{\small #1}}
+\usepackage{pifont}
+\newcommand{\ok}{\textcolor{green!50!black}{\ding{51}}}
+
+\newcommand{\where}[1]{\smallskip\noindent\textbf{Where.}\ #1\par}
+\newcommand{\what}[1]{\smallskip\noindent\textbf{What.}\ #1\par}
+\newcommand{\why}[1]{\smallskip\noindent\textbf{Why it matters.}\ #1\par}
+\newcommand{\fix}[1]{\smallskip\noindent\textbf{Suggested fix.}\ #1\par}
+
+\title{\bf Correctness review, round 2\\[3pt]
+\large \emph{Mode Coverage in Normalizing Flow Boltzmann Generators via
+Log-Ratio Variation} --- revised manuscript}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+\vspace{-3em}
+
+\section*{Summary}
+
+The revision addresses seven of the eight round-1 issues and two of the round-1
+minor items, and it does so well: the one-nat cap is now in the main text, the
+unbiasedness hypothesis travels with every statement of the result, the
+inference pass is Algorithm~6 with an explicit scope remark, the
+$\hat F_\Sigma/(2\sqrt N)$ scale is applied to all three chiral targets, the
+$\tau_{\mathrm v}$ default matches the runs, and the framing of \S2.2 is now
+honest about whose rate it is. The mathematics was sound before and is
+unchanged. Three things in the \emph{new} material need attention before
+submission, in this order:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item the AI-use declaration became \emph{narrower} in a revision in which the
+      AI-assisted content became \emph{broader}, and it still lacks the sentence
+      SIAM requires verbatim (\S\ref{sec:decl});
+\item the new ``time average'' paragraph after Theorem~2.1 is a heuristic that
+      does not hold; the correct reconciliation is shorter and is given below
+      (\S\ref{sec:timeavg});
+\item the new paragraphs quoting numbers from the FAB and TA-BG papers are
+      almost all right --- I checked them against the sources --- but two
+      details need adjusting (\S\ref{sec:cites}).
+\end{enumerate}
+
+\noindent
+The rest is editorial: stale sentences left over from the reframing, one
+insertion that broke the flow of a remark, and the round-1 minor items that
+were not picked up.
+
+\subsection*{Round-1 status}
+
+\begin{center}
+\small
+\begin{tabular}{@{}clll@{}}
+\toprule
+\# & round-1 item & status & note \\
+\midrule
+1 & dangling reference; one-nat cap unstated & \ok\ fixed & \S2.3, blue paragraph \\
+2 & unbiasedness without hypothesis & \ok\ fixed & abstract, contribution 4, \S7 \\
+3 & Remark B.1 excludes defaults & \ok\ fixed & but see \S\ref{sec:remB1}: the insertion breaks the remark \\
+4 & $e^{-t}$ rate is forward KL's & \ok\ fixed & but \S2 intro and App.~A title are stale (\S\ref{sec:stale}) \\
+5 & finite-sample story, one target only & \ok\ fixed & option (ii), all three scales \\
+6 & $q$ double-booked & \ok\ fixed & but $Q_i$ now meets $Q_k$ (\S\ref{sec:Q}) \\
+7 & theorem attached to unnumbered scheme & \ok\ fixed & Algorithm~6 + scope remark \\
+8 & $\tau_{\mathrm v}$ default never used & \ok\ fixed & $0.4$ everywhere \\
+\midrule
+m1 & achiral ratios round the other way & \ok\ fixed & $2.17$, $1.87$ \\
+m2 & leftover commented block & \ok\ fixed & \\
+m3 & ``stage time'' vs ``wall time'' & open & Table~10 caption still differs \\
+m4 & ``zero'' should be ``constant'' & open & \S1, unchanged \\
+m5 & ``decays as'' is a bound & \ok\ fixed & conclusions \\
+m6 & tie rule missing from Algorithm~5 & open & \\
+m7 & termination not argued & open & \\
+m8 & \S6.5 cross-reference to \S6.3 & open & \\
+m9 & $E_{\mathrm{vac}}$ defined then dropped & open & \\
+m10 & symbol reuse & open & $q_k$ in Lemma C.1 still there \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection*{Reference key}
+
+\begin{center}
+\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+name used in this note & label in the manuscript \\
+\midrule
+the accuracy theorem & \lab{thm: accuracy} \\
+the propagation theorem & \lab{thm: propagation} \\
+the domination remark & \lab{rem: appendix-domination} \\
+the one-step lemma & \lab{lem: onestep} \\
+the FR flow & \lab{eq: FR-flow} \\
+the dissipation identity & \lab{eq: combined-rate} \\
+the stationarity identity & \lab{eq: surrogate-stationary} \\
+the biased loss & \lab{eq: KLXX-biased} \\
+the training algorithm & \lab{alg: training} \\
+the SMC surrogate & \lab{alg: annealing} \\
+the staging algorithm & \lab{alg: boltzmann} \\
+the inference algorithm & \lab{alg: inference} \\
+the FR appendix & \lab{sec: appendix-FR} \\
+the discussion section & \lab{subsec: mol-discussion} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+%==============================================================================
+\section{The declaration of AI use}
+\label{sec:decl}
+%==============================================================================
+
+\where{``Declaration of AI use'', after Data Availability.}
+
+\what{The previous version declared assistance with ``writing and testing the
+code, developing the proof of Theorem~[propagation], and general manuscript
+writing.'' The revision declares assistance with ``writing and testing the
+codes'' only. Between the two versions, several passages that an AI drafted or
+reviewed entered the manuscript --- the positivity argument in the domination
+remark, the scope remark after the propagation theorem, the hypothesis clause
+on unbiasedness, the three-target scale estimates in \S6.5, and the corrected
+ratios --- and the whole manuscript was reviewed twice. The declared scope
+moved in the opposite direction from the actual one.}
+
+\why{Under the SIAM policy you asked about, disclosure is mandatory, the
+statement ``The authors assume responsibility for all content'' is required
+verbatim, and ``negligent or undisclosed usage of AI, whether intentional or
+not, is grounds for an author integrity investigation.'' Items~2.2 (proofs) and
+2.1 (related-work accuracy) are called out specifically, and the revision
+touches both: the propagation theorem's exposition and the new \S1.2 and \S6.6
+paragraphs that quote other papers' numbers. Nothing here is a problem
+scientifically --- the policy permits all of it --- but only if it is declared.
+The current sentence ``take full responsibility for the correctness of the
+results'' is narrower than the required one (results, not content) and the
+narrowed scope is now inaccurate. This is the one item in the paper that could
+hurt you independently of the science.}
+
+\fix{Restore the fuller scope and add the required sentence. Name whichever
+models were actually used; I do not know which ones were used for the code.}
+
+\begin{verbatim}
+\subsection*{Declaration of AI use}
+The authors used Claude (Anthropic) to assist with writing and
+testing the code, with drafting and checking proofs, and with
+reviewing and editing the manuscript, including the checking of
+numerical claims quoted from other publications. All data and
+numerical results reported in this paper are generated directly by
+our Python scripts and are presented without any embellishment. The
+authors have reviewed all AI-assisted content. The authors assume
+responsibility for all content.
+\end{verbatim}
+
+%==============================================================================
+\section{The ``time average'' paragraph after Theorem 2.1}
+\label{sec:timeavg}
+%==============================================================================
+
+\where{\S2.3, the last blue paragraph before \S3.}
+
+\what{The paragraph reconciles the fixed $\tilde\pi$ of the accuracy theorem
+with the per-step surrogate of the training algorithm by saying that ``the
+surrogate the flow descends against over a training run is the time average of
+the per-step SMC sample sets, and it is that averaged distribution that plays
+the role of $\tilde\pi$ in the theorem.''}
+
+\why{This does not hold, for three reasons. (a) The per-step surrogate is built
+from pushforward samples of the \emph{current} flow, so its time average along
+a training run is a trajectory-dependent object, not a distribution the theorem
+can be handed. (b) The target variation is quadratic in its outer measure
+($\tilde\pi\otimes\tilde\pi$), so the average of the per-step losses is not the
+loss at the averaged surrogate; averaging commutes with the KL term only.
+(c) The theorem is a statement about a \emph{stationary point}, where no
+averaging is needed at all. The correct reconciliation is shorter and is
+already implicit in the proof: nothing in Appendix~B uses any property of
+$\tilde\pi$ beyond the stationarity identity, exactly as nothing uses any
+property of $\xi$ beyond it --- the same observation the paper already makes
+for $\bar\nu$.}
+
+\fix{Replace the paragraph by:}
+
+\begin{verbatim}
+Theorem~\ref{thm: accuracy} holds a single $\tilde\pi$ fixed, while
+Algorithm~\ref{alg: training} rebuilds the surrogate at every step
+from the current flow. The two meet at a stationary point. The SMC
+samples enter the loss as data and are never differentiated through,
+so the gradient that vanishes at a stationary flow $\nu_\star$ is the
+Fisher--Rao gradient of \eqref{eq: KLXX-biased} with $\tilde\pi$
+frozen at the surrogate Algorithm~\ref{alg: annealing} produces when
+initialized from $\nu_\star$, namely the marginal law $\tilde\pi_\star$
+of one output particle. Identity \eqref{eq: surrogate-stationary}
+therefore holds with $\tilde\pi=\tilde\pi_\star$, and the proof of
+Theorem~\ref{thm: accuracy} uses nothing about $\tilde\pi$ beyond that
+identity, so the theorem applies with that surrogate, just as it
+applies with $\xi$ containing the detached copy of $\nu_\star$.
+\end{verbatim}
+
+\noindent
+One further honesty note, optional: the empirical variation pairs two particles
+of the same SMC batch, which after resampling are exchangeable but not
+independent, so $\tilde\pi_\star\otimes\tilde\pi_\star$ is the independent-pair
+idealization of that batch. This was equally true of the previous version and
+is worth one clause, not a paragraph.
+
+%==============================================================================
+\section{Claims quoted from other papers}
+\label{sec:cites}
+%==============================================================================
+
+The new \S1.2 paragraph and \S6.6 quote specific numbers from
+the FAB paper (arXiv:2208.01893, Table~2) and TA-BG (arXiv:2501.19077, Table~1).
+I checked each against the source. Most are exact; two need adjusting and one
+is confirmed for only one of the two papers it is attributed to.
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{@{}p{0.43\textwidth}p{0.36\textwidth}p{0.13\textwidth}@{}}
+\toprule
+claim in the manuscript & source & verdict \\
+\midrule
+\endhead
+FAB w/ buffer ESS $92.8\%$ on alanine dipeptide (FAB Table~2) & $92.8\pm0.1$ & \ok \\
+reverse KL flow $54\%$ vs.\ ML flow $2.8\%$ (FAB Table~2) & $54\pm12$ vs.\ $2.8\pm0.6$ & \ok \\
+reverse KL Ramachandran KLD worse ``by more than two orders of magnitude'' & $3.17\pm0.20$ vs.\ $(3.42\pm0.45)\times10^{-3}$ (FAB w/ buffer), $(7.57\pm3.80)\times10^{-3}$ (ML) & \ok \\
+FAB paper calls the ESS of mode-missing baselines ``spurious'' & ``\dots and spurious values for the ESS'' & \ok\ (verbatim) \\
+FAB retrained: $94.81\%$ (TA-BG Table~1) & $(94.81\pm0.04)\%$ & \ok \\
+TA-BG ``reports the ESS on flow samples even though that quantity does not capture mode collapse'' & ``we chose to only use the reverse ESS, even though it does not capture mode collapse'' & \ok \\
+TA-BG Table~1: reverse KL has the highest ESS on tetrapeptide and hexapeptide & tetra: $74.88$ vs.\ $63.59$ (FAB), $62.36$ (TA-BG), $45.29$ (fwd); hexa: $22.22$ vs.\ $14.71$, $14.64$, $10.97$ & \ok \\
+\dots ``while collapsing almost entirely onto the main mode'' & TA-BG says ``now almost entirely collapses'' of the \emph{hexapeptide}; for the tetrapeptide it gives RAM KLD $0.30$ vs.\ $\sim\!0.003$--$0.007$ & adjust wording \\
+FAB ``resolving the metastable states of its largest system only partially'' & ``While FAB is partially able to resolve the metastable states, they differ in shape'' & \ok \\
+FAB ``reaching comparable accuracy on peptides at roughly three times the target energy evaluations'' & PE evals FAB/TA-BG: dipeptide $2.13{\times}10^8/7.56{\times}10^7=2.8$; tetrapeptide $2.8$; hexapeptide $4.2{\times}10^8/3.08{\times}10^8=1.4$ & adjust: holds for di- and tetrapeptide only \\
+``both computed \dots after clipping the highest $0.01\%$ of the importance weights'' & TA-BG: ``we clipped the 0.01\,\% highest importance weights to the lowest value among them'' \ok. FAB paper: no clipping statement found in two passes over the PDF & confirm for FAB, or attribute to TA-BG only \\
+\bottomrule
+\end{longtable}
+\end{center}
+
+\fix{Three edits. (i) \S1.2: ``\dots on alanine di- and tetrapeptide at
+roughly three times the target energy evaluations, and resolving the metastable
+states of its largest system only partially.'' (ii) \S6.6: ``\dots the reverse
+KL run has the highest ESS of the four methods on both alanine tetrapeptide and
+alanine hexapeptide, with a Ramachandran KL divergence two orders of magnitude
+worse than the others' on both and, on the hexapeptide, an almost complete
+collapse onto the main mode.'' (iii) \S6.6, clipping: either locate the
+statement in the FAB paper and keep ``both'', or write ``the latter computed
+after clipping the highest $0.01\%$ of the importance weights''. Under
+SIAM~2.1 the authors are responsible for these being right, so this is worth
+five minutes with the two PDFs.}
+
+%==============================================================================
+\section{Remark B.1: the insertion broke the remark}
+\label{sec:remB1}
+%==============================================================================
+
+\where{The domination remark, Appendix~B.}
+
+\what{The purple positivity argument was inserted between ``that is
+$\nu_\star\Ge(1-2\lambda-2c\vartheta)\tilde\pi>0$'' and ``Dividing $\pi$ by
+this bound and integrating gives \dots''. After the insertion, ``this bound''
+refers back across five lines that have just said the bound is not needed, and
+the two conclusions $\E_{\tilde\pi}[w_\star]\Le(1-2\lambda-2c\vartheta)^{-1}$,
+$\E_\xi[w_\star]\Le c(\cdots)^{-1}$ now read as consequences of the
+self-enforcing positivity, which they are not --- they need the quantitative
+domination bound.}
+
+\fix{Move the purple sentences to the end of the remark, after the two
+expectation bounds, and open them with ``The condition is sufficient but
+conservative: \dots''. Consider also adding one clause after the FR flow in
+\S2.2, since the flow case is where a reader first meets the coefficient
+$1+2\lambda S^\pi$ and wonders about its sign: ``where $\nu_t$ is small the
+weight is large, both correlations approach $+1$, and the drift approaches
+$\pi(1+2\lambda)+2\vartheta\xi>0$, so positivity is preserved at every
+$\lambda,\vartheta\Ge0$.''}
+
+%==============================================================================
+\section{Stale sentences from the reframing of \S2.2}
+\label{sec:stale}
+%==============================================================================
+
+\S2.2 was retitled ``Fisher--Rao gradient of the KLXX loss'' and its opening
+now asks ``what the gradient flow it induces dissipates''. Three places did not
+follow:
+
+\begin{enumerate}[leftmargin=*,itemsep=2pt]
+\item \S2, the paragraph before \S2.1: ``The three subsections below take the
+      generalized loss in turn: a formal account of how the mixture variation
+      contributes to mode discovery, \emph{a derivation of exponential
+      convergence for the Fisher--Rao gradient flow}, and an accuracy bound
+      \dots'' --- replace the middle clause by ``the Fisher--Rao gradient flow
+      and its dissipation identity''.
+\item The FR appendix: its title ``Proof of Fisher--Rao gradient flow
+      convergence'' and its first paragraph (``ask how fast $\nu_t$ approaches
+      the target'') still advertise the old framing. Retitle ``Fisher--Rao
+      gradient flow and dissipation identity''; the derivation itself can stay
+      as it is, including the closing $e^{-t}$ sentence, which is now
+      correctly qualified.
+\item \S2.2 has the detachment of $\bar\nu$ twice in a row: the new blue
+      sentence ``Since $\bar\nu$ is detached, $\xi$ is held fixed when the
+      gradient is taken and then follows $\nu_t$ along the flow \dots'' is
+      immediately followed by the old ``The mixture $\xi$ depends on $\nu_t$
+      through $\bar\nu$, but $\bar\nu$ is detached and takes no part in the
+      gradient calculation, so $\xi$ is held fixed when the variation is
+      taken.'' Delete the second.
+\end{enumerate}
+
+\noindent
+Also in \S2.2, in the blue text after the dissipation identity: ``At
+$\lambda=\vartheta=0$ the flow is the linear equation \dots and the dissipation
+is the single term $-\chi^2$. Since $\chi^2\Ge\KL$, \emph{discarding them}
+leaves the decay \dots'' --- the antecedent of ``them'' is two sentences back;
+write ``discarding the two variation terms''.
+
+%==============================================================================
+\section{Other new material}
+%==============================================================================
+
+\subsection{\S5.1, the FAB comparison}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item ``at convergence FAB should hold the highest ESS here, and on Three-Well
+      it does, at $0.985$'' --- $\KL$+$\X_\pi$ has $0.994$ on Three-Well. The
+      table's bold rule (highest among mode-complete methods) is right; the
+      sentence needs the same qualifier: ``the highest ESS among the
+      mode-complete methods, and on Three-Well it does''.
+\item ``we initialize the same neural spline flow at the identity and compare
+      the four losses above'' --- five methods now; ``the four losses above and
+      FAB''.
+\item ``so the runs differ only in the objective'' --- FAB also brings its AIS
+      path to $\pi^2/\nu$ and the prioritized replay buffer, which the
+      sentence before lists. ``differ only in the objective and the sampling
+      machinery that objective requires'' is accurate.
+\item The four figure captions now begin with FAB; the Two-Moon paragraph's
+      ``all four losses attain coverage $1$'' is still true of the KL family
+      and FAB alike, so it can stand.
+\end{itemize}
+
+\subsection{\S1.2, the new comparison paragraph}
+
+\begin{itemize}[leftmargin=*,itemsep=2pt]
+\item ``LDR-L1 is within a factor of two of $\KL$+$\X_\pi$ at the same
+      coefficient, so it is already represented among the losses we run'' ---
+      a two-sided bound on the \emph{penalty} does not make one loss represent
+      the other in training, and the paper said as much a page earlier (``This
+      suggests similar training performance, although the losses are not
+      equivalent''). ``so it is approximately represented'' keeps both
+      sentences consistent.
+\item ``rather than against the methods of Section~[loss-related]'' --- the
+      paragraph is inside that section. ``the other methods of this section''.
+\end{itemize}
+
+\subsection{\S2.2 remark}
+
+``Fisher--Rao geometry works in unconstrained density space and therefore
+cannot see mode collapse, which is a pathology of the parametrization and of
+the optimizer.'' --- It is at least as much a pathology of the \emph{sampled
+surrogate}: the exact forward KL in density space sees every mode, and it is
+the missing training points that lose them. Theorem~2.1 is precisely the
+density-space model of that part. ``a pathology of the sampled surrogate, the
+parametrization, and the optimizer''.
+
+\subsection{\S4.4, the Feynman--Kac paragraph}
+
+``with the trained stage map composed with the rejuvenation kernel as the
+mutation and the stage weight $w_k$ as the potential'' --- in the standard
+mutation-then-selection form, the mutation that precedes selection by $w_k$ is
+$Q_{k-1}$ followed by $G_k^{-1}$ (the previous stage's kernel, then this
+stage's map), since $w_k$ is evaluated at $Y_k=G_k^{-1}(X_{k-1})$. One
+clause: ``the rejuvenation kernel of one stage composed with the map of the
+next as the mutation''.
+
+\subsection{$Q_i$ and $Q_k$}
+\label{sec:Q}
+
+The round-1 suggestion to rename the charges $Q_i$ assumed the Markov kernel
+$Q_k$ stayed in Appendix~C. Algorithm~6 has now, rightly, moved $Q_k$ into
+\S4.4, so the two meet in the main text after all --- my suggestion, my
+apology. Use $c_i$ or $\mathsf q_i$ for the charges. And $q_k$ in the proof of
+the one-step lemma is still there; $\delta_k$.
+
+%==============================================================================
+\section{Minor}
+%==============================================================================
+
+\begin{enumerate}[leftmargin=*,itemsep=4pt]
+\item \textbf{Empty section.} \verb|\section*{Acknowledgments}| now has no
+      body; either fill it or delete it.
+\item \textbf{Round-1 minor items still open:} ``almost surely \emph{zero} on
+      the support of $\omega$'' (\S1) should be \emph{constant}; Table~10 says
+      ``total stage time'' while Tables~8--9 say ``total wall time'' and \S1.1
+      quotes $72.7$ minutes as a completion time; the tie rule (``ties
+      retaining the identity'', \S6.2) is still absent from Algorithm~5; the
+      termination of Algorithm~5 is still unargued; \S6.5 still points at
+      \S6.3 for the chiral references; $E_{\mathrm{vac}}$ is still defined and
+      then dropped; $t_{\mathrm{safe}}=0.2$ is still a default no run uses.
+\item \textbf{Wording.} \S1: ``A more universal strategy'' --- the previous
+      ``A complementary strategy'' was better English. \S2: ``with no further
+      confusion'' --- ``without further comment''.
+\item \textbf{Punctuation.} In Appendix~C the display of the recurrence ends
+      ``with the second term absent at $k=0$,'' and the next sentence begins
+      ``At $k=0$''; the comma should be a period. Appendix~C's
+      \verb|\section{ Proof of ...}| has a leading space left from the removed
+      color command.
+\item \textbf{Before submission.} Strip the blue/purple markup; hyperref will
+      also warn about \verb|\color| inside the \S2.2 \verb|\subsection| title
+      and the Algorithm~6 \verb|\caption| (moving arguments), harmlessly, until
+      it is removed.
+\end{enumerate}
+
+%==============================================================================
+\appendix
+\section{Numbers re-checked in this round}
+%==============================================================================
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}p{0.50\textwidth}p{0.20\textwidth}p{0.20\textwidth}@{}}
+\toprule
+quantity & in paper & recomputed \\
+\midrule
+achiral wall-time ratios & $2.02,2.17,1.87$ & $2.017,2.170,1.866$ \\
+$\hat F_\Sigma/(2\sqrt N)$, ADP / butanediol / Ac-Pro & $0.011/0.006/0.023$ & $0.0108/0.0059/0.0228$ \\
+FAB coverage as a mode count: Himmelblau $0.736$, Sparse $0.768$ & 3 of 4 wells & consistent with $3/4$ plus ball overlap \\
+FAB Three-Well $0.985$ vs.\ mode-complete KLXX $0.982$, $\hat\pi$-only $0.968$ & FAB bold & consistent with the caption's rule \\
+``$0.83$ or above for every other method'' on Two-Moon & --- & min is $0.831$ \\
+FAB geometric path from $\nu$ to $\pi^2/\nu$ passes through $\pi$ & stated & $\nu^{1/2}(\pi^2/\nu)^{1/2}=\pi$ \\
+$k=0$ term of $F_\Sigma$ equals $\prod_{j=1}^K\ESS(w_j)^{-1/2}$ & stated & confirmed \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Everything verified in round 1 (all propagation factors, stage schedules, atom
+counts, $\Delta G$ from populations, and so on) is unchanged in this version
+and was not re-derived.
+
+\end{document}
