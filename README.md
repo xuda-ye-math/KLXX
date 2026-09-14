@@ -69,9 +69,6 @@ in the `results/` folder that produced it, so the manuscript and the code tree
 cannot drift apart on the same machine. A fresh clone receives two independent
 copies, since Git records content rather than links.
 
-The alkane, chiral, and alanine dipeptide experiments of earlier revisions are
-not part of the current project tree.
-
 ## Numerical suites
 
 | Folder | Purpose |
@@ -84,7 +81,7 @@ not part of the current project tree.
 | `Codes/HD_100_Lambda/` | Sweep of the target-variation coefficient at d=100 |
 | `Codes/Achiral/` | Adaptive-staging Boltzmann generators on three achiral molecules |
 
-Every active driver documents its exact invocation at the top of the
+Every driver documents its exact invocation at the top of the
 file. Long runs save raw numerical arrays and checkpoints separately from
 plotting so figures can be regenerated without retraining.
 
@@ -107,8 +104,7 @@ environment.
 - The drivers depend on the installed Python packages `jflows` and `jflows_md`,
   which use a JAX backend; the specification and the environment for the tests
   are given in [`PYTHON.md`](PYTHON.md).
-- The reference molecular data are generated with OpenMM and AmberTools. The
-  peptide targets use Amber ff96 and the remaining targets use GAFF2 with
-  AM1-BCC charges; every target is solvated by the OBC1 (`igb=2`) implicit
+- The reference molecular data are generated with OpenMM and AmberTools. NMA
+  uses Amber ff96 and the other two targets use GAFF2 with AM1-BCC charges; every target is solvated by the OBC1 (`igb=2`) implicit
   solvent with the ACE nonpolar term.
 - Float32 is the default dtype for both training and evaluation.
