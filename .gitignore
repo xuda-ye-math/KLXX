@@ -79,3 +79,6 @@ edit*.pdf
 
 # SIAM submission working folder: kept locally
 /SIAM/
+
+# JCP submission working folder: kept locally
+/JCP/

@@ -608,7 +608,7 @@ def draw_dihedral_marker(
     axis.text(
         label_position[0],
         label_position[1],
-        r"trans, $\phi\approx\pi$",
+        r"trans, $\varphi\approx\pi$",
         color=GOLD,
         fontsize=7.5 if compact else 11.5,
         fontweight="bold",
